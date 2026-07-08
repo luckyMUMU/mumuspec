@@ -1,12 +1,14 @@
 # MumuSpec — AI 编程规范体系设计方案
 
-> **版本**: 0.4.0-draft
-> **日期**: 2026-07-08
+> **版本**: 0.5.0-draft
+> **日期**: 2026-07-09
 > **状态**: 设计草案
 >
 > **0.2.0 变更**: 新增三条核心工作流规则：默认 worktree 隔离、单一活跃变更约束、自顶向下设计 + 自下向上实现
 > **0.3.0 变更**: 状态机管理变更阶段，支持 Build/Verify 回退到 Design；Archive 阶段增加 git 提交与合并请求处理
 > **0.4.0 变更**: 新增外部 Skill 生态兼容层，支持 Superpowers/Agent Skills 等 skill 体系在开发各阶段提供指导
+> **0.4.1 变更**: 修复流程连贯性与正确性问题——状态机路径补全（hotfix/discard/accept-deviations/archive-ci-fail-rollback）、archive 拆分为 in-progress/completed 子状态、回退计数顺序修正（先 checks 后 side_effects）、verify-rebuild 独立计数（rebuild_count/rebuild_limit）、硬性规则与配置矛盾消除（single_active_change 固定、constraint_violation 拆分为 shall/shall_not）、Phase Guard 补强、阶段输入输出声明统一、hotfix/tweak 路径输入契约、Worktree 规则统一、自顶向下设计完整性、Archive 子流程事务性、规范继承 Enforcement 规则
+> **0.5.0 变更**: 新增目录级设计文档（design.md）——每个 `.mumuspec/` 目录维护本层设计文档，记录架构决策与设计原理；新增文档生成引擎——根据各目录下的 spec + design 自动生成对外技术文档和业务文档，支持多模板、多格式输出、CI 同步校验
 
 ---
 
@@ -135,7 +137,7 @@ graph TB
 
 | 层 | 职责 | 核心产出 |
 |----|------|---------|
-| **Spec Layer（规范层）** | 树状分布的双向约束规范，按目录结构分层存放 | `.mumuspec/` 目录树、各层 `spec.md`、`prohibitions.md` |
+| **Spec Layer（规范层）** | 树状分布的双向约束规范，按目录结构分层存放；每层维护设计文档；自动生成对外文档 | `.mumuspec/` 目录树、各层 `spec.md`、`design.md`、`prohibitions.md`、`docs/` 生成文档 |
 | **Change Layer（变更层）** | 变更驱动的规范生命周期管理 | `changes/<name>/` 下的 proposal/design/tasks/delta-specs |
 | **Code Graph Layer（代码图谱层）** | 代码结构索引，为规范提供代码事实基础 | 知识图谱（节点+边）、索引数据库 |
 | **Guard Layer（校验层）** | 自动化校验规范与代码一致性 | CI 检查脚本、lint 规则、phase guards、漂移检测 |
@@ -173,24 +175,37 @@ MumuSpec 的每个规范单元包含两类硬性约束：
 
 ### 3.2 树状目录结构 — 渐进式披露
 
-规范按项目目录结构分层存放。**每个目录的 `.mumuspec/` 包含该目录及其直接子目录的规范概要**，AI 从哪个目录切入，就只加载对应层级的规范。
+规范按项目目录结构分层存放。**每个目录的 `.mumuspec/` 包含该目录及其直接子目录的规范概要**，AI 从哪个目录切入，就只加载对应层级的规范。每个 `.mumuspec/` 目录同时维护本层的 `design.md` 设计文档，记录架构决策与设计原理。
 
 ```
 my-project/
 ├── .mumuspec/                          # 根层规范 (Level 0)
 │   ├── spec.md                         # 全局架构规范 + 正向/反向约束
+│   ├── design.md                       # 根层设计文档（架构决策、技术选型、全局设计原理）
 │   ├── prohibitions.md                 # 全局禁止清单（汇总）
 │   ├── config.yaml                     # MumuSpec 配置
 │   └── index.yaml                      # 规范索引（指向各子层）
 │
+├── docs/                               # 对外文档输出目录（自动生成）
+│   ├── technical/                      # 技术文档
+│   │   ├── architecture.md             # 系统架构文档（从根层 spec+design 生成）
+│   │   ├── api-reference.md            # API 参考文档（从 api 层 spec 生成）
+│   │   └── module-auth.md              # 模块技术文档（从 auth 层 spec+design 生成）
+│   └── business/                       # 业务文档
+│       ├── overview.md                 # 业务概览（从根层 spec 生成）
+│       └── feature-auth.md             # 认证功能说明（从 auth 层 spec 生成）
+│
 ├── src/
 │   ├── .mumuspec/                      # src 层规范 (Level 1)
 │   │   ├── spec.md                     # src 层编码规范 + 子目录概要
-│   │   └── prohibitions.md             # src 层禁止清单
+│   │   ├── design.md                   # src 层设计文档（模块划分决策、依赖关系设计）
+│   │   ├── prohibitions.md             # src 层禁止清单
+│   │   └── index.yaml                  # src 层子目录索引（auth/api/lib）
 │   │
 │   ├── auth/
 │   │   ├── .mumuspec/                  # auth 模块规范 (Level 2)
 │   │   │   ├── spec.md                 # 认证授权规范
+│   │   │   ├── design.md               # 认证模块设计文档（认证方案选型、token 策略设计）
 │   │   │   └── prohibitions.md         # 认证模块禁止项
 │   │   ├── login.ts
 │   │   └── token.ts
@@ -198,22 +213,27 @@ my-project/
 │   ├── api/
 │   │   ├── .mumuspec/                  # api 模块规范 (Level 2)
 │   │   │   ├── spec.md                 # API 设计规范
-│   │   │   └── prohibitions.md         # API 模块禁止项
+│   │   │   ├── design.md               # API 层设计文档（路由设计、中间件链设计）
+│   │   │   ├── prohibitions.md         # API 模块禁止项
+│   │   │   └── index.yaml              # api 层子目录索引（controllers/middlewares）
 │   │   ├── controllers/
 │   │   │   ├── .mumuspec/             # controllers 层规范 (Level 3)
-│   │   │   │   └── spec.md             # Controller 编写规范
+│   │   │   │   ├── spec.md             # Controller 编写规范
+│   │   │   │   └── design.md           # Controller 层设计文档（DTO 映射设计、异常处理策略）
 │   │   │   └── user.controller.ts
 │   │   └── middlewares/
 │   │       └── auth.middleware.ts
 │   │
 │   └── lib/
 │       ├── .mumuspec/                  # lib 模块规范 (Level 2)
-│       │   └── spec.md
+│       │   ├── spec.md
+│       │   └── design.md               # 工具库设计文档（工具分类策略、复用设计）
 │       └── utils.ts
 │
 ├── tests/
 │   └── .mumuspec/                      # 测试规范 (Level 1)
-│       └── spec.md
+│       ├── spec.md
+│       └── design.md                   # 测试策略设计文档（测试分层策略、覆盖率目标设计）
 │
 └── .mumuspec/
     └── changes/                        # 变更管理目录
@@ -224,15 +244,15 @@ my-project/
 
 ### 3.3 渐进式披露加载策略
 
-当 AI 从某个目录切入工作时，**只加载三层规范**：
+当 AI 从某个目录切入工作时，**只加载三层规范 + 设计文档**：
 
 ```mermaid
 graph TD
     subgraph Loaded["加载内容 — AI 在 src/api/controllers/ 目录工作"]
-        L0["Level 0: /.mumuspec/spec.md (全局规范)"]
-        L1["Level 1: /src/.mumuspec/spec.md (src 层规范)"]
-        L2["Level 2: /src/api/.mumuspec/spec.md (api 层规范)"]
-        L3["Level 3: /src/api/controllers/.mumuspec/spec.md (controllers 层规范)"]
+        L0["Level 0: /.mumuspec/spec.md + design.md (全局规范+设计)"]
+        L1["Level 1: /src/.mumuspec/spec.md + design.md (src 层规范+设计)"]
+        L2["Level 2: /src/api/.mumuspec/spec.md + design.md (api 层规范+设计)"]
+        L3["Level 3: /src/api/controllers/.mumuspec/spec.md + design.md (controllers 层规范+设计)"]
         IDX["概要: /src/api/.mumuspec/index.yaml (子目录索引)"]
         L0 --> L1 --> L2 --> L3
         L2 -.-> IDX
@@ -256,6 +276,7 @@ children:
       - "禁止在非 auth 模块中直接操作 token"
       - "禁止将密码明文记录到日志"
     spec_path: "src/auth/.mumuspec/spec.md"
+    design_path: "src/auth/.mumuspec/design.md"   # 设计文档路径
     
   api:
     summary: "API 层：Controller、Middleware、DTO 转换"
@@ -263,12 +284,14 @@ children:
       - "禁止 Controller 直接调用数据库 Repository"
       - "禁止在 Middleware 中修改请求体"
     spec_path: "src/api/.mumuspec/spec.md"
+    design_path: "src/api/.mumuspec/design.md"
     
   lib:
     summary: "通用工具库：工具函数、类型定义"
     key_prohibitions:
       - "禁止在 lib 中引入业务逻辑依赖"
     spec_path: "src/lib/.mumuspec/spec.md"
+    design_path: "src/lib/.mumuspec/design.md"
 ```
 
 ### 3.4 规范文件格式
@@ -373,16 +396,104 @@ scope: "src"
 | API-002 | 禁止在 Middleware 中修改请求体 | lint: `no-middleware-body-modify` |
 ```
 
+#### 3.4.3 `design.md` — 目录级设计文档
+
+每个 `.mumuspec/` 目录维护一份 `design.md`，**记录本层的设计决策、架构原理和上下文**。与 `spec.md`（定义"必须做什么/不能做什么"）互补，`design.md` 回答"为什么这样设计"。
+
+```markdown
+---
+# design.md frontmatter
+layer: 2                    # 设计文档层级（与 spec.md 一致）
+scope: "src/api"            # 设计作用范围
+last_updated: "2026-07-09"  # 最后更新日期
+design_version: "1.0"       # 设计版本号
+---
+
+# API 模块设计文档
+
+## Architecture Overview
+
+本层采用分层架构：Controller → Service → Repository。
+API 层作为外部请求入口，负责参数校验、DTO 转换和响应封装，
+不包含业务逻辑（业务逻辑下沉到 Service 层）。
+
+## Design Decisions
+
+### Decision: 选择 RESTful 风格而非 GraphQL
+- **背景**: 需要对外提供标准 HTTP API，客户端以 Web 前端为主
+- **决策**: 采用 RESTful 风格
+- **理由**: 团队熟悉度高、缓存友好、工具链成熟
+- **替代方案**: GraphQL（因学习成本和 N+1 风险放弃）
+- **影响**: 所有端点遵循 REST 资源命名规范（见 spec.md Requirement: RESTful 路由）
+
+### Decision: 统一响应信封格式
+- **背景**: 不同端点返回格式不一致，客户端处理复杂
+- **决策**: 所有响应使用 `{ code, message, data }` 信封
+- **理由**: 统一错误处理、简化客户端解析、支持渐进式扩展
+- **影响**: 定义为 spec.md SHALL 约束（enforce-response-envelope）
+
+## Component Relationships
+
+```mermaid
+graph TD
+    Client["客户端请求"]
+    MW["Middleware 链<br/>认证 → 日志 → 限流"]
+    Ctrl["Controller<br/>参数校验 + DTO 转换"]
+    Svc["Service 层<br/>业务逻辑"]
+    Repo["Repository<br/>数据访问"]
+    
+    Client --> MW --> Ctrl --> Svc --> Repo
+```
+
+## Key Interfaces
+
+| 接口 | 职责 | 消费方 |
+|------|------|--------|
+| `IRestController` | 所有 Controller 的基础接口，定义统一响应方法 | 所有 Controller |
+| `ResponseTransformer` | 将 Service 返回值转换为统一信封 | Controller 层 |
+| `IDtoMapper` | Entity ↔ DTO 映射接口 | Controller 层 |
+
+## Dependencies
+
+- **上游依赖**: 根层规范（全局架构约束、技术栈约束）
+- **下游约束**: controllers/ 层（继承本层所有 SHALL/SHALL NOT）
+- **外部依赖**: `express`（路由）、`class-validator`（参数校验）、`class-transformer`（DTO 转换）
+
+## Design History
+
+| 日期 | 版本 | 变更 | 变更关联 |
+|------|------|------|---------|
+| 2026-07-01 | 0.9 | 初始设计 | change: init-api-layer |
+| 2026-07-05 | 1.0 | 增加统一响应信封 | change: add-response-envelope |
+```
+
+**`design.md` 与 `spec.md` 的关系**：
+
+| 维度 | `spec.md` | `design.md` |
+|------|-----------|-------------|
+| 回答的问题 | 做什么 / 不能做什么 | 为什么这样设计 |
+| 约束类型 | 硬性约束（SHALL / SHALL NOT） | 设计决策与原理（软性指导） |
+| 可执行校验 | 有 Enforcement 检查 | 无直接校验，但影响 spec 生成 |
+| 变更触发 | 代码变更触发 delta-spec | 设计变更时同步更新 |
+| 文档生成 | 作为技术/业务文档的事实来源 | 作为架构决策记录(ADR)的来源 |
+| AI 加载 | 渐进式披露加载 | 与 spec.md 一同加载 |
+
+**设计文档维护规则**：
+1. 每个有 `.mumuspec/spec.md` 的目录**必须**同时维护 `design.md`
+2. 变更的 Design 阶段产出会更新对应层级的 `design.md`（delta-design 合并到主 design.md）
+3. `design.md` 中的 Design Decision 应与 `spec.md` 中的 Requirement 对应——每个关键决策产生对应的约束
+4. `design.md` 纳入漂移检测：检测设计文档描述的组件关系是否与代码图谱一致
+
 ### 3.5 规范层级关系
 
 ```mermaid
 graph TD
-    L0["Level 0 Root<br/>全局架构规范<br/>全局禁止项<br/>技术栈约束"]
-    L1["Level 1 src<br/>编码规范<br/>src 层禁止项<br/>模块划分约束"]
-    L2A["Level 2 auth<br/>认证规范<br/>认证禁止项"]
-    L2B["Level 2 api<br/>API 规范<br/>API 禁止项"]
-    L2C["Level 2 lib<br/>工具库规范<br/>lib 禁止项"]
-    L3A["Level 3 controllers"]
+    L0["Level 0 Root<br/>全局架构规范 + 设计文档<br/>全局禁止项<br/>技术栈约束"]
+    L1["Level 1 src<br/>编码规范 + 设计文档<br/>src 层禁止项<br/>模块划分约束"]
+    L2A["Level 2 auth<br/>认证规范 + 设计文档<br/>认证禁止项"]
+    L2B["Level 2 api<br/>API 规范 + 设计文档<br/>API 禁止项"]
+    L2C["Level 2 lib<br/>工具库规范 + 设计文档<br/>lib 禁止项"]
+    L3A["Level 3 controllers<br/>规范 + 设计文档"]
     L3B["Level 3 middlewares"]
 
     L0 -->|继承| L1
@@ -398,6 +509,248 @@ graph TD
 2. 子层可以收紧父层约束，但不能放宽
 3. 子层的 SHALL NOT 累加到父层（不覆盖）
 4. 子层可以添加父层没有的特定约束
+5. Enforcement 随对应 SHALL/SHALL NOT 一并继承：子层可通过相同 ID 重定义 check 方式（覆盖），但不可降低 severity（如父层 ERROR 子层不可降为 WARN）
+6. Enforcement 的 target 在继承时自动收敛到子层 scope（如父层 `target: "src/api/**/*.ts"` 在子层 `src/api/controllers/` 收敛为 `src/api/controllers/**/*.ts`）
+7. `design.md` 随规范层级一同继承：子层 `design.md` 的 Architecture Overview 应引用父层设计上下文，Design Decisions 可补充但不覆盖父层决策
+
+### 3.6 文档生成引擎 — 从规范到对外文档
+
+MumuSpec 不仅能约束 AI 编程行为，还能**根据各目录下的 spec.md + design.md 自动生成对外技术文档和业务文档**。这确保了对外文档始终与内部规范保持一致，消除"规范文档写完即过时"和"对外文档与内部规范脱节"两大痛点。
+
+#### 3.6.1 生成架构
+
+```mermaid
+graph TB
+    subgraph Sources["规范源文件（按目录树分布）"]
+        S0["Level 0: spec.md + design.md"]
+        S1["Level 1: spec.md + design.md"]
+        S2A["Level 2 auth: spec.md + design.md"]
+        S2B["Level 2 api: spec.md + design.md"]
+    end
+
+    subgraph Engine["文档生成引擎"]
+        TP["模板解析器<br/>Template Resolver"]
+        CTX["上下文聚合器<br/>Context Aggregator<br/>聚合目标层级 + 父层上下文"]
+        GEN["文档生成器<br/>Doc Generator<br/>按模板渲染 Markdown/HTML/PDF"]
+        CHK["一致性校验器<br/>Consistency Checker<br/>检测文档与规范漂移"]
+    end
+
+    subgraph Output["对外文档输出（docs/）"]
+        T["technical/ 技术文档"]
+        B["business/ 业务文档"]
+    end
+
+    S0 --> CTX
+    S1 --> CTX
+    S2A --> CTX
+    S2B --> CTX
+    CTX --> TP
+    TP --> GEN
+    GEN --> T
+    GEN --> B
+    S0 -.->|漂移检测| CHK
+    T -.->|漂移检测| CHK
+```
+
+#### 3.6.2 文档类型与映射规则
+
+文档生成引擎将规范源文件映射为两类对外文档：
+
+| 文档类型 | 目标读者 | 数据来源 | 生成内容 |
+|---------|---------|---------|---------|
+| **技术文档** (`docs/technical/`) | 开发者、架构师 | `spec.md` (Requirements + Enforcement) + `design.md` (Architecture + Decisions) | 架构文档、API 参考、模块技术说明、ADR 决策记录、依赖关系图 |
+| **业务文档** (`docs/business/`) | 产品经理、业务方、新成员 | `spec.md` (Requirements 描述) + `design.md` (Architecture Overview) | 功能概览、业务规则说明、模块职责描述、用户流程说明 |
+
+**层级到文档的映射规则**：
+
+| 规范层级 | 生成的技术文档 | 生成的业务文档 |
+|---------|-------------|-------------|
+| Level 0 (根) | `architecture.md` — 系统架构总览 | `overview.md` — 业务全景概览 |
+| Level 1 (src) | `tech-standards.md` — 技术规范汇总 | （通常不单独生成） |
+| Level 2 (模块) | `module-<name>.md` — 模块技术文档 | `feature-<name>.md` — 功能业务说明 |
+| Level 3 (子模块) | 合并到父模块文档的子章节 | 合并到父模块文档的子章节 |
+
+> Level 3 及更深层级的文档默认合并到父模块文档中，不单独生成文件，避免文档碎片化。
+
+#### 3.6.3 文档模板系统
+
+文档生成使用模板系统，模板定义了如何从 spec + design 提取信息并组织为对外文档：
+
+```yaml
+# .mumuspec/templates/technical-module.yaml
+# 技术文档模板：模块级
+
+template:
+  name: "technical-module"
+  type: technical
+  scope: module           # module | root | layer
+  
+  sections:
+    - title: "模块概述"
+      source: design.md#Architecture Overview
+      transform: "passthrough"    # 原样输出
+      
+    - title: "架构设计"
+      source: design.md#Component Relationships
+      transform: "render_mermaid" # 渲染 Mermaid 图表
+      
+    - title: "设计决策"
+      source: design.md#Design Decisions
+      transform: "extract_adr"    # 提取为 ADR 格式
+      
+    - title: "接口规范"
+      source: spec.md#Requirements
+      filter: "type == 'interface'"
+      transform: "to_api_table"   # 转换为 API 表格
+      
+    - title: "约束与限制"
+      source: spec.md#Requirements
+      filter: "type == 'constraint'"
+      transform: "to_constraint_list"
+      
+    - title: "禁止事项"
+      source: prohibitions.md
+      transform: "to_warning_list"
+      
+    - title: "变更历史"
+      source: design.md#Design History
+      transform: "to_changelog"
+```
+
+```yaml
+# .mumuspec/templates/business-module.yaml
+# 业务文档模板：模块级
+
+template:
+  name: "business-module"
+  type: business
+  scope: module
+  
+  sections:
+    - title: "功能概述"
+      source: design.md#Architecture Overview
+      transform: "simplify_for_business"  # 去除技术细节，保留业务描述
+      
+    - title: "业务规则"
+      source: spec.md#Requirements
+      filter: "type == 'business_rule'"
+      transform: "to_business_rule_list"
+      
+    - title: "用户流程"
+      source: design.md#Component Relationships
+      transform: "to_user_flow"           # 转换为用户可理解的流程图
+      
+    - title: "限制与注意事项"
+      source: spec.md#SHALL NOT
+      transform: "to_business_constraint"  # 转换为业务语言描述的约束
+```
+
+**模板查找规则**：
+1. 优先使用 `.mumuspec/templates/` 下的项目自定义模板
+2. 未找到自定义模板时，使用内置默认模板（`@mumuspec/templates/`）
+3. 模板可通过 npm 包分发和共享（`@mumuspec/template-*`）
+
+#### 3.6.4 上下文聚合策略
+
+文档生成时，引擎会聚合目标层级及其父层的上下文，确保生成的文档包含完整的上下文信息：
+
+```mermaid
+graph TD
+    subgraph Aggregation["生成 module-auth.md 时的上下文聚合"]
+        L0["Level 0: spec.md + design.md<br/>提取：全局技术栈、架构原则"]
+        L1["Level 1: spec.md + design.md<br/>提取：src 层编码规范、模块划分"]
+        L2["Level 2 auth: spec.md + design.md<br/>提取：认证规范、认证设计决策<br/>（主要来源）"]
+        
+        L0 -->|继承上下文| L1
+        L1 -->|继承上下文| L2
+        L2 -->|渲染| OUT["docs/technical/module-auth.md"]
+    end
+```
+
+**聚合规则**：
+- **技术文档**：聚合从根到目标层的所有 `spec.md` 的 SHALL 约束 + 所有 `design.md` 的 Design Decisions
+- **业务文档**：聚合从根到目标层的 `spec.md` 的 Requirement 描述 + `design.md` 的 Architecture Overview
+- **不聚合同级**：不加载兄弟模块的规范（如生成 auth 文档时不加载 api 规范）
+- **可选深度**：通过 `--depth` 参数控制聚合的父层深度（默认全部聚合）
+
+#### 3.6.5 文档生成与变更生命周期集成
+
+文档生成嵌入变更生命周期的关键节点：
+
+| 阶段 | 文档生成动作 | 说明 |
+|------|------------|------|
+| **Design** | 更新 `design.md` 后，标记受影响文档为 `stale` | 设计变更可能导致文档过期 |
+| **Build** | 实现完成后，自动重新生成受影响层级的文档 | 代码变更触发文档同步 |
+| **Verify** | 校验生成文档与 spec/design 的一致性 | 文档漂移检测 |
+| **Archive** | 将最终文档提交到主分支 | 文档随代码一同合并 |
+
+```mermaid
+graph LR
+    subgraph Change["变更生命周期"]
+        D["Design<br/>更新 design.md<br/>→ 标记文档 stale"]
+        B["Build<br/>代码实现完成<br/>→ 重新生成文档"]
+        V["Verify<br/>文档一致性校验<br/>→ 检测漂移"]
+        A["Archive<br/>文档提交主分支<br/>→ 文档与代码同步"]
+    end
+    D --> B --> V --> A
+```
+
+#### 3.6.6 文档一致性校验
+
+文档生成后，一致性校验器检测生成文档与规范源文件之间的漂移：
+
+```yaml
+# 文档漂移检测规则
+doc_drift_detection:
+  - check: "spec.md 新增 Requirement 但文档未更新"
+    detection: "比较 spec.md 的 Requirement 列表与文档中的约束章节"
+    severity: WARN
+    auto_fix: true    # 自动重新生成文档
+    
+  - check: "design.md Design Decision 变更但 ADR 章节未更新"
+    detection: "比较 design.md 的 Design Decisions 与文档中的决策记录"
+    severity: WARN
+    auto_fix: true
+    
+  - check: "SHALL NOT 新增但文档禁止事项章节缺失"
+    detection: "比较 prohibitions.md 与文档中的限制章节"
+    severity: ERROR
+    auto_fix: true
+    
+  - check: "文档手动修改导致与 spec 不一致"
+    detection: "比较文档内容与 spec 生成的预期内容"
+    severity: ERROR
+    auto_fix: false   # 不自动覆盖手动修改，发出警告
+    recommendation: "文档为自动生成，请勿手动修改。如需定制，请修改模板。"
+```
+
+> **文档生成原则**：`docs/` 目录下的文件是自动生成的，不应手动修改。如需定制文档内容或格式，应修改模板（`.mumuspec/templates/`）或源文件（`spec.md` / `design.md`），然后重新生成。
+
+#### 3.6.7 多格式输出
+
+文档生成引擎支持多种输出格式：
+
+| 格式 | 用途 | 配置项 |
+|------|------|--------|
+| **Markdown** (默认) | 开发者文档、Git 仓库内文档 | `output.format: markdown` |
+| **HTML** | 文档站点、Wiki 发布 | `output.format: html` |
+| **PDF** | 正式文档、离线分发 | `output.format: pdf` |
+| **Confluence** | 企业 Wiki 同步 | `output.format: confluence` |
+
+```yaml
+# 多格式输出配置示例
+docs:
+  output:
+    default_format: markdown      # 默认格式
+    formats:
+      - markdown                   # 总是生成 Markdown
+      - html:                      # 额外生成 HTML
+          output_dir: "docs/site"
+          theme: "default"
+      - pdf:                       # 按需生成 PDF
+          output_dir: "docs/pdf"
+          only: ["architecture", "api-reference"]  # 仅特定文档生成 PDF
+```
 
 ---
 
@@ -431,7 +784,7 @@ graph LR
 
 | 规则 | Open | Design | Build | Verify | Archive |
 |------|------|--------|-------|--------|---------|
-| 默认 Worktree | 创建 worktree | — | 在 worktree 中实现 | — | 合并后清理 worktree |
+| 默认 Worktree | 创建 worktree | 在 worktree 中进行 | 在 worktree 中实现 | 在 worktree 中进行 | 合并后清理 worktree |
 | 单一活跃变更 | 检查无其他活跃变更 | — | — | — | 归档后释放变更槽位 |
 | 自顶向下/自下向上 | — | 自顶向下设计 | 自下向上实现 | 逐层验证 | — |
 | 状态机回退 | — | 接收回退 | 可发起回退 | 可发起回退 | 终态不可回退 |
@@ -443,43 +796,71 @@ graph LR
 
 ```mermaid
 stateDiagram-v2
-    open --> design: open-complete
+    open --> design: open-complete\n(full workflow)
+    open --> build: open-hotfix-complete\n(hotfix workflow, skip design)
     design --> build: design-complete
     build --> verify: build-complete
-    verify --> archive: verify-pass
+    verify --> archive_in_progress: verify-pass
+    build --> archive_in_progress: accept-deviations\n(接受偏差归档)
+    verify --> archive_in_progress: accept-deviations\n(接受偏差归档)
+    archive_in_progress --> archive_completed: archive-complete
 
-    build --> design: build-rollback\n保存快照, 回退计数+1
-    verify --> design: verify-rollback\n保存快照, 回退计数+1
-    verify --> build: verify-rebuild\n仅回退到 build 重做特定层
+    build --> design: build-rollback\n保存快照, rollback_count+1
+    verify --> design: verify-rollback\n保存快照, rollback_count+1
+    verify --> build: verify-rebuild\n仅回退到 build 重做特定层\nrebuild_count+1
+    archive_in_progress --> build: archive-ci-fail-rollback\nCI CRITICAL 失败\nrollback_count+1
 
-    note right of archive: 终态, 不可回退
+    open --> discarded: discard
+    design --> discarded: discard
+    build --> discarded: discard
+    verify --> discarded: discard
+    archive_in_progress --> discarded: discard
+
+    note right of archive_completed: 终态, 不可回退
+    note right of discarded: 终态, 不可回退
 ```
+
+> **状态说明**：
+> - `archive-in-progress`：Archive 阶段执行中（A1-A6 Git 合并、B1-B5 规范归档、C1-C4 清理），允许 CI 失败回退
+> - `archive-completed`：Archive 阶段全部完成（archive_complete guard 通过），终态不可回退
+> - `discarded`：废弃终态，变更已清理，槽位已释放
 
 **正向转换事件**：
 
 | 事件 | 源状态 | 目标状态 | 条件 |
 |------|--------|---------|------|
-| `open-complete` | open | design | Phase Guard: open_to_design 全部通过 |
+| `open-complete` | open | design | Phase Guard: open_to_design 全部通过（workflow == full） |
+| `open-hotfix-complete` | open | build | Phase Guard: open_to_build_hotfix 全部通过（workflow == hotfix） |
 | `design-complete` | design | build | Phase Guard: design_to_build 全部通过 |
 | `build-complete` | build | verify | Phase Guard: build_to_verify 全部通过 |
-| `verify-pass` | verify | archive | Phase Guard: verify_to_archive 全部通过 |
+| `verify-pass` | verify | archive-in-progress | Phase Guard: verify_to_archive 全部通过 |
+| `accept-deviations` | build / verify | archive-in-progress | Phase Guard: verify_to_archive_with_deviations 全部通过（rollback_limit 超限时用户选择接受偏差） |
+| `archive-complete` | archive-in-progress | archive-completed | Phase Guard: archive_complete 全部通过 |
 
 **反向回退事件**：
 
 | 事件 | 源状态 | 目标状态 | 触发条件 | 副作用 |
 |------|--------|---------|---------|--------|
-| `build-rollback` | build | design | Build 阶段发现设计方案不可行 / 约束冲突 / 缺失关键设计 | 保存当前状态快照，记录回退原因，回退计数+1 |
-| `verify-rollback` | verify | design | Verify 阶段发现规范与实现存在根本性矛盾 / 设计假设错误 | 保存验证报告，记录回退原因，回退计数+1 |
-| `verify-rebuild` | verify | build | Verify 发现实现层 bug（非设计问题），需修复代码 | 保留设计不变，仅回退到 Build 重做特定层 |
+| `build-rollback` | build | design | Build 阶段发现设计方案不可行 / 约束冲突 / 缺失关键设计 | 保存当前状态快照，记录回退原因，rollback_count+1 |
+| `verify-rollback` | verify | design | Verify 阶段发现规范与实现存在根本性矛盾 / 设计假设错误 | 保存验证报告，记录回退原因，rollback_count+1 |
+| `verify-rebuild` | verify | build | Verify 发现实现层 bug（非设计问题），需修复代码 | 保留设计不变，仅回退到 Build 重做特定层，rebuild_count+1 |
+| `archive-ci-fail-rollback` | archive-in-progress | build | Archive 阶段 A4 CI 检查 CRITICAL 失败 | 保存 Archive 阶段快照，记录回退原因，rollback_count+1 |
+
+**终止事件**：
+
+| 事件 | 源状态 | 目标状态 | 触发条件 | 副作用 |
+|------|--------|---------|---------|--------|
+| `discard` | open / design / build / verify / archive-in-progress | discarded | 用户主动废弃变更 | 保存快照到 snapshots/discard/，清理 worktree，移动变更到 archive/discarded/，释放槽位 |
 
 **回退规则**：
 
 1. **回退前必须保存快照**：回退操作触发前，状态机自动保存当前阶段的工件快照到 `.mumuspec/changes/<name>/snapshots/` 目录，确保回退不丢失工作成果
 2. **回退必须记录原因**：每次回退必须在 `.mumuspec.yaml` 中记录 `rollback_reason`，包含发现的问题描述和回退决策依据
-3. **回退计数限制**：同一变更的回退次数默认上限为 3 次（可配置），超过上限时状态机拒绝回退，要求用户选择：接受当前偏差归档 / 废弃变更重新开始
+3. **回退计数限制**：`rollback_count` 限制 `build-rollback`、`verify-rollback`、`archive-ci-fail-rollback` 三类回退的总和，默认上限为 3 次（可配置）。`verify-rebuild` 使用独立的 `rebuild_count` / `rebuild_limit`（默认 5），不计入 rollback_count。超过任一上限时状态机拒绝回退，要求用户选择：接受当前偏差归档（`accept-deviations`）/ 废弃变更重新开始（`discard`）
 4. **回退后保留历史**：回退不删除之前的工件，而是在原有基础上修改，snapshots 目录保留所有历史版本供追溯
-5. **archive 为终态**：归档完成后不可回退，如需修改应创建新变更
+5. **archive-completed 为终态**：`archive-completed` 状态不可回退，如需修改应创建新变更。`archive-in-progress` 允许通过 `archive-ci-fail-rollback` 回退到 build
 6. **回退是用户决策点**：回退操作必须通过用户确认，AI 不能自动发起回退
+7. **Open 阶段不支持回退**：Open 阶段无回退路径，如需修改需求应通过 `discard` 废弃后重新创建变更
 
 ### 4.2 变更工件结构
 
@@ -515,20 +896,56 @@ stateDiagram-v2
 
 ```yaml
 # 变更状态机配置文件
+# 注：创建变更时，以下字段从 config.yaml 的 default_* 拷贝为初始值：
+#   workflow <- config.changes.default_workflow
+#   isolation <- config.changes.default_isolation
+#   build_mode <- config.changes.default_build_mode
+#   tdd_mode <- config.changes.default_tdd_mode
+#   rollback_limit <- config.changes.default_rollback_limit
+#   rebuild_limit <- config.changes.default_rebuild_limit
 change: add-user-auth
 workflow: full                    # full | hotfix | tweak
-phase: build                      # open | design | build | verify | archive
+phase: build                      # open | design | build | verify | archive-in-progress | archive-completed | discarded
 created_at: 2026-07-08
 
 # 状态机回退追踪
-rollback_count: 0                 # 累计回退次数
-rollback_history:                 # 回退历史记录
+# rollback_count 限制 build-rollback / verify-rollback / archive-ci-fail-rollback 三类回退总和
+# verify-rebuild 不计入 rollback_count，使用独立的 rebuild_count
+rollback_count: 0                 # 累计回退次数（build-rollback + verify-rollback + archive-ci-fail-rollback）
+rollback_history:                 # 回退历史记录（所有回退事件均记录，含 counted 字段标识是否计入 rollback_count）
   # - from: build
   #   to: design
+  #   event: "build-rollback"
   #   reason: "发现 Controller 层缺少 DTO 转换设计"
   #   timestamp: "2026-07-08T14:30:00Z"
   #   snapshot: "snapshots/build-rollback-1/"
-rollback_limit: 3                 # 回退次数上限（可配置）
+  #   counted: true                # 计入 rollback_count
+  # - from: verify
+  #   to: design
+  #   event: "verify-rollback"
+  #   reason: "SHALL NOT 约束在当前架构下无法满足，需重新设计"
+  #   timestamp: "2026-07-08T15:00:00Z"
+  #   snapshot: "snapshots/verify-rollback-1/"
+  #   counted: true                # 计入 rollback_count
+  # - from: verify
+  #   to: build
+  #   event: "verify-rebuild"
+  #   reason: "Layer 2 集成测试失败，需修复组件"
+  #   timestamp: "2026-07-08T16:00:00Z"
+  #   snapshot: "snapshots/verify-rebuild-1/"
+  #   counted: false               # verify-rebuild 不计入 rollback_count，计入 rebuild_count
+  # - from: archive-in-progress
+  #   to: build
+  #   event: "archive-ci-fail-rollback"
+  #   reason: "CI CRITICAL: 全量 SHALL NOT 检查失败 3 项"
+  #   timestamp: "2026-07-08T17:00:00Z"
+  #   snapshot: "snapshots/archive-rollback-1/"
+  #   counted: true                # 计入 rollback_count
+rollback_limit: 3                 # rollback_count 上限（从 config.default_rollback_limit 拷贝）
+
+# verify-rebuild 独立计数（防止 verify→build 无限循环）
+rebuild_count: 0                  # verify-rebuild 累计次数
+rebuild_limit: 5                  # rebuild_count 上限（从 config.default_rebuild_limit 拷贝），超限强制升级为 verify-rollback
 
 # 规范关联
 affected_scopes:                  # 受影响的规范层级
@@ -538,24 +955,27 @@ delta_specs:
   - "delta-specs/src-auth/spec.md"
   - "delta-specs/src-api-controllers/spec.md"
 
-# 代码图谱关联
-code_graph:
+# 代码图谱关联（与 config.yaml.code_graph 全局配置区分）
+code_graph_binding:
   base_ref: "a1b2c3d4e5f6..."    # 变更前 commit hash
   impact_analysis: "code-graph/impact-analysis.json"
   graph_snapshot: "code-graph/snapshot.json"
 
 # 构建配置
 build_mode: executing-plans       # executing-plans | subagent | direct
-isolation: worktree               # worktree (默认) | branch (降级)
+isolation: worktree               # worktree (默认) | branch (降级，需 config.allow_isolation_downgrade=true)
 worktree_path: null               # worktree 路径（创建后自动填充）
 worktree_branch: null             # worktree 对应的 git 分支名
 isolation_downgrade_reason: null  # 降级为 branch 时的原因记录
 tdd_mode: tdd                     # tdd | direct
 
-# 实现策略（自下向上）
-implementation_strategy: bottom-up # bottom-up (默认) | top-down
-build_layers:                     # 实现层级顺序（从叶子到根）
-  - layer: 3                      # 叶子层先实现
+# 实现策略（自下向上，硬性规则不可配置）
+implementation_strategy: bottom-up # 固定值，由 1.4 规则三约束
+build_layers:                     # 实现层级顺序（从叶子到根，必须覆盖所有 affected_scopes）
+  - layer: 3                      # 叶子层先实现（同层可并行）
+    scope: "src/auth"
+    status: pending
+  - layer: 3                      # 叶子层先实现（同层可并行）
     scope: "src/api/controllers"
     status: pending
   - layer: 2
@@ -569,8 +989,13 @@ build_layers:                     # 实现层级顺序（从叶子到根）
     status: pending
 
 # 验证配置
-verify_result: pending            # pending | pass | fail
+verify_result: pending            # pending | pass | fail | pass-with-deviations
 verify_report: null
+
+# 偏差归档（accept-deviations 路径使用）
+accepted_deviations: []           # 接受的偏差列表（rollback_limit 超限时用户选择接受偏差）
+deviation_reviewer: null          # 偏差审核人
+deviation_approved_at: null       # 偏差批准时间
 
 # 归档与 Git 合并
 archived: false
@@ -582,6 +1007,11 @@ git_merge:
   target_branch: main             # 合并目标分支
   merged: false
   merged_at: null
+
+# 废弃记录（discard 流程使用）
+discarded: false                  # 是否已废弃
+discarded_at: null                # 废弃时间
+discard_reason: null              # 废弃原因
 ```
 
 ### 4.4 五阶段详解
@@ -590,7 +1020,7 @@ git_merge:
 
 ```
 输入: 用户描述需求
-输出: proposal.md + delta-specs/ + 影响分析
+输出: proposal.md + delta-specs/ + 影响分析 + .mumuspec.yaml（初始化）+ worktree（已创建）
 
 步骤:
 0. 单一活跃变更检查（硬性前置条件）
@@ -618,14 +1048,19 @@ git_merge:
 
 ```
 输入: proposal.md + delta-specs/ + 影响分析
-输出: design.md + constraints/
+输出: design.md + constraints/ + build_layers（写入 .mumuspec.yaml）
 
 设计原则: 自顶向下（Top-Down）
   从根层架构约束出发，逐层向下细化设计，确保每一层的设计
   基于上层约束并为下层提供约束。
+  本阶段在 Open 阶段创建的 worktree 中进行。
+
+命名约定: 设计阶段使用 Level（自顶向下），实现阶段使用 Layer（自下向上）。
+  Layer N 对应 Level N 的反向实现（即 Level 3 的叶子设计 → Layer 3 的叶子实现）。
+  Level 上限由附录 B max_layer_depth 配置（默认 5），超出应拆分变更。
 
 步骤:
-1. 自顶向下逐层设计：
+1. 自顶向下逐层设计（必须按 a→b→c→d 顺序执行，下层设计需引用上层约束）：
    a. Level 0 — 根层架构设计
       - 确认变更对全局架构的影响
       - 确定模块间接口契约
@@ -638,7 +1073,7 @@ git_merge:
       - 基于模块层设计，细化到具体组件
       - 定义组件接口和依赖关系
       - 定义组件层 SHALL/SHALL NOT
-   d. Level 3+ — 叶子节点详细设计
+   d. Level 3+ — 叶子节点详细设计（最多到 max_layer_depth 层）
       - 具体函数/类/方法的签名设计
       - 定义叶子层 SHALL/SHALL NOT 和 Enforcement
 2. 明确技术约束（在各层设计中逐步细化）：
@@ -651,100 +1086,130 @@ git_merge:
 5. 生成实现层级计划（build_layers）
    - 将受影响的规范层级按从深到浅排序
    - 每层标注预期实现顺序和验证点
+   - build_layers 的 layer 编号与 Level 编号一一对应（layer N 实现 level N 的设计）
 6. 用户确认设计方案（阻塞点）
 ```
 
 #### Phase 3: Build（实现 — 自下向上）
 
 ```
-输入: design.md + tasks.md + constraints/ + build_layers
-输出: 代码提交 + 图谱更新
+输入: design.md + constraints/ + build_layers
+输出: 代码提交 + 图谱更新 + .mumuspec.yaml 状态更新（build_layers.status=done、build_mode、tdd_mode）
 
 实现原则: 自下向上（Bottom-Up）
   从最深层（叶子层）开始实现，逐层向上集成。
   每完成一层的实现，立即运行该层级的规范校验和测试，
   通过后再进入上一层。
+  本阶段在 Open 阶段创建的 worktree 中进行。
 
 步骤:
 1. 创建实现计划（tasks.md）
    - 按 build_layers 顺序组织任务（从叶子层到根层）
    - 每层任务包含：实现 + 该层 SHALL/SHALL NOT 校验 + 该层测试
+   - 测试用例来源于 Design 阶段的 Enforcement 定义
 2. 确认工作区隔离方式
    - 默认使用 worktree（在 Open 阶段已创建）
    - 仅在 worktree 不可用时降级为 branch（需记录降级原因）
 3. 选择执行方式（executing-plans / subagent / direct）
+   - 在 .mumuspec.yaml 中记录 build_mode 和 tdd_mode
 4. 自下向上逐层实现：
    ┌── Layer 3 (叶子层): 实现叶子组件 + 单元测试
    │   - 加载叶子层规范（渐进式披露）
    │   - 遵守该层 SHALL 和 SHALL NOT
    │   - 运行该层 Enforcement 检查
    │   - 通过后标记 build_layers[layer=3].status = done
-   │   - 提交代码
+   │   - 提交代码（仅 worktree 内 git commit，不包含 push 或合并）
    │
    ├── Layer 2 (组件层): 集成叶子组件 + 集成测试
    │   - 加载组件层规范
    │   - 验证下层组件已通过校验
    │   - 运行组件层 Enforcement 检查
    │   - 通过后标记 build_layers[layer=2].status = done
-   │   - 提交代码
+   │   - 提交代码（仅 worktree 内 git commit）
    │
    ├── Layer 1 (模块层): 模块间集成 + 接口测试
    │   - 加载模块层规范
    │   - 验证下层组件已通过校验
    │   - 运行模块层 Enforcement 检查
    │   - 通过后标记 build_layers[layer=1].status = done
-   │   - 提交代码
+   │   - 提交代码（仅 worktree 内 git commit）
    │
    └── Layer 0 (根层): 全局集成 + 端到端测试
        - 加载根层规范
        - 验证所有下层已通过校验
        - 运行全局 Enforcement 检查
        - 通过后标记 build_layers[layer=0].status = done
-       - 提交代码
-5. 所有层级实现并通过后，进入验证阶段
+       - 提交代码（仅 worktree 内 git commit）
+5. 运行 build_command 验证可构建性（if configured）
+6. 运行 mumuspec index 更新代码图谱
+7. 所有层级实现并通过后，进入验证阶段
 
-回退处理（Build → Design 回退）：
+回退处理（Build → Design 回退，事件 build-rollback）：
   当实现过程中发现设计方案存在根本性问题（如约束冲突、架构假设错误、
   缺失关键接口设计等），可发起回退到 Design 阶段：
   
   a. 用户确认回退（阻塞点 — AI 不能自动发起回退）
-  b. 状态机保存当前 Build 阶段快照到 snapshots/build-rollback-N/
-  c. 在 .mumuspec.yaml 中记录 rollback_reason 和 rollback_count+1
-  d. 检查回退计数是否超过 rollback_limit（默认 3）
-  e. 状态机转换：phase: build → phase: design
-  f. 在 Design 阶段基于快照和回退原因修改设计
-  g. 修改后的设计需重新通过 design_to_build guard
-  h. 重新进入 Build 后，已完成的 build_layers 状态重置为 pending
-     （但代码不删除，基于已有代码调整）
+  b. 状态机执行 checks：检查 rollback_count < rollback_limit
+     （若检查失败，拒绝回退，要求用户选择 accept-deviations 或 discard）
+  c. 状态机执行 side_effects：
+     - 保存当前 Build 阶段快照到 snapshots/build-rollback-N/（保留所有历史快照，不覆盖）
+     - 在 .mumuspec.yaml 中记录 rollback_reason、rollback_history（含 counted: true）
+     - rollback_count + 1
+     - build_layers 全部重置为 pending（保留已实现代码，仅重置状态；快照已保存历史供 Design 查阅）
+     - 状态机转换：phase: build → phase: design
+  d. 在 Design 阶段基于快照和回退原因修改设计
+  e. 修改后的设计需重新通过 design_to_build guard
+  f. 重新进入 Build 时，build_layers 已为 pending（回退时已重置），基于已有代码调整
 
 注: hotfix/tweak 预设可简化为单层实现，但仍需自下向上验证
 ```
 
-#### Phase 4: Verify（验证）
+#### Phase 4: Verify（验证 — 自下向上逐层验证）
 
 ```
-输入: 完成的代码 + 规范 + 图谱
+输入: 完成的代码 + 规范 + 图谱 + build_layers（全部 status=done）
 输出: verify.md（验证报告）
 
-验证维度:
+验证原则: 自下向上逐层验证（Bottom-Up）
+  按 build_layers 的 Layer 3→0 顺序，对每一层独立执行 4 个维度验证，
+  通过后再进入上一层；全部层级通过后执行全局验证。
+  本阶段在 Open 阶段创建的 worktree 中进行。
+
+验证维度（每层均执行）:
 1. 完整性验证（Completeness）
-   - 所有 tasks.md 任务已完成
-   - 所有 delta-specs 中的 requirement 已实现
+   - 该层对应 tasks.md 任务已完成
+   - 该层 delta-specs 中的 requirement 已实现
 
 2. 规范一致性验证（Spec Compliance）
-   - SHALL 检查：所有正向要求是否满足
-   - SHALL NOT 检查：所有反向禁止是否被遵守
-   - 执行所有 Enforcement 中定义的检查
+   - SHALL 检查：该层正向要求是否满足
+   - SHALL NOT 检查：该层反向禁止是否被遵守
+   - 执行该层 Enforcement 中定义的检查
 
 3. 代码图谱验证（Code Graph Integrity）
-   - 变更后的调用链完整性
+   - 该层变更后的调用链完整性
    - 无意外的破坏性变更
    - 死代码检测
 
 4. 漂移检测（Drift Detection）
-   - 规范与代码的一致性
+   - 该层规范与代码的一致性
    - 代码图谱与实际代码的一致性
    - 索引新鲜度检查
+
+步骤:
+1. 逐层验证（按 Layer 3→0 顺序）：
+   ┌── Layer 3 (叶子层): 执行 4 维度验证
+   │   - 通过 → 标记该层 verified，进入 Layer 2
+   │   - 失败 → 记录失败维度与证据，触发回退处理
+   ├── Layer 2 (组件层): 执行 4 维度验证（同上）
+   ├── Layer 1 (模块层): 执行 4 维度验证（同上）
+   └── Layer 0 (根层): 执行 4 维度验证（同上）
+2. 全局验证（所有层级通过后）：
+   - 全量 SHALL/SHALL NOT 检查（跨层一致性）
+   - 全局代码图谱完整性
+   - 全局漂移检测
+   - delta-specs 所有 requirement 已实现（all_delta_spec_requirements_implemented）
+3. 生成 verify.md 验证报告
+4. 用户确认验证结果（阻塞点）
 
 回退处理（Verify → Design / Verify → Build 回退）：
   验证阶段发现问题后，根据问题性质选择回退目标：
@@ -753,32 +1218,52 @@ git_merge:
     触发条件：规范与实现存在根本性矛盾、设计假设错误、
              SHALL/SHALL NOT 约束在当前架构下无法满足
     a. 用户确认回退（阻塞点）
-    b. 保存 Verify 报告和当前状态快照到 snapshots/verify-rollback-N/
-    c. 记录 rollback_reason（含验证发现的具体问题）
-    d. 状态机转换：phase: verify → phase: design
-    e. 在 Design 阶段修改设计以解决验证发现的问题
+    b. 状态机执行 checks：检查 rollback_count < rollback_limit
+       （若检查失败，拒绝回退，要求用户选择 accept-deviations 或 discard）
+    c. 状态机执行 side_effects：
+       - 保存 Verify 报告和当前状态快照到 snapshots/verify-rollback-N/（保留所有历史快照，不覆盖）
+       - 在 .mumuspec.yaml 中记录 rollback_reason、rollback_history（含 counted: true）
+       - rollback_count + 1
+       - build_layers 全部重置为 pending（回退时立即重置；保留已实现代码，仅重置状态）
+       - 状态机转换：phase: verify → phase: design
+    d. 在 Design 阶段修改设计以解决验证发现的问题
+    e. 修改后的设计需重新通过 design_to_build guard
     f. 重新走 Design → Build → Verify 流程
 
   情况 B — 回退到 Build（实现层面问题，设计无需修改）：
     触发条件：实现存在 bug、某层 Enforcement 检查未通过、
              测试失败但设计方案本身正确
     a. 用户确认回退（阻塞点）
-    b. 保存 Verify 报告快照
-    c. 记录 rollback_reason
-    d. 状态机转换：phase: verify → phase: build
-    e. 仅重做有问题的 build_layers 层级（不全部重置）
-    f. 修复后重新进入 Verify
+    b. 状态机执行 checks：检查 rebuild_count < rebuild_limit
+       （若检查失败，强制升级为情况 A 的 verify_to_design_rollback）
+    c. 状态机执行 side_effects：
+       - 保存 Verify 报告快照到 snapshots/verify-rebuild-N/
+       - 在 .mumuspec.yaml 中记录 rollback_reason、rollback_history（含 counted: false，event: verify-rebuild）
+       - rebuild_count + 1（此回退不增加 rollback_count，设计未变仅修复实现）
+       - 仅重置失败的 build_layers 层级为 pending（不全部重置；保留已实现代码）
+       - 状态机转换：phase: verify → phase: build
+    d. 仅重做有问题的 build_layers 层级（不全部重置）
+    e. 修复后重新进入 Verify
+
+注: hotfix/tweak 预设走 light verify — 仅 SHALL NOT 检查 + 图谱完整性（tweak 可省略图谱）
 ```
 
 #### Phase 5: Archive（归档 — Git 提交 + 合并请求）
 
 ```
-输入: 验证通过的变更（verify_result: pass）
+输入: verify_result: pass + verify.md + SHALL/SHALL NOT 全通过 + 无 critical drift + 图谱完整
 输出: 合并到主分支的代码 + 合并后的主规范 + 归档记录
 
-Archive 阶段是变更生命周期的终态操作，包含两个子流程：
+Archive 阶段是变更生命周期的终态操作，包含三个子流程：
   A. Git 合并流程 — 将 worktree 中的代码合并到主分支
   B. 规范归档流程 — 将 delta-specs 合并到主规范
+  C. 清理与收尾 — 移动归档、清理 worktree、释放槽位
+
+执行顺序与事务性：
+  - 严格按 A → B → C 顺序执行，前一子流程未完成不得进入下一子流程
+  - A4 CI 检查 CRITICAL 失败时，中止 B/C，触发 archive_ci_fail_rollback 回退到 Build
+  - B0-B3 规范合并为原子操作：开始前备份受影响规范文件，任一步骤失败回滚到备份状态
+  - B4 图谱更新与 B5 规范提交在同一个 git commit 中（原子提交，保证规范与图谱一致）
 
 步骤 A: Git 提交与合并请求
 
@@ -807,8 +1292,10 @@ Archive 阶段是变更生命周期的终态操作，包含两个子流程：
       - 等待 CI pipeline 完成
       - CI 必须包含：全量 SHALL/SHALL NOT 检查 + 漂移检测 + 代码图谱完整性
       - 如果 CI 失败：
-        · CRITICAL 级别失败 → 回退到 Build 阶段修复
-        · 非 CRITICAL 失败 → 用户决定是否接受偏差
+        · CRITICAL 级别失败 → 回退到 Build 阶段修复（archive_ci_fail_rollback）
+          修复后重验范围：必须重新走完整 Build → Verify → Archive 流程
+          （因 CI 在合并前执行全量检查，修复点可能影响其他层级，不可仅局部重验）
+        · 非 CRITICAL 失败 → 用户决定是否接受偏差（accept-deviations）
 
   A5. 合并 MR（用户确认 — 阻塞点）
       - 用户确认合并策略：
@@ -822,7 +1309,11 @@ Archive 阶段是变更生命周期的终态操作，包含两个子流程：
       - git checkout main && git pull origin main
       - 确认合并的代码在主分支中
 
-步骤 B: 规范归档
+步骤 B: 规范归档（B0-B3 为原子操作，失败回滚到 B0 备份）
+
+  B0. 备份受影响规范文件（原子操作前置）
+      - 备份 affected_scopes 涉及的所有 spec.md / prohibitions.md / index.yaml 到 snapshots/spec-backup/
+      - B1-B3 任一步骤失败时，回滚到 B0 备份状态并中止 Archive
 
   B1. 将 delta-specs 合并到主规范
       - ADDED → 添加到主 spec.md
@@ -836,13 +1327,13 @@ Archive 阶段是变更生命周期的终态操作，包含两个子流程：
   B3. 更新 index.yaml 子目录索引
       - 更新受影响层级的 index.yaml 中的 children 概要
 
-  B4. 更新代码图谱快照
+  B4. 更新代码图谱快照（与 B5 在同一 git commit，原子提交）
       - 运行 mumuspec index 更新主分支的代码图谱
       - 更新 code-graph/snapshot.json
 
-  B5. 提交规范变更到主分支
-      - git add .mumuspec/（归档后的规范文件）
-      - git commit -m "chore(spec): archive <change-name> — merge delta specs"
+  B5. 提交规范变更到主分支（与 B4 同一个 commit）
+      - git add .mumuspec/ code-graph/（归档后的规范文件 + 图谱快照）
+      - git commit -m "chore(spec): archive <change-name> — merge delta specs + update graph"
       - git push origin main
 
 步骤 C: 清理与收尾
@@ -861,9 +1352,50 @@ Archive 阶段是变更生命周期的终态操作，包含两个子流程：
   C4. 记录决策历史
       - 在 archive 目录中保留完整的变更记录
       - 包含所有 snapshots/（回退历史）供未来追溯
+
+步骤 D: 偏差归档（仅 accept-deviations 路径触发，独立于 A/B/C）
+  当走 accept-deviations 路径归档时（verify_to_archive_with_deviations guard 通过），
+  偏差不合并到主规范，而是单独记录：
+
+  D1. 记录偏差到归档目录
+      - 在 .mumuspec/changes/archive/YYYY-MM-DD-<name>/deviations.md 记录接受的偏差
+      - 每条偏差包含：原 SHALL 要求、实际实现情况、偏差原因、审核人、批准时间
+      - 偏差不写入主 spec.md（主规范保持原要求，记录为"已知偏差"）
+
+  D2. 偏差标记到代码图谱
+      - 在代码图谱中对受偏差影响的节点标记 has_known_deviation: true
+      - 后续漂移检测时跳过这些节点的对应 SHALL 校验（但 SHALL NOT 仍强制校验）
+
+  注: 偏差归档不影响 A/C 主流程；accept-deviations 路径仍执行 A（Git 合并）与 C（清理），
+      但 B（规范归档）跳过偏差涉及的 requirement 合并
 ```
 
-### 4.5 预设路径
+#### Discard 流程（废弃变更 — 状态机旁路操作）
+
+Discard 是独立于五阶段主流程的旁路操作，允许在任意非终态阶段废弃当前变更。
+
+```
+触发条件: 用户主动决定废弃变更（如需求变更、方向调整、回退超限不愿接受偏差）
+可发起 phase: open / design / build / verify / archive-in-progress
+不可发起 phase: archive-completed（终态）、discarded（已废弃）
+
+步骤:
+1. 用户确认废弃（阻塞点 — AI 不能自动发起 discard）
+2. 保存当前状态快照到 snapshots/discard/（保留所有工件供追溯）
+3. 清理 worktree
+   - mumuspec worktree remove <change-name>
+   - 删除 worktree 对应的本地分支与远程分支
+4. 移动变更到 archive/discarded/
+   - mv .mumuspec/changes/<name> .mumuspec/changes/archive/discarded/YYYY-MM-DD-<name>/
+5. 在 .mumuspec.yaml 记录废弃信息
+   - discarded: true
+   - discarded_at: <timestamp>
+   - discard_reason: <用户填写的原因>
+6. 释放活跃变更槽位（单一活跃变更约束解除，可创建新变更）
+7. 状态机转换：phase → discarded（终态，不可回退）
+```
+
+> Discard 与回退的区别：回退（rollback）是阶段间的反向流转，变更继续推进；discard 是终止变更，进入 discarded 终态。Open 阶段无回退路径，但可 discard。
 
 借鉴 Comet 的 hotfix/tweak 预设，但增加规范约束：
 
@@ -873,10 +1405,48 @@ Archive 阶段是变更生命周期的终态操作，包含两个子流程：
 | **tweak** | 配置修改、文案调整、文档更新 | open → lightweight build → light verify → archive | 跳过 design 和完整 verify，但仍需通过 SHALL NOT 检查 |
 | **full** | 新功能、架构变更、多模块协调 | 完整五阶段 | 完整双向约束 + 图谱验证 |
 
-**升级条件**（从预设升级到 full）：
+**简化阶段输入输出契约**：
+
+| 预设 | Open 输出 | Build 输入 | Build 输出 | Verify 输入 |
+|------|----------|-----------|-----------|------------|
+| **hotfix** | proposal.md + delta-specs/ + 影响分析 + `.mumuspec.yaml`（含单层 build_layers）+ worktree | proposal.md + delta-specs/ + build_layers（单层） | 代码提交 + 图谱更新 + `.mumuspec.yaml` 状态更新 | 完成的代码 + 规范 + 图谱（light verify：仅 SHALL NOT + 图谱完整性） |
+| **tweak** | proposal.md + delta-specs/ + 影响分析 + `.mumuspec.yaml`（含单层 build_layers）+ worktree | proposal.md + delta-specs/ + build_layers（单层） | 代码提交 + `.mumuspec.yaml` 状态更新（图谱可选） | 完成的代码 + 规范（light verify：仅 SHALL NOT） |
+| **full** | 同 4.4 Phase 1 | 同 4.4 Phase 3 | 同 4.4 Phase 3 | 同 4.4 Phase 4 |
+
+**跳过 Design 时的 build_layers 初始化**：
+
+hotfix/tweak 跳过 Design 阶段，因此 `build_layers` 必须在 Open 阶段初始化。默认采用单层结构（将所有 affected_scopes 合并为一个 layer）：
+
+```yaml
+# hotfix/tweak 的 build_layers 单层结构示例
+build_layers:
+  - layer: 0
+    scope: "src/auth/login.ts"        # 单一受影响范围（hotfix 通常只改一处）
+    status: pending
+    enforcement: ["AUTH-001", "AUTH-002"]  # 从现有 prohibitions.md 继承的 SHALL NOT
+    shall_not_new: []                 # hotfix 修复引入的新 SHALL NOT（如有则触发升级）
+  # 注：hotfix/tweak 仅一层，无需 multi-layer 自下向上集成
+```
+
+> 单层 build_layers 跳过了"自下向上逐层集成"，但仍保留 Enforcement 检查与 SHALL NOT 记录义务。
+
+**升级条件与状态机处理**（从预设升级到 full）：
+
+升级触发条件：
 - hotfix 涉及 3+ 文件 → 升级到 full
 - tweak 涉及 5+ 文件或跨模块 → 升级到 full
 - 任何涉及新增 SHALL NOT 的变更 → 升级到 full
+
+升级在状态机中的处理（`workflow` 字段从 `hotfix`/`tweak` 转为 `full`）：
+1. **Open 阶段发现升级**：直接将 `.mumuspec.yaml: workflow` 改为 `full`，补做 Design 阶段（重新走 `open_to_design` 守卫），build_layers 重新按多层结构初始化
+2. **Build 阶段发现升级**（如实现中发现涉及 3+ 文件或需新增 SHALL NOT）：
+   - 用户确认升级（阻塞点）
+   - 状态机回退到 Design：`phase: build → phase: design`，复用 `build_to_design_rollback` 守卫（计入 rollback_count）
+   - 在 Design 阶段补做自顶向下设计，重写 build_layers 为多层结构
+   - 升级后的 `workflow` 标记为 `full`，后续走完整五阶段
+3. **Verify 阶段发现升级**：同理回退到 Design 补做
+
+> 升级一旦发生不可降级回 hotfix/tweak；`workflow` 字段变更需在 rollback_history 中记录。
 
 ---
 
@@ -1081,10 +1651,27 @@ open_to_design:
     - delta-specs/ has at least one spec file
     - affected_scopes defined in .mumuspec.yaml
     - code-graph/impact-analysis.json exists
-    - single_active_change: true          # 单一活跃变更约束
+    - single_active_change: true          # 单一活跃变更约束（硬性，不可关闭）
     - worktree_created: true              # worktree 隔离已创建（或已记录降级原因）
+    - brainstorming_completed: true       # 需求探索已完成（hotfix/tweak 除外）
     - user_confirmed: true
   on_fail: "Block transition, report missing artifacts or constraint violations"
+
+open_to_build_hotfix:
+  description: "hotfix/tweak 预设路径：跳过 Design 直接进入 Build"
+  checks:
+    - proposal.md exists and non-empty
+    - delta-specs/ has at least one spec file
+    - affected_scopes defined in .mumuspec.yaml
+    - code-graph/impact-analysis.json exists
+    - single_active_change: true
+    - worktree_created: true
+    - workflow in ["hotfix", "tweak"]     # 仅 hotfix/tweak 预设可走此路径
+    - build_layers defined (single layer, initialized in Open)
+    - shall_not_new recorded (修复引入的 SHALL NOT 显式声明，可为空)
+    - user_confirmed: true
+  on_fail: "Block transition, report missing artifacts or workflow mismatch"
+  note: "跳过 design 相关检查；tweak 走此守卫后 Verify 走 light verify"
 
 design_to_build:
   checks:
@@ -1093,6 +1680,8 @@ design_to_build:
     - all enforcement checks are defined (not TBD)
     - code-graph verified no broken call chains
     - build_layers defined in .mumuspec.yaml
+    - design_layers_covered: [0,1,2,3]    # 自顶向下设计覆盖所有层级
+    - each_layer_shall_defined: true      # 每层 SHALL 已定义
     - user_confirmed: true
   on_fail: "Block transition, report missing design artifacts"
 
@@ -1105,6 +1694,7 @@ build_to_verify:
     - build_mode field set
     - tdd_mode field set
     - build_layers all status = done      # 自下向上所有层级已实现
+    - build_layers_completed_in_bottom_up_order: true  # 按 layer 3→0 顺序完成
     - each layer enforcement passed       # 每层 SHALL/SHALL NOT 校验通过
     - code-graph updated after changes
   on_fail: "Block transition, report incomplete tasks, failed build, or incomplete layers"
@@ -1118,7 +1708,23 @@ verify_to_archive:
     - no critical drift detected
     - code-graph integrity verified
     - all build_layers verified bottom-up  # 自下向上逐层验证完成
+    - all_delta_spec_requirements_implemented: true  # delta-specs 所有 requirement 已实现
   on_fail: "Block archive, report verification failures"
+
+verify_to_archive_with_deviations:
+  description: "接受偏差归档：rollback_limit 超限或用户主动选择接受当前偏差"
+  checks:
+    - verify_result: pass-with-deviations
+    - verify.md exists with report
+    - accepted_deviations non-empty in .mumuspec.yaml
+    - deviation_reviewer recorded
+    - deviation_approved_at recorded
+    - all SHALL NOT enforcements passed   # SHALL NOT 不可接受偏差，必须全通过
+    - no critical drift detected
+    - code-graph integrity verified
+    - user_confirmed: true
+  on_fail: "Block archive, report missing deviation approval or SHALL NOT violations"
+  note: "SHALL 正向要求的偏差可接受；SHALL NOT 反向禁止的偏差不可接受"
 
 # === 反向回退守卫 ===
 
@@ -1127,12 +1733,12 @@ build_to_design_rollback:
     - user_confirmed: true                # 回退必须用户确认
     - rollback_reason recorded in .mumuspec.yaml
     - rollback_count < rollback_limit     # 未超过回退次数上限
-    - snapshot saved to snapshots/build-rollback-N/
-  on_fail: "Block rollback, report reason (e.g. rollback limit exceeded)"
+  on_fail: "Block rollback, require user to choose accept-deviations or discard"
   side_effects:
+    - save current Build artifacts to snapshots/build-rollback-N/ (preserve all historical snapshots, never overwrite)
+    - record rollback_reason + rollback_history (counted: true) in .mumuspec.yaml
     - increment rollback_count
-    - save current artifacts to snapshot
-    - reset build_layers status to pending
+    - reset build_layers status to pending (preserve implemented code, only reset layer status)
     - set phase: design
 
 verify_to_design_rollback:
@@ -1140,27 +1746,68 @@ verify_to_design_rollback:
     - user_confirmed: true
     - rollback_reason recorded in .mumuspec.yaml
     - rollback_count < rollback_limit
-    - verify.md saved as evidence
-    - snapshot saved to snapshots/verify-rollback-N/
-  on_fail: "Block rollback, report reason"
+  on_fail: "Block rollback, require user to choose accept-deviations or discard"
   side_effects:
+    - save current artifacts + verify report to snapshots/verify-rollback-N/ (preserve all historical snapshots)
+    - record rollback_reason + rollback_history (counted: true)
     - increment rollback_count
-    - save current artifacts + verify report to snapshot
-    - reset build_layers status to pending
+    - reset build_layers status to pending (preserve implemented code, only reset layer status)
     - set phase: design
 
 verify_to_build_rollback:
   checks:
     - user_confirmed: true
     - rollback_reason recorded in .mumuspec.yaml
-    - verify.md saved as evidence
+    - rebuild_count < rebuild_limit       # verify-rebuild 独立计数，不计入 rollback_count
     - specific failed build_layers identified
-  on_fail: "Block rollback, report reason"
+  on_fail: "Block rollback; if rebuild_limit exceeded, force upgrade to verify_to_design_rollback"
   side_effects:
-    - save verify report to snapshot
-    - reset only failed build_layers to pending (not all)
+    - save verify report to snapshots/verify-rebuild-N/ (preserve all historical snapshots)
+    - record rollback_history (counted: false, event: verify-rebuild)
+    - increment rebuild_count (NOT rollback_count)
+    - reset only failed build_layers to pending (not all; preserve implemented code)
     - set phase: build
-  note: "此回退不增加 rollback_count（设计未变，仅修复实现）"
+  note: "此回退不增加 rollback_count（设计未变，仅修复实现）；超过 rebuild_limit 时强制升级为 verify_to_design_rollback"
+
+archive_ci_fail_rollback:
+  description: "Archive 阶段 CI CRITICAL 失败回退到 Build 修复"
+  checks:
+    - user_confirmed: true
+    - ci_failure_level == "CRITICAL"      # 仅 CRITICAL 失败回退
+    - rollback_reason recorded (含 CI 失败详情)
+    - rollback_count < rollback_limit     # 计入 rollback_count
+  on_fail: "Block rollback, require user to choose accept-deviations or discard"
+  side_effects:
+    - save archive artifacts to snapshots/archive-rollback-N/
+    - record rollback_reason + rollback_history (counted: true)
+    - increment rollback_count
+    - set phase: build                    # 回到 Build 修复，非 Design
+  note: "仅 archive-in-progress 子状态可触发；archive-completed 为终态不可回退"
+
+# === 废弃守卫 ===
+
+discard_change:
+  description: "废弃变更（旁路操作，open/design/build/verify/archive-in-progress 均可发起）"
+  checks:
+    - user_confirmed: true
+    - discard_reason recorded in .mumuspec.yaml
+    - phase != "archive-completed"        # 终态不可废弃
+    - phase != "discarded"                # 已废弃不可重复废弃
+  on_fail: "Block discard, report reason (e.g. terminal state)"
+  side_effects:
+    - save current artifacts to snapshots/discard/
+    - clean up worktree (if used)
+    - move change to .mumuspec/changes/archive/discarded/
+    - set phase: discarded, discarded_at: <timestamp>
+    - release active_change_slot
+
+# === 终态守卫 ===
+
+archive_is_terminal:
+  description: "archive-completed 为终态，拒绝任何转换"
+  checks:
+    - phase != "archive-completed"        # 从 archive-completed 出发的任何转换均拒绝
+  on_fail: "Block transition: archive-completed is terminal"
 
 # === 归档完成守卫 ===
 
@@ -1316,6 +1963,24 @@ mumuspec merge abort <name>             # 中止合并流程
 mumuspec layer list <name>              # 查看变更的实现层级计划
 mumuspec layer status <name> <layer>    # 查看特定层级的实现状态
 mumuspec layer verify <name> <layer>    # 验证特定层级的规范合规性
+
+# 设计文档管理
+mumuspec design init <scope>            # 为指定目录初始化 design.md
+mumuspec design update <scope>          # 更新指定层级的设计文档
+mumuspec design list                    # 列出所有层级的设计文档
+mumuspec design check                   # 校验 design.md 与 spec.md 一致性
+
+# 文档生成
+mumuspec doc generate [--scope <path>]  # 生成对外文档（默认全部，指定 scope 则仅生成该层级）
+mumuspec doc generate --type technical  # 仅生成技术文档
+mumuspec doc generate --type business   # 仅生成业务文档
+mumuspec doc generate --format html     # 指定输出格式（markdown|html|pdf|confluence）
+mumuspec doc generate --depth 2         # 控制上下文聚合深度（默认全部父层）
+mumuspec doc list                       # 列出所有已生成文档及其状态
+mumuspec doc check                      # 文档一致性校验（检测文档与 spec/design 漂移）
+mumuspec doc stale                      # 列出过期的文档（spec/design 变更后未重新生成）
+mumuspec doc template list              # 列出可用模板
+mumuspec doc template add <file>        # 添加自定义模板
 ```
 
 ### 7.3 MCP Server
@@ -1344,6 +2009,7 @@ MCP 工具列表：
 | `search_specs` | 搜索规范（按 scope、type、keyword） |
 | `check_compliance` | 检查代码片段是否符合规范 |
 | `get_prohibitions` | 获取指定范围的禁止项清单 |
+| `get_design_context` **(新增)** | 获取指定目录的设计文档上下文（design.md） |
 | `index_repository` | 构建/更新代码知识图谱 |
 | `search_graph` | 搜索代码图谱节点 |
 | `trace_path` | 追踪调用链 |
@@ -1351,6 +2017,10 @@ MCP 工具列表：
 | `detect_drift` | 检测规范与代码的漂移 |
 | `get_change_status` | 获取变更状态 |
 | `guard_check` | 执行阶段守卫检查 |
+| `generate_docs` **(新增)** | 生成对外文档（技术/业务），支持按层级、类型、格式生成 |
+| `list_docs` **(新增)** | 列出所有已生成文档及其状态（fresh/stale） |
+| `check_doc_consistency` **(新增)** | 文档一致性校验，检测文档与 spec/design 的漂移 |
+| `get_design_decisions` **(新增)** | 获取指定层级的架构决策记录（ADR） |
 
 ### 7.4 Skill 定义与外部 Skill 生态集成
 
@@ -1493,6 +2163,14 @@ skill_dispatch:
   
   # 阶段执行中按需分发的 Skill
   on_execute:
+    - skill: executing-plans
+      purpose: "按 tasks.md 顺序执行实现计划"
+      required: false
+      condition: "build_mode == 'executing-plans'"
+    - skill: subagent-driven-development
+      purpose: "将独立任务分派给子代理并行实现"
+      required: false
+      condition: "build_mode == 'subagent'"
     - skill: test-driven-development
       purpose: "TDD 循环实现每个任务"
       required: true
@@ -1516,12 +2194,69 @@ skill_dispatch:
       purpose: "验证产出符合规范"
       required: true
   
-  # 约束守卫（在外部 Skill 产出后执行）
+  # 约束守卫（在外部 Skill 产出后执行，统一 on_fail 格式）
   constraint_guards:
-    - check: "mumuspec check --shall-not --layer <current_layer>"
-      on_fail: "block and report violations"
-    - check: "mumuspec guard <change> build"
-      on_fail: "block transition"
+    - id: SHALL_NOT-guard
+      check: "mumuspec check --shall-not --layer <current_layer>"
+      on_fail: "block: report violations and require fix"
+    - id: SHALL-guard
+      check: "mumuspec check --shall --layer <current_layer>"
+      on_fail: "block: report unmet SHALL requirements"
+    - id: phase-guard
+      check: "mumuspec guard <change> <current_phase>"
+      on_fail: "block: report phase transition failures"
+```
+
+**横切关注点分发配置**：
+
+横切关注点 Skill（见 7.4.3 横切关注点表）适用于所有阶段，单独配置在 `cross_cutting_dispatch` 中，不重复出现在每个阶段的 `skill_dispatch`：
+
+```yaml
+# 横切关注点分发配置（独立于阶段 skill_dispatch，所有阶段共享）
+cross_cutting_dispatch:
+  - skill: using-git-worktrees
+    purpose: "所有阶段在 worktree 中工作"
+    required: true
+    trigger: "phase_enter"              # 阶段进入时触发
+  - skill: context-engineering
+    purpose: "会话开始/切换/降级时重新配置上下文"
+    required: true
+    trigger: "session_start or context_degraded"
+  - skill: code-simplification
+    purpose: "实现完成后简化代码"
+    required: false
+    trigger: "build_layer_done"
+  - skill: deprecation-and-migration
+    purpose: "涉及移除旧系统时"
+    required: false
+    trigger: "removal_detected"
+```
+
+**其他阶段 skill_dispatch 示例**：
+
+Open / Design / Verify / Archive 阶段遵循相同的 `skill_dispatch` 结构（on_enter / on_execute / on_exit / constraint_guards），仅分发的外部 Skill 不同：
+
+```yaml
+# Open 阶段 skill_dispatch 示例（mumuspec-open.md）
+skill_dispatch:
+  on_enter:
+    - skill: brainstorming
+      purpose: "需求探索与澄清"
+      required: true
+      condition: "workflow == 'full'"
+  on_execute:
+    - skill: source-driven-development
+      purpose: "基于官方文档验证技术选型"
+      required: false
+      condition: "uses_framework == true"
+  on_exit:
+    - skill: requesting-code-review
+      purpose: "proposal 自审"
+      required: false
+
+# Design 阶段 on_enter 关键 Skill：spec-driven-development / api-and-interface-design
+# Verify 阶段 on_exit 关键 Skill：code-review-and-quality / verification-before-completion
+# Archive 阶段 on_execute 关键 Skill：finishing-a-development-branch / ci-cd-and-automation / documentation-and-adrs
 ```
 
 **分发流程**：
@@ -1545,12 +2280,14 @@ graph TD
     Verify["验证 Skill 执行"]
     PhaseGuard{"阶段守卫检查"}
     Transition["转换阶段"]
+    NoteAvail["注: required_skill_missing 配置仅影响 required: false 的 optional Skill<br/>required: true 始终阻断，不受配置影响"]
 
     Start --> Enter
     Enter --> CheckAvail
     CheckAvail -->|required=true 且不可用| Block
     CheckAvail -->|required=false 且不可用| Skip
     CheckAvail -->|可用| Load
+    CheckAvail -.->|配置参考| NoteAvail
     Load --> Guard1
     Guard1 -->|SHALL NOT 违规| BlockFix
     Guard1 -->|通过| Continue
@@ -1629,15 +2366,19 @@ skills:
   
   # 分发策略
   dispatch:
-    required_skill_missing: block     # block(阻断) | skip(跳过) | warn(警告)
-    constraint_violation: block       # block(阻断) | warn(警告)
+    required_skill_missing: block     # 仅影响 required: false 的 optional Skill（block|skip|warn）；required: true 的 Skill 不可用时始终阻断，不受此配置影响
+    shall_violation: block            # SHALL 正向要求违规：block(阻断) | warn(警告)，可配置
+    shall_not_violation: block        # SHALL NOT 反向禁止违规：固定 block 不可关闭（硬性约束，不可配置）
     skill_timeout: 300s               # Skill 执行超时
     parallel_dispatch: false          # 是否允许并行分发（默认串行）
   
-  # 优先级覆盖（用户自定义）
+  # 优先级覆盖（用户自定义，仅限策略层覆盖，不可覆盖 SHALL NOT）
   priority_override:
-    # 用户可以在这里覆盖默认优先级
-    # 例如: allow_tdd_skip: true  # 允许跳过 TDD（等同于用户指令）
+    # 字段结构: <override_key>: <bool|enum>
+    # 硬性约束: 不可覆盖 SHALL NOT 反向禁止（priority_override 永远不能绕过 shall_not_violation: block）
+    # 作用范围: 仅在满足 SHALL NOT 约束的前提下，对策略层（如 tdd_mode、build_mode）进行覆盖
+    # 例如: allow_tdd_skip: true  # 允许跳过 TDD（在 SHALL NOT 约束下的策略覆盖，非等同于用户指令）
+    # 例如: prefer_subagent: true # 优先使用子代理实现
 ```
 
 #### 7.4.7 阶段编排器 Skill 文件结构
@@ -1772,8 +2513,9 @@ fi
 
 **目标**：实现树状规范 + 双向约束 + 基础 CLI
 
-- [ ] 规范文件格式定义（spec.md / prohibitions.md / index.yaml）
-- [ ] 树状规范加载引擎（渐进式披露）
+- [ ] 规范文件格式定义（spec.md / design.md / prohibitions.md / index.yaml）
+- [ ] **目录级设计文档（design.md）格式与加载引擎**
+- [ ] 树状规范加载引擎（渐进式披露，含 spec + design）
 - [ ] CLI 核心命令（init / context / validate / check）
 - [ ] 基础 lint 规则引擎（执行 Enforcement 检查）
 - [ ] Rules 文件生成（CLAUDE.md / .cursorrules）
@@ -1790,6 +2532,7 @@ fi
 - [ ] Phase guard 脚本（正向 + 反向回退守卫）
 - [ ] delta spec 合并引擎
 - [ ] hotfix/tweak 预设路径
+- [ ] **设计文档同步机制（Design 阶段 delta-design 合并到 design.md）**
 - [ ] Skill 文件定义（阶段编排器）
 - [ ] **外部 Skill 生态兼容层（Skill Bridge）**
 - [ ] **阶段-Skill 映射与分发协议**
@@ -1812,8 +2555,12 @@ fi
 
 - [ ] Pre-commit hook（SHALL NOT 快速检查）
 - [ ] CI/CD pipeline 集成（全量校验）
-- [ ] 漂移检测引擎
+- [ ] 漂移检测引擎（规范漂移 + 图谱漂移 + **设计文档漂移**）
 - [ ] 图谱自动更新（git hooks）
+- [ ] **文档生成引擎（从 spec + design 生成技术/业务文档）**
+- [ ] **文档模板系统（内置模板 + 自定义模板）**
+- [ ] **文档一致性校验（文档漂移检测 + 自动重新生成）**
+- [ ] **多格式输出（Markdown / HTML / PDF）**
 - [ ] 仪表盘可视化
 
 ### Phase 5: 生态与分发
@@ -1824,6 +2571,7 @@ fi
 - [ ] 多平台 Skill 支持（Claude Code / Cursor / Copilot / Codex）
 - [ ] **Skill 生态插件市场（社区贡献的 Skill 适配器）**
 - [ ] 规范模板库（常见技术栈的预置规范）
+- [ ] **文档模板市场（社区贡献的文档生成模板）**
 - [ ] 评估系统（Rubric / Pass@k）
 - [ ] 文档与教程
 
@@ -1864,6 +2612,7 @@ my-project/
 ├── .mumuspec/                              # === 根层规范 (Level 0) ===
 │   ├── config.yaml                         # MumuSpec 全局配置
 │   ├── spec.md                             # 全局架构规范
+│   ├── design.md                           # 根层设计文档（架构决策、技术选型）
 │   ├── prohibitions.md                     # 全局禁止清单
 │   ├── index.yaml                          # 子目录规范索引
 │   │
@@ -1894,25 +2643,45 @@ my-project/
 │   │   ├── mumuspec-hotfix.md
 │   │   └── mumuspec-tweak.md
 │   │
+│   ├── templates/                          # 文档生成模板
+│   │   ├── technical-root.yaml             # 技术文档模板：根层级
+│   │   ├── technical-module.yaml           # 技术文档模板：模块级
+│   │   ├── business-root.yaml              # 业务文档模板：根层级
+│   │   └── business-module.yaml            # 业务文档模板：模块级
+│   │
 │   ├── scripts/                            # 校验脚本
 │   │   ├── guard.mjs                       # 阶段守卫
 │   │   ├── state.mjs                       # 状态机管理
 │   │   ├── check.mjs                       # 规范校验
-│   │   └── drift.mjs                       # 漂移检测
+│   │   ├── drift.mjs                       # 漂移检测
+│   │   └── doc-gen.mjs                     # 文档生成引擎
 │   │
 │   └── graph/                              # 代码图谱数据
 │       ├── index.db                        # 图谱数据库 (SQLite)
 │       └── snapshot.json                   # 图谱快照
 │
+├── docs/                                   # === 对外文档输出（自动生成） ===
+│   ├── technical/                          # 技术文档
+│   │   ├── architecture.md                 # 系统架构总览
+│   │   ├── tech-standards.md               # 技术规范汇总
+│   │   ├── module-auth.md                  # 认证模块技术文档
+│   │   ├── module-api.md                   # API 模块技术文档
+│   │   └── api-reference.md                # API 参考文档
+│   └── business/                           # 业务文档
+│       ├── overview.md                     # 业务全景概览
+│       └── feature-auth.md                 # 认证功能业务说明
+│
 ├── src/
 │   ├── .mumuspec/                          # === src 层规范 (Level 1) ===
 │   │   ├── spec.md                         # 编码规范
+│   │   ├── design.md                       # src 层设计文档（模块划分决策）
 │   │   ├── prohibitions.md                 # src 层禁止项
 │   │   └── index.yaml                      # 子模块索引
 │   │
 │   ├── auth/
 │   │   ├── .mumuspec/                      # === auth 层规范 (Level 2) ===
 │   │   │   ├── spec.md                     # 认证规范
+│   │   │   ├── design.md                   # 认证模块设计文档
 │   │   │   └── prohibitions.md             # 认证禁止项
 │   │   ├── login.ts
 │   │   └── token.ts
@@ -1920,12 +2689,14 @@ my-project/
 │   ├── api/
 │   │   ├── .mumuspec/                      # === api 层规范 (Level 2) ===
 │   │   │   ├── spec.md                     # API 规范
+│   │   │   ├── design.md                   # API 层设计文档
 │   │   │   ├── prohibitions.md             # API 禁止项
 │   │   │   └── index.yaml                  # 子目录索引
 │   │   │
 │   │   ├── controllers/
 │   │   │   ├── .mumuspec/                  # === controllers 层 (Level 3) ===
-│   │   │   │   └── spec.md                 # Controller 规范
+│   │   │   │   ├── spec.md                 # Controller 规范
+│   │   │   │   └── design.md               # Controller 层设计文档
 │   │   │   └── user.controller.ts
 │   │   │
 │   │   └── middlewares/
@@ -1933,12 +2704,14 @@ my-project/
 │   │
 │   └── lib/
 │       ├── .mumuspec/                      # === lib 层规范 (Level 2) ===
-│       │   └── spec.md
+│       │   ├── spec.md
+│       │   └── design.md                   # 工具库设计文档
 │       └── utils.ts
 │
 ├── tests/
 │   └── .mumuspec/                          # === tests 层规范 (Level 1) ===
-│       └── spec.md
+│       ├── spec.md
+│       └── design.md                       # 测试策略设计文档
 │
 ├── .github/
 │   └── workflows/
@@ -1966,6 +2739,7 @@ specs:
   format: "yaml+markdown"         # 规范格式
   max_layer_depth: 5              # 最大规范层级深度
   auto_index: true                # 自动生成 index.yaml
+  require_design_doc: true        # 每个有 spec.md 的目录必须同时维护 design.md（0.5.0 新增）
 
 # 代码图谱配置
 code_graph:
@@ -1988,12 +2762,20 @@ changes:
   require_brainstorming: true     # full 工作流是否强制 brainstorming
   auto_transition: true           # 阶段间是否自动转换
   
+  # 实例层默认值（创建变更时拷贝到 .mumuspec.yaml）
+  default_rollback_limit: 3       # rollback_count 上限（build/verify/archive-ci-fail 回退总和）
+  default_rebuild_limit: 5        # rebuild_count 上限（verify-rebuild 独立计数）
+  default_build_mode: executing-plans  # executing-plans | subagent | direct
+  default_tdd_mode: tdd           # tdd | direct
+  
   # 工作流规则（0.2.0 新增）
-  single_active_change: true      # 强制单一活跃变更
-  default_isolation: worktree     # 默认隔离方式：worktree | branch
-  allow_isolation_downgrade: true # 允许降级为 branch（需记录原因）
-  implementation_strategy: bottom-up  # 实现策略：bottom-up | top-down
-  design_strategy: top-down       # 设计策略：top-down | bottom-up
+  single_active_change: true      # 硬性约束，不可关闭（固定为 true，参见 1.4 规则二）
+  default_isolation: worktree     # 默认隔离方式：worktree | branch（实例层 isolation 字段从此拷贝）
+  allow_isolation_downgrade: true # 允许 isolation 降级为 branch（需在 isolation_downgrade_reason 记录原因）
+  
+  # 硬性规则只读校验项（1.4 规则三，不可配置，仅用于 CI 校验实例层是否一致）
+  implementation_strategy: bottom-up  # 固定值，CI 校验 .mumuspec.yaml.implementation_strategy == bottom-up
+  design_strategy: top-down       # 固定值，CI 校验设计阶段遵循自顶向下
   
 # CI/CD 配置
 ci:
@@ -2031,12 +2813,70 @@ skills:
       enabled: true
       path: ".mumuspec/skills/custom" # 项目自定义 Skill
   dispatch:
-    required_skill_missing: block     # block(阻断) | skip(跳过) | warn(警告)
-    constraint_violation: block       # block(阻断) | warn(警告)
+    required_skill_missing: block     # 仅影响 required: false 的 optional Skill（block|skip|warn）；required: true 始终阻断
+    shall_violation: block            # SHALL 正向要求违规：block(阻断) | warn(警告)，可配置
+    shall_not_violation: block        # SHALL NOT 反向禁止违规：固定 block 不可关闭（硬性约束，不可配置）
     skill_timeout: 300s               # Skill 执行超时
     parallel_dispatch: false          # 是否允许并行分发（默认串行）
+
+# 设计文档配置（0.5.0 新增）
+design_docs:
+  enabled: true                      # 启用目录级设计文档
+  required: true                     # 每个有 spec.md 的目录必须维护 design.md
+  auto_sync_on_design_phase: true   # Design 阶段完成后自动同步到 design.md
+  drift_detection: true             # 检测 design.md 与代码图谱的漂移
+  inheritance: true                  # 子层 design.md 继承父层设计上下文
+
+# 文档生成配置（0.5.0 新增）
+docs:
+  enabled: true                      # 启用文档生成引擎
+  output_dir: "docs"                 # 文档输出根目录
+  
+  # 生成策略
+  generation:
+    auto_on_build: true              # Build 阶段完成后自动重新生成受影响文档
+    auto_on_archive: true            # Archive 阶段提交文档到主分支
+    stale_detection: true            # 检测 spec/design 变更后标记文档为 stale
+    context_aggregation_depth: -1    # 上下文聚合深度（-1=全部父层，0=仅当前层，N=向上N层）
+  
+  # 文档类型
+  types:
+    technical:                       # 技术文档
+      enabled: true
+      output_dir: "docs/technical"
+      include_enforcement: true      # 包含 Enforcement 检查规则
+      include_adr: true              # 包含架构决策记录
+    business:                        # 业务文档
+      enabled: true
+      output_dir: "docs/business"
+      simplify_language: true        # 简化技术术语为业务语言
+      include_user_flow: true        # 包含用户流程图
+  
+  # 模板配置
+  templates:
+    custom_dir: ".mumuspec/templates"  # 自定义模板目录
+    fallback_to_builtin: true          # 未找到自定义模板时使用内置模板
+  
+  # 输出格式
+  output:
+    default_format: markdown          # markdown | html | pdf | confluence
+    formats:
+      - markdown                       # 总是生成 Markdown
+      # - html:                        # 按需启用 HTML
+      #     output_dir: "docs/site"
+      #     theme: "default"
+      # - pdf:                         # 按需启用 PDF
+      #     output_dir: "docs/pdf"
+      #     only: ["architecture", "api-reference"]
+  
+  # 一致性校验
+  consistency_check:
+    enabled: true                     # 启用文档一致性校验
+    on_pr: true                       # PR 时校验文档一致性
+    auto_regen_on_drift: true         # 检测到漂移时自动重新生成（仅 auto_fix: true 的规则）
+    block_on_manual_edit: true        # 检测到手动修改生成文档时发出警告
 ```
 
 ---
 
-> **本文档为 MumuSpec 0.1.0 设计草案，后续将根据反馈持续迭代。**
+> **本文档为 MumuSpec 0.5.0-draft 设计草案，后续将根据反馈持续迭代。**
