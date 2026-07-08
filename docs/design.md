@@ -1,11 +1,12 @@
 # MumuSpec — AI 编程规范体系设计方案
 
-> **版本**: 0.3.0-draft
+> **版本**: 0.4.0-draft
 > **日期**: 2026-07-08
 > **状态**: 设计草案
 >
 > **0.2.0 变更**: 新增三条核心工作流规则：默认 worktree 隔离、单一活跃变更约束、自顶向下设计 + 自下向上实现
 > **0.3.0 变更**: 状态机管理变更阶段，支持 Build/Verify 回退到 Design；Archive 阶段增加 git 提交与合并请求处理
+> **0.4.0 变更**: 新增外部 Skill 生态兼容层，支持 Superpowers/Agent Skills 等 skill 体系在开发各阶段提供指导
 
 ---
 
@@ -32,34 +33,22 @@
 
 MumuSpec 旨在构建一套**面向 AI 编程的双向约束规范体系**，核心理念：
 
+```mermaid
+graph LR
+    subgraph Pillars["MumuSpec 三大设计支柱"]
+        P1["正向设计+反向禁止<br/>(Dual Constraint)<br/>· SHALL / MUST<br/>· SHALL NOT / MUST NOT (硬性禁止)<br/>· 禁止项=可执行检查"]
+        P2["树状分布+渐进式披露<br/>(Tree Progressive)<br/>· 按目录树分层存放<br/>· 每层含本层+子层信息<br/>· 按切入层级加载<br/>· 避免上下文过载"]
+        P3["持久化+代码一致<br/>(Code-Bound)<br/>· CI/CD 自动校验<br/>· 测试即契约<br/>· 代码图谱绑定<br/>· 漂移检测+告警"]
+    end
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    MumuSpec 三大设计支柱                         │
-├─────────────────────┬───────────────────────┬───────────────────┤
-│  正向设计+反向禁止   │  树状分布+渐进式披露   │  持久化+代码一致   │
-│  (Dual Constraint)  │ (Tree Progressive)    │ (Code-Bound)      │
-│                     │                       │                   │
-│  · SHALL / MUST     │  · 按目录树分层存放    │  · CI/CD 自动校验  │
-│  · SHALL NOT / MUST │  · 每层含本层+子层信息 │  · 测试即契约      │
-│    NOT (硬性禁止)    │  · 按切入层级加载      │  · 代码图谱绑定    │
-│  · 禁止项=可执行检查 │  · 避免上下文过载      │  · 漂移检测+告警   │
-└─────────────────────┴───────────────────────┴───────────────────┘
 
-┌─────────────────────────────────────────────────────────────────┐
-│                    MumuSpec 三大工作流规则                       │
-├───────────────────┬──────────────────┬──────────────────────────┤
-│  默认 Worktree    │  单一活跃变更     │  自顶向下设计             │
-│  隔离开发          │  约束             │  自下向上实现             │
-│ (Worktree Default)│(Single Active)   │(Top-Down/Bottom-Up)      │
-│                   │                  │                          │
-│  · 默认 git        │  · 同时只允许     │  · 设计从根规范→模块→    │
-│    worktree 隔离  │    一个活跃变更   │    叶子逐层细化           │
-│  · 物理隔离主分支  │  · 新变更必须先   │  · 实现从叶子代码→模块→  │
-│  · 支持零上下文    │    归档或废弃     │    根逐层集成验证         │
-│    恢复           │    旧变更         │  · 每层实现完即可独立     │
-│  · 避免分支污染    │  · 强制专注单一   │    测试，降低耦合风险     │
-│                   │    任务上下文     │                          │
-└───────────────────┴──────────────────┴──────────────────────────┘
+```mermaid
+graph LR
+    subgraph Rules["MumuSpec 三大工作流规则"]
+        R1["默认 Worktree 隔离开发<br/>(Worktree Default)<br/>· 默认 git worktree 隔离<br/>· 物理隔离主分支<br/>· 支持零上下文恢复<br/>· 避免分支污染"]
+        R2["单一活跃变更约束<br/>(Single Active)<br/>· 同时只允许一个活跃变更<br/>· 新变更必须先归档或废弃旧变更<br/>· 强制专注单一任务上下文"]
+        R3["自顶向下设计 自下向上实现<br/>(Top-Down/Bottom-Up)<br/>· 设计从根规范→模块→叶子逐层细化<br/>· 实现从叶子代码→模块→根逐层集成验证<br/>· 每层实现完即可独立测试，降低耦合风险"]
+    end
 ```
 
 ### 1.4 三大工作流规则
@@ -86,24 +75,26 @@ MumuSpec 旨在构建一套**面向 AI 编程的双向约束规范体系**，核
 
 #### 规则三：自顶向下设计，自下向上实现
 
-```
-设计阶段（自顶向下）                    实现阶段（自下向上）
-
-Level 0: 根层架构约束          ──┐
-                                 │ 设计从根开始
-Level 1: 模块划分与接口定义     ──┤ 逐层向下细化
-                                 │ 确定每一层的
-Level 2: 模块内组件设计         ──┤ SHALL/SHALL NOT
-                                 │ 和 Enforcement
-Level 3: 叶子节点详细设计       ──┘
-
-                                 ┌── Level 3: 实现叶子组件 + 单元测试
-                                 │     ↓ 验证通过
-  实现从叶子开始                 ├── Level 2: 集成模块组件 + 集成测试
-  逐层向上集成                   │     ↓ 验证通过
-                                 ├── Level 1: 模块间集成 + 接口测试
-                                 │     ↓ 验证通过
-                                 └── Level 0: 全局集成 + 端到端测试
+```mermaid
+graph LR
+    subgraph Design["设计阶段（自顶向下）"]
+        D0["Level 0: 根层架构约束"]
+        D1["Level 1: 模块划分与接口定义"]
+        D2["Level 2: 模块内组件设计"]
+        D3["Level 3: 叶子节点详细设计"]
+        D0 -->|逐层向下细化| D1
+        D1 --> D2
+        D2 --> D3
+    end
+    subgraph Build["实现阶段（自下向上）"]
+        B3["Level 3: 实现叶子组件 + 单元测试"]
+        B2["Level 2: 集成模块组件 + 集成测试"]
+        B1["Level 1: 模块间集成 + 接口测试"]
+        B0["Level 0: 全局集成 + 端到端测试"]
+        B3 -->|验证通过| B2
+        B2 -->|验证通过| B1
+        B1 -->|验证通过| B0
+    end
 ```
 
 **设计自顶向下**：在 Design 阶段，从根层规范开始，逐层向下细化设计，每一层的设计基于上层约束，并为下层提供约束。这确保了架构一致性——上层的 SHALL NOT 在下层设计时自动继承。
@@ -119,32 +110,25 @@ Level 3: 叶子节点详细设计       ──┘
 
 ### 2.1 架构全景图
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                           MumuSpec System                                │
-│                                                                          │
-│  ┌─────────────┐   ┌──────────────────┐   ┌──────────────────────────┐  │
-│  │  Spec Layer │   │  Change Layer    │   │  Code Graph Layer        │  │
-│  │  (规范层)    │   │  (变更层)        │   │  (代码图谱层)            │  │
-│  │              │   │                  │   │                          │  │
-│  │  Tree-distrib│   │  Lifecycle:      │   │  Knowledge Graph:        │  │
-│  │  uted specs  │◄─►│  open→design→    │◄─►│  Nodes + Edges           │  │
-│  │  SHALL/      │   │  build→verify→   │   │  search/trace/impact     │  │
-│  │  SHALL NOT   │   │  archive         │   │  detect_changes          │  │
-│  └──────┬───────┘   └────────┬─────────┘   └────────────┬─────────────┘  │
-│         │                    │                          │                │
-│         └────────────┬───────┴──────────────────────────┘                │
-│                      │                                                   │
-│              ┌───────▼────────┐                                         │
-│              │  Guard Layer   │  CI/CD + CLI + Lint + Test              │
-│              │  (校验层)       │  Phase Guards + Spec Drift Detection   │
-│              └────────────────┘                                         │
-│                                                                          │
-│  ┌──────────────────────────────────────────────────────────────────┐    │
-│  │                    AI Integration Layer                           │    │
-│  │  Skills / Rules / MCP Server / CLI / Hooks                       │    │
-│  └──────────────────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph System["MumuSpec System"]
+        SL["Spec Layer 规范层<br/>Tree-distributed specs<br/>SHALL / SHALL NOT"]
+        CL["Change Layer 变更层<br/>Lifecycle: open→design→<br/>build→verify→archive"]
+        CG["Code Graph Layer 代码图谱层<br/>Knowledge Graph<br/>Nodes + Edges<br/>search/trace/impact"]
+
+        SL <--> CL
+        CL <--> CG
+        SL <--> CG
+
+        GL["Guard Layer 校验层<br/>CI/CD + CLI + Lint + Test<br/>Phase Guards + Spec Drift Detection"]
+
+        SL --> GL
+        CL --> GL
+        CG --> GL
+
+        AIL["AI Integration Layer<br/>Skills / Skill Bridge / Rules / MCP Server / CLI / Hooks"]
+    end
 ```
 
 ### 2.2 分层职责
@@ -155,7 +139,7 @@ Level 3: 叶子节点详细设计       ──┘
 | **Change Layer（变更层）** | 变更驱动的规范生命周期管理 | `changes/<name>/` 下的 proposal/design/tasks/delta-specs |
 | **Code Graph Layer（代码图谱层）** | 代码结构索引，为规范提供代码事实基础 | 知识图谱（节点+边）、索引数据库 |
 | **Guard Layer（校验层）** | 自动化校验规范与代码一致性 | CI 检查脚本、lint 规则、phase guards、漂移检测 |
-| **AI Integration Layer（AI 集成层）** | 与 AI 编程工具的集成接口 | Skills、rules 文件、MCP server、CLI、hooks |
+| **AI Integration Layer（AI 集成层）** | 与 AI 编程工具的集成接口，兼容外部 Skill 生态 | Skills、Skill Bridge、rules 文件、MCP server、CLI、hooks |
 
 ---
 
@@ -242,22 +226,22 @@ my-project/
 
 当 AI 从某个目录切入工作时，**只加载三层规范**：
 
-```
-加载策略：从当前目录向上回溯到根，再加载当前目录的直接子目录概要
-
-示例：AI 在 src/api/controllers/ 目录工作
-
-加载内容：
-  Level 0: /.mumuspec/spec.md           (全局规范)
-  Level 1: /src/.mumuspec/spec.md       (src 层规范)
-  Level 2: /src/api/.mumuspec/spec.md   (api 层规范)
-  Level 3: /src/api/controllers/.mumuspec/spec.md  (controllers 层规范)
-  概要:   /src/api/.mumuspec/index.yaml 中的子目录索引
-
-不加载：
-  /src/auth/.mumuspec/*    (不相关模块)
-  /tests/.mumuspec/*       (不相关模块)
-  /src/lib/.mumuspec/*     (不相关模块)
+```mermaid
+graph TD
+    subgraph Loaded["加载内容 — AI 在 src/api/controllers/ 目录工作"]
+        L0["Level 0: /.mumuspec/spec.md (全局规范)"]
+        L1["Level 1: /src/.mumuspec/spec.md (src 层规范)"]
+        L2["Level 2: /src/api/.mumuspec/spec.md (api 层规范)"]
+        L3["Level 3: /src/api/controllers/.mumuspec/spec.md (controllers 层规范)"]
+        IDX["概要: /src/api/.mumuspec/index.yaml (子目录索引)"]
+        L0 --> L1 --> L2 --> L3
+        L2 -.-> IDX
+    end
+    subgraph NotLoaded["不加载"]
+        N1["/src/auth/.mumuspec/* (不相关模块)"]
+        N2["/tests/.mumuspec/* (不相关模块)"]
+        N3["/src/lib/.mumuspec/* (不相关模块)"]
+    end
 ```
 
 ```yaml
@@ -391,40 +375,29 @@ scope: "src"
 
 ### 3.5 规范层级关系
 
+```mermaid
+graph TD
+    L0["Level 0 Root<br/>全局架构规范<br/>全局禁止项<br/>技术栈约束"]
+    L1["Level 1 src<br/>编码规范<br/>src 层禁止项<br/>模块划分约束"]
+    L2A["Level 2 auth<br/>认证规范<br/>认证禁止项"]
+    L2B["Level 2 api<br/>API 规范<br/>API 禁止项"]
+    L2C["Level 2 lib<br/>工具库规范<br/>lib 禁止项"]
+    L3A["Level 3 controllers"]
+    L3B["Level 3 middlewares"]
+
+    L0 -->|继承| L1
+    L1 -->|继承| L2A
+    L1 -->|继承| L2B
+    L1 -->|继承| L2C
+    L2B -->|继承| L3A
+    L2B -->|继承| L3B
 ```
-                    ┌─────────────────────┐
-  Level 0 (Root)    │  全局架构规范        │
-                    │  全局禁止项          │
-                    │  技术栈约束          │
-                    └──────────┬──────────┘
-                               │ 继承
-                    ┌──────────▼──────────┐
-  Level 1 (src)     │  编码规范            │
-                    │  src 层禁止项        │
-                    │  模块划分约束        │
-                    └──────────┬──────────┘
-                               │ 继承
-           ┌───────────────────┼───────────────────┐
-           │                   │                   │
-  ┌────────▼────────┐ ┌────────▼────────┐ ┌────────▼────────┐
-  │ Level 2 (auth)  │ │ Level 2 (api)   │ │ Level 2 (lib)   │
-  │ 认证规范         │ │ API 规范        │ │ 工具库规范       │
-  │ 认证禁止项       │ │ API 禁止项      │ │ lib 禁止项      │
-  └────────┬────────┘ └────────┬────────┘ └─────────────────┘
-           │                   │
-           │           ┌───────┴───────┐
-           │           │               │
-           │    ┌──────▼──────┐ ┌──────▼──────┐
-           │    │ Level 3     │ │ Level 3     │
-           │    │ controllers │ │ middlewares │
-           │    └─────────────┘ └─────────────┘
-           │
-  规范继承规则：
-  1. 子层自动继承父层的所有 SHALL 和 SHALL NOT
-  2. 子层可以收紧父层约束，但不能放宽
-  3. 子层的 SHALL NOT 累加到父层（不覆盖）
-  4. 子层可以添加父层没有的特定约束
-```
+
+**规范继承规则**：
+1. 子层自动继承父层的所有 SHALL 和 SHALL NOT
+2. 子层可以收紧父层约束，但不能放宽
+3. 子层的 SHALL NOT 累加到父层（不覆盖）
+4. 子层可以添加父层没有的特定约束
 
 ---
 
@@ -434,24 +407,25 @@ scope: "src"
 
 借鉴 OpenSpec + Comet 的工件流水线，增加双向约束、代码图谱集成，并遵循三大工作流规则：
 
+```mermaid
+graph LR
+    Open["Open<br/>提案+规范<br/>影响分析<br/>单一变更检查"]
+    Design["Design<br/>技术设计<br/>双向约束<br/>自顶向下设计"]
+    Build["Build<br/>实现+图谱绑定<br/>自下向上实现"]
+    Verify["Verify<br/>规范校验<br/>漂移检测<br/>逐层验证"]
+    Archive["Archive<br/>git提交<br/>合并请求<br/>归档历史<br/>释放槽位"]
+
+    Open -->|open-complete| Design
+    Design -->|design-complete| Build
+    Build -->|build-complete| Verify
+    Verify -->|verify-pass| Archive
+
+    Build -.->|build-rollback 回退| Design
+    Verify -.->|verify-rollback 回退| Design
+    Verify -.->|verify-rebuild 回退| Build
 ```
-                     正向流转
-              ┌──────────────────────────────────────────────────┐
-              │                                                  ▼
-┌────────┐   ┌─────────┐   ┌────────┐   ┌────────┐   ┌─────────┐
-│  Open  │──▶│ Design  │──▶│ Build  │──▶│ Verify │──▶│ Archive │
-│        │   │         │   │        │   │        │   │         │
-│提案+规范│   │技术设计 │   │实现+   │   │规范校验│   │git提交  │
-│影响分析│   │双向约束 │   │图谱绑定│   │漂移检测│   │合并请求 │
-│单一变更│   │自顶向下 │   │自下向上│   │逐层验证│   │归档历史 │
-│检查    │   │设计     │   │实现    │   │        │   │释放槽位 │
-└────────┘   └────┬────┘   └───┬────┘   └───┬────┘   └─────────┘
-                  ▲            │             │
-                  │  rollback  │  rollback   │  rollback
-                  │  (回退)    │  (回退)     │  (回退)
-                  └────────────┴─────────────┘
-              Build/Verify 发现设计问题可回退到 Design 重新设计
-```
+
+> Build/Verify 发现设计问题可回退到 Design 重新设计
 
 **工作流规则在各阶段的体现**：
 
@@ -467,27 +441,18 @@ scope: "src"
 
 变更阶段由状态机严格管理，支持正向流转和反向回退：
 
-```
-状态机状态图
+```mermaid
+stateDiagram-v2
+    open --> design: open-complete
+    design --> build: design-complete
+    build --> verify: build-complete
+    verify --> archive: verify-pass
 
-    ┌──────┐  open-complete   ┌───────┐  design-complete  ┌───────┐  build-complete  ┌───────┐ verify-pass ┌────────┐
-    │ open │ ──────────────▶ │design │ ──────────────▶  │ build │ ──────────────▶ │verify │ ──────────▶│archive │
-    └──────┘                  └───┬───┘                  └───┬───┘                  └───┬───┘             └────────┘
-                                  ▲                          │                          │
-                                  │   build-rollback         │   verify-rollback        │
-                                  │   (Build 发现设计问题)    │   (Verify 发现设计问题)   │
-                                  │   → 保存快照              │   → 保存快照              │
-                                  │   → 回退到 design         │   → 回退到 design         │
-                                  │   → 回退计数 +1           │   → 回退计数 +1           │
-                                  │                          │                          │
-                                  │                          ▼                          │
-                                  │                    ┌───────┐                        │
-                                  │   verify-rebuild   │verify │                        │
-                                  │   (Verify 发现      │       │                        │
-                                  │    实现问题)        └───────┘                        │
-                                  │   → 回退到 build                                     │
-                                  │   → 不重走完整设计                                    │
-                                  └──────────────────────────────────────────────────────┘
+    build --> design: build-rollback\n保存快照, 回退计数+1
+    verify --> design: verify-rollback\n保存快照, 回退计数+1
+    verify --> build: verify-rebuild\n仅回退到 build 重做特定层
+
+    note right of archive: 终态, 不可回退
 ```
 
 **正向转换事件**：
@@ -520,7 +485,7 @@ scope: "src"
 
 ```
 .mumuspec/changes/<change-name>/
-├── .mumuspec.yaml              # 变更状态文件（类似 .comet.yaml）
+├── .mumuspec.yaml              # 变更状态文件（状态机 + 回退追踪 + git 合并）
 ├── proposal.md                 # 为什么 + 做什么（含影响分析）
 ├── design.md                   # 怎么做（技术设计）
 ├── tasks.md                    # 实现任务清单
@@ -533,6 +498,16 @@ scope: "src"
 ├── code-graph/                 # 代码图谱绑定
 │   ├── impact-analysis.json    # 影响分析结果
 │   └── base-ref.txt            # 基准 commit hash
+├── snapshots/                  # 回退快照（每次回退自动保存）
+│   ├── build-rollback-1/       # 第一次 Build→Design 回退快照
+│   │   ├── design.md           # 回退时的 design.md 副本
+│   │   ├── tasks.md            # 回退时的 tasks.md 副本
+│   │   ├── build-layers.json   # 回退时的层级状态
+│   │   └── rollback-reason.md  # 回退原因记录
+│   └── verify-rollback-1/      # 第一次 Verify→Design 回退快照
+│       ├── verify.md           # 验证报告副本
+│       ├── design.md           # 回退时的 design.md 副本
+│       └── rollback-reason.md  # 回退原因记录
 └── verify.md                   # 验证报告
 ```
 
@@ -999,32 +974,19 @@ edges:
 
 ### 5.2 图谱可视化
 
-```
-规范节点 (Spec)                          代码节点 (Function/Class)
-    │                                          │
-    │ GOVERNED_BY                              │ DEFINES
-    │                                          │
-    ▼                                          ▼
-┌─────────┐  ENFORCED_BY   ┌──────────┐  CALLS   ┌──────────┐
-│ Spec    │───────────────▶│Enforce   │◀────────│ Function │
-│ SHALL   │                │ment      │          │  doAuth  │
-│ NOT     │                │ lint:xx  │          └────┬─────┘
-└────┬────┘                └──────────┘               │
-     │                                                │ CALLS
-     │ GOVERNED_BY                                    ▼
-     │                                          ┌──────────┐
-     ▼                                          │ Function │
-┌─────────┐                                     │ validate │
-│ Class   │                                     └──────────┘
-│AuthCtrl │
-└─────────┘
-     │
-     │ CHANGED_BY
-     ▼
-┌─────────┐
-│ Change  │
-│add-auth │
-└─────────┘
+```mermaid
+graph LR
+    Spec["Spec SHALL NOT"]
+    Enf["Enforcement lint:xx"]
+    Func1["Function doAuth"]
+    Func2["Function validate"]
+    Class["Class AuthCtrl"]
+    Change["Change add-auth"]
+
+    Spec -->|ENFORCED_BY| Enf
+    Func1 -->|CALLS| Func2
+    Spec -->|GOVERNED_BY| Class
+    Class -->|CHANGED_BY| Change
 ```
 
 ### 5.3 核心 MCP 工具
@@ -1080,21 +1042,28 @@ bindings:
 
 ### 6.1 校验体系
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Guard Layer 校验体系                      │
-├─────────────────┬──────────────────┬───────────────────────┤
-│   Pre-commit    │   CI/CD Pipeline │   Phase Guards         │
-│   (提交前)       │   (持续集成)      │   (阶段守卫)           │
-├─────────────────┼──────────────────┼───────────────────────┤
-│ · SHALL NOT     │ · 全量 SHALL 检查 │ · Open→Design 守卫     │
-│   快速检查       │ · 全量 SHALL NOT  │ · Design→Build 守卫    │
-│ · 规范格式校验   │   检查            │ · Build→Verify 守卫    │
-│ · 图谱索引新鲜度 │ · 代码图谱完整性  │ · Verify→Archive 守卫  │
-│ · 漂移快速检测   │ · 漂移全量检测    │ · 阶段退出条件校验      │
-│                 │ · 影响分析验证    │                       │
-│   耗时: <5s     │   耗时: <5min    │   耗时: <30s          │
-└─────────────────┴──────────────────┴───────────────────────┘
+```mermaid
+graph LR
+    subgraph PC["Pre-commit 提交前 耗时<5s"]
+        PC1["SHALL NOT 快速检查"]
+        PC2["规范格式校验"]
+        PC3["图谱索引新鲜度"]
+        PC4["漂移快速检测"]
+    end
+    subgraph CI["CI/CD Pipeline 持续集成 耗时<5min"]
+        CI1["全量 SHALL 检查"]
+        CI2["全量 SHALL NOT 检查"]
+        CI3["代码图谱完整性"]
+        CI4["漂移全量检测"]
+        CI5["影响分析验证"]
+    end
+    subgraph PG["Phase Guards 阶段守卫 耗时<30s"]
+        PG1["Open→Design 守卫"]
+        PG2["Design→Build 守卫"]
+        PG3["Build→Verify 守卫"]
+        PG4["Verify→Archive 守卫"]
+        PG5["阶段退出条件校验"]
+    end
 ```
 
 ### 6.2 Phase Guard 规则
@@ -1283,6 +1252,11 @@ drift_detection:
 - SHALL NOT 约束的优先级高于 SHALL
 - 当 SHALL 和 SHALL NOT 冲突时，以 SHALL NOT 为准
 - 子层规范可以收紧但不能放宽父层约束
+
+### Skill 生态兼容
+- MumuSpec 阶段 Skill 作为编排器，分发到外部 Skill 生态（Superpowers 等）获取 HOW 指导
+- 外部 Skill 的建议不能违反 MumuSpec SHALL NOT（反向禁止优先于 Skill 建议）
+- 当外部 Skill 不可用时，required Skill 阻断流程，optional Skill 跳过
 ```
 
 ### 7.2 CLI 命令
@@ -1378,26 +1352,338 @@ MCP 工具列表：
 | `get_change_status` | 获取变更状态 |
 | `guard_check` | 执行阶段守卫检查 |
 
-### 7.4 Skill 定义（示例）
+### 7.4 Skill 定义与外部 Skill 生态集成
+
+#### 7.4.1 MumuSpec 原生 Skill 文件
+
+MumuSpec 为每个变更阶段提供原生 Skill 文件，作为**阶段编排器**（Phase Orchestrator），负责在该阶段内分发到外部 Skill 生态：
 
 ```
 .mumuspec/skills/
-├── mumuspec-open.md          # 开启变更 Skill
-├── mumuspec-design.md         # 技术设计 Skill
-├── mumuspec-build.md          # 实现构建 Skill
-├── mumuspec-verify.md         # 验证 Skill
-├── mumuspec-archive.md        # 归档 Skill
+├── mumuspec-open.md          # 开启变更 Skill（编排器）
+├── mumuspec-design.md         # 技术设计 Skill（编排器）
+├── mumuspec-build.md          # 实现构建 Skill（编排器）
+├── mumuspec-verify.md         # 验证 Skill（编排器）
+├── mumuspec-archive.md        # 归档 Skill（编排器）
 ├── mumuspec-hotfix.md         # 热修复预设
-└── mumuspec-tweak.md          # 微调预设
+├── mumuspec-tweak.md          # 微调预设
+└── custom/                    # 项目自定义 Skill 扩展
 ```
 
 每个 Skill 文件遵循标准格式，包含：
 - 触发条件
-- 前置条件检查
-- 执行步骤
+- 前置条件检查（含 MumuSpec 约束检查）
+- 执行步骤（含外部 Skill 分发点）
 - 阻塞点定义
 - 退出条件
 - 阶段守卫调用
+- **Skill 分发配置**（指定该阶段调用的外部 Skill 及约束守卫）
+
+#### 7.4.2 外部 Skill 生态兼容架构
+
+MumuSpec 的原生 Skill 作为**阶段编排器**，在每个阶段内部按需分发给外部 Skill 生态（如 Superpowers、Agent Skills 等）。外部 Skill 提供 HOW 的指导，MumuSpec 提供 WHAT 的约束：
+
+```mermaid
+graph TB
+    subgraph Bridge["MumuSpec Skill 桥接架构"]
+        MS["MumuSpec Phase Skill 编排器<br/>· WHAT 约束<br/>· SHALL / SHALL NOT<br/>· 阶段守卫<br/>· 规范校验"]
+        ES["外部 Skill 生态<br/>Superpowers / Agent Skills /<br/>Comet / Codex / 自定义 Skill<br/>· HOW 指导<br/>· 工作流方法<br/>· 最佳实践"]
+        GL["Guard Layer 校验层<br/>外部 Skill 产出必须通过 MumuSpec 约束校验<br/>SHALL NOT 违规 → 阻断并要求修正"]
+
+        MS -->|分发 dispatch| ES
+        ES -->|返回 guide+result| MS
+        MS -->|约束守卫 constraint guard| GL
+    end
+```
+
+**设计原则**：
+- **MumuSpec 管 WHAT**：通过 SHALL/SHALL NOT 定义做什么、不做什么
+- **外部 Skill 管 HOW**：通过工作流方法指导怎么做
+- **约束守卫兜底**：外部 Skill 的产出必须通过 MumuSpec 约束校验，SHALL NOT 违规则阻断
+
+**兼容的 Skill 生态**：
+
+| Skill 生态 | 来源 | 兼容方式 | 集成深度 |
+|------------|------|---------|---------|
+| **Superpowers** | `~/.claude/skills/` | MumuSpec 阶段 Skill 内部分发调用 | 深度集成（TDD、调试、验证等） |
+| **Agent Skills** | `~/.agents/skills/` | 通过 skill discovery 机制自动发现并调用 | 深度集成（全生命周期覆盖） |
+| **Comet** | `~/.claude/skills/comet/` | 状态机层互操作，Comet 阶段概念映射到 MumuSpec 阶段 | 协议互操作 |
+| **Codex Skills** | `~/.codex/skills/` | 通过平台 skill-loading 机制加载 | 平台适配 |
+| **自定义 Skill** | 项目 `.mumuspec/skills/custom/` | 用户自定义扩展 | 可插拔 |
+
+#### 7.4.3 阶段-Skill 映射表
+
+MumuSpec 的每个阶段在执行过程中，按子步骤分发到对应的外部 Skill：
+
+**Phase 1: Open（开启变更）**
+
+| 子步骤 | 分发的外部 Skill | Skill 作用 | MumuSpec 约束守卫 |
+|--------|-----------------|-----------|------------------|
+| 需求探索与澄清 | `brainstorming`, `interview-me` | 结构化需求探索，一次一个问题澄清意图 | 必须完成 brainstorming 才能进入下一步（hotfix/tweak 除外） |
+| 影响分析 | `gitnexus-exploring`, `gitnexus-impact-analysis` | 代码结构理解与变更影响评估 | 影响分析结果必须记录到 `code-graph/impact-analysis.json` |
+| 规范草案编写 | `spec-driven-development` | 规范编写方法论 | delta-specs 必须包含 SHALL 和 SHALL NOT |
+| 工作区隔离 | `using-git-worktrees` | worktree 创建与管理 | 必须创建 worktree（或记录降级原因） |
+
+**Phase 2: Design（技术设计 — 自顶向下）**
+
+| 子步骤 | 分发的外部 Skill | Skill 作用 | MumuSpec 约束守卫 |
+|--------|-----------------|-----------|------------------|
+| 设计探索 | `brainstorming` | 设计方案探索与权衡 | 设计必须自顶向下逐层细化 |
+| 接口设计 | `api-and-interface-design` | 稳定的 API 与接口契约设计 | 接口设计必须符合各层 SHALL/SHALL NOT |
+| 安全约束 | `security-and-hardening` | 安全漏洞预防与加固 | 安全 SHALL NOT 必须有 Enforcement |
+| 性能约束 | `performance-optimization` | 性能瓶颈识别与优化策略 | 性能约束必须可测量 |
+| 决策记录 | `documentation-and-adrs` | 架构决策记录（ADR） | 关键设计决策必须记录到 design.md |
+
+**Phase 3: Build（实现 — 自下向上）**
+
+| 子步骤 | 分发的外部 Skill | Skill 作用 | MumuSpec 约束守卫 |
+|--------|-----------------|-----------|------------------|
+| 实现计划 | `writing-plans` | 分解为可验证的小任务 | 计划必须按 build_layers 从叶子到根排序 |
+| 上下文管理 | `context-engineering` | 按需加载正确的上下文 | 必须使用渐进式披露加载规范 |
+| 源码验证 | `source-driven-development` | 基于官方文档验证实现正确性 | 依赖框架的代码必须有文档引用 |
+| TDD 实现 | `test-driven-development` | Red-Green-Refactor 循环 | 每层实现必须先写失败测试（tdd_mode: tdd 时） |
+| 执行方式 | `executing-plans` / `subagent-driven-development` | 计划执行（内联/子代理） | 执行方式必须在 .mumuspec.yaml 中记录 |
+| 调试修复 | `systematic-debugging` | 系统化根因分析 | 调试不能违反 SHALL NOT |
+| 疑虑驱动 | `doubt-driven-development` | 关键决策对抗性审查 | 不可逆操作必须经过审查 |
+
+**Phase 4: Verify（验证）**
+
+| 子步骤 | 分发的外部 Skill | Skill 作用 | MumuSpec 约束守卫 |
+|--------|-----------------|-----------|------------------|
+| 完成验证 | `verification-before-completion` | 证据先于声明，运行验证命令 | 必须有验证证据才能声明通过 |
+| 代码审查 | `requesting-code-review` | 提交前代码审查 | 审查必须覆盖 SHALL/SHALL NOT |
+| 接收反馈 | `receiving-code-review` | 技术性接收审查反馈 | 反馈处理不能违反规范约束 |
+| 回退决策 | `systematic-debugging` | 回退根因分析 | 回退必须用户确认 + 保存快照 |
+
+**Phase 5: Archive（归档）**
+
+| 子步骤 | 分发的外部 Skill | Skill 作用 | MumuSpec 约束守卫 |
+|--------|-----------------|-----------|------------------|
+| 分支完成 | `finishing-a-development-branch` | 结构化合并/PR/清理决策 | 合并策略必须用户确认 |
+| CI/CD 集成 | `ci-cd-and-automation` | 自动化质量门禁配置 | CI 必须包含全量 SHALL/SHALL NOT 检查 |
+| 文档归档 | `documentation-and-adrs` | 决策与文档归档 | 归档必须包含完整变更记录 |
+| 发布准备 | `shipping-and-launch` | 预发布检查清单 | — |
+
+**横切关注点（所有阶段）**
+
+| 关注点 | 分发的外部 Skill | 作用 |
+|--------|-----------------|------|
+| 工作区隔离 | `using-git-worktrees` | 所有阶段在 worktree 中工作 |
+| 上下文优化 | `context-engineering` | 会话开始/切换/降级时重新配置上下文 |
+| 代码简化 | `code-simplification` | 实现完成后简化代码 |
+| 废弃迁移 | `deprecation-and-migration` | 涉及移除旧系统时 |
+
+#### 7.4.4 Skill 分发协议
+
+MumuSpec 阶段 Skill 通过标准协议分发给外部 Skill。每个阶段 Skill 文件中包含 `skill_dispatch` 配置，定义该阶段如何调用外部 Skill：
+
+```yaml
+# 阶段 Skill 中的 skill_dispatch 配置示例（mumuspec-build.md）
+
+skill_dispatch:
+  # 进入阶段时分发的 Skill（按顺序执行）
+  on_enter:
+    - skill: context-engineering
+      purpose: "加载当前层级的规范上下文"
+      required: true                    # required=true 时 Skill 不可用则阻断
+    - skill: writing-plans
+      purpose: "创建实现计划"
+      required: true
+      condition: "tasks.md not exists"  # 条件分发
+  
+  # 阶段执行中按需分发的 Skill
+  on_execute:
+    - skill: test-driven-development
+      purpose: "TDD 循环实现每个任务"
+      required: true
+      condition: "tdd_mode == 'tdd'"
+    - skill: source-driven-development
+      purpose: "基于官方文档验证实现"
+      required: false                   # required=false 时 Skill 不可用则跳过
+      condition: "uses_framework == true"
+    - skill: systematic-debugging
+      purpose: "系统化调试"
+      required: false
+      trigger: "test_failure or build_error"  # 事件触发分发
+    - skill: doubt-driven-development
+      purpose: "关键决策对抗性审查"
+      required: false
+      trigger: "irreversible_operation"
+  
+  # 阶段退出前分发的 Skill
+  on_exit:
+    - skill: verification-before-completion
+      purpose: "验证产出符合规范"
+      required: true
+  
+  # 约束守卫（在外部 Skill 产出后执行）
+  constraint_guards:
+    - check: "mumuspec check --shall-not --layer <current_layer>"
+      on_fail: "block and report violations"
+    - check: "mumuspec guard <change> build"
+      on_fail: "block transition"
+```
+
+**分发流程**：
+
+```mermaid
+graph TD
+    Start["阶段 Skill 启动"]
+    Enter["1. on_enter Skills 按序执行"]
+    CheckAvail{"检查 Skill 可用性"}
+    Block["阻断, 提示安装"]
+    Skip["跳过, 记录日志"]
+    Load["加载 Skill, 执行"]
+    Guard1{"约束守卫检查"}
+    BlockFix["阻断, 要求修正"]
+    Continue["继续下一步"]
+    Execute["2. on_execute Skills 按需触发"]
+    CondDispatch{"条件/事件分发"}
+    Guard2{"约束守卫检查"}
+    Core["3. 阶段核心逻辑 MumuSpec 自身<br/>自下向上逐层实现 + 每层 Enforcement 检查"]
+    Exit["4. on_exit Skills 按序执行"]
+    Verify["验证 Skill 执行"]
+    PhaseGuard{"阶段守卫检查"}
+    Transition["转换阶段"]
+
+    Start --> Enter
+    Enter --> CheckAvail
+    CheckAvail -->|required=true 且不可用| Block
+    CheckAvail -->|required=false 且不可用| Skip
+    CheckAvail -->|可用| Load
+    Load --> Guard1
+    Guard1 -->|SHALL NOT 违规| BlockFix
+    Guard1 -->|通过| Continue
+    Skip --> Continue
+    Continue --> Execute
+    Execute --> CondDispatch
+    CondDispatch --> Guard2
+    Guard2 -->|通过| Core
+    Core --> Exit
+    Exit --> Verify
+    Verify --> PhaseGuard
+    PhaseGuard -->|通过| Transition
+```
+
+#### 7.4.5 优先级与冲突解决
+
+当外部 Skill 的指导与 MumuSpec 约束产生冲突时，按以下优先级解决：
+
+```mermaid
+graph TD
+    P1["1. 用户显式指令<br/>CLAUDE.md / .cursorrules / AGENTS.md / 直接请求<br/>用户始终拥有最终控制权"]
+    P2["2. MumuSpec SHALL NOT 反向禁止<br/>硬性禁止, 不可被任何 Skill 覆盖<br/>外部 Skill 建议若违反 → 拒绝执行"]
+    P3["3. MumuSpec SHALL 正向要求<br/>硬性要求, 不可被 Skill 跳过<br/>外部 Skill 方法必须满足 SHALL"]
+    P4["4. 外部 Skill 指导 HOW<br/>提供实现方法和最佳实践<br/>在满足 MumuSpec 约束前提下自由发挥"]
+    P5["5. 默认系统行为<br/>最低优先级"]
+
+    P1 --> P2 --> P3 --> P4 --> P5
+```
+
+**冲突处理规则**：
+
+| 冲突场景 | 处理方式 | 示例 |
+|---------|---------|------|
+| Skill 建议 vs SHALL NOT | SHALL NOT 优先，阻断 Skill 建议 | Skill 建议用 `console.log` 调试，但 SHALL NOT 禁止 → 改用 Logger |
+| Skill 建议 vs SHALL | SHALL 优先，要求 Skill 调整方法 | Skill 建议直接返回 Entity，但 SHALL 要求 DTO 转换 → 必须转换 |
+| 多个 Skill 冲突 | 按分发顺序，后者覆盖前者 | TDD Skill 要求先写测试，但 hotfix 预设允许 direct 模式 → 遵循预设配置 |
+| Skill 不可用 | required=true 阻断；required=false 跳过 | `source-driven-development` 不可用 → 跳过文档验证 |
+| 用户指令 vs Skill | 用户指令优先 | 用户说"不用 TDD" → 遵循用户，即使 TDD Skill 要求先写测试 |
+
+#### 7.4.6 Skill 桥接配置
+
+在 `config.yaml` 中配置外部 Skill 生态集成：
+
+```yaml
+# .mumuspec/config.yaml 中的 skill 配置
+
+skills:
+  enabled: true                      # 启用外部 Skill 生态集成
+  discovery: auto                    # auto(自动发现已安装的 Skill) | manual
+  
+  # 兼容的 Skill 生态
+  ecosystems:
+    superpowers:
+      enabled: true
+      path: "~/.claude/skills"       # Skill 查找路径
+      dispatch_mode: deep             # deep(深度集成) | loose(松散调用)
+    
+    agent_skills:
+      enabled: true
+      path: "~/.agents/skills"
+      dispatch_mode: deep
+    
+    comet:
+      enabled: true
+      path: "~/.claude/skills/comet"
+      dispatch_mode: interop          # interop(协议互操作)
+    
+    codex:
+      enabled: false                  # 按需启用
+      path: "~/.codex/skills"
+      dispatch_mode: platform         # platform(平台适配)
+    
+    custom:
+      enabled: true
+      path: ".mumuspec/skills/custom" # 项目自定义 Skill
+  
+  # 分发策略
+  dispatch:
+    required_skill_missing: block     # block(阻断) | skip(跳过) | warn(警告)
+    constraint_violation: block       # block(阻断) | warn(警告)
+    skill_timeout: 300s               # Skill 执行超时
+    parallel_dispatch: false          # 是否允许并行分发（默认串行）
+  
+  # 优先级覆盖（用户自定义）
+  priority_override:
+    # 用户可以在这里覆盖默认优先级
+    # 例如: allow_tdd_skip: true  # 允许跳过 TDD（等同于用户指令）
+```
+
+#### 7.4.7 阶段编排器 Skill 文件结构
+
+以下是 `mumuspec-build.md` 阶段编排器的关键结构示例，展示如何集成外部 Skill：
+
+**YAML Frontmatter**：
+
+```yaml
+---
+name: mumuspec-build
+description: "MumuSpec Build 阶段编排器 — 自下向上实现，分发到外部 Skill 提供 HOW 指导"
+phase: build
+---
+```
+
+**前置条件检查**：
+- phase == design（已通过 design_to_build guard）
+- design.md 存在且非空
+- build_layers 已定义
+- worktree 已创建（或已记录降级原因）
+
+**执行流程（含 Skill 分发点）**：
+
+1. **上下文加载** → 分发 `context-engineering`
+   - 加载当前层级的规范上下文（渐进式披露）
+   - 【约束守卫】验证加载的规范包含当前层的 SHALL/SHALL NOT
+
+2. **实现计划创建** → 分发 `writing-plans`（仅当 tasks.md 不存在时）
+   - 按 build_layers 从叶子到根排序任务
+   - 【约束守卫】验证计划覆盖所有 affected_scopes
+
+3. **逐层实现（自下向上）** → 对每一层（layer N → layer 0）：
+   - 3a. TDD 实现 → 分发 `test-driven-development`（当 tdd_mode == 'tdd'）
+   - 3b. 文档验证 → 分发 `source-driven-development`（当使用框架时）
+   - 3c. 层级验证 → 运行该层 Enforcement 检查
+   - 3d. 调试（如需要）→ 分发 `systematic-debugging`
+
+4. **完成验证** → 分发 `verification-before-completion`
+   - 【约束守卫】所有 build_layers status = done
+
+5. **阶段转换** → 运行 `mumuspec guard <change> build --apply`
+
+**阻塞点**：
+- Step 2: 用户确认实现计划
+- Step 3d: 回退决策（用户确认）
 
 ### 7.5 Git Hooks
 
@@ -1445,42 +1731,38 @@ fi
 | **设计-实现方向** | 无约束 | 无约束 | **自顶向下设计 + 自下向上实现** |
 | **阶段回退** | 无 | verify-fail 可回退 | **Build/Verify 均可回退到 Design，带快照与回退计数** |
 | **归档合并** | 无 | 无 | **Archive 阶段自动 git 提交 + 创建 MR + 合并到主分支** |
+| **Skill 生态兼容** | 无 | 绑定 Superpowers | **开放兼容多 Skill 生态（Superpowers/Agent Skills/Comet/自定义）** |
 
 ### 8.2 借鉴与增强
 
-```
-OpenSpec 的贡献                    MumuSpec 的增强
-──────────────────                ──────────────────
-delta spec 语义          ──▶     保留 + 增加 SHALL NOT delta
-变更工件流水线            ──▶     保留 + 增加约束工件 (constraints/)
-archive 历史归档          ──▶     保留 + 增加图谱快照归档
-
-Comet 的贡献                       MumuSpec 的增强
-──────────────────                ──────────────────
-五阶段状态机              ──▶     保留 + 每阶段增加图谱验证 + 支持反向回退
-phase guard 脚本          ──▶     保留 + 增加规范校验守卫 + 回退守卫
-hotfix/tweak 预设         ──▶     保留 + 增加升级时的规范约束
-handoff 上下文压缩        ──▶     替换为渐进式披露（更精准）
-CodeGraph 语义索引        ──▶     增强 + 与规范双向绑定
-branch/worktree 可选      ──▶     默认 worktree + 降级机制
-多变更并行                ──▶     单一活跃变更约束（强制专注）
-无设计-实现方向约束       ──▶     自顶向下设计 + 自下向上实现
-verify-fail 仅回退 build  ──▶     Build/Verify 均可回退 Design + 快照
-无归档合并                ──▶     Archive 阶段 git 提交 + MR + 主分支合并
-
-codebase-memory 的贡献             MumuSpec 的增强
-──────────────────────             ──────────────────
-知识图谱 (Nodes + Edges)  ──▶     保留 + 增加 Spec/Enforcement 节点
-search_graph/trace_path   ──▶     保留 + 返回路径上的规范约束
-detect_changes            ──▶     保留 + 检测受影响的规范
-14 个 MCP 工具            ──▶     保留 + 增加 check_compliance 等
-
-context-engineering 的贡献         MumuSpec 的增强
-──────────────────────             ──────────────────
-分层上下文策略            ──▶     实现为树状渐进式披露
-反模式避免                ──▶     设计为加载策略约束
-选择性包含                ──▶     通过 index.yaml 实现选择性加载
-```
+| 来源项目 | 贡献 | MumuSpec 的增强 |
+|---------|------|----------------|
+| **OpenSpec** | delta spec 语义 | 保留 + 增加 SHALL NOT delta |
+| | 变更工件流水线 | 保留 + 增加约束工件 (constraints/) |
+| | archive 历史归档 | 保留 + 增加图谱快照归档 |
+| **Comet** | 五阶段状态机 | 保留 + 每阶段增加图谱验证 + 支持反向回退 |
+| | phase guard 脚本 | 保留 + 增加规范校验守卫 + 回退守卫 |
+| | hotfix/tweak 预设 | 保留 + 增加升级时的规范约束 |
+| | handoff 上下文压缩 | 替换为渐进式披露（更精准） |
+| | CodeGraph 语义索引 | 增强 + 与规范双向绑定 |
+| | branch/worktree 可选 | 默认 worktree + 降级机制 |
+| | 多变更并行 | 单一活跃变更约束（强制专注） |
+| | 无设计-实现方向约束 | 自顶向下设计 + 自下向上实现 |
+| | verify-fail 仅回退 build | Build/Verify 均可回退 Design + 快照 |
+| | 无归档合并 | Archive 阶段 git 提交 + MR + 主分支合并 |
+| **Superpowers** | brainstorming 设计门禁 | 保留 + 在 Open/Design 阶段强制分发 |
+| | TDD 实现方法 | 保留 + 受 SHALL NOT 约束守卫 |
+| | systematic-debugging | 保留 + 回退决策时分发 |
+| | verification-before-completion | 保留 + 阶段转换强制调用 |
+| | writing-plans 任务分解 | 保留 + 受 build_layers 顺序约束 |
+| | Skill 优先级体系 | 扩展 + 增加 MumuSpec 约束层（SHALL NOT > Skill） |
+| **codebase-memory** | 知识图谱 (Nodes + Edges) | 保留 + 增加 Spec/Enforcement 节点 |
+| | search_graph/trace_path | 保留 + 返回路径上的规范约束 |
+| | detect_changes | 保留 + 检测受影响的规范 |
+| | 14 个 MCP 工具 | 保留 + 增加 check_compliance 等 |
+| **context-engineering** | 分层上下文策略 | 实现为树状渐进式披露 |
+| | 反模式避免 | 设计为加载策略约束 |
+| | 选择性包含 | 通过 index.yaml 实现选择性加载 |
 
 ---
 
@@ -1502,10 +1784,17 @@ context-engineering 的贡献         MumuSpec 的增强
 
 - [ ] 变更状态机（.mumuspec.yaml）
 - [ ] 五阶段流程（open → design → build → verify → archive）
-- [ ] Phase guard 脚本
+- [ ] **状态机回退机制（build→design, verify→design, verify→build）**
+- [ ] **回退快照保存与恢复**
+- [ ] **Archive 阶段 git 提交 + MR/PR 创建 + 合并**
+- [ ] Phase guard 脚本（正向 + 反向回退守卫）
 - [ ] delta spec 合并引擎
 - [ ] hotfix/tweak 预设路径
-- [ ] Skill 文件定义
+- [ ] Skill 文件定义（阶段编排器）
+- [ ] **外部 Skill 生态兼容层（Skill Bridge）**
+- [ ] **阶段-Skill 映射与分发协议**
+- [ ] **Skill 优先级与冲突解决机制**
+- [ ] **Superpowers/Agent Skills 集成**
 
 ### Phase 3: 代码图谱集成
 
@@ -1533,6 +1822,7 @@ context-engineering 的贡献         MumuSpec 的增强
 
 - [ ] npm 包发布（@mumuspec/cli + @mumuspec/mcp-server）
 - [ ] 多平台 Skill 支持（Claude Code / Cursor / Copilot / Codex）
+- [ ] **Skill 生态插件市场（社区贡献的 Skill 适配器）**
 - [ ] 规范模板库（常见技术栈的预置规范）
 - [ ] 评估系统（Rubric / Pass@k）
 - [ ] 文档与教程
@@ -1719,6 +2009,32 @@ ai:
     - "CLAUDE.md"
     - ".cursorrules"
     - "AGENTS.md"
+
+# Skill 生态集成（0.4.0 新增）
+skills:
+  enabled: true                      # 启用外部 Skill 生态集成
+  discovery: auto                    # auto(自动发现已安装的 Skill) | manual
+  ecosystems:
+    superpowers:
+      enabled: true
+      path: "~/.claude/skills"
+      dispatch_mode: deep             # deep(深度集成) | loose(松散调用)
+    agent_skills:
+      enabled: true
+      path: "~/.agents/skills"
+      dispatch_mode: deep
+    comet:
+      enabled: true
+      path: "~/.claude/skills/comet"
+      dispatch_mode: interop          # interop(协议互操作)
+    custom:
+      enabled: true
+      path: ".mumuspec/skills/custom" # 项目自定义 Skill
+  dispatch:
+    required_skill_missing: block     # block(阻断) | skip(跳过) | warn(警告)
+    constraint_violation: block       # block(阻断) | warn(警告)
+    skill_timeout: 300s               # Skill 执行超时
+    parallel_dispatch: false          # 是否允许并行分发（默认串行）
 ```
 
 ---
