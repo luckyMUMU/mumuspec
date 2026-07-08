@@ -1,6 +1,6 @@
 # MumuSpec — AI 编程规范体系设计方案
 
-> **版本**: 0.5.0-draft
+> **版本**: 0.6.0-draft
 > **日期**: 2026-07-09
 > **状态**: 设计草案
 >
@@ -9,6 +9,7 @@
 > **0.4.0 变更**: 新增外部 Skill 生态兼容层，支持 Superpowers/Agent Skills 等 skill 体系在开发各阶段提供指导
 > **0.4.1 变更**: 修复流程连贯性与正确性问题——状态机路径补全（hotfix/discard/accept-deviations/archive-ci-fail-rollback）、archive 拆分为 in-progress/completed 子状态、回退计数顺序修正（先 checks 后 side_effects）、verify-rebuild 独立计数（rebuild_count/rebuild_limit）、硬性规则与配置矛盾消除（single_active_change 固定、constraint_violation 拆分为 shall/shall_not）、Phase Guard 补强、阶段输入输出声明统一、hotfix/tweak 路径输入契约、Worktree 规则统一、自顶向下设计完整性、Archive 子流程事务性、规范继承 Enforcement 规则
 > **0.5.0 变更**: 新增目录级设计文档（design.md）——每个 `.mumuspec/` 目录维护本层设计文档，记录架构决策与设计原理；新增文档生成引擎——根据各目录下的 spec + design 自动生成对外技术文档和业务文档，支持多模板、多格式输出、CI 同步校验
+> **0.6.0 变更**: 新增第四条工作流规则——默认红绿 TDD 开发；测试用例作为 Design 阶段的设计产出（test-cases/ 目录），Build 阶段依据测试用例执行红绿循环；Design 阶段完成后测试用例及测试套件锁定不可变更（需回退到 Design 才能修改）；`tdd_mode` 固定为 `tdd` 不可关闭
 
 ---
 
@@ -46,16 +47,17 @@ graph LR
 
 ```mermaid
 graph LR
-    subgraph Rules["MumuSpec 三大工作流规则"]
+    subgraph Rules["MumuSpec 四大工作流规则"]
         R1["默认 Worktree 隔离开发<br/>(Worktree Default)<br/>· 默认 git worktree 隔离<br/>· 物理隔离主分支<br/>· 支持零上下文恢复<br/>· 避免分支污染"]
         R2["单一活跃变更约束<br/>(Single Active)<br/>· 同时只允许一个活跃变更<br/>· 新变更必须先归档或废弃旧变更<br/>· 强制专注单一任务上下文"]
         R3["自顶向下设计 自下向上实现<br/>(Top-Down/Bottom-Up)<br/>· 设计从根规范→模块→叶子逐层细化<br/>· 实现从叶子代码→模块→根逐层集成验证<br/>· 每层实现完即可独立测试，降低耦合风险"]
+        R4["默认红绿 TDD 开发<br/>(Red-Green TDD Default)<br/>· 测试用例是设计产出，Design 阶段定义<br/>· Build 阶段强制红绿循环(Red→Green→Refactor)<br/>· Design 后测试用例及测试套件锁定不可变更<br/>· 需修改测试必须回退到 Design 阶段"]
     end
 ```
 
-### 1.4 三大工作流规则
+### 1.4 四大工作流规则
 
-上述三条工作流规则是 MumuSpec 的硬性流程约束，贯穿变更生命周期的所有阶段：
+上述四条工作流规则是 MumuSpec 的硬性流程约束，贯穿变更生命周期的所有阶段：
 
 #### 规则一：默认 Worktree 隔离开发
 
@@ -80,31 +82,65 @@ graph LR
 ```mermaid
 graph LR
     subgraph Design["设计阶段（自顶向下）"]
-        D0["Level 0: 根层架构约束"]
-        D1["Level 1: 模块划分与接口定义"]
-        D2["Level 2: 模块内组件设计"]
-        D3["Level 3: 叶子节点详细设计"]
+        D0["Level 0: 根层架构约束 + 测试用例"]
+        D1["Level 1: 模块划分与接口定义 + 测试用例"]
+        D2["Level 2: 模块内组件设计 + 测试用例"]
+        D3["Level 3: 叶子节点详细设计 + 测试用例"]
         D0 -->|逐层向下细化| D1
         D1 --> D2
         D2 --> D3
     end
     subgraph Build["实现阶段（自下向上）"]
-        B3["Level 3: 实现叶子组件 + 单元测试"]
-        B2["Level 2: 集成模块组件 + 集成测试"]
-        B1["Level 1: 模块间集成 + 接口测试"]
-        B0["Level 0: 全局集成 + 端到端测试"]
+        B3["Level 3: 红绿 TDD 实现叶子组件"]
+        B2["Level 2: 红绿 TDD 集成模块组件"]
+        B1["Level 1: 红绿 TDD 模块间集成"]
+        B0["Level 0: 红绿 TDD 全局集成"]
         B3 -->|验证通过| B2
         B2 -->|验证通过| B1
         B1 -->|验证通过| B0
     end
 ```
 
-**设计自顶向下**：在 Design 阶段，从根层规范开始，逐层向下细化设计，每一层的设计基于上层约束，并为下层提供约束。这确保了架构一致性——上层的 SHALL NOT 在下层设计时自动继承。
+**设计自顶向下**：在 Design 阶段，从根层规范开始，逐层向下细化设计，每一层的设计基于上层约束，并为下层提供约束。**测试用例作为设计的一部分在各层设计时同步定义**。这确保了架构一致性——上层的 SHALL NOT 在下层设计时自动继承。
 
 **实现自下向上**：在 Build 阶段，从最底层的叶子组件开始实现，逐层向上集成。每完成一层的实现，立即运行该层级的规范校验和测试。这确保了：
 - 每层实现完成后即可独立验证，问题在最小范围内暴露
 - 上层集成时，下层已通过验证，降低调试复杂度
 - 符合依赖方向——上层依赖下层，先实现被依赖方
+
+#### 规则四：默认红绿 TDD 开发，测试用例即设计契约
+
+所有变更默认采用红绿 TDD（Red-Green TDD）开发方式，测试用例作为 Design 阶段的设计产出，在 Design 阶段完成后锁定不可变更：
+
+```mermaid
+graph LR
+    subgraph TDD["红绿 TDD 循环（每层实现时执行）"]
+        Red["Red: 依据测试用例编写测试代码<br/>验证测试失败（实现尚未存在）"]
+        Green["Green: 编写实现代码<br/>验证测试通过"]
+        Refactor["Refactor: 重构优化<br/>验证测试仍然通过"]
+        Red -->|测试失败| Green
+        Green -->|测试通过| Refactor
+        Refactor -->|测试通过| Next["进入上层实现"]
+    end
+```
+
+**测试用例即设计契约**：
+- 测试用例在 Design 阶段作为设计的一部分被定义，存储于 `test-cases/` 目录
+- 每层的测试用例明确该层的行为契约：输入、预期输出、边界条件、异常场景
+- 测试用例一经 Design 阶段确认即锁定，其内容 hash 记录在 `.mumuspec.yaml` 中
+
+**红绿循环强制执行**：
+- Build 阶段每层实现必须先写测试代码（Red），验证测试确实失败
+- 再写实现代码使测试通过（Green），最后重构优化（Refactor）
+- `tdd_mode` 固定为 `tdd`，不可配置为 `direct`
+
+**测试不可变性约束**：
+- Design 阶段完成后，`test-cases/` 中的测试用例规格锁定不可变更
+- Build 阶段编写的测试套件（测试代码文件）一旦创建即锁定，不得修改
+- 如需修改测试用例或测试套件，必须回退到 Design 阶段重新设计
+- Phase Guard 在 Build→Verify 转换时校验测试文件 hash 未被篡改
+
+> 此规则确保测试用例真正成为设计的延伸和契约，而非实现过程中的事后补充。测试先行驱动设计正确性，测试锁定防止实现驱动测试退化——当测试不可变时，实现必须适配测试，而非测试适配实现。
 
 ---
 
@@ -138,7 +174,7 @@ graph TB
 | 层 | 职责 | 核心产出 |
 |----|------|---------|
 | **Spec Layer（规范层）** | 树状分布的双向约束规范，按目录结构分层存放；每层维护设计文档；自动生成对外文档 | `.mumuspec/` 目录树、各层 `spec.md`、`design.md`、`prohibitions.md`、`docs/` 生成文档 |
-| **Change Layer（变更层）** | 变更驱动的规范生命周期管理 | `changes/<name>/` 下的 proposal/design/tasks/delta-specs |
+| **Change Layer（变更层）** | 变更驱动的规范生命周期管理；测试用例作为设计产出在 Design 阶段定义并在 Build 阶段锁定 | `changes/<name>/` 下的 proposal/design/tasks/delta-specs/test-cases |
 | **Code Graph Layer（代码图谱层）** | 代码结构索引，为规范提供代码事实基础 | 知识图谱（节点+边）、索引数据库 |
 | **Guard Layer（校验层）** | 自动化校验规范与代码一致性 | CI 检查脚本、lint 规则、phase guards、漂移检测 |
 | **AI Integration Layer（AI 集成层）** | 与 AI 编程工具的集成接口，兼容外部 Skill 生态 | Skills、Skill Bridge、rules 文件、MCP server、CLI、hooks |
@@ -866,13 +902,23 @@ stateDiagram-v2
 
 ```
 .mumuspec/changes/<change-name>/
-├── .mumuspec.yaml              # 变更状态文件（状态机 + 回退追踪 + git 合并）
+├── .mumuspec.yaml              # 变更状态文件（状态机 + 回退追踪 + git 合并 + 测试锁定）
 ├── proposal.md                 # 为什么 + 做什么（含影响分析）
 ├── design.md                   # 怎么做（技术设计）
 ├── tasks.md                    # 实现任务清单
 ├── delta-specs/                # 规范变更（delta semantics）
 │   └── <scope>/
 │       └── spec.md             # ADDED/MODIFIED/REMOVED/RENAMED
+├── test-cases/                 # 测试用例规格（Design 阶段产出，完成后锁定）
+│   ├── layer-3/                # 叶子层测试用例
+│   │   ├── cases.md            # 测试用例规格：输入、预期输出、边界条件、异常场景
+│   │   └── suite-map.yaml      # 测试用例 → 测试套件文件映射（Build 阶段填充）
+│   ├── layer-2/                # 组件层测试用例
+│   │   └── cases.md
+│   ├── layer-1/                # 模块层测试用例
+│   │   └── cases.md
+│   └── layer-0/                # 根层测试用例
+│       └── cases.md
 ├── constraints/                # 本次变更引入的约束
 │   ├── new-shall.md            # 新增正向要求
 │   └── new-shall-not.md        # 新增反向禁止
@@ -883,13 +929,72 @@ stateDiagram-v2
 │   ├── build-rollback-1/       # 第一次 Build→Design 回退快照
 │   │   ├── design.md           # 回退时的 design.md 副本
 │   │   ├── tasks.md            # 回退时的 tasks.md 副本
+│   │   ├── test-cases/         # 回退时的测试用例规格副本
 │   │   ├── build-layers.json   # 回退时的层级状态
 │   │   └── rollback-reason.md  # 回退原因记录
 │   └── verify-rollback-1/      # 第一次 Verify→Design 回退快照
 │       ├── verify.md           # 验证报告副本
 │       ├── design.md           # 回退时的 design.md 副本
+│       ├── test-cases/         # 回退时的测试用例规格副本
 │       └── rollback-reason.md  # 回退原因记录
 └── verify.md                   # 验证报告
+```
+
+**测试用例规格格式（test-cases/layer-N/cases.md）**：
+
+```markdown
+---
+layer: 3
+scope: "src/auth"
+status: locked                # pending | locked（Design 完成后自动锁定）
+locked_at: "2026-07-09T14:00:00Z"
+content_hash: "sha256:..."    # 内容 hash，用于不可变性校验
+---
+
+# src/auth 层测试用例规格
+
+## TC-001: 用户登录成功
+- **描述**: 合法用户名和密码应成功登录并返回 token
+- **前置条件**: 用户已注册且账号处于活跃状态
+- **输入**: { username: "testuser", password: "ValidPass123!" }
+- **预期输出**: { code: 200, data: { token: "<jwt>" } }
+- **边界条件**: 无
+- **关联 SHALL**: AUTH-SHALL-001（登录必须返回 JWT token）
+
+## TC-002: 用户登录失败 - 密码错误
+- **描述**: 错误密码应返回认证失败错误
+- **前置条件**: 用户已注册
+- **输入**: { username: "testuser", password: "WrongPass" }
+- **预期输出**: { code: 401, message: "认证失败" }
+- **边界条件**: 连续失败 5 次应触发限流
+- **关联 SHALL NOT**: AUTH-001（禁止在日志中记录 token 内容）
+
+## TC-003: Token 过期自动刷新
+- **描述**: 过期 token 应通过 refresh token 自动刷新
+- **前置条件**: 用户持有有效的 refresh token
+- **输入**: { refreshToken: "<valid-refresh-token>" }
+- **预期输出**: { code: 200, data: { token: "<new-jwt>", refreshToken: "<new-refresh>" } }
+- **边界条件**: refresh token 也过期时应返回 401
+```
+
+```yaml
+# test-cases/layer-3/suite-map.yaml（Build 阶段填充）
+# 记录测试用例规格 → 实际测试套件文件的映射
+# 一旦填充即锁定，不可修改
+
+mappings:
+  - case_id: "TC-001"
+    suite_file: "tests/auth/login.spec.ts"
+    suite_hash: "sha256:..."     # 测试套件文件 hash，用于不可变性校验
+    locked_at: "2026-07-09T15:00:00Z"
+  - case_id: "TC-002"
+    suite_file: "tests/auth/login-failure.spec.ts"
+    suite_hash: "sha256:..."
+    locked_at: "2026-07-09T15:05:00Z"
+  - case_id: "TC-003"
+    suite_file: "tests/auth/token-refresh.spec.ts"
+    suite_hash: "sha256:..."
+    locked_at: "2026-07-09T15:10:00Z"
 ```
 
 ### 4.3 `.mumuspec.yaml` 状态文件
@@ -900,7 +1005,7 @@ stateDiagram-v2
 #   workflow <- config.changes.default_workflow
 #   isolation <- config.changes.default_isolation
 #   build_mode <- config.changes.default_build_mode
-#   tdd_mode <- config.changes.default_tdd_mode
+#   tdd_mode <- config.changes.default_tdd_mode（固定为 tdd，不可变更）
 #   rollback_limit <- config.changes.default_rollback_limit
 #   rebuild_limit <- config.changes.default_rebuild_limit
 change: add-user-auth
@@ -967,7 +1072,18 @@ isolation: worktree               # worktree (默认) | branch (降级，需 con
 worktree_path: null               # worktree 路径（创建后自动填充）
 worktree_branch: null             # worktree 对应的 git 分支名
 isolation_downgrade_reason: null  # 降级为 branch 时的原因记录
-tdd_mode: tdd                     # tdd | direct
+tdd_mode: tdd                     # 固定为 tdd，不可配置为 direct（由 1.4 规则四约束）
+
+# 测试用例锁定（0.6.0 新增，由 1.4 规则四约束）
+test_cases:
+  design_locked: false             # Design 阶段完成后自动设为 true，锁定 test-cases/
+  design_locked_at: null           # 锁定时间
+  design_content_hash: null        # test-cases/ 目录整体内容 hash
+  suites_locked: false             # Build 阶段每层测试套件创建后自动锁定
+  suites_locked_layers: []         # 已锁定的层级列表，如 [3, 2]
+  suites_hash:                     # 各层测试套件文件 hash
+    # layer_3: "sha256:..."
+    # layer_2: "sha256:..."
 
 # 实现策略（自下向上，硬性规则不可配置）
 implementation_strategy: bottom-up # 固定值，由 1.4 规则三约束
@@ -1048,11 +1164,12 @@ discard_reason: null              # 废弃原因
 
 ```
 输入: proposal.md + delta-specs/ + 影响分析
-输出: design.md + constraints/ + build_layers（写入 .mumuspec.yaml）
+输出: design.md + constraints/ + test-cases/ + build_layers（写入 .mumuspec.yaml）+ test_cases.design_locked=true
 
 设计原则: 自顶向下（Top-Down）
   从根层架构约束出发，逐层向下细化设计，确保每一层的设计
   基于上层约束并为下层提供约束。
+  **测试用例作为设计的一部分在各层设计时同步定义**（1.4 规则四）。
   本阶段在 Open 阶段创建的 worktree 中进行。
 
 命名约定: 设计阶段使用 Level（自顶向下），实现阶段使用 Layer（自下向上）。
@@ -1065,103 +1182,162 @@ discard_reason: null              # 废弃原因
       - 确认变更对全局架构的影响
       - 确定模块间接口契约
       - 定义全局约束的调整（如有）
+      - 定义根层测试用例（端到端场景、全局集成场景）
    b. Level 1 — 模块层设计
       - 基于根层接口契约，设计模块间交互
       - 确定模块边界和数据流
       - 定义模块层 SHALL/SHALL NOT
+      - 定义模块层测试用例（接口契约测试、模块间集成测试）
    c. Level 2 — 组件层设计
       - 基于模块层设计，细化到具体组件
       - 定义组件接口和依赖关系
       - 定义组件层 SHALL/SHALL NOT
+      - 定义组件层测试用例（组件交互测试、数据流测试）
    d. Level 3+ — 叶子节点详细设计（最多到 max_layer_depth 层）
       - 具体函数/类/方法的签名设计
       - 定义叶子层 SHALL/SHALL NOT 和 Enforcement
+      - 定义叶子层测试用例（单元测试：输入、预期输出、边界条件、异常场景）
 2. 明确技术约束（在各层设计中逐步细化）：
    - 新增的正向要求（new-shall.md）
    - 新增的反向禁止（new-shall-not.md）
-3. 设计可执行校验方式（lint 规则、测试用例、AST 检查）
-4. 代码图谱验证：
+3. 设计可执行校验方式（lint 规则、AST 检查）
+   - 注：测试用例已在步骤 1 中作为设计产出，此处仅设计 lint/AST 类校验
+4. 编写测试用例规格（test-cases/ 目录）
+   - 按 layer 组织，每层生成 cases.md
+   - 每个测试用例包含：ID、描述、前置条件、输入、预期输出、边界条件、关联 SHALL/SHALL NOT
+   - 测试用例需覆盖该层所有 SHALL 正向要求和关键 SHALL NOT 反向禁止
+   - 测试用例需覆盖正常路径、边界条件和异常场景
+5. 代码图谱验证：
    - 确认设计方案不会破坏现有调用链
    - 检查是否有死代码引入风险
-5. 生成实现层级计划（build_layers）
+6. 生成实现层级计划（build_layers）
    - 将受影响的规范层级按从深到浅排序
    - 每层标注预期实现顺序和验证点
    - build_layers 的 layer 编号与 Level 编号一一对应（layer N 实现 level N 的设计）
-6. 用户确认设计方案（阻塞点）
+7. 锁定测试用例（1.4 规则四）
+   - 计算 test-cases/ 目录整体内容 hash
+   - 在 .mumuspec.yaml 中设置 test_cases.design_locked = true
+   - 记录 test_cases.design_locked_at 和 test_cases.design_content_hash
+   - 锁定后，test-cases/ 中的内容不可变更（需回退到 Design 才能修改）
+8. 用户确认设计方案（阻塞点）
+
+注: Design 阶段完成后，test-cases/ 即被锁定。Build 阶段只能依据这些测试用例
+    编写测试代码和实现代码，不得修改测试用例规格本身。
 ```
 
 #### Phase 3: Build（实现 — 自下向上）
 
 ```
-输入: design.md + constraints/ + build_layers
-输出: 代码提交 + 图谱更新 + .mumuspec.yaml 状态更新（build_layers.status=done、build_mode、tdd_mode）
+输入: design.md + constraints/ + test-cases/（已锁定）+ build_layers
+输出: 代码提交 + 图谱更新 + .mumuspec.yaml 状态更新（build_layers.status=done、build_mode、tdd_mode、test_cases.suites_locked）
 
-实现原则: 自下向上（Bottom-Up）
+实现原则: 自下向上（Bottom-Up）+ 红绿 TDD（Red-Green TDD）
   从最深层（叶子层）开始实现，逐层向上集成。
-  每完成一层的实现，立即运行该层级的规范校验和测试，
-  通过后再进入上一层。
+  每层实现强制执行红绿循环：先写测试（Red）→ 写实现（Green）→ 重构（Refactor）。
+  测试用例来源于 Design 阶段的 test-cases/，不可修改。
   本阶段在 Open 阶段创建的 worktree 中进行。
 
 步骤:
 1. 创建实现计划（tasks.md）
    - 按 build_layers 顺序组织任务（从叶子层到根层）
-   - 每层任务包含：实现 + 该层 SHALL/SHALL NOT 校验 + 该层测试
-   - 测试用例来源于 Design 阶段的 Enforcement 定义
+   - 每层任务包含：红绿 TDD 实现 + 该层 SHALL/SHALL NOT 校验
+   - 测试用例来源于 Design 阶段的 test-cases/layer-N/cases.md（不可修改）
 2. 确认工作区隔离方式
    - 默认使用 worktree（在 Open 阶段已创建）
    - 仅在 worktree 不可用时降级为 branch（需记录降级原因）
 3. 选择执行方式（executing-plans / subagent / direct）
-   - 在 .mumuspec.yaml 中记录 build_mode 和 tdd_mode
-4. 自下向上逐层实现：
-   ┌── Layer 3 (叶子层): 实现叶子组件 + 单元测试
-   │   - 加载叶子层规范（渐进式披露）
-   │   - 遵守该层 SHALL 和 SHALL NOT
-   │   - 运行该层 Enforcement 检查
-   │   - 通过后标记 build_layers[layer=3].status = done
-   │   - 提交代码（仅 worktree 内 git commit，不包含 push 或合并）
+   - 在 .mumuspec.yaml 中记录 build_mode
+   - tdd_mode 固定为 tdd，无需选择（1.4 规则四约束）
+4. 验证测试用例锁定状态
+   - 检查 test_cases.design_locked == true
+   - 校验 test-cases/ 目录内容 hash 与 .mumuspec.yaml 中记录一致
+   - 若不一致，拒绝进入 Build（需回退到 Design 重新锁定）
+5. 自下向上逐层实现（每层强制红绿 TDD 循环）：
+   ┌── Layer 3 (叶子层): 红绿 TDD 实现叶子组件
+   │   a. 加载叶子层规范（渐进式披露）+ 加载 test-cases/layer-3/cases.md
+   │   b. RED: 依据 cases.md 中的测试用例编写测试套件代码
+   │      - 在 suite-map.yaml 中记录测试用例→测试文件映射
+   │      - 运行测试，验证所有测试确实失败（实现尚未存在）
+   │      - 若测试意外通过，检查是否有残留实现或测试编写错误
+   │   c. 锁定该层测试套件：计算测试文件 hash，写入 suite-map.yaml
+   │      - 标记 test_cases.suites_locked_layers 添加该层
+   │      - 此后该层测试套件文件不可修改（1.4 规则四）
+   │   d. GREEN: 编写实现代码使所有测试通过
+   │      - 遵守该层 SHALL 和 SHALL NOT
+   │      - 运行测试，验证全部通过
+   │   e. REFACTOR: 重构优化实现代码（不改测试）
+   │      - 运行测试，验证仍然全部通过
+   │   f. 运行该层 Enforcement 检查（lint/AST）
+   │   g. 通过后标记 build_layers[layer=3].status = done
+   │   h. 提交代码（仅 worktree 内 git commit，不包含 push 或合并）
    │
-   ├── Layer 2 (组件层): 集成叶子组件 + 集成测试
-   │   - 加载组件层规范
-   │   - 验证下层组件已通过校验
-   │   - 运行组件层 Enforcement 检查
-   │   - 通过后标记 build_layers[layer=2].status = done
-   │   - 提交代码（仅 worktree 内 git commit）
+   ├── Layer 2 (组件层): 红绿 TDD 集成叶子组件
+   │   a. 加载组件层规范 + 加载 test-cases/layer-2/cases.md
+   │   b. 验证下层组件已通过校验且测试套件未被篡改
+   │   c. RED: 依据 cases.md 编写集成测试套件 → 验证测试失败
+   │   d. 锁定该层测试套件
+   │   e. GREEN: 编写集成实现代码 → 验证测试通过
+   │   f. REFACTOR: 重构优化 → 验证测试仍通过
+   │   g. 运行组件层 Enforcement 检查
+   │   h. 通过后标记 build_layers[layer=2].status = done
+   │   i. 提交代码（仅 worktree 内 git commit）
    │
-   ├── Layer 1 (模块层): 模块间集成 + 接口测试
-   │   - 加载模块层规范
-   │   - 验证下层组件已通过校验
-   │   - 运行模块层 Enforcement 检查
-   │   - 通过后标记 build_layers[layer=1].status = done
-   │   - 提交代码（仅 worktree 内 git commit）
+   ├── Layer 1 (模块层): 红绿 TDD 模块间集成
+   │   a. 加载模块层规范 + 加载 test-cases/layer-1/cases.md
+   │   b. 验证下层组件已通过校验且测试套件未被篡改
+   │   c. RED: 依据 cases.md 编写接口测试套件 → 验证测试失败
+   │   d. 锁定该层测试套件
+   │   e. GREEN: 编写集成实现 → 验证测试通过
+   │   f. REFACTOR: 重构优化 → 验证测试仍通过
+   │   g. 运行模块层 Enforcement 检查
+   │   h. 通过后标记 build_layers[layer=1].status = done
+   │   i. 提交代码（仅 worktree 内 git commit）
    │
-   └── Layer 0 (根层): 全局集成 + 端到端测试
-       - 加载根层规范
-       - 验证所有下层已通过校验
-       - 运行全局 Enforcement 检查
-       - 通过后标记 build_layers[layer=0].status = done
-       - 提交代码（仅 worktree 内 git commit）
-5. 运行 build_command 验证可构建性（if configured）
-6. 运行 mumuspec index 更新代码图谱
-7. 所有层级实现并通过后，进入验证阶段
+   └── Layer 0 (根层): 红绿 TDD 全局集成
+       a. 加载根层规范 + 加载 test-cases/layer-0/cases.md
+       b. 验证所有下层已通过校验且测试套件未被篡改
+       c. RED: 依据 cases.md 编写端到端测试套件 → 验证测试失败
+       d. 锁定该层测试套件
+       e. GREEN: 编写全局集成实现 → 验证测试通过
+       f. REFACTOR: 重构优化 → 验证测试仍通过
+       g. 运行全局 Enforcement 检查
+       h. 通过后标记 build_layers[layer=0].status = done
+       i. 标记 test_cases.suites_locked = true（所有层测试套件已锁定）
+       j. 提交代码（仅 worktree 内 git commit）
+6. 运行 build_command 验证可构建性（if configured）
+7. 运行 mumuspec index 更新代码图谱
+8. 所有层级实现并通过后，进入验证阶段
+
+测试不可变性强制执行:
+  - 每层 RED 阶段完成后，测试套件文件即被锁定（hash 记录到 suite-map.yaml）
+  - 后续 GREEN/REFACTOR 阶段只能编写实现代码，不得修改已锁定的测试套件
+  - 若 GREEN 阶段发现测试用例本身有误（非实现问题），必须回退到 Design 阶段
+    修改 test-cases/ 后重新进入 Build
+  - Phase Guard 在 Build→Verify 转换时校验所有测试套件文件 hash 未被篡改
 
 回退处理（Build → Design 回退，事件 build-rollback）：
   当实现过程中发现设计方案存在根本性问题（如约束冲突、架构假设错误、
-  缺失关键接口设计等），可发起回退到 Design 阶段：
+  缺失关键接口设计、测试用例本身有误等），可发起回退到 Design 阶段：
   
   a. 用户确认回退（阻塞点 — AI 不能自动发起回退）
   b. 状态机执行 checks：检查 rollback_count < rollback_limit
      （若检查失败，拒绝回退，要求用户选择 accept-deviations 或 discard）
   c. 状态机执行 side_effects：
      - 保存当前 Build 阶段快照到 snapshots/build-rollback-N/（保留所有历史快照，不覆盖）
+     - 快照包含：design.md、tasks.md、test-cases/、已实现的测试套件和代码
      - 在 .mumuspec.yaml 中记录 rollback_reason、rollback_history（含 counted: true）
      - rollback_count + 1
      - build_layers 全部重置为 pending（保留已实现代码，仅重置状态；快照已保存历史供 Design 查阅）
+     - test_cases.design_locked 重置为 false（回退到 Design 后可修改测试用例）
+     - test_cases.suites_locked 重置为 false（回退后重新编写测试套件）
+     - test_cases.suites_locked_layers 清空（回退后重新编写测试套件）
+     - test_cases.suites_hash 清空（回退后重新计算套件 hash）
      - 状态机转换：phase: build → phase: design
-  d. 在 Design 阶段基于快照和回退原因修改设计
-  e. 修改后的设计需重新通过 design_to_build guard
+  d. 在 Design 阶段基于快照和回退原因修改设计（含修改 test-cases/）
+  e. 修改后的设计需重新通过 design_to_build guard（含重新锁定 test-cases/）
   f. 重新进入 Build 时，build_layers 已为 pending（回退时已重置），基于已有代码调整
 
-注: hotfix/tweak 预设可简化为单层实现，但仍需自下向上验证
+注: hotfix/tweak 预设可简化为单层实现，但仍需执行红绿 TDD 循环和测试不可变性约束
 ```
 
 #### Phase 4: Verify（验证 — 自下向上逐层验证）
@@ -1195,6 +1371,13 @@ discard_reason: null              # 废弃原因
    - 代码图谱与实际代码的一致性
    - 索引新鲜度检查
 
+5. 测试不可变性验证（Test Immutability）（0.6.0 新增）
+   - test-cases/ 内容 hash 与 .mumuspec.yaml 中 design_content_hash 一致
+   - 该层测试套件文件 hash 与 suite-map.yaml 中记录一致
+   - 测试套件未被篡改、新增或删除
+   - 所有测试用例均有对应的测试套件文件
+   - 所有测试套件均通过（Green 状态）
+
 步骤:
 1. 逐层验证（按 Layer 3→0 顺序）：
    ┌── Layer 3 (叶子层): 执行 4 维度验证
@@ -1208,6 +1391,7 @@ discard_reason: null              # 废弃原因
    - 全局代码图谱完整性
    - 全局漂移检测
    - delta-specs 所有 requirement 已实现（all_delta_spec_requirements_implemented）
+   - 全局测试不可变性校验（所有层 test-cases + 测试套件 hash 一致）
 3. 生成 verify.md 验证报告
 4. 用户确认验证结果（阻塞点）
 
@@ -1225,6 +1409,10 @@ discard_reason: null              # 废弃原因
        - 在 .mumuspec.yaml 中记录 rollback_reason、rollback_history（含 counted: true）
        - rollback_count + 1
        - build_layers 全部重置为 pending（回退时立即重置；保留已实现代码，仅重置状态）
+       - test_cases.design_locked 重置为 false（回退到 Design 后可修改测试用例）
+       - test_cases.suites_locked 重置为 false（回退后重新编写测试套件）
+       - test_cases.suites_locked_layers 清空（回退后重新编写测试套件）
+       - test_cases.suites_hash 清空（回退后重新计算套件 hash）
        - 状态机转换：phase: verify → phase: design
     d. 在 Design 阶段修改设计以解决验证发现的问题
     e. 修改后的设计需重新通过 design_to_build guard
@@ -1245,7 +1433,7 @@ discard_reason: null              # 废弃原因
     d. 仅重做有问题的 build_layers 层级（不全部重置）
     e. 修复后重新进入 Verify
 
-注: hotfix/tweak 预设走 light verify — 仅 SHALL NOT 检查 + 图谱完整性（tweak 可省略图谱）
+注: hotfix/tweak 预设走 light verify — 仅 SHALL NOT 检查 + 图谱完整性（tweak 可省略图谱）+ 测试不可变性校验（test-cases/ hash + 套件 hash 不可变）
 ```
 
 #### Phase 5: Archive（归档 — Git 提交 + 合并请求）
@@ -1401,21 +1589,23 @@ Discard 是独立于五阶段主流程的旁路操作，允许在任意非终态
 
 | 预设 | 触发条件 | 流程 | 规范要求 |
 |------|---------|------|---------|
-| **hotfix** | Bug 修复、紧急修复 | open → build → verify → archive | 跳过 design 阶段，但必须记录修复引入的 SHALL NOT |
-| **tweak** | 配置修改、文案调整、文档更新 | open → lightweight build → light verify → archive | 跳过 design 和完整 verify，但仍需通过 SHALL NOT 检查 |
-| **full** | 新功能、架构变更、多模块协调 | 完整五阶段 | 完整双向约束 + 图谱验证 |
+| **hotfix** | Bug 修复、紧急修复 | open → build → verify → archive | 跳过 design 阶段，但必须在 Open 阶段定义单层 `test-cases/` 并锁定；Build 阶段执行红绿 TDD 循环；记录修复引入的 SHALL NOT |
+| **tweak** | 配置修改、文案调整、文档更新 | open → lightweight build → light verify → archive | 跳过 design 和完整 verify，但必须在 Open 阶段定义单层 `test-cases/` 并锁定；Build 阶段执行红绿 TDD 循环；通过 SHALL NOT 检查 |
+| **full** | 新功能、架构变更、多模块协调 | 完整五阶段 | 完整双向约束 + 图谱验证 + 多层 test-cases/ |
+
+> **TDD 不可豁免**：即使 hotfix/tweak 跳过 Design 阶段，红绿 TDD 循环和测试不可变性约束仍然强制适用。Open 阶段必须产出并锁定 `test-cases/`，Build 阶段必须按红绿循环实现并锁定测试套件。
 
 **简化阶段输入输出契约**：
 
 | 预设 | Open 输出 | Build 输入 | Build 输出 | Verify 输入 |
 |------|----------|-----------|-----------|------------|
-| **hotfix** | proposal.md + delta-specs/ + 影响分析 + `.mumuspec.yaml`（含单层 build_layers）+ worktree | proposal.md + delta-specs/ + build_layers（单层） | 代码提交 + 图谱更新 + `.mumuspec.yaml` 状态更新 | 完成的代码 + 规范 + 图谱（light verify：仅 SHALL NOT + 图谱完整性） |
-| **tweak** | proposal.md + delta-specs/ + 影响分析 + `.mumuspec.yaml`（含单层 build_layers）+ worktree | proposal.md + delta-specs/ + build_layers（单层） | 代码提交 + `.mumuspec.yaml` 状态更新（图谱可选） | 完成的代码 + 规范（light verify：仅 SHALL NOT） |
+| **hotfix** | proposal.md + delta-specs/ + 影响分析 + `test-cases/`（单层，已锁定）+ `suite-map.yaml` + `.mumuspec.yaml`（含单层 build_layers、test_cases.design_locked=true）+ worktree | proposal.md + delta-specs/ + test-cases/（已锁定）+ build_layers（单层） | 代码提交 + 图谱更新 + `.mumuspec.yaml` 状态更新（test_cases.suites_locked=true） | 完成的代码 + 规范 + 图谱 + 测试套件（light verify：仅 SHALL NOT + 图谱完整性 + 测试不可变性） |
+| **tweak** | proposal.md + delta-specs/ + 影响分析 + `test-cases/`（单层，已锁定）+ `suite-map.yaml` + `.mumuspec.yaml`（含单层 build_layers、test_cases.design_locked=true）+ worktree | proposal.md + delta-specs/ + test-cases/（已锁定）+ build_layers（单层） | 代码提交 + `.mumuspec.yaml` 状态更新（test_cases.suites_locked=true，图谱可选） | 完成的代码 + 规范 + 测试套件（light verify：仅 SHALL NOT + 测试不可变性） |
 | **full** | 同 4.4 Phase 1 | 同 4.4 Phase 3 | 同 4.4 Phase 3 | 同 4.4 Phase 4 |
 
-**跳过 Design 时的 build_layers 初始化**：
+**跳过 Design 时的 build_layers 与 test-cases 初始化**：
 
-hotfix/tweak 跳过 Design 阶段，因此 `build_layers` 必须在 Open 阶段初始化。默认采用单层结构（将所有 affected_scopes 合并为一个 layer）：
+hotfix/tweak 跳过 Design 阶段，因此 `build_layers` 和 `test-cases/` 必须在 Open 阶段初始化。默认采用单层结构（将所有 affected_scopes 合并为一个 layer）：
 
 ```yaml
 # hotfix/tweak 的 build_layers 单层结构示例
@@ -1428,7 +1618,26 @@ build_layers:
   # 注：hotfix/tweak 仅一层，无需 multi-layer 自下向上集成
 ```
 
-> 单层 build_layers 跳过了"自下向上逐层集成"，但仍保留 Enforcement 检查与 SHALL NOT 记录义务。
+```yaml
+# hotfix/tweak 的 test-cases/ 单层结构示例
+test-cases/
+└── layer-0-cases.md                 # 单层测试用例规格（Bug 复现 + 修复验证用例）
+
+# suite-map.yaml（hotfix/tweak 版）
+layers:
+  0:
+    suite_path: "tests/hotfix/login.test.ts"
+    test_runner: "jest"
+    status: pending                   # Build 阶段编写测试套件后改为 done
+```
+
+**Open 阶段 test-cases 初始化步骤**（hotfix/tweak 专用）：
+1. 根据 Bug 描述或 tweak 需求，编写单层 `test-cases/layer-0-cases.md`（包含 Bug 复现用例和修复验证用例）
+2. 生成 `suite-map.yaml`（单层映射）
+3. 计算 `test_cases.design_content_hash` 并设置 `test_cases.design_locked: true`
+4. `tdd_mode` 固定为 `tdd`（不可配置为 `direct`）
+
+> 单层 build_layers 跳过了"自下向上逐层集成"，但仍保留 Enforcement 检查、SHALL NOT 记录义务和红绿 TDD 循环。
 
 **升级条件与状态机处理**（从预设升级到 full）：
 
@@ -1438,15 +1647,16 @@ build_layers:
 - 任何涉及新增 SHALL NOT 的变更 → 升级到 full
 
 升级在状态机中的处理（`workflow` 字段从 `hotfix`/`tweak` 转为 `full`）：
-1. **Open 阶段发现升级**：直接将 `.mumuspec.yaml: workflow` 改为 `full`，补做 Design 阶段（重新走 `open_to_design` 守卫），build_layers 重新按多层结构初始化
+1. **Open 阶段发现升级**：直接将 `.mumuspec.yaml: workflow` 改为 `full`，补做 Design 阶段（重新走 `open_to_design` 守卫），build_layers 重新按多层结构初始化，test-cases/ 从单层扩展为多层并重新锁定
 2. **Build 阶段发现升级**（如实现中发现涉及 3+ 文件或需新增 SHALL NOT）：
    - 用户确认升级（阻塞点）
    - 状态机回退到 Design：`phase: build → phase: design`，复用 `build_to_design_rollback` 守卫（计入 rollback_count）
+   - test_cases.design_locked 重置为 false，test-cases/ 从单层扩展为多层
    - 在 Design 阶段补做自顶向下设计，重写 build_layers 为多层结构
    - 升级后的 `workflow` 标记为 `full`，后续走完整五阶段
 3. **Verify 阶段发现升级**：同理回退到 Design 补做
 
-> 升级一旦发生不可降级回 hotfix/tweak；`workflow` 字段变更需在 rollback_history 中记录。
+> 升级一旦发生不可降级回 hotfix/tweak；`workflow` 字段变更需在 rollback_history 中记录。升级时 test-cases/ 必须从单层重构为多层，并重新锁定。
 
 ---
 
@@ -1619,6 +1829,7 @@ graph LR
         PC2["规范格式校验"]
         PC3["图谱索引新鲜度"]
         PC4["漂移快速检测"]
+        PC5["测试不可变性快速检查"]
     end
     subgraph CI["CI/CD Pipeline 持续集成 耗时<5min"]
         CI1["全量 SHALL 检查"]
@@ -1626,6 +1837,7 @@ graph LR
         CI3["代码图谱完整性"]
         CI4["漂移全量检测"]
         CI5["影响分析验证"]
+        CI6["测试不可变性全量校验"]
     end
     subgraph PG["Phase Guards 阶段守卫 耗时<30s"]
         PG1["Open→Design 守卫"]
@@ -1669,9 +1881,14 @@ open_to_build_hotfix:
     - workflow in ["hotfix", "tweak"]     # 仅 hotfix/tweak 预设可走此路径
     - build_layers defined (single layer, initialized in Open)
     - shall_not_new recorded (修复引入的 SHALL NOT 显式声明，可为空)
+    - test-cases/ exists with at least one layer-0-cases.md  # 单层测试用例已定义（0.6.0 新增）
+    - suite-map.yaml exists with single layer mapping       # 测试套件映射已创建（0.6.0 新增）
+    - test_cases.design_locked: true      # 测试用例已在 Open 阶段锁定（0.6.0 新增）
+    - test_cases.design_content_hash matches test-cases/ actual hash  # hash 校验通过（0.6.0 新增）
+    - tdd_mode == "tdd"                   # 固定为 tdd，不可为 direct（0.6.0 新增）
     - user_confirmed: true
-  on_fail: "Block transition, report missing artifacts or workflow mismatch"
-  note: "跳过 design 相关检查；tweak 走此守卫后 Verify 走 light verify"
+  on_fail: "Block transition, report missing artifacts, workflow mismatch, or test case issues"
+  note: "跳过 design 相关检查；但仍需在 Open 阶段完成 test-cases/ 定义与锁定；tweak 走此守卫后 Verify 走 light verify"
 
 design_to_build:
   checks:
@@ -1682,8 +1899,12 @@ design_to_build:
     - build_layers defined in .mumuspec.yaml
     - design_layers_covered: [0,1,2,3]    # 自顶向下设计覆盖所有层级
     - each_layer_shall_defined: true      # 每层 SHALL 已定义
+    - test-cases/ exists with at least one cases.md per layer  # 测试用例规格已生成（0.6.0 新增）
+    - test_cases.design_locked: true      # 测试用例已锁定（0.6.0 新增）
+    - test_cases.design_content_hash matches test-cases/ actual hash  # hash 校验通过（0.6.0 新增）
+    - tdd_mode == "tdd"                   # 固定为 tdd，不可为 direct（0.6.0 新增）
     - user_confirmed: true
-  on_fail: "Block transition, report missing design artifacts"
+  on_fail: "Block transition, report missing design artifacts or test case issues"
 
 build_to_verify:
   checks:
@@ -1692,12 +1913,17 @@ build_to_verify:
     - build_command passed (if configured)
     - isolation field set (worktree preferred, branch requires downgrade_reason)
     - build_mode field set
-    - tdd_mode field set
+    - tdd_mode == "tdd"                   # 固定为 tdd（0.6.0 约束）
     - build_layers all status = done      # 自下向上所有层级已实现
     - build_layers_completed_in_bottom_up_order: true  # 按 layer 3→0 顺序完成
     - each layer enforcement passed       # 每层 SHALL/SHALL NOT 校验通过
     - code-graph updated after changes
-  on_fail: "Block transition, report incomplete tasks, failed build, or incomplete layers"
+    - test_cases.design_locked: true      # 测试用例规格仍锁定（0.6.0 新增）
+    - test_cases.design_content_hash matches test-cases/ actual hash  # 测试用例未被篡改（0.6.0 新增）
+    - test_cases.suites_locked: true      # 所有层测试套件已锁定（0.6.0 新增）
+    - all layer suite hashes match suite-map.yaml  # 测试套件文件未被篡改（0.6.0 新增）
+    - all test suites passed (green state)  # 所有测试套件通过（0.6.0 新增）
+  on_fail: "Block transition, report incomplete tasks, failed build, incomplete layers, or test immutability violations"
 
 verify_to_archive:
   checks:
@@ -1709,6 +1935,7 @@ verify_to_archive:
     - code-graph integrity verified
     - all build_layers verified bottom-up  # 自下向上逐层验证完成
     - all_delta_spec_requirements_implemented: true  # delta-specs 所有 requirement 已实现
+    - test_immutability_verified: true    # 测试不可变性校验通过（0.6.0 新增）
   on_fail: "Block archive, report verification failures"
 
 verify_to_archive_with_deviations:
@@ -1720,11 +1947,12 @@ verify_to_archive_with_deviations:
     - deviation_reviewer recorded
     - deviation_approved_at recorded
     - all SHALL NOT enforcements passed   # SHALL NOT 不可接受偏差，必须全通过
+    - test_immutability_verified: true    # 测试不可变性不可接受偏差，必须通过（0.6.0 新增）
     - no critical drift detected
     - code-graph integrity verified
     - user_confirmed: true
-  on_fail: "Block archive, report missing deviation approval or SHALL NOT violations"
-  note: "SHALL 正向要求的偏差可接受；SHALL NOT 反向禁止的偏差不可接受"
+  on_fail: "Block archive, report missing deviation approval, SHALL NOT violations, or test immutability violations"
+  note: "SHALL 正向要求的偏差可接受；SHALL NOT 反向禁止的偏差不可接受；测试不可变性为硬性约束不可接受偏差"
 
 # === 反向回退守卫 ===
 
@@ -1739,6 +1967,10 @@ build_to_design_rollback:
     - record rollback_reason + rollback_history (counted: true) in .mumuspec.yaml
     - increment rollback_count
     - reset build_layers status to pending (preserve implemented code, only reset layer status)
+    - reset test_cases.design_locked to false (allow test case modification in Design)
+    - reset test_cases.suites_locked to false (allow test suite rewrite in Build)
+    - clear test_cases.suites_locked_layers (suites will be rewritten in Build)
+    - clear test_cases.suites_hash (suite hashes will be recomputed in Build)
     - set phase: design
 
 verify_to_design_rollback:
@@ -1752,6 +1984,10 @@ verify_to_design_rollback:
     - record rollback_reason + rollback_history (counted: true)
     - increment rollback_count
     - reset build_layers status to pending (preserve implemented code, only reset layer status)
+    - reset test_cases.design_locked to false (allow test case modification in Design)
+    - reset test_cases.suites_locked to false (allow test suite rewrite in Build)
+    - clear test_cases.suites_locked_layers (suites will be rewritten in Build)
+    - clear test_cases.suites_hash (suite hashes will be recomputed in Build)
     - set phase: design
 
 verify_to_build_rollback:
@@ -1864,6 +2100,24 @@ drift_detection:
       severity: WARN
       auto_fix: false
       recommendation: "Run mumuspec index to update"
+  
+  # 测试不可变性漂移（0.6.0 新增）
+  test_immutability_drift:
+    - check: "test-cases/ content hash mismatch with .mumuspec.yaml design_content_hash"
+      detection: "compute hash of test-cases/ directory and compare with recorded hash"
+      severity: ERROR
+      auto_fix: false
+      recommendation: "测试用例规格被篡改，需回退到 Design 阶段重新设计"
+    - check: "Test suite file hash mismatch with suite-map.yaml recorded hash"
+      detection: "compute hash of each test suite file and compare with suite-map.yaml"
+      severity: ERROR
+      auto_fix: false
+      recommendation: "测试套件文件被篡改，需回退到 Design 阶段重新设计"
+    - check: "Test suite file count mismatch with suite-map.yaml mappings"
+      detection: "compare actual test files with suite-map.yaml mappings"
+      severity: ERROR
+      auto_fix: false
+      recommendation: "测试套件文件被新增或删除，需回退到 Design 阶段重新设计"
 ```
 
 ---
@@ -1889,6 +2143,7 @@ drift_detection:
 - **单一活跃变更**：同一时间只允许一个活跃变更，新变更前必须归档或废弃旧变更
 - **自顶向下设计**：Design 阶段从根层规范开始，逐层向下细化
 - **自下向上实现**：Build 阶段从叶子组件开始，逐层向上集成验证
+- **默认红绿 TDD**：`tdd_mode` 固定为 `tdd`，不可关闭；Design 阶段产出测试用例（`test-cases/`）并锁定；Build 阶段按红绿循环实现（先写失败测试 → 实现 → 重构）；测试用例及测试套件在 Design 阶段后不可变更（需回退到 Design 才能修改）
 
 ### 规范加载策略
 - AI 从目录 X 切入时，自动加载 X 向上到根的所有层级规范
@@ -1981,6 +2236,14 @@ mumuspec doc check                      # 文档一致性校验（检测文档�
 mumuspec doc stale                      # 列出过期的文档（spec/design 变更后未重新生成）
 mumuspec doc template list              # 列出可用模板
 mumuspec doc template add <file>        # 添加自定义模板
+
+# 测试用例与测试套件管理（0.6.0 新增）
+mumuspec test-cases init <name>         # 初始化 test-cases/ 目录结构
+mumuspec test-cases lock <name>         # 锁定测试用例（计算 design_content_hash，设置 design_locked=true）
+mumuspec test-cases verify <name>       # 校验 test-cases/ hash 是否与锁定值一致
+mumuspec test-suites lock <name> <layer> # 锁定指定层级的测试套件（计算 suite hash）
+mumuspec test-suites verify <name>      # 校验所有测试套件 hash 是否与 suite-map.yaml 一致
+mumuspec test-immutability <name>       # 综合校验测试不可变性（test-cases + test-suites）
 ```
 
 ### 7.3 MCP Server
@@ -2021,6 +2284,10 @@ MCP 工具列表：
 | `list_docs` **(新增)** | 列出所有已生成文档及其状态（fresh/stale） |
 | `check_doc_consistency` **(新增)** | 文档一致性校验，检测文档与 spec/design 的漂移 |
 | `get_design_decisions` **(新增)** | 获取指定层级的架构决策记录（ADR） |
+| `get_test_cases` **(0.6.0 新增)** | 获取变更的测试用例规格（test-cases/） |
+| `verify_test_immutability` **(0.6.0 新增)** | 校验测试不可变性（test-cases hash + test-suites hash） |
+| `lock_test_cases` **(0.6.0 新增)** | 锁定测试用例（Design 阶段完成时调用） |
+| `lock_test_suites` **(0.6.0 新增)** | 锁定指定层级的测试套件（Build 阶段每层完成时调用） |
 
 ### 7.4 Skill 定义与外部 Skill 生态集成
 
@@ -2103,6 +2370,7 @@ MumuSpec 的每个阶段在执行过程中，按子步骤分发到对应的外�
 | 安全约束 | `security-and-hardening` | 安全漏洞预防与加固 | 安全 SHALL NOT 必须有 Enforcement |
 | 性能约束 | `performance-optimization` | 性能瓶颈识别与优化策略 | 性能约束必须可测量 |
 | 决策记录 | `documentation-and-adrs` | 架构决策记录（ADR） | 关键设计决策必须记录到 design.md |
+| 测试用例编写 | `test-driven-development` | 按设计层级编写测试用例规格（`test-cases/`） | 每层必须有 cases.md；完成后锁定 design_content_hash（0.6.0 新增） |
 
 **Phase 3: Build（实现 — 自下向上）**
 
@@ -2111,7 +2379,7 @@ MumuSpec 的每个阶段在执行过程中，按子步骤分发到对应的外�
 | 实现计划 | `writing-plans` | 分解为可验证的小任务 | 计划必须按 build_layers 从叶子到根排序 |
 | 上下文管理 | `context-engineering` | 按需加载正确的上下文 | 必须使用渐进式披露加载规范 |
 | 源码验证 | `source-driven-development` | 基于官方文档验证实现正确性 | 依赖框架的代码必须有文档引用 |
-| TDD 实现 | `test-driven-development` | Red-Green-Refactor 循环 | 每层实现必须先写失败测试（tdd_mode: tdd 时） |
+| TDD 实现 | `test-driven-development` | Red-Green-Refactor 循环 | 每层实现必须先写失败测试（tdd_mode 固定为 tdd，不可跳过） |
 | 执行方式 | `executing-plans` / `subagent-driven-development` | 计划执行（内联/子代理） | 执行方式必须在 .mumuspec.yaml 中记录 |
 | 调试修复 | `systematic-debugging` | 系统化根因分析 | 调试不能违反 SHALL NOT |
 | 疑虑驱动 | `doubt-driven-development` | 关键决策对抗性审查 | 不可逆操作必须经过审查 |
@@ -2172,9 +2440,8 @@ skill_dispatch:
       required: false
       condition: "build_mode == 'subagent'"
     - skill: test-driven-development
-      purpose: "TDD 循环实现每个任务"
-      required: true
-      condition: "tdd_mode == 'tdd'"
+      purpose: "TDD 循环实现每个任务（红绿重构）"
+      required: true                    # tdd_mode 固定为 tdd，TDD Skill 始终 required（0.6.0 约束）
     - skill: source-driven-development
       purpose: "基于官方文档验证实现"
       required: false                   # required=false 时 Skill 不可用则跳过
@@ -2254,7 +2521,8 @@ skill_dispatch:
       purpose: "proposal 自审"
       required: false
 
-# Design 阶段 on_enter 关键 Skill：spec-driven-development / api-and-interface-design
+# Design 阶段 on_enter 关键 Skill：spec-driven-development / api-and-interface-design / test-driven-development（编写测试用例）
+# Design 阶段 on_exit 关键 Skill：verification-before-completion（验证 test-cases 完整性后锁定）
 # Verify 阶段 on_exit 关键 Skill：code-review-and-quality / verification-before-completion
 # Archive 阶段 on_execute 关键 Skill：finishing-a-development-branch / ci-cd-and-automation / documentation-and-adrs
 ```
@@ -2323,9 +2591,9 @@ graph TD
 |---------|---------|------|
 | Skill 建议 vs SHALL NOT | SHALL NOT 优先，阻断 Skill 建议 | Skill 建议用 `console.log` 调试，但 SHALL NOT 禁止 → 改用 Logger |
 | Skill 建议 vs SHALL | SHALL 优先，要求 Skill 调整方法 | Skill 建议直接返回 Entity，但 SHALL 要求 DTO 转换 → 必须转换 |
-| 多个 Skill 冲突 | 按分发顺序，后者覆盖前者 | TDD Skill 要求先写测试，但 hotfix 预设允许 direct 模式 → 遵循预设配置 |
+| 多个 Skill 冲突 | 按分发顺序，后者覆盖前者 | `executing-plans` 建议直接编码，但 TDD Skill 要求先写测试 → TDD 优先（tdd_mode 固定为 tdd） |
 | Skill 不可用 | required=true 阻断；required=false 跳过 | `source-driven-development` 不可用 → 跳过文档验证 |
-| 用户指令 vs Skill | 用户指令优先 | 用户说"不用 TDD" → 遵循用户，即使 TDD Skill 要求先写测试 |
+| 用户指令 vs Skill | 用户指令优先 | 用户说"不用 TDD" → 提示 TDD 为硬性规则不可关闭，建议回退到 Design 修改测试用例 |
 
 #### 7.4.6 Skill 桥接配置
 
@@ -2376,8 +2644,8 @@ skills:
   priority_override:
     # 字段结构: <override_key>: <bool|enum>
     # 硬性约束: 不可覆盖 SHALL NOT 反向禁止（priority_override 永远不能绕过 shall_not_violation: block）
-    # 作用范围: 仅在满足 SHALL NOT 约束的前提下，对策略层（如 tdd_mode、build_mode）进行覆盖
-    # 例如: allow_tdd_skip: true  # 允许跳过 TDD（在 SHALL NOT 约束下的策略覆盖，非等同于用户指令）
+    # 作用范围: 仅在满足 SHALL NOT 约束的前提下，对策略层（如 build_mode）进行覆盖
+    # 注: tdd_mode 固定为 tdd，不可通过 priority_override 跳过（0.6.0 约束）
     # 例如: prefer_subagent: true # 优先使用子代理实现
 ```
 
@@ -2412,7 +2680,7 @@ phase: build
    - 【约束守卫】验证计划覆盖所有 affected_scopes
 
 3. **逐层实现（自下向上）** → 对每一层（layer N → layer 0）：
-   - 3a. TDD 实现 → 分发 `test-driven-development`（当 tdd_mode == 'tdd'）
+   - 3a. TDD 实现 → 分发 `test-driven-development`（tdd_mode 固定为 tdd，始终分发）
    - 3b. 文档验证 → 分发 `source-driven-development`（当使用框架时）
    - 3c. 层级验证 → 运行该层 Enforcement 检查
    - 3d. 调试（如需要）→ 分发 `systematic-debugging`
@@ -2439,6 +2707,15 @@ mumuspec check --shall-not --staged-only
 if [ $? -ne 0 ]; then
   echo "❌ MumuSpec SHALL NOT 违规检测失败"
   echo "请修复违规项后再提交"
+  exit 1
+fi
+
+# 检查测试不可变性（0.6.0 新增）
+mumuspec check --test-immutability --staged-only
+if [ $? -ne 0 ]; then
+  echo "❌ MumuSpec 测试不可变性检测失败"
+  echo "测试用例规格和测试套件在 Design 阶段后不可修改"
+  echo "如需修改测试，请回退到 Design 阶段"
   exit 1
 fi
 
@@ -2470,6 +2747,8 @@ fi
 | **默认隔离方式** | 无 | branch/worktree 可选 | **默认 worktree，物理隔离主分支** |
 | **活跃变更数量** | 无限制 | 无限制 | **单一活跃变更约束** |
 | **设计-实现方向** | 无约束 | 无约束 | **自顶向下设计 + 自下向上实现** |
+| **TDD 模式** | 无 | 可选 | **默认红绿 TDD，固定不可关闭（0.6.0 新增）** |
+| **测试不可变性** | 无 | 无 | **测试用例 Design 后锁定，套件 Build 后锁定（0.6.0 新增）** |
 | **阶段回退** | 无 | verify-fail 可回退 | **Build/Verify 均可回退到 Design，带快照与回退计数** |
 | **归档合并** | 无 | 无 | **Archive 阶段自动 git 提交 + 创建 MR + 合并到主分支** |
 | **Skill 生态兼容** | 无 | 绑定 Superpowers | **开放兼容多 Skill 生态（Superpowers/Agent Skills/Comet/自定义）** |
@@ -2492,7 +2771,7 @@ fi
 | | verify-fail 仅回退 build | Build/Verify 均可回退 Design + 快照 |
 | | 无归档合并 | Archive 阶段 git 提交 + MR + 主分支合并 |
 | **Superpowers** | brainstorming 设计门禁 | 保留 + 在 Open/Design 阶段强制分发 |
-| | TDD 实现方法 | 保留 + 受 SHALL NOT 约束守卫 |
+| | TDD 实现方法 | 保留 + 固定为默认模式（tdd_mode 不可关闭）+ 测试用例作为设计产出（0.6.0 增强） |
 | | systematic-debugging | 保留 + 回退决策时分发 |
 | | verification-before-completion | 保留 + 阶段转换强制调用 |
 | | writing-plans 任务分解 | 保留 + 受 build_layers 顺序约束 |
@@ -2532,6 +2811,9 @@ fi
 - [ ] Phase guard 脚本（正向 + 反向回退守卫）
 - [ ] delta spec 合并引擎
 - [ ] hotfix/tweak 预设路径
+- [ ] **测试用例规格引擎（test-cases/ 定义、锁定、hash 校验）（0.6.0 新增）**
+- [ ] **测试套件映射与锁定（suite-map.yaml、套件 hash 校验）（0.6.0 新增）**
+- [ ] **红绿 TDD 循环强制执行（tdd_mode 固定、Phase Guard 校验）（0.6.0 新增）**
 - [ ] **设计文档同步机制（Design 阶段 delta-design 合并到 design.md）**
 - [ ] Skill 文件定义（阶段编排器）
 - [ ] **外部 Skill 生态兼容层（Skill Bridge）**
@@ -2627,6 +2909,11 @@ my-project/
 │   │   │   ├── constraints/
 │   │   │   │   ├── new-shall.md
 │   │   │   │   └── new-shall-not.md
+│   │   │   ├── test-cases/                    # 测试用例规格（0.6.0 新增）
+│   │   │   │   ├── layer-0-cases.md           # 根层测试用例
+│   │   │   │   ├── layer-1-cases.md           # src 层测试用例
+│   │   │   │   └── layer-2-cases.md           # auth 层测试用例
+│   │   │   ├── suite-map.yaml                 # 测试套件映射（0.6.0 新增）
 │   │   │   ├── code-graph/
 │   │   │   │   ├── impact-analysis.json
 │   │   │   │   └── base-ref.txt
@@ -2766,20 +3053,23 @@ changes:
   default_rollback_limit: 3       # rollback_count 上限（build/verify/archive-ci-fail 回退总和）
   default_rebuild_limit: 5        # rebuild_count 上限（verify-rebuild 独立计数）
   default_build_mode: executing-plans  # executing-plans | subagent | direct
-  default_tdd_mode: tdd           # tdd | direct
+  default_tdd_mode: tdd           # 固定为 tdd，不可配置为 direct（1.4 规则四约束，0.6.0 新增）
   
   # 工作流规则（0.2.0 新增）
   single_active_change: true      # 硬性约束，不可关闭（固定为 true，参见 1.4 规则二）
   default_isolation: worktree     # 默认隔离方式：worktree | branch（实例层 isolation 字段从此拷贝）
   allow_isolation_downgrade: true # 允许 isolation 降级为 branch（需在 isolation_downgrade_reason 记录原因）
   
-  # 硬性规则只读校验项（1.4 规则三，不可配置，仅用于 CI 校验实例层是否一致）
+  # 硬性规则只读校验项（1.4 规则三/四，不可配置，仅用于 CI 校验实例层是否一致）
   implementation_strategy: bottom-up  # 固定值，CI 校验 .mumuspec.yaml.implementation_strategy == bottom-up
   design_strategy: top-down       # 固定值，CI 校验设计阶段遵循自顶向下
+  tdd_mode: tdd                   # 固定值，CI 校验 .mumuspec.yaml.tdd_mode == tdd（0.6.0 新增）
+  test_immutability: true         # 固定值，CI 校验测试用例及套件不可变性（0.6.0 新增）
   
 # CI/CD 配置
 ci:
   pre_commit_check: "shall-not"   # pre-commit 只检查 SHALL NOT
+  test_immutability_check: true    # pre-commit 同时检查测试不可变性（0.6.0 新增）
   full_check_on_push: true        # push 时全量检查
   drift_detection_on_pr: true     # PR 时漂移检测
   
@@ -2879,4 +3169,4 @@ docs:
 
 ---
 
-> **本文档为 MumuSpec 0.5.0-draft 设计草案，后续将根据反馈持续迭代。**
+> **本文档为 MumuSpec 0.6.0-draft 设计草案，后续将根据反馈持续迭代。**
