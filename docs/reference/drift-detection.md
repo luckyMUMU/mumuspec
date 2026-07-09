@@ -1,0 +1,159 @@
+# 漂移检测规则
+
+> 层级: Level 2 参考文档
+
+---
+
+## 规范漂移
+
+规范描述的约束与代码实际行为不一致。
+
+```yaml
+spec_drift:
+  - check: "Spec says SHALL use @RestController, but code has @Controller"
+    detection: "compare spec bindings with AST analysis"
+    severity: WARN
+    auto_fix: false
+
+  - check: "Spec says SHALL NOT use console.log, but code has console.log"
+    detection: "lint rule"
+    severity: ERROR
+    auto_fix: false
+```
+
+## 图谱漂移
+
+代码图谱与实际代码不一致。
+
+```yaml
+graph_drift:
+  - check: "Function in graph but deleted from code"
+    detection: "compare graph nodes with actual files"
+    severity: ERROR
+    auto_fix: true   # 自动重新索引
+
+  - check: "Call edge in graph but function signature changed"
+    detection: "compare graph edges with AST analysis"
+    severity: WARN
+    auto_fix: true
+```
+
+## 索引新鲜度
+
+```yaml
+index_freshness:
+  - check: "Code changed after last index"
+    detection: "compare git diff with index timestamp"
+    severity: WARN
+    auto_fix: false
+    recommendation: "Run mumuspec index to update"
+```
+
+## 测试不可变性漂移（0.6.0 新增）
+
+```yaml
+test_immutability_drift:
+  - check: "test-cases/ content hash mismatch with .mumuspec.yaml design_content_hash"
+    detection: "compute hash of test-cases/ directory and compare with recorded hash"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "测试用例规格被篡改，需回退到 Design 阶段重新设计"
+
+  - check: "Test suite file hash mismatch with suite-map.yaml recorded hash"
+    detection: "compute hash of each test suite file and compare with suite-map.yaml"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "测试套件文件被篡改，需回退到 Design 阶段重新设计"
+
+  - check: "Test suite file count mismatch with suite-map.yaml mappings"
+    detection: "compare actual test files with suite-map.yaml mappings"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "测试套件文件被新增或删除，需回退到 Design 阶段重新设计"
+```
+
+## 契约漂移（0.8.0 新增）
+
+### 外部服务契约漂移
+
+```yaml
+contract_drift:
+  # 契约声明了未使用的端点
+  - check: "外部服务契约声明的端点在代码中未被调用"
+    detection: "compare contracts/external/ endpoints with CONSUMES edges in code graph"
+    severity: WARN
+    auto_fix: false
+    recommendation: "契约声明了未使用的端点，考虑清理或确认是否遗漏调用"
+
+  # 代码调用了外部服务但无契约
+  - check: "代码中调用了外部服务但无对应契约声明"
+    detection: "scan RPC/HTTP calls in code and check against contracts/external/ registry"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "发现未声明的跨服务调用，需在 contracts/external/ 中补充对应契约"
+
+  # RPC 调用策略不一致
+  - check: "代码中 RPC 调用策略与契约声明不一致（超时/重试/熔断）"
+    detection: "AST analyze RPC call sites and compare timeout/retry/circuit-breaker config with contract policies"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "RPC 调用策略偏离契约声明，需调整代码或更新契约"
+```
+
+### 自身对外契约漂移
+
+```yaml
+  # 代码暴露的接口未声明
+  - check: "代码暴露的接口未在 outbound 契约中声明"
+    detection: "scan route/controller/rpc-service definitions and compare with contracts/outbound/ endpoints"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "发现未声明的对外暴露接口，需在 contracts/outbound/ 中补充对应契约"
+
+  # 契约声明的端点代码中不存在
+  - check: "outbound 契约声明的端点在代码中不存在"
+    detection: "compare contracts/outbound/ endpoints with EXPOSES edges in code graph"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "契约声明的端点在代码中未实现，可能是代码删除未更新契约"
+```
+
+### 向后兼容性漂移
+
+```yaml
+  # stable 端点字段被删除
+  - check: "stable 端点的响应字段被删除"
+    detection: "compare current outbound contract with previous version, detect field removal on stable endpoints"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "向后兼容性破坏：stable 端点字段被删除，需回退或标记 deprecation"
+
+  # stable 端点字段类型被改变
+  - check: "stable 端点的字段类型被改变"
+    detection: "compare current outbound contract with previous version, detect type changes on stable endpoints"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "向后兼容性破坏：stable 端点字段类型变更，需新增字段而非修改"
+```
+
+### 契约注册表漂移
+
+```yaml
+  # 契约文件未注册
+  - check: "contracts/ 目录中的文件未在 _registry.yaml 中注册"
+    detection: "scan contracts/ directory and compare with _registry.yaml entries"
+    severity: WARN
+    auto_fix: true   # 自动注册到 _registry.yaml
+    recommendation: "新添加的契约文件未注册，已自动注册"
+
+  # 派生约束不一致
+  - check: "契约派生约束与 spec.md 中的注入约束不一致"
+    detection: "compare derived_constraints in contract files with auto-derived constraints in spec.md"
+    severity: ERROR
+    auto_fix: true   # 自动重新注入派生约束
+    recommendation: "派生约束被手动修改或未同步，已自动重新注入"
+```
+
+---
+
+> **导航**: [← Phase Guard](phase-guards.md) | [Skill 生态 →](skill-ecosystem.md) | [返回概览](../overview.md)
