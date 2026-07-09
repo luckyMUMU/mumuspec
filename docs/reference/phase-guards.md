@@ -66,11 +66,21 @@ checks:
   - tdd_mode == "tdd"
   - hyperplan_result.hard_constraints all merged into design.md  # 仅 triggered==true 时检查
   - hyperplan_result.open_questions all resolved                 # 仅 triggered==true 时检查
+  # 认知框架守卫（仅 workflow == "full" 时检查）
+  - cognitive_framework.enabled: true                              # full 工作流必须启用
+  - cognitive_framework.cognitive_map_ref exists                   # cognitive-map.yaml 存在
+  - cognitive_framework.q1_count > 0                               # Q1 至少 1 条
+  - cognitive_framework.q2_pending == 0 or cognitive_framework.rounds_completed >= 5  # Q2 无待处理或达上限
+  - cognitive_framework.q3_pending == 0 or cognitive_framework.rounds_completed >= 5  # Q3 无待处理或达上限
+  - cognitive_framework.q4_scans_completed >= 3                    # Q4 至少扫描 3 个维度
+  - cognitive_framework.converged: true                            # 认知地图已收敛
   - decisions_log.counts.design > 0
   - decisions_log.content_hash matches
   - user_confirmed: true
-on_fail: "Block, report missing design artifacts, test case issues, hyperplan issues, or decisions.md issues"
+on_fail: "Block, report missing design artifacts, test case issues, hyperplan issues, cognitive framework issues, or decisions.md issues"
 ```
+
+> **认知框架豁免**：hotfix 工作流豁免 `q2_pending == 0` 和 `q3_pending == 0` 检查，仅要求 `q1_count > 0` 和 `q4_scans_completed >= 3`（轻量模式）。tweak 工作流完全豁免认知框架检查。
 
 ### build_to_verify
 

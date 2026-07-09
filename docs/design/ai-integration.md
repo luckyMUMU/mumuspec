@@ -139,6 +139,34 @@ Rules 文件内容包含：
 
 提供命令行工具操作 MumuSpec 的所有功能：规范管理、变更管理、状态机回退、worktree 管理、代码图谱、校验、文档生成、测试用例管理、契约管理等。
 
+### mumuspec status — 变更状态概览
+
+显示当前活跃变更的状态摘要：
+- 当前 Phase 和 Workflow
+- build_layers 进度
+- test-cases 锁定状态
+- rollback/rebuild 计数
+- 下一步操作建议
+
+### mumuspec doctor — 环境诊断
+
+检查 MumuSpec 运行环境：
+- Node.js 版本
+- Git 仓库状态
+- .mumuspec/ 目录完整性
+- config.yaml 校验
+- 图谱索引新鲜度
+- Skill 生态可用性
+- 依赖工具（tree-sitter 等）
+
+### mumuspec wizard — 交互式引导
+
+为新用户提供交互式引导：
+- 初始化项目规范
+- 创建第一个变更
+- 选择 Workflow（hotfix/tweak/full）
+- 逐步引导完成五阶段流程
+
 > 完整 CLI 命令列表见 [参考：CLI 命令](../reference/cli-commands.md)。
 
 ## 7. Git Hooks

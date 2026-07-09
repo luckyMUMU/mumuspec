@@ -33,6 +33,32 @@ graph LR
 - 旁路操作：Discard（任意非终态阶段可废弃）、accept-deviations（接受偏差归档）
 - 单一活跃变更约束：同时只允许一个活跃变更
 
+### 边界条件
+
+#### 并发操作
+
+| 场景 | 处理策略 |
+|------|----------|
+| 多人同时编辑同一层 spec.md | 单一活跃变更约束自然序列化；若 Git 合并冲突，CI 阻断并报告冲突 |
+| AI 与用户同时操作 .mumuspec.yaml | 文件级锁（`.mumuspec/.lock`），AI 操作前检查锁状态 |
+| 并行 CI 触发 | 仅第一个 CI 运行全量检查，后续 CI 检查锁文件并跳过或排队 |
+
+#### 超深目录
+
+| 目录深度 | 处理策略 |
+|---------|----------|
+| ≤ max_layer_depth (默认 5) | 正常加载 |
+| > max_layer_depth | 深层目录共享父层规范，不创建独立 .mumuspec/ |
+| 超深目录告警 | `mumuspec validate` 报告 WARN: "目录深度 X 超过 max_layer_depth" |
+
+#### 空项目
+
+| 场景 | 处理策略 |
+|------|----------|
+| `mumuspec init` 在空目录执行 | 创建最小 .mumuspec/ 结构（spec.md + design.md + config.yaml） |
+| 无代码文件的项目 | 图谱功能跳过，规范校验仅检查格式 |
+| 无 src/ 目录的项目 | 根层规范直接管理，不创建子层 |
+
 ## 2. Phase 1: Open（提案）
 
 **输入**: 用户描述需求
@@ -51,25 +77,54 @@ graph LR
 ## 3. Phase 2: Design（技术设计 — 自顶向下）
 
 **输入**: proposal.md + delta-specs/ + 影响分析
-**输出**: design.md + test-cases/（已锁定）+ build_layers
+**输出**: design.md + cognitive-map.yaml + test-cases/（已锁定）+ build_layers
 
 **设计原则**: 自顶向下（Level 0 → Level N 逐层细化），测试用例作为设计的一部分在各层同步定义。
 
-**关键步骤**：
+### 3.1 认知框架启动（步骤 0）
+
+Design 阶段首先启动基于乔哈里窗变体的认知框架，系统化地梳理已知信息和未知盲区，为后续设计提供完备的信息地基。详见 [参考：认知框架](../reference/cognitive-framework.md)。
+
+**四阶段递进流程**：
+
+| 阶段 | 名称 | 核心动作 | 产出 |
+|------|------|---------|------|
+| Stage 1 | 信息采集 | 读取 proposal/spec/impact-analysis/contracts → Q1 锚定声明 | Q1 已知的已知 |
+| Stage 2 | 探索激活 | 从 Q1 识别缺口 → 生成 Q2 提问（含选项）→ 用户回答 → 迁移到 Q1 | Q1 更新 + Q2 清空 |
+| Stage 3 | 盲区扫描 | 基于 Q1 推导 Q3 隐性需求（推理链，每轮 ≤ 3 条）+ Q4 八维度盲区扫描 | Q3 确认约束 + Q4 兴底策略 |
+| Stage 4 | 设计生成 | 基于完整 Q1 生成 design.md 草案 + Q4 兴底写入风险章节 | design.md 草案 + cognitive-map.yaml |
+
+**关键约束**：
+- Q2 提问必须附带选项（2-4 个），不可是开放性问题
+- Q3 推理链只能引用 Q1 条目，每轮最多 3 条
+- Q4 盲区扫描不可跳过（至少扫描 3 个维度）
+- Stage 2+3 合计不超过 5 轮，达到上限后强制收敛
+- 认知地图（cognitive-map.yaml）每轮更新
+
+### 3.2 自顶向下逐层设计（步骤 1）
+
+基于认知框架的 Q1 锚定声明和 Q3 确认约束，进行自顶向下逐层设计：
+
 1. 自顶向下逐层设计（Level 0 根层 → Level 1 模块层 → Level 2 组件层 → Level 3+ 叶子层）
    - 每层定义 SHALL/SHALL NOT 和测试用例
+   - Q3 confirmed 的约束自动转化为对应层的 SHALL/SHALL NOT
 2. 对抗式设计审查（hyperplan，仅复杂变更触发）
    - 触发条件：`affected_scopes >= 3` OR 新增 SHALL NOT OR `workflow == "full"`
    - 5 个敌对 critic 交叉攻击设计方案
    - 产出 4 类幸存洞察持久化到 `hyperplan_result`
+   - hyperplan 风险 → 反馈为新的 Q4 扫描维度
+   - hyperplan 开放问题 → 转化为新的 Q2 问题
    - 详见 [参考：Skill 生态](../reference/skill-ecosystem.md#hyperplan)
 3. 编写测试用例规格（test-cases/，按 layer 组织）
+   - Q4 兴底策略中的测试兴底项须有对应测试用例
 4. 代码图谱验证（确认不破坏现有调用链）
 5. 生成实现层级计划（build_layers，从深到浅排序）
 6. **锁定测试用例**（计算 hash，设置 `design_locked=true`）
-7. 追加 decisions.md Design 章节
+7. 追加 decisions.md Design 章节（含认知框架决策记录）
 8. 用户确认（阻塞点）
 
+> **认知框架守卫**：`design_to_build` 守卫检查 cognitive-map.yaml 存在性、Q1 非空、Q2/Q3 无待处理项、Q4 扫描完成、认知地图已收敛。详见 [参考：认知框架](../reference/cognitive-framework.md#55-phase-guard-衔接)。
+>
 > **TDD 不可变性**：Design 完成后，test-cases/ 锁定不可变更。需修改必须回退到 Design。
 
 ## 4. Phase 3: Build（实现 — 自下向上 + 红绿 TDD）
@@ -166,12 +221,129 @@ h. 提交代码（worktree 内 git commit）
 - tweak 涉及 5+ 文件或跨模块 → 升级到 full
 - 涉及新增 SHALL NOT → 升级到 full
 
-## 9. 变更工件结构
+## 9. 错误恢复决策树
+
+### 9.1 rollback_count 超限
+
+```
+rollback_count >= rollback_limit (默认 3)
+├── 用户选择 accept-deviations
+│   ├── verify_result == pass-with-deviations → 走 verify_to_archive_with_deviations
+│   └── verify_result != pass → 阻断，提示需先完成 Verify
+├── 用户选择 Discard
+│   └── 走 discard_change（保存快照，归档到 discarded/）
+└── 用户选择手动提升上限
+    ├── 记录原因到 decisions.md
+    ├── mumuspec config set changes.rollback_limit <N>
+    └── 继续回退（不推荐，需 Tech Lead 审批）
+```
+
+**CLI 引导输出**:
+```
+[E-CHANGE-002] 回退次数已达上限 (3/3)
+
+当前变更 "add-user-auth" 已用尽回退次数。请选择：
+
+  [1] 接受偏差归档（推荐）
+      → 当前实现通过 SHALL NOT + 测试不可变性检查即可归档
+      → 命令: mumuspec change accept-deviations --change add-user-auth
+
+  [2] 废弃变更
+      → 保存快照后归档到 discarded/，释放活跃变更槽位
+      → 命令: mumuspec change discard --change add-user-auth
+
+  [3] 手动提升上限（需审批）
+      → 记录原因到 decisions.md，由 Tech Lead 确认
+      → 命令: mumuspec config set changes.rollback_limit 5
+
+详细说明: docs/reference/error-codes.md#E-CHANGE-002
+```
+
+### 9.2 rebuild_count 超限
+
+```
+rebuild_count >= rebuild_limit (默认 5)
+└── 强制升级为 verify_to_design_rollback
+    ├── rollback_count + 1
+    ├── 若 rollback_count 也超限 → 进入 9.1 决策树
+    └── 提示: "实现层面多次修复失败，建议回退到设计阶段重新评估"
+```
+
+### 9.3 CI CRITICAL 失败
+
+```
+Archive 阶段 CI CRITICAL 失败
+├── 自动回退到 Build (archive_ci_fail_rollback)
+│   ├── rollback_count + 1
+│   └── 若 rollback_count 超限 → 进入 9.1 决策树
+└── 用户选择 Discard
+    └── 走 discard_change
+```
+
+### 9.4 test-cases 锁定后需修改
+
+```
+test-cases/ 已锁定 (design_locked == true)
+├── 实现中发现测试用例遗漏场景
+│   ├── 回退到 Design (build_to_design_rollback)
+│   │   ├── rollback_count + 1
+│   │   ├── test-cases/ 解锁
+│   │   └── 修改后重新锁定
+│   └── 若 rollback_count 超限 → 进入 9.1 决策树
+└── hyperplan 洞察遗漏
+    ├── 回退到 Design
+    ├── 重新触发 hyperplan
+    └── 新洞察合并后重新设计 test-cases/
+```
+
+### 9.5 worktree 创建失败
+
+```
+worktree 创建失败
+├── 原因: 磁盘空间不足 / 权限问题 / git 异常
+├── 降级为 branch 模式
+│   ├── 记录降级原因到 decisions.md (Open 阶段)
+│   ├── config: changes.default_isolation = branch
+│   └── 继续变更流程
+└── 若用户拒绝降级
+    └── 阻断变更创建，提示修复 worktree 环境
+```
+
+### 9.6 hyperplan 执行失败
+
+```
+hyperplan 执行中失败
+├── subagent 创建失败
+│   ├── 重试 1 次
+│   ├── 仍失败 → 降级为 4 角色（移除 researcher）
+│   └── 4 角色也失败 → 跳过 hyperplan，记录到 decisions.md
+├── 单角色执行超时
+│   ├── 跳过该角色的 Round 2/3
+│   ├── Lead 用已有 Round 1 发现蒸馏
+│   └── 标注 hyperplan_result.degraded = true
+└── 用户门禁无响应
+    ├── 等待用户决策（不超时）
+    └── 用户可选择跳过开放问题（记录到 decisions.md，标记为已知风险）
+```
+
+### 9.7 Discard 后恢复
+
+```
+变更已 Discard
+├── 从 snapshots/discard/ 恢复工件
+│   ├── mumuspec change restore --from-snapshot <change>
+│   └── 创建新变更（不复活旧变更，复用工件）
+└── 工件已用于参考
+    └── snapshots/discard/ 保留 30 天后清理
+```
+
+## 10. 变更工件结构
 
 ```
 .mumuspec/changes/<change-name>/
 ├── .mumuspec.yaml              # 变更状态（phase, workflow, build_layers, test_cases, ...）
 ├── proposal.md                 # 为什么 + 做什么 + 影响范围
+├── cognitive-map.yaml          # 认知地图（四象限状态 + 演化历史）
 ├── design.md                   # 技术设计
 ├── tasks.md                    # 实现计划（Build 阶段产出）
 ├── delta-specs/                # 规范变更草案（ADDED/MODIFIED/REMOVED 语义）

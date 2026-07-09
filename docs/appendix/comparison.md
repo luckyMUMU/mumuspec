@@ -62,16 +62,24 @@
 
 ## 技术选型建议
 
-| 组件 | 推荐技术 | 理由 |
-|------|---------|------|
-| CLI 框架 | Node.js + Commander.js | 跨平台、与 Comet 生态对齐 |
-| AST 解析 | tree-sitter | 多语言支持、性能好 |
-| 图谱存储 | SQLite + 图查询层 | 轻量、嵌入式、无需额外服务 |
-| MCP Server | @modelcontextprotocol/sdk | 标准化 AI 工具集成 |
-| Lint 引擎 | 自研规则引擎 + ESLint/Semgrep 插件 | 灵活扩展 + 复用生态 |
-| 规范格式 | YAML + Markdown frontmatter | 人类可读 + 机器可解析 |
-| 状态管理 | YAML 文件 + 脚本校验 | 简单、可版本控制 |
-| CI 集成 | GitHub Actions / GitLab CI 插件 | 主流 CI/CD 平台 |
+| 组件 | 推荐技术 | 版本范围 | 封装边界 | 降级策略 | 理由 |
+|------|---------|---------|---------|---------|------|
+| CLI 框架 | Node.js + Commander.js | Node.js ≥ 18 LTS / Commander ≥ 12 | 独立进程，CLI 层封装 | 降级为纯 Node.js 脚本 | 跨平台、与 Comet 生态对齐 |
+| AST 解析 | tree-sitter | tree-sitter ≥ 0.22 | 图谱引擎内部，通过 adapter 接口暴露 | 不支持的语言降级为文件级索引 | 多语言支持、性能好 |
+| 图谱存储 | SQLite + 图查询层 | SQLite ≥ 3.40 / better-sqlite3 ≥ 11 | 图谱引擎内部，封装为 MCP 工具 | 降级为内存图（小型项目） | 轻量、嵌入式、无需额外服务 |
+| MCP Server | @modelcontextprotocol/sdk | ≥ 1.0 | 独立进程，通过 stdio/HTTP 通信 | 降级为 CLI 命令替代 | 标准化 AI 工具集成 |
+| Lint 引擎 | 自研规则引擎 + ESLint/Semgrep 插件 | ESLint ≥ 9 / Semgrep ≥ 1.5 | 规则引擎核心自研，适配器层封装外部工具 | 自研引擎可独立运行 | 灵活扩展 + 复用生态 |
+| 规范格式 | YAML + Markdown frontmatter | YAML ≥ 2.0（gray-matter 解析） | 规范加载器内部 | 纯 Markdown（无 frontmatter）降级 | 人类可读 + 机器可解析 |
+| 状态管理 | YAML 文件 + 脚本校验 | — | 变更状态机内部 | — | 简单、可版本控制 |
+| CI 集成 | GitHub Actions / GitLab CI 插件 | — | 独立 Action/插件，通过 CLI 交互 | 降级为手动 CLI 调用 | 主流 CI/CD 平台 |
+
+### 版本约束原则
+
+1. **Node.js LTS 优先**: 仅依赖 Active LTS 或 Maintenance LTS 版本
+2. **语义版本锁定**: `package.json` 中使用 `^` 范围，CI 中锁版本
+3. **封装边界清晰**: 所有第三方依赖封装在内部模块中，不泄漏到公共 API
+4. **降级路径**: 每个依赖有明确的降级策略，确保核心功能不受影响
+5. **安全更新**: 定期扫描依赖漏洞，安全补丁优先升级
 
 ---
 

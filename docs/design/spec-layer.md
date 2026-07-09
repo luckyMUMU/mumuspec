@@ -137,6 +137,32 @@ graph TD
 4. Enforcement 随 SHALL/SHALL NOT 一并继承，子层可重定义 check 方式但不可降低 severity
 5. `design.md` 随规范层级一同继承
 
+### 边界条件
+
+#### 并发操作
+
+| 场景 | 处理策略 |
+|------|----------|
+| 多人同时编辑同一层 spec.md | 单一活跃变更约束自然序列化；若 Git 合并冲突，CI 阻断并报告冲突 |
+| AI 与用户同时操作 .mumuspec.yaml | 文件级锁（`.mumuspec/.lock`），AI 操作前检查锁状态 |
+| 并行 CI 触发 | 仅第一个 CI 运行全量检查，后续 CI 检查锁文件并跳过或排队 |
+
+#### 超深目录
+
+| 目录深度 | 处理策略 |
+|---------|----------|
+| ≤ max_layer_depth (默认 5) | 正常加载 |
+| > max_layer_depth | 深层目录共享父层规范，不创建独立 .mumuspec/ |
+| 超深目录告警 | `mumuspec validate` 报告 WARN: "目录深度 X 超过 max_layer_depth" |
+
+#### 空项目
+
+| 场景 | 处理策略 |
+|------|----------|
+| `mumuspec init` 在空目录执行 | 创建最小 .mumuspec/ 结构（spec.md + design.md + config.yaml） |
+| 无代码文件的项目 | 图谱功能跳过，规范校验仅检查格式 |
+| 无 src/ 目录的项目 | 根层规范直接管理，不创建子层 |
+
 ## 6. 文档生成引擎
 
 MumuSpec 根据各目录下的 `spec.md` + `design.md` 自动生成对外文档，确保文档与内部规范一致。

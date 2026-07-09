@@ -37,6 +37,18 @@ graph LR
 
 ## 2. 校验层次
 
+### 性能指标矩阵
+
+| 操作 | 1k 文件 | 10k 文件 | 100k 文件 | 约束 |
+|------|---------|---------|---------|---------|
+| Pre-commit SHALL NOT 检查 | < 1s | < 3s | < 5s | 增量检查（仅 staged 文件） |
+| CI 全量 SHALL + SHALL NOT | < 30s | < 2min | < 5min | 并行检查 + 缓存 |
+| Phase Guard | < 5s | < 15s | < 30s | 仅检查工件完整性 |
+| 图谱索引（全量） | < 10s | < 1min | < 5min | 增量索引优先 |
+| 图谱索引（增量） | < 1s | < 3s | < 10s | 仅解析变更文件 |
+| 漂移检测（全量） | < 20s | < 1min | < 3min | 规范 + 图谱 + 契约 |
+| 规范加载（渐进式披露） | < 100ms | < 300ms | < 500ms | 仅加载 3 层 |
+
 ### 2.1 Pre-commit（提交前）
 
 快速检查（<5s），阻止明显违规进入代码库：
@@ -95,6 +107,96 @@ mumuspec check --test-immutability --staged-only
 
 # 3. 规范格式校验
 mumuspec validate --quiet
+```
+
+---
+
+## 4. 安全校验
+
+### 4.1 威胁模型
+
+| 威胁面 | 威胁 | 影响 | 缓解措施 |
+|--------|------|------|----------|
+| MCP Server | 未授权访问 MCP 工具 | 规范/代码被篡改 | 本地绑定 + Token 认证 |
+| 规范文件 | 恶意 YAML/Markdown 注入 | 执行任意代码 | 输入校验 + 沙箱解析 |
+| CLI 命令 | 路径遍历攻击 | 读取项目外文件 | 路径白名单校验 |
+| .mumuspec.yaml | 状态篡改 | 绕过 Phase Guard | hash 校验 + 不可变字段 |
+| 契约文件 | 外部服务伪造契约 | 注入错误 RPC 约束 | 签名验证 + 来源标记 |
+| Git Hooks | Hook 被禁用 | 绕过 pre-commit 检查 | CI 层兜底校验 |
+
+### 4.2 MCP Server 访问控制
+
+- 绑定 `127.0.0.1`，不暴露到网络
+- Token 认证：`MUMUSPEC_MCP_TOKEN` 环境变量
+- 工具权限分级：
+  - `read`：search_graph / trace_path / get_spec_context / detect_drift
+  - `write`：index_repository / check_compliance（需显式授权）
+  - `admin`：contract derive / change state transition（需交互确认）
+
+### 4.3 输入校验规则
+
+| 输入来源 | 校验规则 | 失败行为 |
+|---------|----------|----------|
+| spec.md YAML frontmatter | Schema 校验（layer/scope/last_updated 类型检查） | 阻断加载，报告 `E-SPEC-001` |
+| .mumuspec.yaml | 字段类型 + 枚举值 + 不可变字段校验 | 阻断状态转换 |
+| CLI 参数（路径类） | 项目根目录路径白名单 | 拒绝执行，报告 `E-SECURITY-001` |
+| 契约 YAML | `$ref` 引用解析 + 字段完整性校验 | 阻断契约加载，报告 `E-CONTRACT-006` |
+| Enforcement check 表达式 | AST 表达式语法校验 | 阻断规则注册 |
+
+### 4.4 敏感信息检测
+
+- 规范文件和 decisions.md 扫描敏感信息模式：
+  - API Key / Token / 密码模式（正则匹配）
+  - 私有 IP / 内部域名
+  - 数据库连接字符串
+- 检测到敏感信息时 WARN 级别告警（不阻断，记录到 audit log），报告 `E-SECURITY-003`
+- 可通过 config.yaml `security.sensitive_info_scan` 配置开关
+
+### 4.5 审计日志
+
+所有关键操作记录到 `.mumuspec/audit.log`（JSONL 格式）：
+
+```jsonl
+{"ts":"2026-07-09T10:30:00Z","actor":"user","action":"change.create","change":"add-auth","result":"success"}
+{"ts":"2026-07-09T10:35:00Z","actor":"agent:cli","action":"guard.transition","from":"open","to":"design","result":"success"}
+{"ts":"2026-07-09T11:00:00Z","actor":"agent:mcp","action":"spec.validate","result":"fail","error":"E-SPEC-001"}
+```
+
+## 5. 可观测性
+
+### 5.1 结构化日志
+
+CLI 输出支持三种 verbosity 模式：
+
+| 模式 | 标志 | 输出格式 | 适用场景 |
+|------|------|----------|----------|
+| 默认 | （无） | 人类可读文本 | 日常交互 |
+| 详细 | `--verbose` | 人类可读 + 调试信息 | 排查问题 |
+| JSON | `--json` | 结构化 JSON（每行一条） | CI/CD 管道解析 |
+| 静默 | `--quiet` | 仅错误输出 | 脚本调用 |
+
+JSON 格式示例：
+
+```json
+{"level":"info","ts":"2026-07-09T10:30:00Z","msg":"Phase guard passed","change":"add-auth","from":"open","to":"design","duration_ms":1200}
+```
+
+### 5.2 关键操作 Audit Log
+
+以下操作自动写入 `.mumuspec/audit.log`：
+- 变更创建 / 废弃 / 归档
+- 阶段转换（正向 + 回退）
+- 规范校验（失败时）
+- 契约派生 / 漂移检测
+- 配置变更
+
+### 5.3 CI 告警输出
+
+CI 环境中，MumuSpec 输出兼容 GitHub Actions / GitLab CI 的告警格式：
+
+```
+::error file=src/api/controller.ts,line=42::E-SPEC-005: SHALL NOT violation - direct entity return detected
+::warning file=.mumuspec/spec.md::E-SPEC-004: Enforcement missing for SHALL requirement
 ```
 
 ---

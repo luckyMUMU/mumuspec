@@ -23,6 +23,14 @@ mumuspec archive <name>                 # 归档变更（git 提交 + MR + 合�
 mumuspec discard <name>                 # 废弃变更（清理 worktree + 释放变更槽位）
 ```
 
+## 诊断与引导
+
+```bash
+mumuspec status                         # 变更状态概览（当前 Phase、build_layers 进度、test-cases 锁定状态、rollback/rebuild 计数、下一步操作建议）
+mumuspec doctor                         # 环境诊断（Node.js 版本、Git 仓库状态、.mumuspec/ 目录完整性、config.yaml 校验、图谱索引新鲜度、Skill 生态可用性、依赖工具检查）
+mumuspec wizard                         # 交互式引导（初始化项目规范、创建第一个变更、选择 Workflow、逐步引导完成五阶段流程）
+```
+
 ## 状态机回退
 
 ```bash

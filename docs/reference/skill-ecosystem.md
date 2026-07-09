@@ -35,6 +35,7 @@
 
 | 子步骤 | 外部 Skill | required | 约束守卫 |
 |--------|-----------|----------|---------|
+| 认知框架 | `brainstorming`, `interview-me` | true (full) | cognitive-map.yaml 存在且收敛 |
 | 设计探索 | `brainstorming` | true | 自顶向下逐层细化 |
 | 对抗审查 | `hyperplan` | conditional | 复杂变更必须触发（见 §5） |
 | 接口设计 | `api-and-interface-design` | false (has_api_layer) | 符合各层 SHALL/SHALL NOT |
@@ -199,9 +200,9 @@ skill_dispatch:
 
 | Skill 类别 | Open | Design | Build | Verify | Archive | 横切 |
 |------------|------|--------|-------|--------|---------|------|
-| **规划与探索** | brainstorming (req) / spec-driven-development (req) / gitnexus-* (req) | brainstorming (req) | — | — | — | — |
+| **规划与探索** | brainstorming (req) / spec-driven-development (req) / gitnexus-* (req) | brainstorming (req) / **认知框架 (req, full)** | — | — | — | — |
 | **设计与架构** | — | api-and-interface-design (opt) / security-and-hardening (opt) / performance-optimization (opt) | — | — | — | — |
-| **对抗审查** | — | hyperplan (conditional) | — | — | — | — |
+| **对抗审查** | — | hyperplan (conditional) / **认知框架 Q4 扫描 (req, full)** | — | — | — | — |
 | **实现与执行** | — | — | writing-plans (req) / executing-plans (req) / systematic-debugging (opt) | systematic-debugging (opt) | — | — |
 | **验证与审查** | — | — | verification-before-completion (req) / source-driven-development (opt) | verification-before-completion (req) / requesting-code-review (req) / receiving-code-review (req) | — | — |
 | **归档与发布** | — | — | — | — | finishing-a-development-branch (req) / ci-cd-and-automation (req) / shipping-and-launch (opt) | — |
@@ -220,7 +221,7 @@ skill_dispatch:
 | 阶段 | 必须记录的决策类型 |
 |------|-------------------|
 | **Open** | 是否拆分、affected_scopes 判定、workflow 选择、worktree 降级 |
-| **Design** | 分层设计选择、SHALL/SHALL NOT 理由、hyperplan 幸存洞察、test-cases 依据、接口契约决策 |
+| **Design** | 分层设计选择、SHALL/SHALL NOT 理由、**认知框架决策（Q2 回答/Q3 确认/Q4 兴底）**、hyperplan 幸存洞察、test-cases 依据、接口契约决策 |
 | **Build** | 实现方式选择、TDD 红绿证据、调试根因、回退发起 |
 | **Verify** | 回退目标、偏差接受、验证失败处理 |
 | **Archive** | 合并策略、CI 失败处理、重验范围 |
@@ -237,6 +238,66 @@ skill_dispatch:
 - 重新进入某阶段时追加新记录（不覆盖），`DEC-<编号>` 递增
 - 回退决策本身须在 Verify 章节记录
 
+## 8. 认知框架 Skill 衔接
+
+Design 阶段的认知框架（乔哈里窗变体）与外部 Skill 的衔接关系。详见 [参考：认知框架](cognitive-framework.md)。
+
+### 四象限与 Skill 映射
+
+| 象限 | 阶段 | 外部 Skill | 用途 |
+|------|------|-----------|------|
+| Q1（已知的已知） | Stage 1 | `gitnexus-exploring`, `gitnexus-impact-analysis` | 代码图谱探索 + 影响分析 |
+| Q2（已知的未知） | Stage 2 | `brainstorming`, `interview-me` | 结构化提问 + 选项生成 |
+| Q3（未知的已知） | Stage 3 | `brainstorming` | 推理链推导 + 隐性需求发现 |
+| Q4（未知的未知） | Stage 3 | `security-and-hardening`, `performance-optimization`, `doubt-driven-development` | 盲区扫描（安全/性能/疑虑） |
+
+### 认知框架分发协议
+
+```yaml
+skill_dispatch:
+  on_enter:                        # 认知框架启动时分发
+    - skill: gitnexus-exploring
+      purpose: "Q1 信息采集 - 代码图谱探索"
+      required: true
+      stage: stage_1
+    - skill: brainstorming
+      purpose: "Q2 提问生成 + Q3 推理链推导"
+      required: true
+      stage: stage_2_3
+
+  on_execute:                      # Q4 盲区扫描时分发
+    - skill: security-and-hardening
+      purpose: "Q4 安全盲区扫描"
+      required: false
+      stage: stage_3
+      condition: "涉及用户数据或外部服务"
+    - skill: performance-optimization
+      purpose: "Q4 性能盲区扫描"
+      required: false
+      stage: stage_3
+      condition: "在 critical path 上"
+    - skill: doubt-driven-development
+      purpose: "Q4 疑虑驱动审查"
+      required: false
+      stage: stage_3
+      condition: "不可逆操作"
+
+  on_exit:                         # 认知框架完成后分发
+    - skill: documentation-and-adrs
+      purpose: "记录认知框架决策到 decisions.md"
+      required: true
+      stage: stage_4
+```
+
+### 与 Hyperplan 的 Skill 衔接
+
+认知框架 Stage 3（盲区扫描）与 hyperplan 的衔接：
+
+1. 认知框架 Q3 confirmed 约束 → 作为 hyperplan Round 1 各角色的审查输入
+2. 认知框架 Q4 残留项 → hyperplan `risks` 补充来源
+3. hyperplan `open_questions` → 转化为认知框架新 Q2 问题（增量轮次）
+4. hyperplan `risks` → 转化为认知框架新 Q4 扫描维度
+
 ---
 
-> **导航**: [← 漂移检测](drift-detection.md) | [返回概览](../overview.md)
+> **导航**: [← 漂移检测](drift-detection.md) | [认知框架 →](cognitive-framework.md) | [返回概览](../overview.md)
