@@ -32,7 +32,9 @@
 | `get_design_context` | 获取指定目录的设计文档上下文（design.md） |
 | `get_design_decisions` | 获取指定层级的架构决策记录（ADR） |
 
-### 代码图谱
+### 知识层（代码图谱 + LLM-Wiki）
+
+#### 代码图谱工具
 
 | 工具 | 描述 |
 |------|------|
@@ -82,6 +84,27 @@
 | `check_contract_compliance` | 检查代码是否符合契约约束（RPC 调用策略、向后兼容性等） |
 | `detect_contract_drift` | 检测契约与代码的漂移（暴露未声明、调用未注册、策略不一致） |
 | `trace_contract_impact` | 追踪契约变更影响范围（契约 → CONSUMES/EXPOSES 节点 → Spec） |
+
+### 认知框架（0.8.0 新增）
+
+| 工具 | 描述 |
+|------|------|
+| `get_cognitive_map` | 获取变更的认知地图（Q1-Q4 四象限状态） |
+| `check_convergence` | 检查认知地图是否已收敛 |
+| `update_cognitive_map` | 更新认知地图条目（Q1 新增/Q2 回答/Q3 确认/Q4 扫描） |
+
+#### 知识管理工具
+
+| 工具 | 描述 |
+|------|------|
+| `get_knowledge_context` | 获取指定代码路径的知识上下文（渐进式加载，按 scope 和新鲜度筛选） |
+| `search_knowledge` | 按标签/类型/关键词搜索知识页面 |
+| `get_knowledge_page` | 获取指定知识页面全文 |
+| `get_code_knowledge` | 获取指定代码符号关联的知识页面（反向索引查询） |
+| `get_knowledge_graph` | 获取知识页面之间的关系图 |
+| `verify_knowledge` | 验证知识页面与当前代码的一致性（新鲜度检查） |
+| `create_knowledge_page` | 创建新知识页面（Archive 阶段自动调用） |
+| `update_knowledge_status` | 更新知识页面状态（confirmed → superseded → deprecated） |
 
 ---
 

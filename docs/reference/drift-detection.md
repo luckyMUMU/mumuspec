@@ -154,6 +154,39 @@ contract_drift:
     recommendation: "派生约束被手动修改或未同步，已自动重新注入"
 ```
 
+## 知识漂移（0.9.0 新增）
+
+```yaml
+knowledge_drift:
+  # 知识页面关联的代码节点已删除
+  - check: "知识页面 graph_bindings 中的代码节点在图谱中不存在"
+    detection: "compare knowledge page graph_bindings with code graph nodes"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "代码已删除，知识页面需标记为 deprecated 或更新关联"
+
+  # 知识页面过期
+  - check: "知识页面 verified_at 超过 freshness 配置阈值"
+    detection: "compare verified_at with current date and config freshness settings"
+    severity: WARN
+    auto_fix: false
+    recommendation: "知识页面长期未验证，建议在设计阶段重新确认"
+
+  # 决策被覆盖但未标记 superseded
+  - check: "代码实际行为与 confirmed 决策矛盾"
+    detection: "compare decision content with code graph analysis"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "代码偏离了已有决策，需创建新变更更新决策或回退代码"
+
+  # PageIndex 与实际文件不一致
+  - check: "PageIndex 注册的知识页面文件不存在"
+    detection: "compare _index.yaml entries with actual files"
+    severity: WARN
+    auto_fix: true   # 自动从索引中移除
+    recommendation: "知识文件被手动删除，已自动更新索引"
+```
+
 ---
 
-> **导航**: [← Phase Guard](phase-guards.md) | [Skill 生态 →](skill-ecosystem.md) | [返回概览](../overview.md)
+> **导航**: [← Phase Guard](phase-guards.md) | [认知框架 →](cognitive-framework.md) | [返回概览](../overview.md)

@@ -91,8 +91,8 @@ Design 阶段首先启动基于乔哈里窗变体的认知框架，系统化地�
 |------|------|---------|------|
 | Stage 1 | 信息采集 | 读取 proposal/spec/impact-analysis/contracts → Q1 锚定声明 | Q1 已知的已知 |
 | Stage 2 | 探索激活 | 从 Q1 识别缺口 → 生成 Q2 提问（含选项）→ 用户回答 → 迁移到 Q1 | Q1 更新 + Q2 清空 |
-| Stage 3 | 盲区扫描 | 基于 Q1 推导 Q3 隐性需求（推理链，每轮 ≤ 3 条）+ Q4 八维度盲区扫描 | Q3 确认约束 + Q4 兴底策略 |
-| Stage 4 | 设计生成 | 基于完整 Q1 生成 design.md 草案 + Q4 兴底写入风险章节 | design.md 草案 + cognitive-map.yaml |
+| Stage 3 | 盲区扫描 | 基于 Q1 推导 Q3 隐性需求（推理链，每轮 ≤ 3 条）+ Q4 八维度盲区扫描 | Q3 确认约束 + Q4 兜底策略 |
+| Stage 4 | 设计生成 | 基于完整 Q1 生成 design.md 草案 + Q4 兜底写入风险章节 | design.md 草案 + cognitive-map.yaml |
 
 **关键约束**：
 - Q2 提问必须附带选项（2-4 个），不可是开放性问题
@@ -112,11 +112,13 @@ Design 阶段首先启动基于乔哈里窗变体的认知框架，系统化地�
    - 触发条件：`affected_scopes >= 3` OR 新增 SHALL NOT OR `workflow == "full"`
    - 5 个敌对 critic 交叉攻击设计方案
    - 产出 4 类幸存洞察持久化到 `hyperplan_result`
-   - hyperplan 风险 → 反馈为新的 Q4 扫描维度
-   - hyperplan 开放问题 → 转化为新的 Q2 问题
+   - **反馈循环**：hyperplan 产出后，若存在 unresolved risks 或 open_questions：
+     - hyperplan `risks` → 触发认知框架增量轮次，作为新 Q4 扫描维度
+     - hyperplan `open_questions` → 转化为新 Q2 问题，进入认知框架 Stage 2 增量轮
+     - 更新 `cognitive-map.yaml` 后继续 Step 3
    - 详见 [参考：Skill 生态](../reference/skill-ecosystem.md#hyperplan)
 3. 编写测试用例规格（test-cases/，按 layer 组织）
-   - Q4 兴底策略中的测试兴底项须有对应测试用例
+   - Q4 兜底策略中的测试兜底项须有对应测试用例
 4. 代码图谱验证（确认不破坏现有调用链）
 5. 生成实现层级计划（build_layers，从深到浅排序）
 6. **锁定测试用例**（计算 hash，设置 `design_locked=true`）
@@ -198,6 +200,19 @@ h. 提交代码（worktree 内 git commit）
 - 清理 worktree
 - 释放活跃变更槽位
 - 追加 decisions.md Archive 章节
+
+### D. 知识提取（0.9.0 新增）
+变更归档时从变更工件中提取持久性设计知识到全局知识库（`.mumuspec/knowledge/`）：
+- D1: 从 cognitive-map.yaml 提取 Q1 持久性条目 → `type: rationale` 知识页面
+- D2: 从 cognitive-map.yaml 提取 Q3 confirmed 推理 → `type: rationale` 知识页面
+- D3: 从 cognitive-map.yaml 提取 Q4 残留风险 → `type: risk` 知识页面
+- D4: 从 hyperplan_result 提取幸存洞察 → `type: decision` / `type: risk` 知识页面
+- D5: 从 decisions.md 提取关键决策 → `type: decision` 知识页面
+- D6: 确认 graph_bindings（知识页面 ↔ 代码图谱节点关联）
+- D7: 更新 PageIndex（_index.yaml + _reverse-index.yaml）
+- D8: 检查知识冲突（新知识是否 supersede 已有知识）
+
+> 详见 [知识层设计](knowledge-layer.md#54-archive-阶段知识提取核心)。
 
 ## 7. Discard 流程
 
@@ -367,4 +382,4 @@ hyperplan 执行中失败
 
 ---
 
-> **导航**: [← 契约层](contract-layer.md) | [代码图谱层 →](code-graph-layer.md) | [返回概览](../overview.md)
+> **导航**: [← 契约层](contract-layer.md) | [知识层 →](knowledge-layer.md) | [返回概览](../overview.md)

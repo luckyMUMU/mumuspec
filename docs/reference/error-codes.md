@@ -15,6 +15,7 @@
 | GUARD | E-GUARD-001 ~ E-GUARD-099 | 校验层错误 |
 | GRAPH | E-GRAPH-001 ~ E-GRAPH-099 | 代码图谱错误 |
 | CONTRACT | E-CONTRACT-001 ~ E-CONTRACT-099 | 契约层错误 |
+| DESIGN | E-DESIGN-001 ~ E-DESIGN-099 | 设计层错误（认知框架） |
 | SECURITY | E-SECURITY-001 ~ E-SECURITY-099 | 安全错误 |
 
 ---
@@ -61,9 +62,9 @@
 
 | 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
 |--------|------|---------|---------|---------|---------|---------|
-| E-GRAPH-001 | GRAPH_INDEX_FAIL | ERROR | 代码索引失败 | 文件权限/tree-sitter 语法支持问题 | 1. 检查文件读写权限 2. 确认 tree-sitter 语法包已安装 3. 运行 `mumuspec index --verbose` 查看详情 | [代码图谱层设计](../design/code-graph-layer.md) |
+| E-GRAPH-001 | GRAPH_INDEX_FAIL | ERROR | 代码索引失败 | 文件权限/tree-sitter 语法支持问题 | 1. 检查文件读写权限 2. 确认 tree-sitter 语法包已安装 3. 运行 `mumuspec index --verbose` 查看详情 | [知识层设计](../design/knowledge-layer.md) |
 | E-GRAPH-002 | GRAPH_DRIFT | WARN | 图谱节点与实际代码不一致 | 代码变更后未更新图谱 | 1. 运行 `mumuspec index` 更新图谱 2. 或启用 `config.yaml: code_graph.auto_index_on_commit: true` | [漂移检测](drift-detection.md) |
-| E-GRAPH-003 | GRAPH_BROKEN_CHAIN | ERROR | 检测到断裂的调用链 | 被引用的函数/类已被删除 | 1. 检查代码是否删除了被引用的符号 2. 修复引用或恢复符号 3. 运行 `mumuspec trace <symbol>` 验证 | [代码图谱层设计](../design/code-graph-layer.md) |
+| E-GRAPH-003 | GRAPH_BROKEN_CHAIN | ERROR | 检测到断裂的调用链 | 被引用的函数/类已被删除 | 1. 检查代码是否删除了被引用的符号 2. 修复引用或恢复符号 3. 运行 `mumuspec trace <symbol>` 验证 | [知识层设计](../design/knowledge-layer.md) |
 | E-GRAPH-004 | GRAPH_LANGUAGE_UNSUPPORTED | WARN | 检测到不支持的语言文件 | tree-sitter 未安装该语言语法包 | 1. 安装对应语言的 tree-sitter 语法包 2. 或在 config.yaml `code_graph.languages` 中排除该语言 | [配置参考](configuration.md) |
 
 ### CONTRACT — 契约层
@@ -77,14 +78,25 @@
 | E-CONTRACT-005 | CONTRACT_DERIVE_FAIL | ERROR | 派生约束注入失败 | scope 路径不存在或格式错误 | 1. 检查 `derived_constraints.scope` 路径 2. 确认目标 `.mumuspec/` 目录存在 3. 运行 `mumuspec contract derive <name> --verbose` | [契约层设计](../design/contract-layer.md#6-约束派生机制) |
 | E-CONTRACT-006 | CONTRACT_REF_UNRESOLVED | ERROR | $ref 引用无法解析 | schemas/ 目录中引用路径错误 | 1. 检查 `$ref` 路径 2. 确认 schemas/ 目录结构 3. 运行 `mumuspec contract verify <name>` | [契约层设计](../design/contract-layer.md) |
 
+### DESIGN — 设计层（认知框架）
+
+| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
+|--------|------|---------|---------|---------|---------|---------|
+| E-DESIGN-001 | COGNITIVE_MAP_MISSING | ERROR | cognitive-map.yaml 不存在 | Design 阶段未执行认知框架 | 1. 回退到 Design 2. 执行认知框架 Step 0 3. 生成 cognitive-map.yaml | [认知框架](cognitive-framework.md) |
+| E-DESIGN-002 | COGNITIVE_Q1_EMPTY | ERROR | Q1 已知的已知为空 | 信息采集未完成 | 1. 检查 proposal.md 和 spec.md 是否已加载 2. 重新执行 Stage 1 信息采集 | [认知框架](cognitive-framework.md) |
+| E-DESIGN-003 | COGNITIVE_Q2_PENDING | ERROR | Q2 存在待回答问题且未达轮次上限 | 有未解决的已知未知 | 1. 回答待处理的 Q2 问题 2. 或达到轮次上限后强制收敛 | [认知框架](cognitive-framework.md) |
+| E-DESIGN-004 | COGNITIVE_Q3_PENDING | ERROR | Q3 存在待确认推导且未达轮次上限 | 有未确认的隐性需求 | 1. 确认或拒绝待处理的 Q3 推导 2. 或达到轮次上限后强制收敛 | [认知框架](cognitive-framework.md) |
+| E-DESIGN-005 | COGNITIVE_Q4_INCOMPLETE | ERROR | Q4 盲区扫描未完成（少于 3 个维度） | 盲区扫描不充分 | 1. 补充 Q4 扫描维度 2. 确保至少扫描 3 个维度 | [认知框架](cognitive-framework.md) |
+| E-DESIGN-006 | COGNITIVE_NOT_CONVERGED | ERROR | 认知地图未收敛且未达轮次上限 | 认知框架未完成收敛 | 1. 继续执行 Q2/Q3 轮次 2. 或达到轮次上限后强制收敛 3. 重新通过 design_to_build 守卫 | [认知框架](cognitive-framework.md) |
+
 ### SECURITY — 安全
 
 | 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
 |--------|------|---------|---------|---------|---------|---------|
-| E-SECURITY-001 | SECURITY_PATH_TRAVERSAL | ERROR | CLI 参数路径超出项目根目录 | 路径遍历攻击防护 | 1. 使用项目内相对路径 2. 不使用 `../` 等路径逃逸符号 | [校验层设计](../design/guard-layer.md#4-安全校验) |
-| E-SECURITY-002 | SECURITY_MCP_UNAUTHORIZED | ERROR | MCP 调用未通过 Token 认证 | MCP Server 访问控制 | 1. 设置 `MUMUSPEC_MCP_TOKEN` 环境变量 2. 确认 Token 与配置一致 | [校验层设计](../design/guard-layer.md#42-mcp-server-访问控制) |
-| E-SECURITY-003 | SECURITY_SENSITIVE_INFO | WARN | 规范文件中检测到敏感信息模式 | API Key/Token/密码等可能泄露 | 1. 移除敏感信息 2. 或在 config.yaml 中标记为允许的模式 3. 检查是否应使用环境变量替代 | [校验层设计](../design/guard-layer.md#44-敏感信息检测) |
-| E-SECURITY-004 | SECURITY_YAML_INJECTION | ERROR | YAML 文件包含潜在注入载荷 | 危险 YAML 标签（如 `!!python/eval`） | 1. 检查 YAML 内容 2. 移除危险标签 3. 使用安全 YAML 解析器 | [校验层设计](../design/guard-layer.md#43-输入校验规则) |
+| E-SECURITY-001 | SECURITY_PATH_TRAVERSAL | ERROR | CLI 参数路径超出项目根目录 | 路径遍历攻击防护 | 1. 使用项目内相对路径 2. 不使用 `../` 等路径逃逸符号 | [校验层设计](../design/guard-layer.md#5-安全校验) |
+| E-SECURITY-002 | SECURITY_MCP_UNAUTHORIZED | ERROR | MCP 调用未通过 Token 认证 | MCP Server 访问控制 | 1. 设置 `MUMUSPEC_MCP_TOKEN` 环境变量 2. 确认 Token 与配置一致 | [校验层设计](../design/guard-layer.md#52-mcp-server-访问控制) |
+| E-SECURITY-003 | SECURITY_SENSITIVE_INFO | WARN | 规范文件中检测到敏感信息模式 | API Key/Token/密码等可能泄露 | 1. 移除敏感信息 2. 或在 config.yaml 中标记为允许的模式 3. 检查是否应使用环境变量替代 | [校验层设计](../design/guard-layer.md#54-敏感信息检测) |
+| E-SECURITY-004 | SECURITY_YAML_INJECTION | ERROR | YAML 文件包含潜在注入载荷 | 危险 YAML 标签（如 `!!python/eval`） | 1. 检查 YAML 内容 2. 移除危险标签 3. 使用安全 YAML 解析器 | [校验层设计](../design/guard-layer.md#53-输入校验规则) |
 
 ---
 
@@ -120,4 +132,4 @@
 
 ---
 
-> **导航**: [← Phase Guard](phase-guards.md) | [漂移检测 →](drift-detection.md) | [返回概览](../overview.md)
+> **导航**: [← Skill 生态](skill-ecosystem.md) | [发布策略 →](release-strategy.md) | [返回概览](../overview.md)

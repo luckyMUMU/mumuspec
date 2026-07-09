@@ -91,6 +91,10 @@ graph LR
 | **契约漂移 — 对外接口** | 代码暴露接口未在 outbound 契约声明 | ERROR |
 | **契约漂移 — 向后兼容** | stable 端点字段被删除或类型被改变 | ERROR |
 | **契约漂移 — 注册表** | contracts/ 文件未在 _registry.yaml 注册 | WARN (auto_fix) |
+| **知识漂移 — 代码已删除** | 知识页面关联的代码节点在图谱中不存在 | ERROR |
+| **知识漂移 — 过期** | 知识页面 verified_at 超过 freshness 阈值 | WARN |
+| **知识漂移 — 决策被覆盖** | 代码实际行为与 confirmed 决策矛盾 | ERROR |
+| **知识漂移 — 索引不一致** | PageIndex 注册的文件不存在 | WARN (auto_fix) |
 
 > 漂移检测详细规则见 [参考：漂移检测规则](../reference/drift-detection.md)。
 
@@ -111,9 +115,9 @@ mumuspec validate --quiet
 
 ---
 
-## 4. 安全校验
+## 5. 安全校验
 
-### 4.1 威胁模型
+### 5.1 威胁模型
 
 | 威胁面 | 威胁 | 影响 | 缓解措施 |
 |--------|------|------|----------|
@@ -124,7 +128,7 @@ mumuspec validate --quiet
 | 契约文件 | 外部服务伪造契约 | 注入错误 RPC 约束 | 签名验证 + 来源标记 |
 | Git Hooks | Hook 被禁用 | 绕过 pre-commit 检查 | CI 层兜底校验 |
 
-### 4.2 MCP Server 访问控制
+### 5.2 MCP Server 访问控制
 
 - 绑定 `127.0.0.1`，不暴露到网络
 - Token 认证：`MUMUSPEC_MCP_TOKEN` 环境变量
@@ -133,7 +137,7 @@ mumuspec validate --quiet
   - `write`：index_repository / check_compliance（需显式授权）
   - `admin`：contract derive / change state transition（需交互确认）
 
-### 4.3 输入校验规则
+### 5.3 输入校验规则
 
 | 输入来源 | 校验规则 | 失败行为 |
 |---------|----------|----------|
@@ -143,7 +147,7 @@ mumuspec validate --quiet
 | 契约 YAML | `$ref` 引用解析 + 字段完整性校验 | 阻断契约加载，报告 `E-CONTRACT-006` |
 | Enforcement check 表达式 | AST 表达式语法校验 | 阻断规则注册 |
 
-### 4.4 敏感信息检测
+### 5.4 敏感信息检测
 
 - 规范文件和 decisions.md 扫描敏感信息模式：
   - API Key / Token / 密码模式（正则匹配）
@@ -152,7 +156,7 @@ mumuspec validate --quiet
 - 检测到敏感信息时 WARN 级别告警（不阻断，记录到 audit log），报告 `E-SECURITY-003`
 - 可通过 config.yaml `security.sensitive_info_scan` 配置开关
 
-### 4.5 审计日志
+### 5.5 审计日志
 
 所有关键操作记录到 `.mumuspec/audit.log`（JSONL 格式）：
 
@@ -162,9 +166,9 @@ mumuspec validate --quiet
 {"ts":"2026-07-09T11:00:00Z","actor":"agent:mcp","action":"spec.validate","result":"fail","error":"E-SPEC-001"}
 ```
 
-## 5. 可观测性
+## 6. 可观测性
 
-### 5.1 结构化日志
+### 6.1 结构化日志
 
 CLI 输出支持三种 verbosity 模式：
 
@@ -181,7 +185,7 @@ JSON 格式示例：
 {"level":"info","ts":"2026-07-09T10:30:00Z","msg":"Phase guard passed","change":"add-auth","from":"open","to":"design","duration_ms":1200}
 ```
 
-### 5.2 关键操作 Audit Log
+### 6.2 关键操作 Audit Log
 
 以下操作自动写入 `.mumuspec/audit.log`：
 - 变更创建 / 废弃 / 归档
@@ -190,7 +194,7 @@ JSON 格式示例：
 - 契约派生 / 漂移检测
 - 配置变更
 
-### 5.3 CI 告警输出
+### 6.3 CI 告警输出
 
 CI 环境中，MumuSpec 输出兼容 GitHub Actions / GitLab CI 的告警格式：
 
@@ -201,4 +205,4 @@ CI 环境中，MumuSpec 输出兼容 GitHub Actions / GitLab CI 的告警格式�
 
 ---
 
-> **导航**: [← 代码图谱层](code-graph-layer.md) | [AI 集成层 →](ai-integration.md) | [返回概览](../overview.md)
+> **导航**: [← 知识层](knowledge-layer.md) | [AI 集成层 →](ai-integration.md) | [返回概览](../overview.md)

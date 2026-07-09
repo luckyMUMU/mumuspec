@@ -49,7 +49,9 @@ mumuspec worktree remove <name>         # 移除变更的 worktree
 mumuspec worktree list                  # 列出所有 MumuSpec 管理的 worktree
 ```
 
-## 代码图谱
+## 知识层（代码图谱 + 知识管理）
+
+### 代码图谱
 
 ```bash
 mumuspec index                          # 构建/更新代码图谱
@@ -148,6 +150,29 @@ mumuspec contract impact <name>                 # 追踪契约变更影响范围
 mumuspec contract registry update               # 更新 _registry.yaml
 mumuspec contract compat-check <name>           # 向后兼容性检查
 mumuspec contract doc generate [--name <name>]  # 从契约生成文档
+```
+
+## 认知框架管理（0.8.0 新增）
+
+```bash
+mumuspec cognitive-map init <name>              # 初始化认知地图
+mumuspec cognitive-map status <name>            # 查看认知地图状态（Q1-Q4 计数、收敛状态）
+mumuspec cognitive-map validate <name>          # 校验认知地图完整性
+mumuspec cognitive-map converge <name>          # 强制收敛认知地图（达到轮次上限时）
+```
+
+### 知识管理
+
+```bash
+mumuspec knowledge list [--type decision|pattern|risk|rationale|lesson] [--scope <path>]
+mumuspec knowledge show <id>                    # 查看知识页面全文
+mumuspec knowledge search <keyword> [--tag <tag>]  # 搜索知识
+mumuspec knowledge context <path>               # 获取指定路径的知识上下文（渐进式）
+mumuspec knowledge verify [--id <id> | --all]   # 验证知识新鲜度
+mumuspec knowledge graph [--scope <path>]        # 可视化知识关系图
+mumuspec knowledge extract <change>             # 从已归档变更中提取知识
+mumuspec knowledge stale                        # 列出过期的知识页面
+mumuspec knowledge supersede <id> --by <new-id> # 标记知识被新决策替代
 ```
 
 ---

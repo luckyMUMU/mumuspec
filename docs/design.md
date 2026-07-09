@@ -1,10 +1,10 @@
 # MumuSpec 设计文档索引
 
-> **版本**: 0.8.0-draft | **日期**: 2026-07-09 | **状态**: 设计草案
+> **版本**: 0.10.0-draft | **日期**: 2026-07-09 | **状态**: 设计草案
 
 本文档是 MumuSpec 设计文档组的入口索引。原单文件设计已按**渐进式披露**原则拆分为多层文档组，按阅读深度分层组织。
 
-> **新增**: 0.8.0 引入 Contract Layer（契约层），管理外部服务契约与自身对外契约。详见 [契约层设计](design/contract-layer.md)。
+> **新增**: 0.8.0 引入 Contract Layer（契约层）和认知框架（乔哈里窗变体）。0.9.0 引入 Knowledge Layer（知识层）。0.10.0 合并 Code Graph Layer 到 Knowledge Layer 作为持久化知识来源，并引入 Ponytail 作为基础编码约束。
 
 ---
 
@@ -20,10 +20,10 @@
 
 | 文档 | 所属层 | 核心内容 |
 |------|--------|---------|
-| [规范层](design/spec-layer.md) | Spec Layer | 树状分布双向约束、渐进式披露加载、spec.md/design.md/prohibitions.md 格式、继承规则、文档生成引擎 |
+| [规范层](design/spec-layer.md) | Spec Layer | 树状分布双向约束 + Ponytail 基础编码约束、渐进式披露加载、spec.md/design.md/prohibitions.md 格式、继承规则、文档生成引擎 |
 | [契约层](design/contract-layer.md) | Contract Layer | 外部服务契约 + 自身对外契约、YAML 格式、约束派生机制、版本管理与兼容性、漂移检测 |
 | [变更层](design/change-layer.md) | Change Layer | 五阶段生命周期（Open→Design→Build→Verify→Archive）、认知框架集成、回退机制、预设路径（hotfix/tweak）、错误恢复决策树、边界条件、工件结构 |
-| [代码图谱层](design/code-graph-layer.md) | Code Graph Layer | 知识图谱 Schema（含 Contract 节点）、MCP 工具、规范-代码绑定规则 |
+| [知识层](design/knowledge-layer.md) | Knowledge Layer | 持久化知识来源：代码图谱（AST 知识图谱 + 规范-代码绑定）+ LLM-Wiki 知识页面模型 + PageIndex 索引系统 + 变更归档知识提取 |
 | [校验层](design/guard-layer.md) | Guard Layer | Pre-commit/CI/Phase Guard 三层校验体系、性能指标矩阵、漂移检测类型、安全校验、可观测性、Git Hooks |
 | [AI 集成层](design/ai-integration.md) | AI Integration Layer | 原生 Skill 编排器、外部 Skill 生态兼容、Rules 文件生成、MCP Server、CLI |
 
@@ -31,13 +31,13 @@
 
 | 文档 | 内容 |
 |------|------|
-| [CLI 命令](reference/cli-commands.md) | 全部 CLI 命令参考（规范/变更/诊断引导/图谱/校验/契约/文档/测试） |
-| [MCP 工具](reference/mcp-tools.md) | MCP Server 配置与工具列表（规范/图谱/校验/变更/测试/文档/契约） |
+| [CLI 命令](reference/cli-commands.md) | 全部 CLI 命令参考（规范/变更/诊断引导/图谱/校验/契约/认知框架/知识/文档/测试） |
+| [MCP 工具](reference/mcp-tools.md) | MCP Server 配置与工具列表（规范/图谱/校验/变更/测试/文档/契约/认知框架/知识） |
 | [配置文件](reference/configuration.md) | 完整 config.yaml 配置项参考 |
-| [Phase Guard 规则](reference/phase-guards.md) | 正向转换守卫 + 反向回退守卫 + 废弃/终态守卫 |
-| [漂移检测规则](reference/drift-detection.md) | 规范漂移、图谱漂移、测试不可变性漂移、契约漂移 |
+| [Phase Guard 规则](reference/phase-guards.md) | 正向转换守卫 + 反向回退守卫 + 废弃/终态守卫（含认知框架和知识提取检查） |
+| [漂移检测规则](reference/drift-detection.md) | 规范漂移、图谱漂移、测试不可变性漂移、契约漂移、知识漂移 |
 | [认知框架](reference/cognitive-framework.md) | 乔哈里窗变体四象限认知框架（Q1-Q4）、工作流程、输出格式、Phase Guard 衔接 |
-| [错误码参考](reference/error-codes.md) | 统一错误码体系（E-DOMAIN-XXX）、错误信息模板、`--force` 选项说明 |
+| [错误码参考](reference/error-codes.md) | 统一错误码体系（E-DOMAIN-XXX，含 DESIGN 域）、错误信息模板、`--force` 选项说明 |
 | [发布与回滚策略](reference/release-strategy.md) | 版本策略、发布流程、灰度策略、回滚方案、兼容性保障 |
 | [术语表](reference/glossary.md) | 核心术语中英文映射与定义 |
 | [Skill 生态](reference/skill-ecosystem.md) | Skill 矩阵、分发协议、Hyperplan 7 阶段流程、决策记录 |
@@ -59,23 +59,30 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    MumuSpec System                          │
 │                                                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │Spec Layer│◄►│Contract  │  │Change    │  │Code Graph│   │
-│  │规范层    │  │Layer     │  │Layer     │  │Layer     │   │
-│  │SHALL/NOT │  │契约层    │  │变更层    │  │代码图谱层│   │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
-│       │             │             │              │          │
-│       └─────────────┴─────────────┴──────────────┘          │
-│                           │                                 │
-│                    ┌──────┴──────┐                          │
-│                    │Guard Layer  │  CI/CD + CLI + Lint     │
-│                    │校验层       │  Phase Guards + Drift    │
-│                    └─────────────┘                          │
-│                           │                                 │
-│                    ┌──────┴──────┐                          │
-│                    │AI Integration│  Skills / MCP / Rules   │
-│                    │Layer        │  CLI / Hooks             │
-│                    └─────────────┘                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
+│  │Spec Layer│◄►│Contract  │  │Change    │                  │
+│  │规范层    │  │Layer     │  │Layer     │                  │
+│  │SHALL/NOT │  │契约层    │  │变更层    │                  │
+│  │+Ponytail │  │          │  │          │                  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘                  │
+│       │             │             │                         │
+│       └─────────────┴─────────────┘                         │
+│                     │                                       │
+│              ┌──────┴──────┐                                │
+│              │Knowledge    │  Code Graph (HOW)              │
+│              │Layer 知识层 │  LLM-Wiki (WHY)                │
+│              │             │  PageIndex (WHERE)             │
+│              └─────────────┘                                │
+│                     │                                       │
+│              ┌──────┴──────┐                                │
+│              │Guard Layer  │  CI/CD + CLI + Lint            │
+│              │校验层       │  Phase Guards + Drift           │
+│              └─────────────┘                                │
+│                     │                                       │
+│              ┌──────┴──────┐                                │
+│              │AI Integration│  Skills / MCP / Rules          │
+│              │Layer        │  CLI / Hooks                    │
+│              └─────────────┘                                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -92,4 +99,6 @@
 | 0.5.0 | — | 目录级设计文档（design.md）+ 文档生成引擎 |
 | 0.6.0 | — | 红绿 TDD 开发规则 + 测试不可变性约束 |
 | 0.7.0 | — | Hyperplan 对抗式规划 Skill + Skill 矩阵 + 决策记录（decisions.md） |
-| 0.8.0 | 2026-07-09 | Contract Layer 契约层（外部服务契约 + 自身对外契约 + 漂移检测）；设计文档重构为渐进式披露文档组 |
+| 0.8.0 | 2026-07-09 | Contract Layer 契约层（外部服务契约 + 自身对外契约 + 漂移检测）；认知框架（乔哈里窗变体 Q1-Q4）集成到 Design 阶段；设计文档重构为渐进式披露文档组 |
+| 0.9.0 | 2026-07-09 | Knowledge Layer 知识层（LLM-Wiki + PageIndex + 代码图谱集成）；全量审查修复（流程正确性、连贯性、持久化完整性） |
+| 0.10.0 | 2026-07-09 | 合并 Code Graph Layer 到 Knowledge Layer 作为持久化知识来源；引入 Ponytail 作为基础编码约束 |

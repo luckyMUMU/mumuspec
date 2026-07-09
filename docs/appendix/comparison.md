@@ -11,7 +11,7 @@
 | **约束方向** | 仅正向（SHALL） | 仅正向 | **正向 + 反向（SHALL + SHALL NOT）** |
 | **规范分布** | 集中存放 `openspec/specs/` | 集中存放 | **树状分布，按目录结构分层** |
 | **上下文加载** | 全量加载规范 | 全量 + handoff 压缩 | **渐进式披露，按切入层级加载** |
-| **代码索引** | 无 | CodeGraph（0.3.7+） | **原生集成知识图谱** |
+| **代码索引** | 无 | CodeGraph（0.3.7+） | **原生集成代码图谱（Knowledge Layer 子组件）** |
 | **规范-代码绑定** | 无 | 无 | **GOVERNED_BY 边 + Enforcement** |
 | **漂移检测** | 无 | 无 | **自动检测规范与代码漂移** |
 | **禁止项可执行** | N/A | N/A | **每个 SHALL NOT 都有可执行检查** |
@@ -27,6 +27,9 @@
 | **归档合并** | 无 | 无 | **Archive 阶段自动 git 提交 + 创建 MR + 合并到主分支** |
 | **Skill 生态兼容** | 无 | 绑定 Superpowers | **开放兼容多 Skill 生态** |
 | **服务契约管理** | 无 | 无 | **外部服务契约 + 自身对外契约，自动派生约束，契约漂移检测** |
+| **设计知识持久化** | 无 | 无 | **Knowledge Layer：代码图谱 + LLM-Wiki + PageIndex，跨变更知识积累** |
+| **基础编码约束** | 无 | 无 | **Ponytail 7 级优先级阶梯，YAGNI + 复用 + 最小实现** |
+| **认知框架** | 无 | 无 | **乔哈里窗变体 Q1-Q4，Design 阶段系统化认知，最小化未知盲区** |
 
 ## 借鉴与增强
 
@@ -51,12 +54,14 @@
 | | verification-before-completion | 保留 + 阶段转换强制调用 |
 | | writing-plans 任务分解 | 保留 + 受 build_layers 顺序约束 |
 | | Skill 优先级体系 | 扩展 + 增加 MumuSpec 约束层（SHALL NOT > Skill） |
-| **codebase-memory** | 知识图谱 (Nodes + Edges) | 保留 + 增加 Spec/Enforcement/Contract 节点 |
+| **codebase-memory** | 知识图谱 (Nodes + Edges) | 保留 + 增加 Spec/Enforcement/Contract/KnowledgePage/Decision/Risk 节点，合并到 Knowledge Layer |
 | | search_graph/trace_path | 保留 + 返回路径上的规范约束 |
 | | detect_changes | 保留 + 检测受影响的规范 |
 | **context-engineering** | 分层上下文策略 | 实现为树状渐进式披露 |
 | | 反模式避免 | 设计为加载策略约束 |
 | | 选择性包含 | 通过 index.yaml 实现选择性加载 |
+| **LLM-Wiki / PageIndex** | 知识页面模型 + 索引系统 | 实现为 Knowledge Layer，与代码图谱双向关联，渐进式知识加载 |
+| **Ponytail** | 懒惰高级开发者编码约束 | 7 级优先级阶梯（YAGNI→复用→标准库→平台特性→已有依赖→一行代码→最小实现），作为 Spec Layer 基础编码约束 |
 
 ---
 
@@ -83,4 +88,4 @@
 
 ---
 
-> **导航**: [← 路线图](roadmap.md) | [开放问题 →](open-questions.md) | [返回概览](../overview.md)
+> **导航**: [← 目录结构](directory-structure.md) | [路线图 →](roadmap.md) | [返回概览](../overview.md)

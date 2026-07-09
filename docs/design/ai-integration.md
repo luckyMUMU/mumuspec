@@ -113,6 +113,9 @@ ai:
 Rules 文件内容包含：
 - 项目概述与当前工作目录
 - 渐进式披露加载的规范（SHALL + SHALL NOT）
+- Ponytail 基础编码约束（7 级优先级阶梯）
+- 设计知识加载提示（引用 `.mumuspec/knowledge/` 和 `mumuspec knowledge context`）
+- 代码结构查询提示（引用 `mumuspec search` / `mumuspec trace`）
 - 工作流规则（worktree 隔离、单一活跃变更、自顶向下/自下向上、TDD）
 - 禁止项优先级（SHALL NOT > SHALL）
 - Skill 生态兼容说明
@@ -137,7 +140,7 @@ Rules 文件内容包含：
 
 ## 6. CLI 命令
 
-提供命令行工具操作 MumuSpec 的所有功能：规范管理、变更管理、状态机回退、worktree 管理、代码图谱、校验、文档生成、测试用例管理、契约管理等。
+提供命令行工具操作 MumuSpec 的所有功能：规范管理、变更管理、状态机回退、worktree 管理、代码图谱查询、知识管理、校验、文档生成、测试用例管理、契约管理、认知框架管理等。
 
 ### mumuspec status — 变更状态概览
 
@@ -178,7 +181,7 @@ Pre-commit hook 集成 MumuSpec 快速检查：
 
 CI/CD pipeline 集成全量检查：
 - 全量 SHALL + SHALL NOT 检查
-- 漂移检测（规范 + 图谱 + 设计文档 + 契约）
+- 漂移检测（规范 + 图谱 + 设计文档 + 契约 + 知识）
 - 代码图谱完整性
 - Phase Guard 阶段守卫
 

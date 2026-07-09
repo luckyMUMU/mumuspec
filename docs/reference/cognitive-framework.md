@@ -187,7 +187,7 @@ MumuSpec 在 Design 阶段引入基于"乔哈里窗"（Johari Window）变体的
 | 认知框架阶段 | Design Phase 现有步骤 | 衔接关系 |
 |-------------|----------------------|---------|
 | Stage 1: 信息采集 | 步骤 4（代码图谱验证）的前置 | 采集结果作为步骤 1（逐层设计）的输入 |
-| Stage 2: 探索激活 | 步骤 1（逐层设计）中并行 | Q2 回答指导每层设计决策 |
+| Stage 2: 探索激活 | 步骤 0 内执行 | Q2 回答在步骤 1（逐层设计）开始前收集，指导每层设计决策 |
 | Stage 3: 盲区扫描 | 步骤 2（hyperplan）的前置 | Q3 确认后的约束进入 hyperplan 审查；Q4 扫描补充 hyperplan 未覆盖的盲区 |
 | Stage 4: 设计生成 | 步骤 1-5 的整合产出 | 认知地图作为 design.md 的附录 |
 
@@ -195,7 +195,7 @@ MumuSpec 在 Design 阶段引入基于"乔哈里窗"（Johari Window）变体的
 
 | 规则 | 说明 |
 |------|------|
-| **Q2 收敛条件** | 连续 1 轮无新 Q2 问题，或达到 3 轮上限 |
+| **Q2 收敛条件** | 连续 1 轮无新 Q2 问题，或 Stage 2+3 合计达到 5 轮上限 |
 | **Q3 每轮上限** | 每轮最多 3 条 Q3 推导，避免认知过载 |
 | **Q4 扫描触发** | Q2 收敛 + Q3 全部处理完毕后触发 |
 | **总轮次上限** | Stage 2+3 合计不超过 5 轮（防止无限循环） |
@@ -462,8 +462,8 @@ graph TB
 | 场景 | 认知框架模式 | 说明 |
 |------|-------------|------|
 | **full 工作流** | 完整四阶段 | Q1-Q4 全流程执行，认知地图完整记录 |
-| **hotfix 工作流** | 轻量模式 | 仅 Stage 1（信息采集）+ Q4 快速扫描（3 个维度） |
-| **tweak 工作流** | 跳过 | 配置/文案变更无需认知框架 |
+| **hotfix 工作流** | 不适用 | hotfix 跳过 Design 阶段，不执行认知框架 |
+| **tweak 工作流** | 不适用 | tweak 跳过 Design 阶段，不执行认知框架 |
 | **回退后重新 Design** | 增量模式 | 保留上一轮 Q1，仅重新执行 Q2-Q3 中受影响的部分 |
 | **复杂架构变更** | 增强模式 | Q4 扫描增加架构特定维度（如微服务边界、数据一致性） |
 
@@ -504,7 +504,7 @@ graph TB
 | `cognitive_map.q4_scans_completed` | Q4 扫描已执行（至少 3 个维度） | E-DESIGN-005 |
 | `cognitive_map.converged == true` | 认知地图已收敛（或达到轮次上限强制收敛） | E-DESIGN-006 |
 
-> hotfix 工作流豁免 `q2_pending == 0` 和 `q3_pending == 0` 检查，仅要求 `q1_count > 0` 和 `q4_scans_completed`。
+> hotfix/tweak 工作流跳过 Design 阶段，不执行认知框架，无 cognitive-map.yaml 产出，Phase Guard 不检查认知框架相关项。
 
 ---
 
@@ -541,4 +541,4 @@ cognitive_framework:
 
 ---
 
-> **导航**: [← Phase Guard](phase-guards.md) | [Skill 生态 →](skill-ecosystem.md) | [返回概览](../overview.md)
+> **导航**: [← 漂移检测](drift-detection.md) | [Skill 生态 →](skill-ecosystem.md) | [返回概览](../overview.md)

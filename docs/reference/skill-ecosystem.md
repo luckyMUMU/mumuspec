@@ -221,7 +221,7 @@ skill_dispatch:
 | 阶段 | 必须记录的决策类型 |
 |------|-------------------|
 | **Open** | 是否拆分、affected_scopes 判定、workflow 选择、worktree 降级 |
-| **Design** | 分层设计选择、SHALL/SHALL NOT 理由、**认知框架决策（Q2 回答/Q3 确认/Q4 兴底）**、hyperplan 幸存洞察、test-cases 依据、接口契约决策 |
+| **Design** | 分层设计选择、SHALL/SHALL NOT 理由、**认知框架决策（Q2 回答/Q3 确认/Q4 兜底）**、hyperplan 幸存洞察、test-cases 依据、接口契约决策 |
 | **Build** | 实现方式选择、TDD 红绿证据、调试根因、回退发起 |
 | **Verify** | 回退目标、偏差接受、验证失败处理 |
 | **Archive** | 合并策略、CI 失败处理、重验范围 |
@@ -300,4 +300,4 @@ skill_dispatch:
 
 ---
 
-> **导航**: [← 漂移检测](drift-detection.md) | [认知框架 →](cognitive-framework.md) | [返回概览](../overview.md)
+> **导航**: [← 认知框架](cognitive-framework.md) | [错误码 →](error-codes.md) | [返回概览](../overview.md)

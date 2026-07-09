@@ -62,17 +62,20 @@
 | 决策记录 | 查看 decisions.md | 各阶段决策已追加，hash 匹配 |
 | delta spec 合并 | Archive 后检查主规范 | ADDED/MODIFIED/REMOVED 正确合并 |
 
-## Phase 3: 代码图谱集成
+## Phase 3: 知识层集成
 
-**目标**：实现知识图谱 + 规范-代码双向绑定 + 契约图谱
+**目标**：实现代码图谱 + 规范-代码双向绑定 + 契约图谱 + LLM-Wiki + PageIndex
 
 - [ ] **[P0]** 代码图谱构建引擎（AST 解析 → 图谱）
 - [ ] **[P0]** 规范-代码绑定（GOVERNED_BY / ENFORCED_BY 边）
 - [ ] **[P0]** MCP Server 实现
+- [ ] **[P0]** 知识页面格式定义 + PageIndex 引擎
+- [ ] **[P0]** 代码图谱扩展（KnowledgePage/Decision/Risk 节点 + 知识边类型）
 - [ ] **[P1]** 影响分析工具（detect_changes）
 - [ ] **[P1]** 调用链追踪（trace_path + 规范标注）
 - [ ] **[P1]** 契约图谱集成（Contract 节点 + CONSUMES/EXPOSES/CONTRACT_DERIVES 边）
 - [ ] **[P1]** 契约约束派生引擎（契约 → spec.md 自动注入）
+- [ ] **[P1]** 知识 MCP 工具（get_knowledge_context / search_knowledge / get_code_knowledge）
 - [ ] **[P2]** 契约漂移检测引擎
 - [ ] **[P2]** 契约注册表管理（_registry.yaml 自动维护）
 
@@ -92,11 +95,14 @@
 
 - [ ] **[P0]** Pre-commit hook（SHALL NOT 快速检查）
 - [ ] **[P0]** CI/CD pipeline 集成（全量校验）
-- [ ] **[P0]** 漂移检测引擎（规范漂移 + 图谱漂移 + 设计文档漂移 + 契约漂移）
+- [ ] **[P0]** 漂移检测引擎（规范漂移 + 图谱漂移 + 设计文档漂移 + 契约漂移 + 知识漂移）
+- [ ] **[P0]** Archive 阶段知识提取子流程（D）
 - [ ] **[P1]** 图谱自动更新（git hooks）
 - [ ] **[P1]** 契约漂移检测集成到 CI/CD（外部服务漂移 + 对外接口漂移 + 向后兼容性检查）
 - [ ] **[P1]** 契约派生约束 CI 校验
+- [ ] **[P1]** 知识新鲜度管理 + 知识漂移检测 CI 集成
 - [ ] **[P1]** 文档生成引擎（从 spec + design + contract 生成技术/业务/集成/依赖文档）
+- [ ] **[P1]** `mumuspec knowledge` CLI 命令
 - [ ] **[P2]** 文档模板系统（内置模板 + 自定义模板）
 - [ ] **[P2]** 文档一致性校验（文档漂移检测 + 自动重新生成）
 - [ ] **[P2]** 多格式输出（Markdown / HTML / PDF）
@@ -147,7 +153,9 @@
 | 0.5.0 | Phase 4 | 目录级设计文档 + 文档生成引擎 |
 | 0.6.0 | Phase 2 | 红绿 TDD + 测试不可变性约束 |
 | 0.7.0 | Phase 2 | Hyperplan 对抗式规划 + Skill 矩阵 + 决策记录 |
-| 0.8.0 | Phase 3 | Contract Layer 契约层（外部 + 对外契约 + 漂移检测） |
+| 0.8.0 | Phase 3 | Contract Layer 契约层（外部 + 对外契约 + 漂移检测）；认知框架（乔哈里窗变体 Q1-Q4） |
+| 0.9.0 | Phase 3-4 | Knowledge Layer 知识层（LLM-Wiki + PageIndex + 代码图谱集成）；全量审查修复 |
+| 0.10.0 | Phase 1-3 | 合并 Code Graph Layer 到 Knowledge Layer；引入 Ponytail 基础编码约束 |
 
 ---
 
@@ -236,6 +244,8 @@ TDD 引擎 ←── test-cases 锁定 ←── 决策记录引擎
 图谱构建引擎 ──→ 规范-代码绑定 ──→ MCP Server
                     │
                     └──→ 契约图谱 ──→ 契约派生引擎
+                    │
+                    └──→ 知识页面引擎 ──→ PageIndex ──→ 知识提取子流程
 ```
 - **可并行**: 影响分析/调用链追踪与契约图谱可并行
 - **关键路径**: 图谱构建 → 规范绑定 → MCP Server
@@ -253,4 +263,4 @@ TDD 引擎 ←── test-cases 锁定 ←── 决策记录引擎
 
 ---
 
-> **导航**: [← 目录结构](directory-structure.md) | [对比 →](comparison.md) | [开放问题 →](open-questions.md) | [返回概览](../overview.md)
+> **导航**: [← 对比](comparison.md) | [开放问题 →](open-questions.md) | [返回概览](../overview.md)

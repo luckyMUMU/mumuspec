@@ -28,6 +28,7 @@
 | **设计文档** | design.md | 目录级设计决策文档，解释 spec.md 中约束的"为什么" |
 | **禁止清单** | prohibitions.md | 反向约束的独立清单，SHALL NOT 条目集合 |
 | **Delta Spec** | Delta Spec | 变更过程中对主规范的增量修改描述 |
+| **Ponytail 阶梯** | Ponytail Ladder | 7 级优先级编码约束阶梯：YAGNI→复用→标准库→平台特性→已有依赖→一行代码→最小实现 |
 
 ## 变更层术语
 
@@ -45,16 +46,23 @@
 | **不可变性校验** | Immutability Check | 验证测试用例和套件在锁定后未被篡改 |
 | **Hyperplan** | Hyperplan | 变更前对抗式设计审查流程，多角色多轮次蒸馏 |
 
-## 代码图谱术语
+## 知识层术语（含代码图谱）
 
 | 术语 | 英文 | 定义 |
 |------|------|------|
-| **代码图谱** | Code Graph | 基于代码 AST 构建的知识图谱 |
-| **节点** | Node | 图谱中的实体：File / Function / Class / Spec / Contract / Change |
-| **边** | Edge | 图谱中的关系：CALLS / IMPLEMENTS / GOVERNED_BY / ENFORCED_BY / CONSUMES / EXPOSES / CONTRACT_DERIVES |
+| **代码图谱** | Code Graph | 基于代码 AST 构建的知识图谱，知识层的代码结构子组件 |
+| **节点** | Node | 图谱中的实体：File / Function / Class / Spec / Contract / Change / KnowledgePage |
+| **边** | Edge | 图谱中的关系：CALLS / IMPLEMENTS / GOVERNED_BY / ENFORCED_BY / CONSUMES / EXPOSES / CONTRACT_DERIVES / DECIDED_BY / RISK_DOCUMENTED |
 | **规范-代码绑定** | Spec-Code Binding | 通过 GOVERNED_BY/ENFORCED_BY 边连接规范约束与代码实体 |
 | **影响分析** | Impact Analysis | 基于 CALLS 边分析代码变更的影响范围 |
 | **增量索引** | Incremental Index | 仅解析变更文件的图谱更新方式 |
+| **知识页面** | Knowledge Page | LLM-Wiki 中的结构化知识单元，包含元数据和正文 |
+| **PageIndex** | PageIndex | 知识页面索引系统，支持按代码路径/图谱节点渐进式加载 |
+| **知识图谱集成** | Knowledge-Graph Integration | 知识页面通过 DECIDED_BY/RISK_DOCUMENTED 边与代码图谱节点双向关联 |
+| **知识新鲜度** | Knowledge Freshness | 知识页面的验证状态：fresh / stale / unverified |
+| **知识提取** | Knowledge Extraction | Archive 阶段从变更工件中提取持久性知识到全局知识库的子流程 |
+| **反向索引** | Reverse Index | 从代码图谱节点到知识页面的反向映射 |
+| **知识漂移** | Knowledge Drift | 知识页面内容与代码实际行为不一致 |
 
 ## 契约层术语
 
@@ -86,6 +94,36 @@
 | **MCP Server** | MCP Server | Model Context Protocol 服务器，为 AI 工具提供图谱查询等能力 |
 | **Skill 生态矩阵** | Skill Ecosystem Matrix | AI 工具 × MumuSpec 功能的支持矩阵 |
 
+## 认知框架术语
+
+| 术语 | 英文 | 定义 |
+|------|------|------|
+| **认知框架** | Cognitive Framework | Design 阶段的系统化认知方法，基于乔哈里窗变体 |
+| **乔哈里窗** | Johari Window | 四象限认知模型，将信息分为 Q1-Q4 四个象限 |
+| **Q1** | Known Knowns | 已知的已知 — Agent 和用户共同掌握的信息，推理地基 |
+| **Q2** | Known Unknowns | 已知的未知 — Agent 明确缺失的信息，需提问补全 |
+| **Q3** | Unknown Knowns | 未知的已知 — Agent 推导出的隐性需求，需用户确认 |
+| **Q4** | Unknown Unknowns | 未知的未知 — 盲区，通过扫描发现或写入兜底策略 |
+| **认知地图** | Cognitive Map | cognitive-map.yaml，记录四象限状态和演化历史 |
+| **认知收敛** | Cognitive Convergence | Q2/Q3 全部处理完毕，认知地图达到稳定状态 |
+| **推理链** | Reasoning Chain | Q3 推导的格式化表达：Q1[编号] + Q1[编号] → Q3: 结论 |
+| **盲区扫描** | Blind Spot Scanning | Q4 阶段的主动扫描，覆盖 8 个维度的潜在风险 |
+| **兜底策略** | Fallback Strategy | Q4 残留风险的缓解措施：监控兜底/测试兜底/回退兜底/降级兜底 |
+
+## 知识层术语
+
+| 术语 | 英文 | 定义 |
+|------|------|------|
+| **知识页面** | Knowledge Page | LLM-Wiki 中的结构化知识单元，包含元数据和正文 |
+| **PageIndex** | PageIndex | 知识页面索引系统，支持按代码路径/图谱节点渐进式加载 |
+| **知识图谱集成** | Knowledge-Graph Integration | 知识页面通过 DECIDED_BY/RISK_DOCUMENTED 边与代码图谱节点双向关联 |
+| **知识新鲜度** | Knowledge Freshness | 知识页面的验证状态：fresh / stale / unverified |
+| **知识提取** | Knowledge Extraction | Archive 阶段从变更工件中提取持久性知识到全局知识库的子流程 |
+| **反向索引** | Reverse Index | 从代码图谱节点到知识页面的反向映射 |
+| **知识漂移** | Knowledge Drift | 知识页面内容与代码实际行为不一致 |
+
+> 0.10.0 变更：代码图谱术语已合并到上方知识层术语表中。
+
 ---
 
-> **导航**: [← 错误码参考](error-codes.md) | [配置参考 →](configuration.md) | [返回概览](../overview.md)
+> **导航**: [← 发布策略](release-strategy.md) | [返回概览](../overview.md)

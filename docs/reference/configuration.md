@@ -23,13 +23,33 @@ specs:
   auto_index: true                # 自动生成 index.yaml
   require_design_doc: true        # 每个有 spec.md 的目录必须维护 design.md
 
-# 代码图谱配置
-code_graph:
+# 代码图谱配置（已合并到知识层）
+# 以下配置归入 knowledge.code_graph 命名空间
+knowledge:
   enabled: true
-  storage: "sqlite"               # sqlite | memory
-  db_path: ".mumuspec/graph/index.db"
-  auto_index_on_commit: true
-  languages: ["typescript", "javascript"]
+  # --- 代码图谱 ---
+  code_graph:
+    enabled: true
+    storage: "sqlite"               # sqlite | memory
+    db_path: ".mumuspec/graph/index.db"
+    auto_index_on_commit: true
+    languages: ["typescript", "javascript"]
+  # --- LLM-Wiki ---
+  wiki:
+    dir: ".mumuspec/knowledge"
+    auto_extract_on_archive: true   # Archive 时自动提取知识
+    max_pages_per_scope: 20         # 每个代码范围最大知识页面数
+  # --- 渐进式加载 ---
+  progressive_disclosure:
+    max_pages_per_layer: 5          # 渐进式加载每层最大页面数
+    load_stale_summary: true        # 是否加载过期页面的摘要
+  # --- 新鲜度管理 ---
+  freshness:
+    check_on_load: true             # 加载时检查新鲜度
+    warn_after_days: 90             # 90 天未验证标记为 stale
+    error_after_days: 180           # 180 天未验证标记为 unverified
+  # --- 漂移检测 ---
+  drift_detection: true             # 知识漂移检测
 
 # 校验配置
 enforcement:
@@ -131,6 +151,25 @@ contracts:
   compat_check_on_change: true
   verify_on_build: true
   verify_on_archive: true
+
+# Ponytail 基础编码约束（0.10.0 新增）
+ponytail:
+  enabled: true                     # 启用 Ponytail 7 级优先级阶梯
+  auto_inject_to_root: true         # 自动注入到根层 spec.md
+  comment_marker: "ponytail:"       # 有意简化标记
+  strict_no_new_deps: true          # 严格禁止引入不必要的新依赖
+
+# 认知框架配置（0.8.0 新增）
+cognitive_framework:
+  enabled: true                   # full 工作流自动启用
+  default_mode: full              # full | incremental
+  max_rounds: 5                   # Stage 2+3 合计上限
+  q3_per_round: 3                 # 每轮 Q3 推导上限
+  q2_per_round: 5                 # 每轮 Q2 提问上限
+  q4_min_dimensions: 3            # Q4 最少扫描维度
+  hotfix_skip: true               # hotfix/tweak 跳过认知框架
+
+# 知识层配置已合并到上方 knowledge 命名空间（0.10.0 变更）
 
 # 设计文档配置
 design_docs:

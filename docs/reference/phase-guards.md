@@ -46,7 +46,7 @@ checks:
   - decisions_log.counts.open > 0
   - decisions_log.content_hash matches
   - user_confirmed: true
-note: "跳过 design 检查；但仍需 test-cases/ 定义与锁定；tweak 走此守卫后 Verify 走 light verify"
+note: "跳过 design 检查；但仍需 test-cases/ 定义与锁定；tweak 走此守卫后 Verify 走 light verify。hotfix/tweak 跳过 Design 阶段，不执行认知框架，无 cognitive-map.yaml 产出。"
 ```
 
 ### design_to_build
@@ -80,7 +80,7 @@ checks:
 on_fail: "Block, report missing design artifacts, test case issues, hyperplan issues, cognitive framework issues, or decisions.md issues"
 ```
 
-> **认知框架豁免**：hotfix 工作流豁免 `q2_pending == 0` 和 `q3_pending == 0` 检查，仅要求 `q1_count > 0` 和 `q4_scans_completed >= 3`（轻量模式）。tweak 工作流完全豁免认知框架检查。
+> **认知框架说明**：hotfix/tweak 工作流跳过 Design 阶段，走 `open_to_build_hotfix` 守卫而非 `design_to_build`，因此不执行认知框架，上述认知框架检查项不适用。仅 `workflow == "full"` 时执行认知框架检查。
 
 ### build_to_verify
 
@@ -262,6 +262,10 @@ checks:
   - index.yaml updated
   - code-graph snapshot updated
   - spec changes committed to main branch
+  - knowledge_extraction_completed: true         # 0.9.0 新增：知识提取完成
+  - knowledge_pages_created_count > 0            # 0.9.0 新增：至少创建 1 个知识页面
+  - knowledge_graph_bindings_verified: true      # 0.9.0 新增：知识页面与代码节点绑定已验证
+  - knowledge_conflicts_resolved: true           # 0.9.0 新增：知识冲突已处理
   - change moved to archive/
   - worktree cleaned up
   - remote branch deleted

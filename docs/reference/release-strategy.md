@@ -133,4 +133,4 @@ npm deprecate @mumuspec/cli@<version> "Critical bug: <description>. Use <stable-
 
 ---
 
-> **导航**: [← 错误码参考](error-codes.md) | [配置参考 →](configuration.md) | [返回概览](../overview.md)
+> **导航**: [← 错误码](error-codes.md) | [术语表 →](glossary.md) | [返回概览](../overview.md)

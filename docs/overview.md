@@ -1,6 +1,6 @@
 # MumuSpec — 全局概览
 
-> **版本**: 0.8.0-draft | **日期**: 2026-07-09 | **状态**: 设计草案
+> **版本**: 0.10.0-draft | **日期**: 2026-07-09 | **状态**: 设计草案
 
 ---
 
@@ -34,12 +34,13 @@
 
 ## 1. 问题陈述
 
-当前 AI 编程辅助工具面临四大核心挑战：
+当前 AI 编程辅助工具面临五大核心挑战：
 
 1. **规范缺失或单向**：只有正向要求（"做什么"），缺少反向禁止（"绝不能做什么"），AI 在边界场景失控；或笼统全量加载 `.cursorrules`，造成上下文过载。
 2. **规范与代码脱节**：规范写完即过时，无法自动校验代码是否遵守，沦为"摆设文档"。
-3. **缺乏代码结构感知**：AI 在大型代码库中"盲人摸象"，不理解模块间依赖关系，容易做出破坏性修改。
+3. **代码结构不可知与设计知识失忆**：AI 在大型代码库中"盲人摸象"，不理解模块间依赖关系，容易做出破坏性修改；设计决策和认知成果是变更级的，归档后即丢失，每次新变更从零开始理解"为什么现有代码是这样设计的"。
 4. **服务契约断裂**：外部服务接口契约散落在 wiki、口头约定中，AI 编写 RPC 调用时无从获知超时策略、重试规则；自身对外接口也缺乏正式声明，变更时无法检测向后兼容性破坏。
+5. **编码约束缺失**：AI 生成的代码过度抽象、引入不必要的依赖、产生冗余样板代码，违背"懒惰的高级开发者"原则。
 
 ## 1.1 量化目标
 
@@ -76,7 +77,7 @@
 | 编号 | 假设 | 影响范围 | 若假设不成立 |
 |------|------|---------|--------------|
 | A-01 | 项目使用 Git 进行版本控制 | 全局 | MumuSpec 无法管理变更历史 |
-| A-02 | 项目主语言被 tree-sitter 支持 | Code Graph Layer | 图谱功能降级为文件级索引 |
+| A-02 | 项目主语言被 tree-sitter 支持 | Knowledge Layer | 图谱功能降级为文件级索引 |
 | A-03 | 单一活跃变更约束可被团队接受 | Change Layer | 需引入变更队列机制 |
 | A-04 | AI 工具支持 MCP 协议或 Rules 文件 | AI Integration Layer | 需开发平台特定适配器 |
 | A-05 | 项目目录结构相对稳定（不频繁大重构） | Spec Layer | 规范层级需频繁重建 |
@@ -116,22 +117,22 @@ graph LR
 ```mermaid
 graph TB
     subgraph System["MumuSpec System"]
-        SL["Spec Layer 规范层<br/>Tree-distributed specs<br/>SHALL / SHALL NOT"]
+        SL["Spec Layer 规范层<br/>Tree-distributed specs<br/>SHALL / SHALL NOT<br/>+ Ponytail 基础编码约束"]
         CL["Change Layer 变更层<br/>Lifecycle: open→design→<br/>build→verify→archive"]
-        CG["Code Graph Layer 代码图谱层<br/>Knowledge Graph<br/>Nodes + Edges"]
         CTL["Contract Layer 契约层<br/>External + Outbound Contracts<br/>CONSUMES / EXPOSES"]
+        KL["Knowledge Layer 知识层<br/>Code Graph + LLM-Wiki + PageIndex<br/>HOW + WHY + WHERE"]
 
         SL <--> CL
-        CL <--> CG
-        SL <--> CG
+        SL <--> KL
         CTL <--> SL
-        CTL <--> CG
+        CTL <--> KL
+        CL -->|归档提取| KL
 
         GL["Guard Layer 校验层<br/>CI/CD + CLI + Lint + Test<br/>Phase Guards + Drift Detection"]
 
         SL --> GL
         CL --> GL
-        CG --> GL
+        KL --> GL
         CTL --> GL
 
         AIL["AI Integration Layer<br/>Skills / Skill Bridge / Rules / MCP / CLI / Hooks"]
@@ -140,10 +141,10 @@ graph TB
 
 | 层 | 职责 | 详细文档 |
 |----|------|---------|
-| **Spec Layer** | 树状分布的双向约束规范，按目录结构分层存放 | [设计](design/spec-layer.md) |
+| **Spec Layer** | 树状分布的双向约束规范 + Ponytail 基础编码约束，按目录结构分层存放 | [设计](design/spec-layer.md) |
 | **Contract Layer** | 外部服务契约 + 自身对外契约，自动派生约束 | [设计](design/contract-layer.md) |
 | **Change Layer** | 变更驱动的规范生命周期管理 | [设计](design/change-layer.md) |
-| **Code Graph Layer** | 代码结构索引，为规范提供代码事实基础 | [设计](design/code-graph-layer.md) |
+| **Knowledge Layer** | 持久化知识来源：代码图谱（HOW）+ LLM-Wiki 设计知识（WHY）+ PageIndex 索引（WHERE） | [设计](design/knowledge-layer.md) |
 | **Guard Layer** | 自动化校验规范与代码一致性 | [设计](design/guard-layer.md) |
 | **AI Integration Layer** | 与 AI 编程工具的集成接口，兼容外部 Skill 生态 | [设计](design/ai-integration.md) |
 
@@ -155,6 +156,7 @@ graph TB
 | **Comet** | OpenSpec + Superpowers 双星工作流 | 五阶段状态机、phase guard、hotfix/tweak 预设 |
 | **codebase-memory / GitNexus** | 代码知识图谱 | 图谱 schema、search/trace/impact 工具 |
 | **context-engineering** | 上下文分层策略 | 渐进式披露原则、反模式避免 |
+| **Ponytail** | 懒惰高级开发者编码约束 | 7 级优先级阶梯（YAGNI→复用→标准库→平台特性→已有依赖→一行代码→最小实现），作为 MumuSpec 基础编码约束 |
 
 > 详细对比见 [附录：与参考项目对比](appendix/comparison.md)。
 
@@ -169,7 +171,9 @@ graph TB
 | 0.5.0 | 目录级设计文档（design.md）+ 文档生成引擎 |
 | 0.6.0 | 红绿 TDD 开发规则 + 测试不可变性约束 |
 | 0.7.0 | Hyperplan 对抗式规划 Skill + Skill 矩阵 + 决策记录（decisions.md） |
-| 0.8.0 | Contract Layer 契约层（外部服务契约 + 自身对外契约 + 漂移检测） |
+| 0.8.0 | Contract Layer 契约层（外部服务契约 + 自身对外契约 + 漂移检测）；认知框架（乔哈里窗变体 Q1-Q4）集成到 Design 阶段；设计文档重构为渐进式披露文档组 |
+| 0.9.0 | Knowledge Layer 知识层（LLM-Wiki + PageIndex + 代码图谱集成）；全量审查修复 |
+| 0.10.0 | 合并 Code Graph Layer 到 Knowledge Layer 作为持久化知识来源；引入 Ponytail 作为基础编码约束 |
 
 ## 7. 实施路线图概要
 
@@ -177,8 +181,8 @@ graph TB
 |-------|------|---------|
 | Phase 1 | 核心规范引擎 (MVP) | 树状规范 + 双向约束 + 基础 CLI |
 | Phase 2 | 变更生命周期 | 五阶段状态机 + 回退机制 + TDD + Skill 生态 |
-| Phase 3 | 代码图谱集成 | 知识图谱 + 规范-代码绑定 + 契约图谱 |
-| Phase 4 | CI/CD 与自动化 | 全链路校验 + 漂移检测 + 文档生成 |
+| Phase 3 | 知识层集成 | 代码图谱 + 规范-代码绑定 + 契约图谱 + LLM-Wiki + PageIndex |
+| Phase 4 | CI/CD 与自动化 | 全链路校验 + 漂移检测（含知识漂移） + 知识提取 + 文档生成 |
 | Phase 5 | 生态与分发 | npm 包 + 多平台 Skill + 模板库 |
 
 > 详细路线图见 [附录：实施路线图](appendix/roadmap.md)。
@@ -191,6 +195,8 @@ graph TB
 4. 契约与外部服务的自动同步策略？
 5. 契约约束与手写规范的冲突解决？
 6. 契约的跨项目共享机制？
+7. 知识冲突的自动检测与解决？
+8. 知识新鲜度的自动化验证策略？
 
 > 完整开放问题见 [附录：开放问题](appendix/open-questions.md)。
 
@@ -201,6 +207,6 @@ graph TB
 | 层级 | 文档 | 适合读者 |
 |------|------|---------|
 | **Level 0** | 本文档（全局概览） | 所有人 |
-| **Level 1** | [规范层](design/spec-layer.md) · [契约层](design/contract-layer.md) · [变更层](design/change-layer.md) · [代码图谱层](design/code-graph-layer.md) · [校验层](design/guard-layer.md) · [AI 集成层](design/ai-integration.md) | 实现者、使用者 |
-| **Level 2** | [CLI 命令](reference/cli-commands.md) · [MCP 工具](reference/mcp-tools.md) · [配置](reference/configuration.md) · [Phase Guard](reference/phase-guards.md) · [漂移检测](reference/drift-detection.md) · [Skill 生态](reference/skill-ecosystem.md) | 操作者、CI 配置 |
+| **Level 1** | [规范层](design/spec-layer.md) · [契约层](design/contract-layer.md) · [变更层](design/change-layer.md) · [知识层](design/knowledge-layer.md) · [校验层](design/guard-layer.md) · [AI 集成层](design/ai-integration.md) | 实现者、使用者 |
+| **Level 2** | [CLI 命令](reference/cli-commands.md) · [MCP 工具](reference/mcp-tools.md) · [配置](reference/configuration.md) · [Phase Guard](reference/phase-guards.md) · [漂移检测](reference/drift-detection.md) · [认知框架](reference/cognitive-framework.md) · [Skill 生态](reference/skill-ecosystem.md) · [错误码](reference/error-codes.md) · [发布策略](reference/release-strategy.md) · [术语表](reference/glossary.md) | 操作者、CI 配置 |
 | **Level 3** | [目录结构](appendix/directory-structure.md) · [对比](appendix/comparison.md) · [路线图](appendix/roadmap.md) · [开放问题](appendix/open-questions.md) | 深入了解者 |

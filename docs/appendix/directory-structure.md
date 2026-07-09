@@ -33,6 +33,7 @@ my-project/
 │   │   ├── add-user-auth/                  # 活跃变更
 │   │   │   ├── .mumuspec.yaml              # 变更状态
 │   │   │   ├── proposal.md
+│   │   │   ├── cognitive-map.yaml          # 认知地图（0.8.0 新增）
 │   │   │   ├── design.md
 │   │   │   ├── tasks.md
 │   │   │   ├── delta-specs/
@@ -64,6 +65,17 @@ my-project/
 │   │   ├── mumuspec-tweak.md
 │   │   └── custom/                         # 项目自定义 Skill
 │   │
+│   ├── knowledge/                              # 知识层（0.9.0 新增）
+│   │   ├── _index.yaml                         # PageIndex 主索引
+│   │   ├── _reverse-index.yaml                 # 反向索引（代码节点→知识页面）
+│   │   ├── decisions/                          # 架构决策记录
+│   │   │   └── KP-0001-payment-saga.md
+│   │   ├── patterns/                           # 设计模式
+│   │   ├── risks/                              # 已知风险
+│   │   ├── rationale/                          # 设计理由
+│   │   ├── lessons/                            # 经验教训
+│   │   └── _archive/                           # 已废弃/已替代的知识页面
+│   │
 │   ├── templates/                          # 文档生成模板
 │   │   ├── technical-root.yaml
 │   │   ├── technical-module.yaml
@@ -77,7 +89,7 @@ my-project/
 │   │   ├── drift.mjs                       # 漂移检测
 │   │   └── doc-gen.mjs                     # 文档生成引擎
 │   │
-│   └── graph/                              # 代码图谱数据
+│   └── graph/                              # 代码图谱数据（Knowledge Layer 子组件）
 │       ├── index.db                        # 图谱数据库 (SQLite)
 │       └── snapshot.json                   # 图谱快照
 │
@@ -153,4 +165,4 @@ my-project/
 
 ---
 
-> **导航**: [路线图 →](roadmap.md) | [对比 →](comparison.md) | [返回概览](../overview.md)
+> **导航**: [对比 →](comparison.md) | [返回概览](../overview.md)
