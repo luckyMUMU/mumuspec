@@ -187,6 +187,25 @@ knowledge_drift:
     recommendation: "知识文件被手动删除，已自动更新索引"
 ```
 
+## Ponytail 约束漂移（0.10.0 新增）
+
+```yaml
+ponytail_drift:
+  # 代码引入了未在 design.md 中声明的新依赖
+  - check: "代码引入了未在 design.md 中声明的新依赖"
+    detection: "compare package.json/requirements.txt with design.md dependency declarations"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "新依赖需在设计阶段声明，或用 ponytail: 注释标记理由"
+
+  # 代码存在未被请求的抽象层
+  - check: "代码存在未被请求的抽象层"
+    detection: "AST analysis for unnecessary abstraction patterns"
+    severity: WARN
+    auto_fix: false
+    recommendation: "检查是否违反 YAGNI，用 ponytail: 注释标记或移除"
+```
+
 ---
 
 > **导航**: [← Phase Guard](phase-guards.md) | [认知框架 →](cognitive-framework.md) | [返回概览](../overview.md)

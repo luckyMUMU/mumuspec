@@ -20,7 +20,8 @@ checks:
   - decisions_log.counts.open > 0       # 至少 1 条决策
   - decisions_log.content_hash matches decisions.md actual hash
   - user_confirmed: true
-on_fail: "Block transition, report missing artifacts, constraint violations, or decisions.md issues"
+  - knowledge_context_loaded: true                 # 0.10.0 新增：已加载 affected_scopes 的历史知识
+on_fail: "Block transition, report missing artifacts, constraint violations, knowledge loading issues, or decisions.md issues"
 ```
 
 ### open_to_build_hotfix
@@ -74,6 +75,7 @@ checks:
   - cognitive_framework.q3_pending == 0 or cognitive_framework.rounds_completed >= 5  # Q3 无待处理或达上限
   - cognitive_framework.q4_scans_completed >= 3                    # Q4 至少扫描 3 个维度
   - cognitive_framework.converged: true                            # 认知地图已收敛
+  - ponytail_constraints_defined: true                             # 0.10.0 新增：design.md 包含 Ponytail 约束检查
   - decisions_log.counts.design > 0
   - decisions_log.content_hash matches
   - user_confirmed: true
@@ -101,9 +103,10 @@ checks:
   - test_cases.suites_locked: true
   - all layer suite hashes match suite-map.yaml
   - all test suites passed (green state)
+  - ponytail_compliance_checked: true                              # 0.10.0 新增：Build 阶段已执行 Ponytail 合规检查
   - decisions_log.counts.build > 0
   - decisions_log.content_hash matches
-on_fail: "Block, report incomplete tasks, failed build, test immutability violations, or decisions.md issues"
+on_fail: "Block, report incomplete tasks, failed build, test immutability violations, ponytail compliance issues, or decisions.md issues"
 ```
 
 ### verify_to_archive

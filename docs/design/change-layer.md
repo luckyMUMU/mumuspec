@@ -69,10 +69,11 @@ graph LR
 2. 需求探索与澄清（brainstorming，不可跳过，hotfix/tweak 除外）
 3. 通过代码图谱进行影响分析（trace_path + detect_changes）
 4. 确定 affected_scopes（受影响规范层级）
-5. 创建 proposal.md + delta-specs（ADDED/MODIFIED/REMOVED 语义标记）
-6. 创建 worktree 隔离工作区
-7. 追加 decisions.md Open 章节
-8. 用户确认（阻塞点）
+5. 加载 affected_scopes 的历史知识（从 Knowledge Layer PageIndex）
+6. 创建 proposal.md + delta-specs（ADDED/MODIFIED/REMOVED 语义标记）
+7. 创建 worktree 隔离工作区
+8. 追加 decisions.md Open 章节
+9. 用户确认（阻塞点）
 
 ## 3. Phase 2: Design（技术设计 — 自顶向下）
 

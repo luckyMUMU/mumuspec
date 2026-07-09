@@ -110,20 +110,6 @@
 | **盲区扫描** | Blind Spot Scanning | Q4 阶段的主动扫描，覆盖 8 个维度的潜在风险 |
 | **兜底策略** | Fallback Strategy | Q4 残留风险的缓解措施：监控兜底/测试兜底/回退兜底/降级兜底 |
 
-## 知识层术语
-
-| 术语 | 英文 | 定义 |
-|------|------|------|
-| **知识页面** | Knowledge Page | LLM-Wiki 中的结构化知识单元，包含元数据和正文 |
-| **PageIndex** | PageIndex | 知识页面索引系统，支持按代码路径/图谱节点渐进式加载 |
-| **知识图谱集成** | Knowledge-Graph Integration | 知识页面通过 DECIDED_BY/RISK_DOCUMENTED 边与代码图谱节点双向关联 |
-| **知识新鲜度** | Knowledge Freshness | 知识页面的验证状态：fresh / stale / unverified |
-| **知识提取** | Knowledge Extraction | Archive 阶段从变更工件中提取持久性知识到全局知识库的子流程 |
-| **反向索引** | Reverse Index | 从代码图谱节点到知识页面的反向映射 |
-| **知识漂移** | Knowledge Drift | 知识页面内容与代码实际行为不一致 |
-
-> 0.10.0 变更：代码图谱术语已合并到上方知识层术语表中。
-
 ---
 
 > **导航**: [← 发布策略](release-strategy.md) | [返回概览](../overview.md)

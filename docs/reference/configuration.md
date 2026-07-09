@@ -23,8 +23,7 @@ specs:
   auto_index: true                # 自动生成 index.yaml
   require_design_doc: true        # 每个有 spec.md 的目录必须维护 design.md
 
-# 代码图谱配置（已合并到知识层）
-# 以下配置归入 knowledge.code_graph 命名空间
+# 代码图谱配置
 knowledge:
   enabled: true
   # --- 代码图谱 ---
@@ -168,8 +167,6 @@ cognitive_framework:
   q2_per_round: 5                 # 每轮 Q2 提问上限
   q4_min_dimensions: 3            # Q4 最少扫描维度
   hotfix_skip: true               # hotfix/tweak 跳过认知框架
-
-# 知识层配置已合并到上方 knowledge 命名空间（0.10.0 变更）
 
 # 设计文档配置
 design_docs:

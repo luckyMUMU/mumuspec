@@ -15,6 +15,7 @@ graph LR
         PC4["漂移快速检测"]
         PC5["测试不可变性快速检查"]
         PC6["契约格式快速校验"]
+        PC7["Ponytail 快速检查"]
     end
     subgraph CI["CI/CD Pipeline 耗时<5min"]
         CI1["全量 SHALL 检查"]
@@ -25,6 +26,7 @@ graph LR
         CI6["测试不可变性全量校验"]
         CI7["契约派生约束校验"]
         CI8["契约漂移全量检测"]
+        CI9["Ponytail 全量检查"]
     end
     subgraph PG["Phase Guards 耗时<30s"]
         PG1["Open→Design 守卫"]
@@ -56,15 +58,17 @@ graph LR
 - 规范格式校验
 - 测试不可变性检查（test-cases/ + 套件 hash 未被篡改）
 - 契约格式快速校验
+- Ponytail 快速检查（YAGNI 检查 + 依赖检查）
 
 ### 2.2 CI/CD Pipeline（持续集成）
 
 全量检查（<5min），确保代码库整体一致性：
 - 全量 SHALL + SHALL NOT 检查
 - 代码图谱完整性
-- 漂移全量检测（规范漂移 + 图谱漂移 + 设计文档漂移 + 契约漂移）
+- 漂移全量检测（规范漂移 + 图谱漂移 + 设计文档漂移 + 契约漂移 + 知识漂移 + Ponytail 约束漂移）
 - 测试不可变性全量校验
 - 契约派生约束校验 + 契约漂移全量检测
+- Ponytail 全量检查（7 级阶梯合规 + 不必要依赖检测 + 样板代码检测）
 
 ### 2.3 Phase Guards（阶段守卫）
 
@@ -95,6 +99,8 @@ graph LR
 | **知识漂移 — 过期** | 知识页面 verified_at 超过 freshness 阈值 | WARN |
 | **知识漂移 — 决策被覆盖** | 代码实际行为与 confirmed 决策矛盾 | ERROR |
 | **知识漂移 — 索引不一致** | PageIndex 注册的文件不存在 | WARN (auto_fix) |
+| **Ponytail 约束漂移 — 未声明依赖** | 代码引入了未在 design.md 中声明的新依赖 | ERROR |
+| **Ponytail 约束漂移 — 不必要抽象** | 代码存在未被请求的抽象层 | WARN |
 
 > 漂移检测详细规则见 [参考：漂移检测规则](../reference/drift-detection.md)。
 
@@ -111,6 +117,9 @@ mumuspec check --test-immutability --staged-only
 
 # 3. 规范格式校验
 mumuspec validate --quiet
+
+# 4. Ponytail 快速检查
+mumuspec check --ponytail --staged-only
 ```
 
 ---

@@ -16,6 +16,8 @@
 | GRAPH | E-GRAPH-001 ~ E-GRAPH-099 | 代码图谱错误 |
 | CONTRACT | E-CONTRACT-001 ~ E-CONTRACT-099 | 契约层错误 |
 | DESIGN | E-DESIGN-001 ~ E-DESIGN-099 | 设计层错误（认知框架） |
+| KNOWLEDGE | E-KNOWLEDGE-001 ~ E-KNOWLEDGE-099 | 知识层错误 |
+| PONYTAIL | E-PONYTAIL-001 ~ E-PONYTAIL-099 | Ponytail 编码约束错误 |
 | SECURITY | E-SECURITY-001 ~ E-SECURITY-099 | 安全错误 |
 
 ---
@@ -89,6 +91,28 @@
 | E-DESIGN-005 | COGNITIVE_Q4_INCOMPLETE | ERROR | Q4 盲区扫描未完成（少于 3 个维度） | 盲区扫描不充分 | 1. 补充 Q4 扫描维度 2. 确保至少扫描 3 个维度 | [认知框架](cognitive-framework.md) |
 | E-DESIGN-006 | COGNITIVE_NOT_CONVERGED | ERROR | 认知地图未收敛且未达轮次上限 | 认知框架未完成收敛 | 1. 继续执行 Q2/Q3 轮次 2. 或达到轮次上限后强制收敛 3. 重新通过 design_to_build 守卫 | [认知框架](cognitive-framework.md) |
 
+### KNOWLEDGE — 知识层
+
+| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
+|--------|------|---------|---------|---------|---------|---------|
+| E-KNOWLEDGE-001 | KNOWLEDGE_PAGE_FORMAT_INVALID | ERROR | 知识页面 YAML frontmatter 格式错误 | id/title/type/status/scope 等必填字段缺失或类型不匹配 | 1. 检查 frontmatter 字段 2. 运行 `mumuspec knowledge verify --id <id>` | [知识层设计](../design/knowledge-layer.md) |
+| E-KNOWLEDGE-002 | KNOWLEDGE_EXTRACTION_FAIL | ERROR | Archive 阶段知识提取失败 | cognitive-map.yaml / decisions.md 格式异常或内容缺失 | 1. 检查变更工件完整性 2. 重新执行 `mumuspec knowledge extract <change>` | [知识层设计](../design/knowledge-layer.md) |
+| E-KNOWLEDGE-003 | KNOWLEDGE_PAGE_NOT_FOUND | ERROR | PageIndex 引用的知识页面文件不存在 | 知识文件被手动删除或移动 | 1. 检查 _index.yaml 条目 2. 恢复文件或更新索引 | [知识层设计](../design/knowledge-layer.md) |
+| E-KNOWLEDGE-004 | KNOWLEDGE_GRAPH_BINDING_INVALID | ERROR | 知识页面 graph_bindings 引用的代码节点不存在 | 代码重构后未更新知识页面关联 | 1. 运行 `mumuspec knowledge verify --id <id>` 2. 更新 graph_bindings 或标记 deprecated | [知识层设计](../design/knowledge-layer.md) |
+| E-KNOWLEDGE-005 | KNOWLEDGE_CONFLICT_UNRESOLVED | ERROR | 检测到知识冲突但未处理 | 新知识 supersede 旧知识但未标记 | 1. 运行 `mumuspec knowledge supersede <old-id> --by <new-id>` | [知识层设计](../design/knowledge-layer.md) |
+| E-KNOWLEDGE-006 | KNOWLEDGE_INDEX_CORRUPT | ERROR | PageIndex _index.yaml 与实际文件不一致 | 索引文件损坏或手动编辑 | 1. 运行 `mumuspec knowledge index --rebuild` | [知识层设计](../design/knowledge-layer.md) |
+| E-KNOWLEDGE-007 | KNOWLEDGE_FRESHNESS_EXPIRED | WARN | 知识页面超过 freshness.error_after_days | 长期未验证的知识页面 | 1. 运行 `mumuspec knowledge verify --all` 2. 重新验证或标记 deprecated | [漂移检测](drift-detection.md) |
+| E-KNOWLEDGE-008 | KNOWLEDGE_REVERSE_INDEX_STALE | WARN | 反向索引与主索引不一致 | 反向索引未自动更新 | 1. 运行 `mumuspec knowledge index --update-reverse` | [知识层设计](../design/knowledge-layer.md) |
+
+### PONYTAIL — 编码约束
+
+| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
+|--------|------|---------|---------|---------|---------|---------|
+| E-PONYTAIL-001 | PONYTAIL_YAGNI_VIOLATION | WARN | 引入了未被请求的抽象层或功能 | 违反 YAGNI 原则 | 1. 删除不必要的抽象 2. 或用 `ponytail:` 注释标记理由 | [规范层设计](../design/spec-layer.md) |
+| E-PONYTAIL-002 | PONYTAIL_UNNECESSARY_DEPENDENCY | ERROR | 在标准库/平台特性已满足时引入新依赖 | 违反优先级阶梯第 3-5 级 | 1. 使用标准库/平台特性替代 2. 或使用已有依赖 | [规范层设计](../design/spec-layer.md) |
+| E-PONYTAIL-003 | PONYTAIL_BOILERPLATE | WARN | 生成未被请求的样板代码 | 违反最小实现原则 | 1. 删除样板代码 2. 使用最小可工作实现 | [规范层设计](../design/spec-layer.md) |
+| E-PONYTAIL-004 | PONYTAIL_CLEVER_OVER_SIMPLE | WARN | 用复杂方案替代简单方案 | 违反 boring over clever 原则 | 1. 简化为 boring 方案 2. 或用 `ponytail:` 注释标记理由 | [规范层设计](../design/spec-layer.md) |
+
 ### SECURITY — 安全
 
 | 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
@@ -126,6 +150,11 @@
 | E-GUARD-003 | **不可跳过** | SHALL NOT 违规不可 force |
 | E-GUARD-007 | 可跳过 WARN | 继续提交 |
 | E-CONTRACT-001 | 可跳过 WARN | 自动注册 |
+| E-KNOWLEDGE-007 | 可跳过 WARN | 继续构建，标记为 stale |
+| E-KNOWLEDGE-008 | 可跳过 WARN | 自动重建反向索引 |
+| E-PONYTAIL-001 | 可跳过 WARN | 标记为 intentional |
+| E-PONYTAIL-003 | 可跳过 WARN | 标记为 intentional |
+| E-PONYTAIL-004 | 可跳过 WARN | 标记为 intentional |
 | E-SECURITY-003 | 可跳过 WARN | 标记为允许的模式 |
 
 > **重要**: SHALL NOT 违规（E-GUARD-003）和测试不可变性违规（E-GUARD-004）**永远不可**通过 `--force` 跳过。

@@ -9,9 +9,12 @@
 **目标**：实现树状规范 + 双向约束 + 基础 CLI
 
 - [ ] **[P0]** 规范文件格式定义（spec.md / design.md / prohibitions.md / index.yaml）
+- [ ] **[P0]** Ponytail 约束注入引擎（自动注入根层 spec.md）
 - [ ] **[P0]** 树状规范加载引擎（渐进式披露，含 spec + design）
 - [ ] **[P0]** CLI 核心命令（init / context / validate / check）
 - [ ] **[P0]** 基础 lint 规则引擎（执行 Enforcement 检查）
+- [ ] **[P1]** Ponytail lint 规则（YAGNI 检查、依赖检查、样板代码检测）
+- [ ] **[P1]** `ponytail:` 注释标记解析器
 - [ ] **[P1]** 目录级设计文档（design.md）格式与加载引擎
 - [ ] **[P1]** Rules 文件生成（CLAUDE.md / .cursorrules）
 - [ ] **[P2]** 规范继承冲突检测（加载时约束可满足性检查）
@@ -40,6 +43,9 @@
 - [ ] **[P0]** 测试用例规格引擎（test-cases/ 定义、锁定、hash 校验）
 - [ ] **[P0]** 红绿 TDD 循环强制执行（tdd_mode 固定、Phase Guard 校验）
 - [ ] **[P0]** 决策记录引擎（decisions.md 追加式日志 + hash 防篡改）
+- [ ] **[P0]** 认知框架引擎（cognitive-map.yaml 验证、收敛逻辑、Q4 扫描自动化）
+- [ ] **[P1]** 认知框架 CLI 命令（cognitive-map init/status/validate/converge）
+- [ ] **[P1]** 认知框架 MCP 工具（get_cognitive_map/check_convergence/update_cognitive_map）
 - [ ] **[P1]** hotfix/tweak 预设路径
 - [ ] **[P1]** Archive 阶段 git 提交 + MR/PR 创建 + 合并
 - [ ] **[P1]** 测试套件映射与锁定（suite-map.yaml、套件 hash 校验）
@@ -95,12 +101,13 @@
 
 - [ ] **[P0]** Pre-commit hook（SHALL NOT 快速检查）
 - [ ] **[P0]** CI/CD pipeline 集成（全量校验）
-- [ ] **[P0]** 漂移检测引擎（规范漂移 + 图谱漂移 + 设计文档漂移 + 契约漂移 + 知识漂移）
+- [ ] **[P0]** 漂移检测引擎（规范漂移 + 图谱漂移 + 设计文档漂移 + 契约漂移 + 知识漂移 + Ponytail 约束漂移）
 - [ ] **[P0]** Archive 阶段知识提取子流程（D）
 - [ ] **[P1]** 图谱自动更新（git hooks）
 - [ ] **[P1]** 契约漂移检测集成到 CI/CD（外部服务漂移 + 对外接口漂移 + 向后兼容性检查）
 - [ ] **[P1]** 契约派生约束 CI 校验
 - [ ] **[P1]** 知识新鲜度管理 + 知识漂移检测 CI 集成
+- [ ] **[P1]** Ponytail 漂移检测集成到 CI/CD
 - [ ] **[P1]** 文档生成引擎（从 spec + design + contract 生成技术/业务/集成/依赖文档）
 - [ ] **[P1]** `mumuspec knowledge` CLI 命令
 - [ ] **[P2]** 文档模板系统（内置模板 + 自定义模板）
@@ -127,6 +134,7 @@
 - [ ] **[P1]** 多平台 Skill 支持（Claude Code / Cursor / Copilot / Codex）
 - [ ] **[P1]** 规范模板库（常见技术栈的预置规范）
 - [ ] **[P1]** 契约模板库（RPC/REST/MQ 契约模板）
+- [ ] **[P2]** Ponytail 约束模板库（常见技术栈的预置 Ponytail 约束）
 - [ ] **[P2]** Skill 生态插件市场（社区贡献的 Skill 适配器）
 - [ ] **[P2]** 文档模板市场（社区贡献的文档生成模板）
 - [ ] **[P2]** 评估系统（Rubric / Pass@k）
@@ -153,7 +161,7 @@
 | 0.5.0 | Phase 4 | 目录级设计文档 + 文档生成引擎 |
 | 0.6.0 | Phase 2 | 红绿 TDD + 测试不可变性约束 |
 | 0.7.0 | Phase 2 | Hyperplan 对抗式规划 + Skill 矩阵 + 决策记录 |
-| 0.8.0 | Phase 3 | Contract Layer 契约层（外部 + 对外契约 + 漂移检测）；认知框架（乔哈里窗变体 Q1-Q4） |
+| 0.8.0 | Phase 2-3 | Contract Layer 契约层（外部 + 对外契约 + 漂移检测）；认知框架（乔哈里窗变体 Q1-Q4）集成到 Design 阶段 |
 | 0.9.0 | Phase 3-4 | Knowledge Layer 知识层（LLM-Wiki + PageIndex + 代码图谱集成）；全量审查修复 |
 | 0.10.0 | Phase 1-3 | 合并 Code Graph Layer 到 Knowledge Layer；引入 Ponytail 基础编码约束 |
 

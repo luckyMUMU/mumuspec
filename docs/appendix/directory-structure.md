@@ -89,6 +89,8 @@ my-project/
 │   │   ├── drift.mjs                       # 漂移检测
 │   │   └── doc-gen.mjs                     # 文档生成引擎
 │   │
+│   ├── audit.log                           # 审计日志（JSONL 格式）
+│   │
 │   └── graph/                              # 代码图谱数据（Knowledge Layer 子组件）
 │       ├── index.db                        # 图谱数据库 (SQLite)
 │       └── snapshot.json                   # 图谱快照
