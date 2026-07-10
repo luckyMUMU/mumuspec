@@ -1,0 +1,45 @@
+{
+  "name": "mumuspec",
+  "version": "0.10.0",
+  "description": "MumuSpec — Tree-distributed dual-constraint specification system for AI-assisted development",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mumuspec": "dist/cli.js",
+    "mumuspec-mcp": "dist/mcp-server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "mcp": "tsx src/mcp-server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "specification",
+    "ai-coding",
+    "mcp",
+    "cli",
+    "shall",
+    "shall-not",
+    "ponytail",
+    "spec-driven"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "commander": "^13.1.0",
+    "yaml": "^2.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
