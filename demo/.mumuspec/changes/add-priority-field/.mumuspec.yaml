@@ -1,0 +1,41 @@
+name: add-priority-field
+phase: archive-completed
+workflow: full
+created_at: 2026-07-10T09:12:29.430Z
+updated_at: 2026-07-10T09:15:36.119Z
+affected_scopes:
+  - src/models
+  - src/storage
+  - src/api
+build_layers: []
+test_cases:
+  design_locked: true
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+  design_content_hash: b7eaa82129dc4e1a
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: worktree
+single_active_change: true
+user_confirmed: false
+decisions_log:
+  counts: {}
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
