@@ -4,6 +4,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execSync } from 'node:child_process';
 
+// Read version from package.json so version bumps don't break this test.
+const pkgVersion = JSON.parse(
+  readFileSync(join(process.cwd(), 'package.json'), 'utf8'),
+).version as string;
+
 describe('CLI end-to-end', () => {
   let projectDir: string;
   const cliPath = join(process.cwd(), 'dist', 'cli.js');
@@ -18,7 +23,7 @@ describe('CLI end-to-end', () => {
 
   it('should show version', () => {
     const output = execSync(`node "${cliPath}" --version`, { encoding: 'utf8' });
-    expect(output.trim()).toBe('0.10.0');
+    expect(output.trim()).toBe(pkgVersion);
   });
 
   it('should show help', () => {

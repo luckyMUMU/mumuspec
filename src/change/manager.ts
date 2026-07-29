@@ -107,12 +107,21 @@ export function createChange(
   config: MumuSpecConfig,
   affectedScopes: string[] = [],
 ): ChangeState {
-  // Check single active change constraint
+  // Check single active change constraint.
+  //
+  // Strength-aware since 0.12.0: the constraint is evaluated against
+  // `config.workflow.single_active_change` (explicit override) and
+  // `config.constraint_strength` (effective strength). When the effective
+  // value is `false` (e.g. low RG strength, or explicit override), multiple
+  // parallel changes are allowed up to `workflow.max_active_changes`.
+  //
+  // See docs/design/constraint-strength.md §6.1.
   const active = getActiveChange(projectRoot);
-  if (active) {
+  if (active && config.workflow?.single_active_change !== false) {
     throw new MumuSpecError('E-CHANGE-001', {
       '当前活跃变更': active,
       '修复': '完成或 Discard 当前变更后再创建新变更',
+      '提示': '如需并行变更，可在 config.yaml 设置 workflow.single_active_change: false',
     });
   }
 

@@ -26,7 +26,17 @@ specs:
 # 代码图谱配置
 knowledge:
   enabled: true
-  # --- 代码图谱 ---
+  # --- 代码图谱后端选择 ---
+  graph_backend: "cbm"              # cbm | cgc | builtin | none
+  graph_backend_config:
+    cbm:
+      server_url: "http://localhost:3000"
+    cgc:
+      graph_db: "neo4j"
+      connection_string: "bolt://localhost:7687"
+    builtin:
+      max_files: 10000
+  # --- 代码图谱（builtin 后端配置） ---
   code_graph:
     enabled: true
     storage: "sqlite"               # sqlite | memory
@@ -67,18 +77,62 @@ changes:
   default_rollback_limit: 3       # rollback_count 上限
   default_rebuild_limit: 5        # rebuild_count 上限
   default_build_mode: executing-plans  # executing-plans | subagent | direct
-  default_tdd_mode: tdd           # 固定为 tdd，不可配置为 direct
+  default_tdd_mode: tdd           # 默认 tdd，可通过 workflow.tdd_enforced 关闭强制
 
-  # 工作流规则（硬性约束）
-  single_active_change: true      # 固定为 true，不可关闭
+  # 工作流规则（可配置约束，详见 workflow.* 配置）
+  single_active_change: true      # 默认 true，可通过 workflow.single_active_change 关闭
   default_isolation: worktree     # worktree | branch
   allow_isolation_downgrade: true # 允许降级为 branch（需记录原因）
 
-  # 硬性规则只读校验项（不可配置，仅用于 CI 校验）
-  implementation_strategy: bottom-up  # 固定值
-  design_strategy: top-down       # 固定值
-  tdd_mode: tdd                   # 固定值
-  test_immutability: true         # 固定值
+  # 规则校验项默认值（可通过 workflow.* 配置覆盖）
+  implementation_strategy: bottom-up  # 默认值，可配置
+  design_strategy: top-down       # 默认值，可配置
+  tdd_mode: tdd                   # 默认值，可配置
+  test_immutability: true         # 默认值，可配置
+
+# 工作流规则配置（四大工作流约束，默认全部开启可关闭）
+workflow:
+  worktree_isolation: true        # 默认 true，可关闭
+  single_active_change: true      # 默认 true，可关闭（关闭后允许 N 个并行变更）
+  top_down_design: true           # 默认 true，可关闭
+  tdd_enforced: true              # 默认 true，可关闭
+  max_active_changes: 3           # 仅当 single_active_change: false 时生效
+
+# 动态约束强度配置（0.12.0 新增）
+# 详见 docs/design/constraint-strength.md
+constraint_strength:
+  # 双维度强度等级 — 独立可配置
+  technical_design: high          # high | medium | low  — HOW 维度（设计/实现严谨度）
+  requirement_goals: high         # high | medium | low  — WHAT 维度（需求目标完整度）
+
+  # 例外清单（只读，不可关闭，不论强度等级始终 high/block）
+  exceptions:
+    - archive_terminal_state          # archive-completed 终态守卫
+    - discard_user_confirmation       # AI 不能自动 Discard
+    - commit_sha_immutability         # git_merge.commit_sha 不可篡改
+    - sensitive_info_scan             # 安全/敏感信息扫描
+    - shall_not_violation_in_ci       # SHALL NOT 违规在 CI 阶段始终阻断
+    - bp_03_user_confirmation         # BP-3 工件审查
+    - bp_04_design_confirmation       # BP-4 设计方案确认
+    - bp_14_verify_failure            # BP-14 验证失败处理
+    - bp_17_archive_confirmation      # BP-17 归档最终确认
+
+  # 显式覆盖（高级用户，优先级高于强度等级）
+  # 值为 inherit 时按 strength 等级求值；其他值显式覆盖
+  overrides:
+    workflow:
+      worktree_isolation: inherit       # inherit | true | false
+      single_active_change: inherit
+      top_down_design: inherit
+      tdd_enforced: inherit
+    cognitive_framework: inherit        # inherit | required | optional | off
+    hyperplan: inherit                  # inherit | required | conditional | off
+    brainstorming: inherit              # inherit | required | lightweight | off
+    test_immutability: inherit          # inherit | strict | design_only | off
+    impact_analysis: inherit            # inherit | required | recommended | off
+
+# 规范优先级模式（A-08 假设降级方案）
+priority_mode: "shall_not_first"  # shall_not_first | shall_first | equal
 
 # CI/CD 配置
 ci:
@@ -221,6 +275,314 @@ docs:
     auto_regen_on_drift: true
     block_on_manual_edit: true
 ```
+
+---
+
+## 知识层配置
+
+### knowledge.graph_backend
+
+**类型**: string
+**默认值**: `"cbm"`
+**可选值**: `"cbm"` | `"cgc"` | `"builtin"` | `"none"`
+
+代码图谱后端选择:
+- `"cbm"`: 集成 codebase-memory-mcp(默认,158 语言支持)
+- `"cgc"`: 集成 CodeGraphContext(23+ 语言,5 种图数据库)
+- `"builtin"`: 内置简化版 tree-sitter + SQLite(仅 TS/JS,降级用)
+- `"none"`: 关闭代码图谱,仅使用 Spec Layer
+
+```yaml
+knowledge:
+  graph_backend: "cbm"
+  graph_backend_config:
+    cbm:
+      server_url: "http://localhost:3000"
+    cgc:
+      graph_db: "neo4j"
+      connection_string: "bolt://localhost:7687"
+    builtin:
+      max_files: 10000
+```
+
+当选择 `"cbm"` 或 `"cgc"` 时,MumuSpec 自动检测外部工具安装状态,不可用时降级为 `"builtin"` 并在 `mumuspec status` 中标注降级状态与能力边界。
+
+---
+
+## 工作流配置
+
+### workflow.*
+
+**类型**: object
+**默认值**: 全部 `true`
+
+四大工作流规则均为默认开启的可配置约束:
+
+```yaml
+workflow:
+  worktree_isolation: true        # 默认 true,可关闭
+  single_active_change: true      # 默认 true,可关闭(关闭后允许 N 个并行变更,上限默认 3)
+  top_down_design: true           # 默认 true,可关闭
+  tdd_enforced: true              # 默认 true,可关闭
+```
+
+#### workflow.worktree_isolation
+
+- **默认值**: `true`
+- **关闭行为**: 跳过 Worktree 隔离检查,变更在主分支工作目录中进行
+- **关闭时 WARN**: "已关闭 Worktree 隔离,变更将影响主分支工作目录"
+
+#### workflow.single_active_change
+
+- **默认值**: `true`
+- **关闭行为**: 允许同时多个活跃变更(上限默认 3,可通过 `workflow.max_active_changes` 配置)
+- **关闭时 WARN**: "已关闭单一活跃变更,可能影响变更隔离性"
+- **相关配置**: `workflow.max_active_changes: 3`(仅当 `single_active_change: false` 时生效)
+
+#### workflow.top_down_design
+
+- **默认值**: `true`
+- **关闭行为**: 跳过自顶向下设计顺序检查,允许自下向上实现
+- **关闭时 WARN**: "已关闭自顶向下设计,允许自下向上实现"
+
+#### workflow.tdd_enforced
+
+- **默认值**: `true`
+- **关闭行为**: TDD 强制降级为可选,仅要求"测试存在但不强制红绿循环"
+- **关闭时 WARN**: "已关闭 TDD 强制,仅要求测试存在"
+
+> **与 constraint_strength 的关系**: `workflow.*` 配置项若显式设置（非 `inherit`）,优先级高于 `constraint_strength` 强度等级。未设置（或值为 `inherit`）时按 `constraint_strength.overrides.workflow.*` 求值,若仍为 `inherit` 则按对应维度的 `constraint_strength.technical_design` / `requirement_goals` 强度等级求值。
+
+---
+
+## 动态约束强度配置
+
+### constraint_strength.*
+
+**类型**: object
+**默认值**: `{ technical_design: high, requirement_goals: high }`
+
+双维度约束强度系统,支持三档强度（high / medium / low）按"技术设计"和"需求目标"两个维度独立配置。详见 [动态约束强度系统设计](../design/constraint-strength.md)。
+
+> **0.12.1+ 树状层级**：`constraints.yaml` 按目录树分层存放,子层继承父层约束可**收紧**不可**放宽**,同 ID 冲突时**高层级优先**。`config.yaml: constraint_strength.*` 作为根层强度回退值;子层 `constraints.yaml: strength.*` 可覆盖本层及子层强度。详见 [§5.6 树状层级与继承](../design/constraint-strength.md#56-树状层级与继承0121)。
+
+```yaml
+constraint_strength:
+  technical_design: high         # high | medium | low
+  requirement_goals: high        # high | medium | low
+  exceptions: [...]              # 只读例外清单
+  overrides:                     # 显式覆盖,优先级高于强度等级
+    workflow:
+      worktree_isolation: inherit
+      single_active_change: inherit
+      top_down_design: inherit
+      tdd_enforced: inherit
+    cognitive_framework: inherit
+    hyperplan: inherit
+    brainstorming: inherit
+    test_immutability: inherit
+    impact_analysis: inherit
+```
+
+#### 与 constraints.yaml 树状强度的关系
+
+| 配置位置 | 作用范围 | 优先级 |
+|---------|---------|--------|
+| `config.yaml: constraint_strength.*` | 全项目根层强度回退 | 最低（根层缺省时使用） |
+| `.mumuspec/constraints.yaml: strength.*`（根层） | 本层及未覆盖的子层 | 高于 config.yaml |
+| `src/.mumuspec/constraints.yaml: strength.*`（子层） | 本层及未覆盖的子层 | 高于父层（必须 ≥ 父层） |
+| `constraint_strength.overrides.*`（config.yaml） | 显式覆盖强度等级 | 最高（仅在同一层内） |
+
+子层 `strength.<dim>` 缺省时继承父层;显式设置时必须 ≥ 父层,否则忽略并 WARN。
+
+### constraint_strength.technical_design
+
+**类型**: string
+**默认值**: `"high"`
+**可选值**: `"high"` | `"medium"` | `"low"`
+
+技术设计维度（HOW）的约束强度,控制以下约束项的执行力度:
+
+| 约束项 | high | medium | low |
+|--------|------|--------|-----|
+| design.md 完整性 | 必需,覆盖所有 affected 层级 | 必需,至少根层 + 受影响层 | 可选 |
+| 自顶向下设计顺序 | 强制 Level 0→N | 推荐,允许模块内跳跃 | 关闭 |
+| 认知框架 Q1-Q4 | 强制 5 轮收敛,Q4 ≥3 维度 | 可选,最多 3 轮 | 关闭 |
+| Hyperplan 对抗审查 | 触发即执行,5 critic + 3 round | 用户显式触发,3 critic + 1 round | 关闭 |
+| 代码图谱验证 | 必需 | 推荐 | 关闭 |
+| Ponytail 编码约束 | 强制 7 级 + strict_no_new_deps | 仅 YAGNI + 复用检查 | 关闭 |
+| build_layers 计划 | 必需,多层 | 必需,单层即可 | 可选 |
+| 测试用例设计 | 每层 cases.md + design_locked | 至少 layer-0 + design_locked | 可选 |
+| 测试套件锁定 | suites_hash 全程锁定 | 仅 design_locked | 关闭 |
+| TDD 红绿循环 | 强制 Red→Green→Refactor | 测试存在即可 | 关闭 |
+
+### constraint_strength.requirement_goals
+
+**类型**: string
+**默认值**: `"high"`
+**可选值**: `"high"` | `"medium"` | `"low"`
+
+需求目标维度（WHAT）的约束强度,控制以下约束项的执行力度:
+
+| 约束项 | high | medium | low |
+|--------|------|--------|-----|
+| proposal.md 完整性 | 必需: 目标/非目标/范围/影响/验收 | 必需: 目标/范围/影响 | 简要描述 |
+| Brainstorming 深度 | 必需多轮,含选项式 Q&A | 必需,单轮即可 | 可选 |
+| delta-specs/ | 必需 SHALL + SHALL NOT | 必需 SHALL | 可选 |
+| 影响分析 | 必需 gitnexus-impact-analysis | 推荐 | 关闭 |
+| 历史知识加载 | 必需 mumuspec knowledge context | 推荐 | 关闭 |
+| 契约兼容检查 | 必需 mumuspec contract compat-check | 推荐 | 关闭 |
+| 用户确认门禁 | 全部 18 个 BP 阻塞点 | 仅 BP-3/4/8/14/17 | 仅 BP-17 |
+| decisions.md | 每阶段 ≥1 条 + content_hash | 每阶段 ≥1 条 | 可选 |
+| 单一活跃变更 | 强制 1 个 | 软警告 ≤3 并行 | 关闭 |
+| Worktree 隔离 | 强制 | 推荐 branch 降级 | 关闭 |
+
+### constraint_strength.exceptions
+
+**类型**: string[]（只读）
+**默认值**: 内置 9 项例外
+
+不论强度等级始终 `block` 的约束清单,用户 **不可关闭**。包含: `archive_terminal_state` / `discard_user_confirmation` / `commit_sha_immutability` / `sensitive_info_scan` / `shall_not_violation_in_ci` / `bp_03_user_confirmation` / `bp_04_design_confirmation` / `bp_14_verify_failure` / `bp_17_archive_confirmation`。
+
+### constraint_strength.overrides
+
+**类型**: object
+**默认值**: 全部 `inherit`
+
+显式覆盖强度等级,优先级: `overrides.*` > `strength.*` > 默认值。每个覆盖项支持 `inherit`（按强度等级求值）或具体值（如 `true | false` / `required | optional | off`）。
+
+### 强度等级语义
+
+| 强度 | 阻断行为 | 适用场景 |
+|------|---------|---------|
+| `high` | Pre-commit / Phase Guard 阻断（block） | 新项目、关键系统、团队不熟 |
+| `medium` | 输出 WARN,记录到 decisions.md,不阻断 | 成熟项目常规迭代 |
+| `low` | 输出 INFO,仅在 verify.md 汇总 | 紧急修复、原型探索、教学 |
+
+### 预设强度组合
+
+通过 `mumuspec constraints preset <name>` 命令快速设置:
+
+| 预设 | TD | RG | 场景 |
+|------|----|----|------|
+| `strict` | high | high | 新项目 / 关键系统（默认） |
+| `balanced` | medium | medium | 成熟项目常规迭代 |
+| `hotfix` | low | high | 紧急 hotfix（保需求,省技术流程） |
+| `exploratory` | medium | low | 探索性原型 |
+| `minimal` | low | low | 教学 demo / 一次性脚本 |
+
+### config enable/disable 命令支持
+
+```bash
+# 查看当前约束强度
+mumuspec constraints strength
+
+# 设置约束强度
+mumuspec constraints strength --td high --rg medium
+
+# 单次变更覆盖
+mumuspec constraints strength --change <name> --td low --rg medium
+
+# 应用预设
+mumuspec constraints preset balanced
+
+# 初始化持久化约束文件 constraints.yaml
+mumuspec constraints init
+
+# 从 spec.md 同步约束到 constraints.yaml
+mumuspec constraints sync
+
+# 列出所有约束
+mumuspec constraints list --dimension td
+mumuspec constraints list --type shall-not
+
+# 添加自定义约束
+mumuspec constraints add --dimension td --type shall-not \
+  --content "禁止使用 var 关键字" --min-strength medium
+
+# 验证当前变更是否满足约束
+mumuspec constraints check --change <name>
+```
+
+---
+
+## 规范优先级配置
+
+### priority_mode
+
+**类型**: string
+**默认值**: `"shall_not_first"`
+**可选值**: `"shall_not_first"` | `"shall_first"` | `"equal"`
+
+规范优先级体系模式:
+- `"shall_not_first"`: SHALL NOT 优先(默认,SHALL NOT 约束优先级高于 SHALL)
+- `"shall_first"`: SHALL 优先(降级方案,团队不接受 SHALL NOT 优先时使用)
+- `"equal"`: SHALL 与 SHALL NOT 平等(无优先级)
+
+```yaml
+priority_mode: "shall_not_first"
+```
+
+此配置项是 A-08 假设的降级方案:当团队不接受 SHALL NOT 优先时,可切换为 `"shall_first"` 模式。
+
+---
+
+## 零配置默认
+
+MumuSpec 定义"零配置默认"配置,新用户无需理解全部即可启动。`mumuspec init` 使用零配置默认值,所有高级特性默认关闭。
+
+### 默认开启的特性
+
+| 特性 | 默认配置 | 说明 |
+|------|---------|------|
+| Spec Layer | 开启 | 树状规范 + SHALL/SHALL NOT + 渐进式披露 |
+| Change Layer(基础) | 开启 | 五阶段状态机 + 基础回退 |
+| Guard Layer(P0) | 开启 | Pre-commit SHALL NOT 检查 + spec_drift |
+| Rules 文件生成 | 开启 | CLAUDE.md/.cursorrules/AGENTS.md |
+| AI 工具适配层 | 开启(自动检测) | 自动检测当前 AI 工具 |
+| 动态约束强度 | 开启（`balanced` 预设） | TD=medium, RG=medium;可通过 `mumuspec constraints preset` 切换 |
+| 持久化 constraints.yaml | 开启 | `mumuspec init` 自动初始化空约束清单 |
+
+### 默认关闭的特性
+
+| 特性 | 默认配置 | 开启方式 |
+|------|---------|---------|
+| Ponytail 编码约束 | 关闭 | `mumuspec config enable ponytail` |
+| 认知框架 Q1-Q4 | 关闭 | `mumuspec config enable cognitive-framework` |
+| Contract Layer | 关闭 | `mumuspec config enable contract-layer` |
+| Knowledge Layer 代码图谱 | 关闭 | `mumuspec config enable knowledge-graph`(需配置后端) |
+| TDD 强制 | 开启(可关闭) | `workflow.tdd_enforced: false` 关闭 |
+| Skill Bridge | 关闭 | `mumuspec config enable skill-bridge` |
+| Hyperplan | 关闭 | `mumuspec config enable hyperplan` |
+| `strict` 强度预设 | 关闭（默认 balanced） | `mumuspec constraints preset strict` |
+
+### config enable/disable 命令
+
+```bash
+# 开启特性
+mumuspec config enable <feature>
+
+# 关闭特性
+mumuspec config disable <feature>
+
+# 查看当前配置
+mumuspec config list
+```
+
+支持的 feature 名称:
+- `ponytail` - Ponytail 编码约束
+- `cognitive-framework` - 认知框架 Q1-Q4
+- `contract-layer` - Contract Layer
+- `knowledge-graph` - Knowledge Layer 代码图谱(需配合 `knowledge.graph_backend` 配置)
+- `skill-bridge` - Skill Bridge 兼容层
+- `hyperplan` - Hyperplan 对抗式规划
+
+### 新用户零配置启动流程
+
+1. 运行 `mumuspec init`,全部使用默认值
+2. 项目仅启用 Spec/Change/Guard P0/Rules 四个核心模块
+3. 高级特性默认关闭
+4. `mumuspec status` 显示"高级特性未启用,使用 config enable 开启"
 
 ---
 

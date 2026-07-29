@@ -36,6 +36,8 @@
 - ~~Roadmap 缺少认知框架和 Ponytail 的实现任务~~ → 已补充 Phase 1-5 任务
 - ~~少量文档一致性问题（重复术语表、遗留文件等）~~ → 已全部修复
 
+> **设计完备性 vs 实现进度**: 设计完备性 100% 指设计文档完整，实现进度 0% 指代码未开始。详见 [STATUS.md](./STATUS.md)。
+
 ### 1.3 与 OpenSpec / Comet 的对齐分析
 
 | 维度 | OpenSpec/Comet 实践 | MumuSpec 对齐状态 | 增强 |
@@ -395,122 +397,168 @@ ponytail_drift:
 
 ### 3.3 工作流 C: 实现路线图细化
 
-#### Phase 1: 核心规范引擎 (MVP) — 细化任务
+#### Phase 1: MVP — Spec + Change + Guard P0 + Rules + AI 工具适配层
 
-**目标**: 树状规范 + 双向约束 + Ponytail + 基础 CLI
+**目标**: 树状规范（不含 Ponytail）+ 变更生命周期（不含 TDD 强制）+ Guard P0 漂移 + Rules 生成 + AI 工具适配层
+
+> **Phase 划分说明**: Ponytail 移至 Phase 2；TDD 强制移至 Phase 2（可配置）；漂移检测 P0 部分前置到 Phase 1。
 
 | 任务 ID | 任务 | 优先级 | 依赖 | 估算(人天) |
 |---------|------|--------|------|-----------|
 | P1-T01 | 规范文件格式定义（spec.md / design.md / prohibitions.md / index.yaml） | P0 | — | 2 |
-| P1-T02 | Ponytail 约束注入引擎（自动注入根层 spec.md） | P0 | P1-T01 | 1 |
-| P1-T03 | 树状规范加载引擎（渐进式披露，含 spec + design） | P0 | P1-T01 | 3 |
-| P1-T04 | CLI 核心命令（init / context / validate / check） | P0 | P1-T03 | 3 |
-| P1-T05 | 基础 lint 规则引擎（执行 Enforcement 检查） | P0 | P1-T01 | 4 |
-| P1-T06 | Ponytail lint 规则（YAGNI 检查、依赖检查、样板代码检测） | P1 | P1-T05, P1-T02 | 3 |
-| P1-T07 | `ponytail:` 注释标记解析器 | P1 | P1-T05 | 1 |
-| P1-T08 | 目录级设计文档（design.md）格式与加载引擎 | P1 | P1-T03 | 2 |
-| P1-T09 | Rules 文件生成（CLAUDE.md / .cursorrules / AGENTS.md） | P1 | P1-T03 | 2 |
-| P1-T10 | 规范继承冲突检测（加载时约束可满足性检查） | P2 | P1-T03 | 3 |
+| P1-T02 | 树状规范加载引擎（渐进式披露，含 spec + design） | P0 | P1-T01 | 2 |
+| P1-T03 | CLI 核心命令（init / context / validate / check） | P0 | P1-T02 | 2 |
+| P1-T04 | 基础 lint 规则引擎（执行 Enforcement 检查） | P0 | P1-T01 | 2 |
+| P1-T05 | 目录级设计文档（design.md）格式与加载引擎 | P1 | P1-T02 | 1 |
+| P1-T06 | Rules 文件生成（CLAUDE.md / .cursorrules / AGENTS.md） | P1 | P1-T02 | 1 |
+| P1-T07 | 规范继承冲突检测（加载时约束可满足性检查） | P2 | P1-T02 | 1 |
+| P1-T08 | 变更状态机（.mumuspec.yaml）+ 五阶段流程（open → design → build → verify → archive） | P0 | — | 3 |
+| P1-T09 | 状态机回退机制（基础：build→design, verify→design, verify→build） | P0 | P1-T08 | 2 |
+| P1-T10 | delta spec 合并引擎 | P0 | P1-T08 | 2 |
+| P1-T11 | 测试用例规格引擎（test-cases/ 定义、锁定、hash 校验） | P0 | P1-T08 | 2 |
+| P1-T12 | 决策记录引擎（decisions.md + hash 防篡改） | P0 | P1-T08 | 1 |
+| P1-T13 | Phase guard 脚本（正向 + 反向基础回退守卫） | P0 | P1-T08 | 2 |
+| P1-T14 | Guard P0 漂移检测（规范漂移 spec_drift） | P0 | P1-T02 | 1 |
+| P1-T15 | AI 工具适配层（自动检测 CLAUDE.md / .cursorrules / AGENTS.md 生态并适配） | P1 | P1-T06 | 1 |
 
-**Phase 1 关键路径**: P1-T01 → P1-T03 → P1-T04
-**Phase 1 可并行**: P1-T05 与 P1-T03 并行；P1-T06/T07 与 P1-T08/T09 并行
+**Phase 1 关键路径**: P1-T01 → P1-T02 → P1-T03；P1-T08 → P1-T13
+**Phase 1 可并行**: P1-T04 与 P1-T02 并行；P1-T05/T06/T07 与 P1-T08/T09/T10 并行；P1-T14/T15 与 P1-T13 并行
+**Phase 1 估算**: 25 人天
 
-#### Phase 2: 变更生命周期 — 细化任务
+#### Phase 2: Ponytail + TDD（可配置）+ 认知框架（可选）+ 回退增强 + 软假设降级 + Guard P1
 
-**目标**: 完整变更管理 + 状态机 + TDD + 认知框架 + Skill 生态
+**目标**: Ponytail 编码约束 + TDD 强制（可配置）+ 认知框架（可选，默认关闭）+ 状态机回退增强 + 软假设降级方案 + Guard P1 漂移检测
 
-| 任务 ID | 任务 | 优先级 | 依赖 | 估算(人天) |
-|---------|------|--------|------|-----------|
-| P2-T01 | 变更状态机（.mumuspec.yaml） | P0 | — | 2 |
-| P2-T02 | 五阶段流程（open → design → build → verify → archive） | P0 | P2-T01 | 3 |
-| P2-T03 | 状态机回退机制（build→design, verify→design, verify→build） | P0 | P2-T02 | 2 |
-| P2-T04 | 回退快照保存与恢复 | P0 | P2-T03 | 2 |
-| P2-T05 | Phase guard 脚本（正向 + 反向回退守卫） | P0 | P2-T02 | 3 |
-| P2-T06 | delta spec 合并引擎 | P0 | P2-T02 | 3 |
-| P2-T07 | 测试用例规格引擎（test-cases/ 定义、锁定、hash 校验） | P0 | P2-T02 | 3 |
-| P2-T08 | 红绿 TDD 循环强制执行 | P0 | P2-T07 | 2 |
-| P2-T09 | 决策记录引擎（decisions.md + hash 防篡改） | P0 | P2-T02 | 2 |
-| P2-T10 | 认知框架引擎（cognitive-map.yaml 验证、收敛逻辑、Q4 扫描） | P0 | P2-T02 | 4 |
-| P2-T11 | 认知框架 CLI 命令（init/status/validate/converge） | P1 | P2-T10 | 1 |
-| P2-T12 | hotfix/tweak 预设路径 | P1 | P2-T05 | 2 |
-| P2-T13 | Archive 阶段 git 提交 + MR/PR 创建 + 合并 | P1 | P2-T06 | 3 |
-| P2-T14 | 测试套件映射与锁定（suite-map.yaml） | P1 | P2-T07 | 2 |
-| P2-T15 | Skill 文件定义（阶段编排器） | P1 | P2-T02 | 2 |
-| P2-T16 | 外部 Skill 生态兼容层（Skill Bridge） | P1 | P2-T15 | 3 |
-| P2-T17 | 阶段-Skill 映射与分发协议 | P1 | P2-T16 | 2 |
-| P2-T18 | Hyperplan 对抗式规划 Skill | P2 | P2-T16 | 4 |
-| P2-T19 | 认知框架 MCP 工具 | P1 | P2-T10 | 1 |
-
-**Phase 2 关键路径**: P2-T01 → P2-T02 → P2-T05 → P2-T06
-**Phase 2 可并行**: P2-T07/T08/T09 与 P2-T10 并行；P2-T15/T16/T17 与 P2-T12/T13 并行
-
-#### Phase 3: 知识层集成 — 细化任务
-
-**目标**: 代码图谱 + 规范-代码绑定 + 契约图谱 + LLM-Wiki + PageIndex + 知识 MCP
+> **Phase 划分说明**: Ponytail 从 Phase 1 移入；TDD 强制改为可配置；认知框架改为可选（默认关闭）；Skill Bridge 移至 Phase 3；自建 Skill 编排器与 Hyperplan 移至 Phase 5；新增软假设降级方案；漂移检测 P1 部分前置到本 Phase。
 
 | 任务 ID | 任务 | 优先级 | 依赖 | 估算(人天) |
 |---------|------|--------|------|-----------|
-| P3-T01 | 代码图谱构建引擎（tree-sitter → SQLite 图谱） | P0 | — | 5 |
-| P3-T02 | 图谱 Schema 实现（结构/规范/变更/契约/知识节点 + 全部边类型） | P0 | P3-T01 | 3 |
-| P3-T03 | 增量索引引擎（仅解析变更文件） | P0 | P3-T01 | 2 |
-| P3-T04 | 规范-代码绑定（GOVERNED_BY / ENFORCED_BY 边） | P0 | P3-T02 | 3 |
-| P3-T05 | 知识页面格式定义 + 验证引擎 | P0 | — | 2 |
-| P3-T06 | PageIndex 引擎（主索引 + 反向索引 + 自动更新） | P0 | P3-T05 | 3 |
-| P3-T07 | 代码图谱扩展（KnowledgePage/Decision/Risk 节点 + 知识边） | P0 | P3-T02, P3-T05 | 2 |
-| P3-T08 | 渐进式知识加载（按 scope + 新鲜度筛选） | P0 | P3-T06 | 2 |
-| P3-T09 | MCP Server 实现（全部工具） | P0 | P3-T04 | 4 |
-| P3-T10 | 影响分析工具（detect_changes） | P1 | P3-T04 | 2 |
-| P3-T11 | 调用链追踪（trace_path + 规范标注） | P1 | P3-T04 | 2 |
-| P3-T12 | 契约图谱集成（Contract 节点 + CONSUMES/EXPOSES/CONTRACT_DERIVES 边） | P1 | P3-T02 | 3 |
-| P3-T13 | 契约约束派生引擎（契约 → spec.md 自动注入） | P1 | P3-T12 | 3 |
-| P3-T14 | 知识 MCP 工具（get_knowledge_context / search_knowledge / get_code_knowledge 等 8 个） | P1 | P3-T08 | 3 |
-| P3-T15 | 知识冲突检测引擎（D8 子流程） | P1 | P3-T07 | 2 |
-| P3-T16 | 契约漂移检测引擎 | P2 | P3-T12 | 2 |
-| P3-T17 | 契约注册表管理（_registry.yaml 自动维护） | P2 | P3-T12 | 1 |
+| P2-T01 | Ponytail 约束注入引擎（自动注入根层 spec.md） | P0 | P1-T01 | 1 |
+| P2-T02 | Ponytail lint 规则（YAGNI 检查、依赖检查、样板代码检测） | P1 | P2-T01, P1-T04 | 2 |
+| P2-T03 | `ponytail:` 注释标记解析器 | P1 | P1-T04 | 1 |
+| P2-T04 | 红绿 TDD 循环强制执行（可配置，默认开启，可通过 config disable 关闭） | P0 | P1-T11 | 2 |
+| P2-T05 | 认知框架引擎（cognitive-map.yaml 验证、收敛逻辑、Q4 扫描，可选，默认关闭） | P1 | P1-T08 | 3 |
+| P2-T06 | 认知框架 CLI 命令 + MCP 工具（init/status/validate/converge） | P2 | P2-T05 | 1 |
+| P2-T07 | 状态机回退增强（回退快照保存与恢复 + 回退计数上限） | P1 | P1-T09 | 1 |
+| P2-T08 | 软假设降级方案（Q4 残留兜底策略 + proposed 知识页面标记） | P1 | P2-T05 | 1 |
+| P2-T09 | Guard P1 漂移检测（图谱漂移 + 契约漂移 + 知识漂移 + Ponytail 漂移） | P1 | P1-T14 | 2 |
+| P2-T10 | hotfix/tweak 预设路径 | P1 | P1-T13 | 1 |
+| P2-T11 | Archive 阶段 git 提交 + MR/PR 创建 + 合并 | P1 | P1-T10 | 1 |
+| P2-T12 | 测试套件映射与锁定（suite-map.yaml） | P1 | P1-T11 | 1 |
 
-**Phase 3 关键路径**: P3-T01 → P3-T02 → P3-T04 → P3-T09
-**Phase 3 可并行**: P3-T05/T06 与 P3-T01/T02 并行；P3-T10/T11 与 P3-T12/T13 并行
+**Phase 2 关键路径**: P2-T01 → P2-T02；P2-T05 → P2-T08
+**Phase 2 可并行**: P2-T02/T03 与 P2-T04/T05 并行；P2-T07/T09/T10/T11/T12 互相并行
+**Phase 2 估算**: 17 人天
 
-#### Phase 4: CI/CD 与自动化 — 细化任务
+#### Phase 3: Knowledge 图谱（可插拔后端）+ 知识价值评估 + 契约层 + Skill Bridge + Guard P2
 
-**目标**: 全链路校验 + 漂移检测 + 知识提取 + 文档生成
+**目标**: 代码图谱（可插拔后端）+ 规范-代码绑定 + 契约层 + LLM-Wiki + PageIndex + 知识 MCP + 知识价值评估 + Skill Bridge + Guard P2 漂移检测
+
+> **Phase 划分说明**: Knowledge 图谱改为可插拔后端（tree-sitter/SQLite 可替换为其他后端），核心图谱工作量从 16 人天调整为 6-8 人天；Skill Bridge 从 Phase 2 移入；新增知识价值评估；漂移检测 P2 部分前置到本 Phase。图谱架构依赖 Phase 1 MVP 范围。
 
 | 任务 ID | 任务 | 优先级 | 依赖 | 估算(人天) |
 |---------|------|--------|------|-----------|
-| P4-T01 | Pre-commit hook（SHALL NOT + Ponytail 快速检查 + 测试不可变性） | P0 | — | 2 |
-| P4-T02 | CI/CD pipeline 集成（全量校验 + Ponytail 全量检查） | P0 | P4-T01 | 3 |
-| P4-T03 | 漂移检测引擎（规范 + 图谱 + 设计文档 + 测试 + 契约 + 知识 + Ponytail） | P0 | — | 4 |
-| P4-T04 | Archive 阶段知识提取子流程（D1-D8） | P0 | P3-T07 | 4 |
-| P4-T05 | 图谱自动更新（git hooks） | P1 | P3-T03 | 2 |
-| P4-T06 | 契约漂移检测 CI 集成 | P1 | P4-T03 | 1 |
-| P4-T07 | 知识新鲜度管理 + 知识漂移 CI 集成 | P1 | P4-T03 | 2 |
-| P4-T08 | 文档生成引擎（技术/业务/集成/依赖 4 种文档） | P1 | — | 4 |
-| P4-T09 | `mumuspec knowledge` CLI 命令 | P1 | P3-T06 | 2 |
-| P4-T10 | Ponytail 漂移检测 CI 集成 | P1 | P4-T03 | 1 |
-| P4-T11 | 文档模板系统（内置 + 自定义） | P2 | P4-T08 | 2 |
-| P4-T12 | 文档一致性校验（文档漂移检测 + 自动重新生成） | P2 | P4-T08 | 2 |
-| P4-T13 | 多格式输出（Markdown / HTML / PDF） | P2 | P4-T08 | 2 |
-| P4-T14 | 仪表盘可视化 | P2 | — | 3 |
+| P3-T01 | 代码图谱构建引擎（可插拔后端：tree-sitter → SQLite，后端可替换） | P0 | P1-T02 | 3 |
+| P3-T02 | 图谱 Schema 实现（结构/规范/变更/契约/知识节点 + 全部边类型） | P0 | P3-T01 | 2 |
+| P3-T03 | 增量索引引擎（仅解析变更文件） | P0 | P3-T01 | 1 |
+| P3-T04 | 规范-代码绑定（GOVERNED_BY / ENFORCED_BY 边） | P0 | P3-T02 | 2 |
+| P3-T05 | 知识页面格式定义 + PageIndex 引擎（主索引 + 反向索引 + 自动更新） | P0 | — | 2 |
+| P3-T06 | 渐进式知识加载（按 scope + 新鲜度筛选） | P0 | P3-T05 | 1 |
+| P3-T07 | 代码图谱扩展（KnowledgePage/Decision/Risk 节点 + 知识边） | P0 | P3-T02, P3-T05 | 1 |
+| P3-T08 | MCP Server 实现（全部工具） | P0 | P3-T04 | 1 |
+| P3-T09 | 影响分析工具（detect_changes）+ 调用链追踪（trace_path） | P1 | P3-T04 | 1 |
+| P3-T10 | 契约图谱集成（Contract 节点 + CONSUMES/EXPOSES/CONTRACT_DERIVES 边）+ 约束派生引擎 | P1 | P3-T02 | 2 |
+| P3-T11 | 知识 MCP 工具（get_knowledge_context / search_knowledge 等 8 个） | P1 | P3-T06 | 1 |
+| P3-T12 | 知识冲突检测引擎（D8 子流程）+ 知识价值评估（freshness/confidence/reuse_score） | P1 | P3-T07 | 1 |
+| P3-T13 | Skill Bridge（外部 Skill 生态兼容层 + 阶段-Skill 映射与分发协议） | P1 | P1-T06 | 1 |
+| P3-T14 | 契约注册表管理（_registry.yaml）+ 契约漂移检测引擎 | P2 | P3-T10 | 1 |
+| P3-T15 | Guard P2 漂移检测（契约漂移 + 知识漂移全量检测） | P2 | P2-T09 | 1 |
+
+**Phase 3 关键路径**: P3-T01 → P3-T02 → P3-T04 → P3-T08
+**Phase 3 可并行**: P3-T05/T06 与 P3-T01/T02 并行；P3-T09/T10 与 P3-T11/T12 并行；P3-T13 与图谱任务并行
+**Phase 3 估算**: 21 人天（其中核心图谱 P3-T01~T04 共 8 人天，原 16 人天，因可插拔后端方案缩减）
+
+#### Phase 4: CI/CD + 全漂移检测 + 知识提取 + 文档生成
+
+**目标**: Pre-commit + CI/CD pipeline + 全漂移检测集成（P0/P1/P2 合并）+ Archive 知识提取 + 文档生成
+
+> **Phase 划分说明**: 漂移检测的 P0/P1/P2 部分已分散到 Phase 1/2/3，本 Phase 负责将各阶段漂移检测集成到 CI/CD 全链路；知识提取与文档生成保持不变。
+
+| 任务 ID | 任务 | 优先级 | 依赖 | 估算(人天) |
+|---------|------|--------|------|-----------|
+| P4-T01 | Pre-commit hook（SHALL NOT + Ponytail 快速检查 + 测试不可变性） | P0 | — | 1 |
+| P4-T02 | CI/CD pipeline 集成（全量校验 + Ponytail 全量检查） | P0 | P4-T01 | 2 |
+| P4-T03 | 全漂移检测引擎集成（合并 P0/P1/P2：规范 + 图谱 + 契约 + 知识 + Ponytail 漂移） | P0 | P1-T14, P2-T09, P3-T15 | 2 |
+| P4-T04 | Archive 阶段知识提取子流程（D1-D8） | P0 | P3-T07 | 1 |
+| P4-T05 | 图谱自动更新（git hooks） | P1 | P3-T03 | 1 |
+| P4-T06 | 文档生成引擎（技术/业务/集成/依赖 4 种文档） | P1 | — | 2 |
+| P4-T07 | `mumuspec knowledge` CLI 命令 | P1 | P3-T06 | 1 |
+| P4-T08 | 文档模板系统（内置 + 自定义）+ 文档一致性校验 | P2 | P4-T06 | 1 |
+| P4-T09 | 多格式输出（Markdown / HTML / PDF）+ 仪表盘可视化 | P2 | P4-T06 | 1 |
 
 **Phase 4 关键路径**: P4-T01 → P4-T02 → P4-T03
-**Phase 4 可并行**: P4-T04 与 P4-T08 并行；P4-T05/T06/T07 与 P4-T09/T10 并行
+**Phase 4 可并行**: P4-T04 与 P4-T06 并行；P4-T05/T07 与 P4-T08/T09 并行
+**Phase 4 估算**: 12 人天
 
-#### Phase 5: 生态与分发 — 细化任务
+#### Phase 5: 自建 Skill 编排器 + Hyperplan + 生态分发
 
-**目标**: npm 发布 + 多平台 Skill + 模板库
+**目标**: 自建 Skill 编排器（阶段编排）+ Hyperplan 对抗式规划 + npm 发布 + 多平台 Skill + 模板库 + 生态分发
+
+> **Phase 划分说明**: 自建 Skill 编排器与 Hyperplan 从 Phase 2 移入（高级能力，非 MVP 必需）；生态分发保持不变。
 
 | 任务 ID | 任务 | 优先级 | 依赖 | 估算(人天) |
 |---------|------|--------|------|-----------|
-| P5-T01 | npm 包发布（@mumuspec/cli + @mumuspec/mcp-server） | P0 | — | 3 |
-| P5-T02 | 多平台 Skill 支持（Claude Code / Cursor / Copilot / Codex） | P1 | P5-T01 | 3 |
-| P5-T03 | 规范模板库（常见技术栈预置规范） | P1 | — | 2 |
-| P5-T04 | 契约模板库（RPC/REST/MQ 契约模板） | P1 | — | 2 |
-| P5-T05 | Ponytail 约束模板库（常见技术栈预置约束） | P2 | — | 1 |
-| P5-T06 | 知识模板库（常见技术栈预置知识页面） | P2 | — | 2 |
-| P5-T07 | Skill 生态插件市场 | P2 | P5-T02 | 3 |
-| P5-T08 | 文档模板市场 | P2 | P5-T03 | 2 |
-| P5-T09 | 评估系统（Rubric / Pass@k） | P2 | — | 3 |
-| P5-T10 | 文档与教程 | P2 | P5-T01 | 3 |
+| P5-T01 | 自建 Skill 编排器（7 个阶段 Skill 文件 + 阶段-Skill 映射） | P1 | P1-T06 | 2 |
+| P5-T02 | Hyperplan 对抗式规划 Skill（与认知框架双向反馈循环） | P2 | P5-T01, P2-T05 | 2 |
+| P5-T03 | npm 包发布（@mumuspec/cli + @mumuspec/mcp-server） | P0 | — | 1 |
+| P5-T04 | 多平台 Skill 支持（Claude Code / Cursor / Copilot / Codex） | P1 | P5-T03, P3-T13 | 2 |
+| P5-T05 | 规范 + 契约 + Ponytail 约束模板库（常见技术栈预置） | P1 | — | 2 |
+| P5-T06 | 知识模板库（常见技术栈预置知识页面） | P2 | — | 1 |
+| P5-T07 | Skill 生态插件市场 | P2 | P5-T04 | 1 |
+| P5-T08 | 评估系统（Rubric / Pass@k）+ 文档与教程 | P2 | P5-T03 | 1 |
+
+**Phase 5 关键路径**: P5-T03 → P5-T04；P5-T01 → P5-T02
+**Phase 5 可并行**: P5-T01/T05/T06 与 P5-T03 并行；P5-T07/T08 依赖前置任务完成
+**Phase 5 估算**: 12 人天
+
+#### 工作量汇总
+
+| Phase | 估算(人天) | 关键交付物 |
+|-------|-----------|-----------|
+| Phase 1 (MVP) | 25 | Spec + Change + Guard P0 + Rules + AI 工具适配层 |
+| Phase 2 | 17 | Ponytail + TDD(可配置) + 认知框架(可选) + 回退增强 + 软假设降级 + Guard P1 |
+| Phase 3 | 21 | Knowledge 图谱(可插拔) + 知识价值评估 + 契约层 + Skill Bridge + Guard P2 |
+| Phase 4 | 12 | CI/CD + 全漂移检测集成 + 知识提取 + 文档生成 |
+| Phase 5 | 12 | 自建 Skill 编排器 + Hyperplan + 生态分发 |
+| **合计** | **87** | **约 85 人天（含新增任务：AI 工具适配层、知识价值评估、软假设降级方案）** |
+
+#### 任务依赖关系（跨 Phase）
+
+```
+Phase 1 (MVP) ─────────────────────────────────────────┬── Phase 2 (Ponytail/TDD/认知框架)
+  P1-T01~T07 (Spec)                                     │   P2-T01~T03 (Ponytail) → 依赖 P1-T01/T04
+  P1-T08~T13 (Change)                                   │   P2-T04 (TDD) → 依赖 P1-T11
+  P1-T14 (Guard P0 漂移)                                │   P2-T05 (认知框架) → 依赖 P1-T08
+  P1-T15 (AI 工具适配层)                                │   P2-T09 (Guard P1) → 依赖 P1-T14
+                                                        │
+                                                        ├── Phase 3 (Knowledge/契约/Skill Bridge)
+                                                        │   P3-T01 (图谱架构) → 依赖 P1-T02 (MVP 范围)
+                                                        │   P3-T13 (Skill Bridge) → 依赖 P1-T06
+                                                        │   P3-T15 (Guard P2) → 依赖 P2-T09
+                                                        │
+                                                        ├── Phase 4 (CI/CD)
+                                                        │   P4-T03 (全漂移) → 依赖 P1-T14 + P2-T09 + P3-T15
+                                                        │   P4-T04 (知识提取) → 依赖 P3-T07
+                                                        │
+                                                        └── Phase 5 (Skill 编排器/Hyperplan)
+                                                            P5-T01 (Skill 编排器) → 依赖 P1-T06
+                                                            P5-T02 (Hyperplan) → 依赖 P5-T01 + P2-T05
+                                                            P5-T04 (多平台) → 依赖 P5-T03 + P3-T13
+```
+
+> **关键依赖说明**:
+> - **图谱架构 (P3-T01) 依赖 MVP 范围 (P1-T02)**: 代码图谱需要绑定到树状规范，必须在 Phase 1 完成后才能启动。
+> - **最小配置 (mumuspec config enable/disable) 依赖各层配置项定义**: config 命令的 feature 开关依赖 Phase 1-3 中各能力层(Spec/Change/Guard/Rules/AI)的配置项定义完成后才能统一实现。详见 [CLI 参考](./reference/cli-commands.md) 的 `mumuspec config` 命令族。
 
 ---
 
@@ -670,9 +718,13 @@ C1-C5 按顺序执行（Phase 1 → 5），但文档细化可一次性完成。
 
 ### 6.3 实现路线图验收
 
-- [ ] Phase 1-5 每个任务有 ID、优先级、依赖、估算
-- [ ] 关键路径和可并行任务明确标注
-- [ ] 总工作量估算合理（约 80-85 人天，含新增任务）
+- [x] Phase 1-5 每个任务有 ID、优先级、依赖、估算
+- [x] 关键路径和可并行任务明确标注
+- [x] 总工作量估算合理（约 85 人天，含新增任务：AI 工具适配层、知识价值评估、软假设降级方案）
+- [x] Phase 划分已按新方案更新（Ponytail→Phase 2，TDD 可配置，认知框架可选，Skill Bridge→Phase 3，自建 Skill 编排器/Hyperplan→Phase 5）
+- [x] 漂移检测已分散到 Phase 1(P0)/Phase 2(P1)/Phase 3(P2)
+- [x] Knowledge 图谱改为可插拔后端，工作量从 16 人天调整为 8 人天
+- [x] 跨 Phase 任务依赖关系已标注（图谱架构依赖 MVP，config 命令依赖各层配置项）
 
 ---
 

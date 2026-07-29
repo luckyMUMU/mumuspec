@@ -4,6 +4,75 @@
 
 ---
 
+## 工作流规则与漂移检测守卫
+
+### 工作流规则守卫（可配置）
+
+工作流规则守卫 SHALL 按"显式配置 > 强度等级联动 > 默认值"的优先级求值:
+
+1. **优先级 1**: `.mumuspec.yaml` 中 `workflow.*` 显式设置（true/false）— 直接生效
+2. **优先级 2**: `constraint_strength.overrides.workflow.*`（非 `inherit`）— 覆盖强度等级
+3. **优先级 3**: `constraint_strength.<dimension>` 强度等级 — 按维度联动
+4. **优先级 4**: 默认值（high → 强制）
+
+#### 显式配置行为（向后兼容 0.11.0）
+
+- `workflow.worktree_isolation: true`（默认）→ 守卫检查 Worktree 隔离
+- `workflow.worktree_isolation: false` → 守卫跳过 Worktree 检查，输出 WARN
+
+- `workflow.single_active_change: true`（默认）→ 守卫检查单一活跃变更
+- `workflow.single_active_change: false` → 守卫允许 N 个并行变更（上限默认 3）
+
+- `workflow.top_down_design: true`（默认）→ 守卫检查自顶向下设计
+- `workflow.top_down_design: false` → 守卫跳过设计顺序检查
+
+- `workflow.tdd_enforced: true`（默认）→ 守卫检查 TDD 红绿循环
+- `workflow.tdd_enforced: false` → 守卫仅要求测试存在，不强制红绿循环
+
+#### 强度等级联动行为（0.12.0+）
+
+当 `workflow.*` 未显式设置或值为 `inherit` 时，按 `constraint_strength` 强度等级联动:
+
+| 工作流规则 | 维度 | high | medium | low |
+|-----------|------|------|--------|-----|
+| `worktree_isolation` | RG | 强制 block | warn（允许 branch 降级） | info（关闭） |
+| `single_active_change` | RG | 强制 1 个 | warn ≤3 并行 | info（无上限） |
+| `top_down_design` | TD | 强制 Level 0→N | warn（允许跳跃） | info（关闭） |
+| `tdd_enforced` | TD | 强制 Red→Green→Refactor | warn（测试存在即可） | info（关闭） |
+
+> 完整的强度等级映射、Phase Guard 检查项分级、阻塞点分级见 [动态约束强度系统](../design/constraint-strength.md#6-工作流限制的渐进式放开)。
+
+### 漂移检测守卫分级
+
+| 阶段 | 运行的漂移检测 | 阻断行为 |
+|------|--------------|---------|
+| Pre-commit | 仅 P0（spec_drift + shall_not_violation） | 阻断 git commit（low 强度下降为 WARN） |
+| CI | P0 + P1（spec_drift + shall_not_violation + graph_drift + test_immutability_drift + ponytail_drift） | 阻断 PR 合并（SHALL NOT 不论强度始终阻断） |
+| Report | P0 + P1 + P2（全部 12 种） | 仅生成报告 |
+
+> **强度联动**：Low 强度下 Pre-commit 可降为 WARN，但 CI 阶段 SHALL NOT 违规始终阻断（属例外清单 `shall_not_violation_in_ci`）。
+
+### Phase Guard 检查项分级（0.12.0+）
+
+每个 Phase Guard 检查项标注 `min_strength` 字段。求值规则：
+
+```typescript
+function evaluate(check, currentStrength): 'block' | 'warn' | 'info' {
+  // 1. 例外清单：始终 block
+  if (check.always_enforce) return 'block';
+
+  // 2. 当前强度低于 min_strength：跳过（info）
+  if (rank(currentStrength) < rank(check.min_strength)) return 'info';
+
+  // 3. 按当前强度执行
+  return currentStrength === 'high' ? 'block'
+       : currentStrength === 'medium' ? 'warn'
+       : 'info';
+}
+```
+
+完整检查项分级表见 [动态约束强度系统 §6.2](../design/constraint-strength.md#62-phase-guard-渐进式放开)。
+
 ## 正向转换守卫
 
 ### open_to_design

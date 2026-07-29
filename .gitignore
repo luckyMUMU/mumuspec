@@ -24,6 +24,11 @@ Thumbs.db
 *.swp
 *.swo
 
+# Trae IDE artifacts
+.trae/
+.trae-html-share-packages/
+mumuspec-ecosystem-comparison/
+
 # Environment
 .env
 .env.local

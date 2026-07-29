@@ -104,6 +104,41 @@ graph LR
 
 > 漂移检测详细规则见 [参考：漂移检测规则](../reference/drift-detection.md)。
 
+### 漂移检测分级
+
+12 种漂移检测分为三级，在不同阶段执行：
+
+#### P0 必需（Phase 1 实现，Pre-commit 阶段阻断提交）
+
+- `spec_drift`：规范与代码不一致
+- `shall_not_violation`：SHALL NOT 约束被违反
+
+P0 漂移 SHALL 在 Pre-commit 阶段运行，阻断提交，耗时 < 5s。
+
+#### P1 重要（Phase 2 实现，CI 阶段阻断合并）
+
+- `graph_drift`：规范-代码绑定边失效
+- `test_immutability_drift`：测试被非法修改
+- `ponytail_drift`：Ponytail 编码约束违反
+
+P1 漂移 SHALL 在 CI 阶段运行，阻断合并。
+
+#### P2 可选（Phase 3+ 实现，仅生成报告不阻断）
+
+- `contract_drift`（6 类子项）：契约漂移
+- `knowledge_drift`（4 类子项）：知识漂移
+- `design_doc_drift`：设计文档漂移
+
+P2 漂移 SHALL 仅生成报告，不阻断任何操作。
+
+### 阶段分布
+
+| 阶段 | 运行的漂移检测 | 阻断行为 |
+|------|--------------|---------|
+| Pre-commit | P0（spec_drift + shall_not_violation） | 阻断 git commit |
+| CI | P0 + P1 | 阻断 PR 合并 |
+| Report | P0 + P1 + P2 | 仅生成报告，不阻断 |
+
 ## 4. Git Hooks
 
 ```bash

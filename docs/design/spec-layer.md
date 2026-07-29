@@ -26,6 +26,45 @@
 
 **禁止项优先级**：SHALL NOT 优先于 SHALL。冲突时以 SHALL NOT 为准。
 
+### 1.1 双层约束体系（0.12.0 新增）
+
+MumuSpec 现包含 **两个互补的约束层**：
+
+| 约束层 | 文件 | 内容 | 与代码关系 | 时序 |
+|--------|------|------|-----------|------|
+| **业务约束层** | `spec.md` / `prohibitions.md` | 业务级 SHALL / SHALL NOT（按目录树分层组织） | 与代码强绑定（漂移检测） | 随变更演进 |
+| **行为约束层** | `constraints.yaml` | 行为级正反向约束（agent 行为准则，按双维度组织） | **独立于代码** | 持久化，跨变更 |
+
+**行为约束层**是 MumuSpec 核心目标"创建独立于代码的持久化正反向约束指导 agent 的工作"的实现载体,详见 [动态约束强度系统](constraint-strength.md)。
+
+```mermaid
+graph LR
+    subgraph Dual["双层约束体系"]
+        B["业务约束层<br/>spec.md / prohibitions.md<br/>· 与代码强绑定<br/>· 漂移检测<br/>· 按目录树分层"]
+        A["行为约束层<br/>constraints.yaml<br/>· 独立于代码<br/>· 持久化<br/>· 按双维度组织<br/>· 三档强度"]
+    end
+    B -.->|"mumuspec constraints sync<br/>自动派生"| A
+    A -.->|"不回写<br/>避免循环"| B
+```
+
+#### 业务约束层（spec.md）
+
+- 与代码强绑定：声明 SHALL/SHALL NOT 时同时定义 Enforcement（可执行校验）
+- 漂移检测：规范与代码不一致时阻断
+- 按目录树分层：每个 `.mumuspec/spec.md` 管理本层 + 直接子层概要
+- 随变更演进：delta-specs 通过 Archive 阶段合并到主 spec.md
+
+#### 行为约束层（constraints.yaml）
+
+- **独立于代码**：约束描述 agent 应做/不应做的行为准则，不引用代码路径或符号
+- **持久化**：存储在 `.mumuspec/constraints.yaml`，版本化管理，跨变更存在
+- **双维度组织**：按"技术设计 (TD)"和"需求目标 (RG)"两个维度独立配置
+- **三档强度**：每个约束条目标注 `min_strength`，按当前强度等级求值
+- **来源可派生**：可通过 `mumuspec constraints sync` 从 spec.md 自动派生
+- **可手工扩展**：项目可添加团队规范、合规要求等自定义约束
+
+> `constraints.yaml` 文件格式与示例见 [动态约束强度系统 §5](constraint-strength.md#5-持久化约束文件)。
+
 ## 2. Ponytail 基础编码约束
 
 > 来源: [Ponytail](https://github.com/DietrichGebert/ponytail) — 懒惰高级开发者编码约束
@@ -123,24 +162,32 @@ my-project/
 │   ├── spec.md                         # 全局架构规范 + 正向/反向约束
 │   ├── design.md                       # 根层设计文档（架构决策、技术选型）
 │   ├── prohibitions.md                 # 全局禁止清单（汇总）
-│   ├── config.yaml                     # MumuSpec 配置
+│   ├── constraints.yaml                # 行为约束层（0.12.0+，独立于代码，按双维度组织）
+│   │                                  # 0.12.1+ 起按目录树分层存放，子层继承父层约束
+│   ├── config.yaml                     # MumuSpec 配置（含 constraint_strength 配置）
 │   ├── index.yaml                      # 规范索引（指向各子层）
 │   └── contracts/                      # 契约层（见 contract-layer.md）
 │
 ├── src/
 │   ├── .mumuspec/                      # src 层规范 (Level 1)
 │   │   ├── spec.md + design.md + prohibitions.md + index.yaml
+│   │   └── constraints.yaml            # src 层约束（0.12.1+，继承根层可收紧）
 │   ├── auth/
 │   │   └── .mumuspec/                  # auth 模块规范 (Level 2)
+│   │       └── constraints.yaml        # auth 层约束（继承根层 + src 层）
 │   ├── api/
 │   │   ├── .mumuspec/                  # api 层规范 (Level 2)
+│   │   │   └── constraints.yaml        # api 层约束（可针对 API 层收紧）
 │   │   └── controllers/
 │   │       └── .mumuspec/              # controllers 层规范 (Level 3)
 │   └── lib/
 │       └── .mumuspec/                  # lib 模块规范 (Level 2)
 └── tests/
     └── .mumuspec/                      # 测试规范 (Level 1)
+        └── constraints.yaml            # 测试层约束（可声明更宽松的测试策略）
 ```
+
+> **constraints.yaml 树状继承**（0.12.1+）：与 `spec.md` 完全对齐——子层自动继承父层所有约束，可**收紧**但不可**放宽**；同 ID 冲突时以高层级为准。详见 [动态约束强度系统 §5.6](constraint-strength.md#56-树状层级与继承0121)。
 
 > 完整目录结构见 [附录：目录结构](../appendix/directory-structure.md)。
 
@@ -223,6 +270,7 @@ graph TD
 3. 子层的 SHALL NOT 累加到父层（不覆盖）
 4. Enforcement 随 SHALL/SHALL NOT 一并继承，子层可重定义 check 方式但不可降低 severity
 5. `design.md` 随规范层级一同继承
+6. `constraints.yaml`（0.12.1+）遵循同一继承规则——子层自动继承父层所有正反向约束，可收紧不可放宽；同 ID 冲突时高层级优先。详见 [动态约束强度系统 §5.6](constraint-strength.md#56-树状层级与继承0121)
 
 ### 边界条件
 

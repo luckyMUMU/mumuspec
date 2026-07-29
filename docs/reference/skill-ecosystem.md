@@ -4,6 +4,8 @@
 
 ---
 
+> Skill 生态按 Phase 分阶段实现。Phase 1 仅 Rules 文件生成 + AI 工具适配层,Phase 3 实现 Skill Bridge,Phase 5 实现自建 Skill 编排器与 Hyperplan。
+
 ## 1. 设计原则
 
 - **MumuSpec 管 WHAT**：通过 SHALL/SHALL NOT 定义做什么、不做什么
@@ -198,19 +200,24 @@ skill_dispatch:
 
 按 Skill 类别组织，便于判断哪些 Skill 必需、哪些可选。
 
-| Skill 类别 | Open | Design | Build | Verify | Archive | 横切 |
-|------------|------|--------|-------|--------|---------|------|
-| **规划与探索** | brainstorming (req) / spec-driven-development (req) / gitnexus-* (req) | brainstorming (req) / **认知框架 (req, full)** | — | — | — | — |
-| **设计与架构** | — | api-and-interface-design (opt) / security-and-hardening (opt) / performance-optimization (opt) | — | — | — | — |
-| **对抗审查** | — | hyperplan (conditional) / **认知框架 Q4 扫描 (req, full)** | — | — | — | — |
-| **实现与执行** | — | — | writing-plans (req) / executing-plans (req) / systematic-debugging (opt) | systematic-debugging (opt) | — | — |
-| **验证与审查** | — | — | verification-before-completion (req) / source-driven-development (opt) | verification-before-completion (req) / requesting-code-review (req) / receiving-code-review (req) | — | — |
-| **归档与发布** | — | — | — | — | finishing-a-development-branch (req) / ci-cd-and-automation (req) / shipping-and-launch (opt) | — |
-| **上下文管理** | — | context-engineering (req) | context-engineering (req) | — | — | context-engineering (req) |
-| **工作区隔离** | using-git-worktrees (req) | — | — | — | — | using-git-worktrees (req) |
-| **测试用例设计** | — | test-case-design (req) / documentation-and-adrs (req) | red-green-tdd (req, tdd_mode 固定) / documentation-and-adrs (req) | documentation-and-adrs (req) | documentation-and-adrs (req) | — |
+| Skill 类别 | Phase | Open | Design | Build | Verify | Archive | 横切 |
+|------------|------|------|--------|-------|--------|---------|------|
+| **规划与探索** | Phase 3 | brainstorming (req) / spec-driven-development (req) / gitnexus-* (req) | brainstorming (req) / **认知框架 (req, full)** | — | — | — | — |
+| **设计与架构** | Phase 3 | — | api-and-interface-design (opt) / security-and-hardening (opt) / performance-optimization (opt) | — | — | — | — |
+| **对抗审查** | Phase 5 | — | hyperplan (conditional) / **认知框架 Q4 扫描 (req, full)** | — | — | — | — |
+| **实现与执行** | Phase 3 | — | — | writing-plans (req) / executing-plans (req) / systematic-debugging (opt) | systematic-debugging (opt) | — | — |
+| **验证与审查** | Phase 3 | — | — | verification-before-completion (req) / source-driven-development (opt) | verification-before-completion (req) / requesting-code-review (req) / receiving-code-review (req) | — | — |
+| **归档与发布** | Phase 3 | — | — | — | — | finishing-a-development-branch (req) / ci-cd-and-automation (req) / shipping-and-launch (opt) | — |
+| **上下文管理** | Phase 3 | — | context-engineering (req) | context-engineering (req) | — | — | context-engineering (req) |
+| **工作区隔离** | Phase 3 | using-git-worktrees (req) | — | — | — | — | using-git-worktrees (req) |
+| **测试用例设计** | Phase 3 | — | test-case-design (req) / documentation-and-adrs (req) | red-green-tdd (req, tdd_mode 固定) / documentation-and-adrs (req) | documentation-and-adrs (req) | documentation-and-adrs (req) | — |
 
 > `req` = required: true; `opt` = required: false; `conditional` = 满足条件时触发。
+
+> **Phase 归属说明**：
+> - **Phase 1**：Rules 文件生成（CLAUDE.md / .cursorrules / AGENTS.md）+ AI 工具适配层 — Skill 仅在 Rules 文件中声明引用,不调用
+> - **Phase 3**：Skill Bridge 兼容层（兼容 Superpowers / OpenSpec / Comet）+ MCP Server — 外部 Skill 可被调用
+> - **Phase 5**：自建 Skill 编排器（7 阶段 Skill 文件）+ Hyperplan 对抗式规划 — 全量阶段编排与对抗审查
 
 ## 7. 决策记录 Skill 分发
 

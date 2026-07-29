@@ -492,9 +492,199 @@ knowledge_drift:
 
 ---
 
-## 6. MCP 工具
+## 6. 可插拔后端架构
 
-### 6.1 代码图谱工具
+### 设计动机
+
+Knowledge Layer 代码图谱原设计为自建 tree-sitter + SQLite 引擎。但生态调研显示 CGC(CodeGraphContext,35k Stars,23+ 语言,5 种图数据库)与 CBM(codebase-memory-mcp,8k Stars,158 语言,纯 C 极致性能)已是生产级工具。自建无法短期追平性能与语言覆盖,且重复造轮子违背生态协作原则。
+
+因此 Knowledge Layer 采用 adapter 模式,支持多种后端可插拔。MumuSpec 自身仅维护"规范-代码绑定层"(GOVERNED_BY/ENFORCED_BY 边)与"知识页面管理"逻辑,不重复实现 AST 解析与图谱存储。
+
+### GraphBackendAdapter 接口
+
+```typescript
+interface GraphBackendAdapter {
+  // 初始化后端
+  initialize(config: GraphBackendConfig): Promise<void>;
+
+  // 索引代码库
+  indexCodebase(rootPath: string): Promise<IndexResult>;
+
+  // 查询节点
+  queryNodes(filter: NodeFilter): Promise<GraphNode[]>;
+
+  // 查询边
+  queryEdges(filter: EdgeFilter): Promise<GraphEdge[]>;
+
+  // 添加规范-代码绑定边
+  addBindingEdge(specId: string, codeId: string, type: 'GOVERNED_BY' | 'ENFORCED_BY'): Promise<void>;
+
+  // 检测漂移
+  detectDrift(specId: string): Promise<DriftResult>;
+
+  // 获取后端能力
+  getCapabilities(): BackendCapabilities;
+
+  // 健康检查
+  healthCheck(): Promise<HealthStatus>;
+}
+
+interface BackendCapabilities {
+  supportedLanguages: string[];
+  supportsSemanticSearch: boolean;
+  supportsCrossLanguage: boolean;
+  maxFileCount: number;
+  indexUpdateMode: 'realtime' | 'batch' | 'manual';
+}
+```
+
+### 三种后端 Adapter 规格
+
+#### CBM 后端(默认)
+
+- **工具**: codebase-memory-mcp
+- **语言支持**: 158 种语言
+- **性能**: 纯 C 实现,极致性能
+- **配置项**: `knowledge.graph_backend: "cbm"`
+- **依赖**: 需安装 CBM MCP 服务器
+- **优势**: 语言覆盖最广,性能最佳
+- **适用场景**: 大型项目、多语言项目
+
+#### CGC 后端(可选)
+
+- **工具**: CodeGraphContext
+- **语言支持**: 23+ 语言
+- **图数据库**: 支持 Neo4j/Redis/Memgraph/DuckDB/SQLite 5 种后端
+- **配置项**: `knowledge.graph_backend: "cgc"`
+- **依赖**: 需安装 CGC 与选择的图数据库
+- **优势**: 图数据库灵活,语义查询能力强
+- **适用场景**: 需要复杂图查询的场景
+
+#### 内置后端(降级)
+
+- **实现**: 简化版 tree-sitter + SQLite
+- **语言支持**: 仅 TypeScript/JavaScript(初始版本)
+- **配置项**: `knowledge.graph_backend: "builtin"`
+- **依赖**: 无外部依赖
+- **优势**: 零依赖,开箱即用
+- **能力边界**: 仅支持 TS/JS,无语义搜索,无跨语言分析,文件数上限 10,000
+- **适用场景**: 小型项目、无外部依赖需求、CBM/CGC 不可用时的降级
+
+### 后端选择逻辑
+
+1. `mumuspec init` 时提示用户选择图谱后端(CBM/CGC/内置/关闭)
+2. 默认推荐 CBM 后端
+3. 选择 CBM/CGC 时自动检测外部工具安装状态
+4. CBM/CGC 未安装或不可用时,自动降级为内置后端
+5. 在 `mumuspec status` 输出中显著标注"图谱功能降级"及降级后的能力边界
+
+### 降级能力边界标注
+
+当外部后端不可用降级为内置后端时,STATUS 输出 SHALL 显著标注:
+- "图谱功能已降级: CBM 不可用,使用内置后端"
+- 降级后的能力边界: "仅支持 TypeScript/JavaScript,无语义搜索,无跨语言分析,文件数上限 10,000"
+
+### 配置项
+
+```yaml
+# .mumuspec.yaml
+knowledge:
+  graph_backend: "cbm"  # cbm | cgc | builtin | none
+  graph_backend_config:
+    cbm:
+      server_url: "http://localhost:3000"
+    cgc:
+      graph_db: "neo4j"
+      connection_string: "bolt://localhost:7687"
+    builtin:
+      max_files: 10000
+```
+
+设置 `graph_backend: "none"` 时,Knowledge Layer 仅使用 Spec Layer,不启用代码图谱功能。
+
+### MumuSpec 自身职责边界
+
+MumuSpec 自身 SHALL 仅维护:
+1. **规范-代码绑定层**: GOVERNED_BY/ENFORCED_BY 边的创建、查询、删除
+2. **知识页面管理**: LLM-Wiki 页面的生命周期管理
+3. **PageIndex 索引**: 知识页面的位置索引
+4. **漂移检测协调**: 调用后端的 detectDrift 方法并汇总结果
+
+MumuSpec 自身 SHALL NOT 重复实现:
+- AST 解析(由后端处理)
+- 图谱存储(由后端处理)
+- 语言服务器集成(由后端处理)
+- 语义搜索索引(由后端处理)
+
+---
+
+## 7. 知识价值评估
+
+### 设计动机
+
+Knowledge Layer 的 LLM-Wiki 知识提取在简单变更(hotfix/tweak)中跳过,在复杂变更中提取的知识是否真有价值需要验证机制。本章节定义知识价值评估指标,用于自动评估提取知识页面的价值,并标记低价值知识。
+
+### 评估指标
+
+Knowledge Layer SHALL 维护以下 4 项知识价值评估指标:
+
+#### 1. 引用次数(Reference Count)
+
+- **定义**: 知识页面在后续变更中被引用的次数
+- **计算**: 每次 Design/Realize 阶段引用该知识页面时 +1
+- **阈值**: 引用次数 = 0 持续 30 天视为低价值信号
+
+#### 2. 冲突检出率(Conflict Detection Rate)
+
+- **定义**: 知识页面参与冲突检测并检出冲突的比例
+- **计算**: (检出冲突次数 / 参与检测次数) × 100%
+- **阈值**: 冲突检出率 = 0 持续 90 天视为低价值信号(说明知识未参与实际冲突)
+
+#### 3. 新鲜度验证通过率(Freshness Validation Rate)
+
+- **定义**: 知识页面通过新鲜度自动验证的比例
+- **计算**: (通过验证次数 / 总验证次数) × 100%
+- **阈值**: 新鲜度验证通过率 < 50% 视为低价值信号(说明知识已过时)
+
+#### 4. 用户确认率(User Confirmation Rate)
+
+- **定义**: proposed 状态知识页面被用户确认为 confirmed 的比例
+- **计算**: (confirmed 页面数 / proposed 页面数) × 100%
+- **阈值**: 用户确认率 < 30% 视为低价值信号(说明用户认为知识不准确)
+
+### 低价值知识标记逻辑
+
+知识页面 SHALL 在以下条件同时满足时自动标记为 deprecated:
+
+1. 引用次数 = 0(持续 30 天以上)
+2. 新鲜度验证失败(通过率 < 50%)
+
+标记为 deprecated 的知识页面:
+- 在 `mumuspec knowledge list` 中显示 [deprecated] 标签
+- 在知识搜索结果中降权
+- 提示用户审查: "知识页面 [页面名] 已标记为低价值,建议审查或删除"
+
+### 评估结果记录
+
+知识价值评估结果 SHALL 记录在 `docs/STATUS.md` Knowledge Layer 进度中,包括:
+- 总知识页面数
+- deprecated 页面数
+- 平均引用次数
+- 平均冲突检出率
+- 平均新鲜度验证通过率
+
+### 评估触发时机
+
+知识价值评估 SHALL 在以下时机触发:
+- Archive 阶段完成知识提取后(评估新提取的知识)
+- 每周定时评估(评估所有知识页面的累积指标)
+- 用户手动触发(`mumuspec knowledge evaluate`)
+
+---
+
+## 8. MCP 工具
+
+### 8.1 代码图谱工具
 
 | 工具 | 描述 | 规范集成 |
 |------|------|---------|
@@ -511,7 +701,7 @@ knowledge_drift:
 | `detect_contract_drift` | 检测契约与代码的漂移 | 代码暴露接口 vs 契约声明 |
 | `trace_contract_impact` | 追踪契约变更影响范围 | 契约 → CONSUMES/EXPOSES 节点 → Spec |
 
-### 6.2 知识管理工具
+### 8.2 知识管理工具
 
 | 工具 | 描述 | 典型用法 |
 |------|------|---------|
@@ -526,7 +716,7 @@ knowledge_drift:
 
 > 完整 MCP 工具列表见 [参考：MCP 工具](../reference/mcp-tools.md)。
 
-### 6.3 AI Agent 工具调用优先级
+### 8.3 AI Agent 工具调用优先级
 
 AI Agent 在设计阶段的工具调用优先级：
 
@@ -537,9 +727,9 @@ AI Agent 在设计阶段的工具调用优先级：
 
 ---
 
-## 7. CLI 命令
+## 9. CLI 命令
 
-### 7.1 代码图谱命令
+### 9.1 代码图谱命令
 
 ```bash
 mumuspec index                          # 构建/更新代码图谱
@@ -548,7 +738,7 @@ mumuspec trace <symbol>                 # 追踪调用链
 mumuspec search <pattern>               # 搜索代码节点
 ```
 
-### 7.2 知识管理命令
+### 9.2 知识管理命令
 
 ```bash
 mumuspec knowledge list [--type decision|pattern|risk|rationale|lesson] [--scope <path>]
@@ -566,9 +756,9 @@ mumuspec knowledge supersede <id> --by <new-id> # 标记知识被新决策替代
 
 ---
 
-## 8. 变更生命周期集成
+## 10. 变更生命周期集成
 
-### 8.1 各阶段的知识层交互
+### 10.1 各阶段的知识层交互
 
 | 阶段 | 知识层动作 | 说明 |
 |------|-----------|------|
@@ -582,7 +772,7 @@ mumuspec knowledge supersede <id> --by <new-id> # 标记知识被新决策替代
 | **Verify** | 知识新鲜度验证 | 确认知识页面与最终代码一致 |
 | **Archive** | 知识提取与持久化 | 将 `proposed` 知识页面转为 `confirmed`，写入全局知识库 |
 
-### 8.2 Open 阶段：知识加载
+### 10.2 Open 阶段：知识加载
 
 在 Open 阶段的影响分析中，除了代码图谱影响分析，还加载受影响范围的**历史知识**：
 
@@ -599,7 +789,7 @@ open_knowledge_loading:
     integration: "注入 proposal.md 的 'Context from Knowledge Base' 章节"
 ```
 
-### 8.3 Design 阶段：认知框架与知识层联动
+### 10.3 Design 阶段：认知框架与知识层联动
 
 认知框架的 Q1 锚定声明增加知识库来源：
 
@@ -628,7 +818,7 @@ q1_known_knowns:
     knowledge_page_id: KP-0020
 ```
 
-### 8.4 Archive 阶段：知识提取（核心）
+### 10.4 Archive 阶段：知识提取（核心）
 
 Archive 阶段的规范归档（B0-B5）之后，新增**知识提取子流程（D）**：
 
@@ -663,7 +853,7 @@ D. 知识提取（Knowledge Extraction）
     └── 若是，标记旧知识为 superseded，建立 SUPERSEDES 边
 ```
 
-### 8.5 Phase Guard 集成
+### 10.5 Phase Guard 集成
 
 `verify_to_archive` 守卫新增知识提取检查：
 
@@ -677,9 +867,9 @@ D. 知识提取（Knowledge Extraction）
 
 ---
 
-## 9. 配置集成
+## 11. 配置集成
 
-### 9.1 项目级配置（config.yaml）
+### 11.1 项目级配置（config.yaml）
 
 ```yaml
 # config.yaml
@@ -710,7 +900,7 @@ knowledge:
   drift_detection: true               # 知识漂移检测
 ```
 
-### 9.2 变更级配置（.mumuspec.yaml 扩展）
+### 11.2 变更级配置（.mumuspec.yaml 扩展）
 
 ```yaml
 # .mumuspec.yaml 新增
@@ -723,7 +913,7 @@ knowledge:
 
 ---
 
-## 10. 漂移检测集成
+## 12. 漂移检测集成
 
 在 `drift-detection.md` 中的漂移检测类型：
 
@@ -771,7 +961,7 @@ knowledge_drift:
 
 ---
 
-## 11. 知识与规范的关系
+## 13. 知识与规范的关系
 
 | 维度 | Spec (spec.md) | Knowledge (knowledge/) | Code Graph (graph/) |
 |------|----------------|----------------------|---------------------|
@@ -787,9 +977,9 @@ knowledge_drift:
 
 ---
 
-## 12. 与 AI 集成层的集成
+## 14. 与 AI 集成层的集成
 
-### 12.1 Rules 文件增强
+### 14.1 Rules 文件增强
 
 自动生成的 Rules 文件（CLAUDE.md / .cursorrules）增加知识层说明：
 
@@ -807,7 +997,7 @@ knowledge_drift:
 
 ---
 
-## 13. 实施路线图
+## 15. 实施路线图
 
 | Phase | 任务 | 优先级 |
 |-------|------|--------|

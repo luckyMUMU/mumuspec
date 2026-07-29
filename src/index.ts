@@ -5,6 +5,8 @@ export * from './core/types.js';
 export * from './core/errors.js';
 export * from './core/config.js';
 export * from './core/utils.js';
+export * from './core/constraint-evaluator.js';
+export * from './core/constraints-loader.js';
 
 // Spec Layer
 export * from './spec/parser.js';

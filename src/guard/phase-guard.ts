@@ -3,41 +3,55 @@ import { join } from 'node:path';
 import type { ChangeState, GuardResult } from '../core/types.js';
 import { readText, computeHash } from '../core/utils.js';
 import { getChangeDir, loadChangeState, verifyTestCases } from '../change/manager.js';
+import { applyStrengthToGuardResult } from './checker.js';
+import type { ConstraintStrengthField } from '../core/config.js';
 
 /** Run a phase guard check */
 export function runPhaseGuard(
   projectRoot: string,
   changeName: string,
   targetPhase: string,
+  options: { strength?: ConstraintStrengthField } = {},
 ): GuardResult {
   const state = loadChangeState(projectRoot, changeName);
   if (!state) {
-    return {
-      passed: false,
-      errors: [{ code: 'E-GUARD-001', message: `Change not found: ${changeName}` }],
-      warnings: [],
-    };
+    return applyStrengthToGuardResult(
+      {
+        passed: false,
+        errors: [{ code: 'E-GUARD-001', message: `Change not found: ${changeName}` }],
+        warnings: [],
+      },
+      options.strength,
+    );
   }
 
+  let rawResult: GuardResult;
   switch (targetPhase) {
     case 'design':
-      return checkOpenToDesign(state, projectRoot, changeName);
+      rawResult = checkOpenToDesign(state, projectRoot, changeName);
+      break;
     case 'build':
       if (state.workflow === 'hotfix' || state.workflow === 'tweak') {
-        return checkOpenToBuildHotfix(state, projectRoot, changeName);
+        rawResult = checkOpenToBuildHotfix(state, projectRoot, changeName);
+      } else {
+        rawResult = checkDesignToBuild(state, projectRoot, changeName);
       }
-      return checkDesignToBuild(state, projectRoot, changeName);
+      break;
     case 'verify':
-      return checkBuildToVerify(state, projectRoot, changeName);
+      rawResult = checkBuildToVerify(state, projectRoot, changeName);
+      break;
     case 'archive-in-progress':
-      return checkVerifyToArchive(state, projectRoot, changeName);
+      rawResult = checkVerifyToArchive(state, projectRoot, changeName);
+      break;
     default:
-      return {
+      rawResult = {
         passed: false,
         errors: [{ code: 'E-CHANGE-006', message: `Unknown target phase: ${targetPhase}` }],
         warnings: [],
       };
   }
+
+  return applyStrengthToGuardResult(rawResult, options.strength);
 }
 
 /** open_to_design guard */

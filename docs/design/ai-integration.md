@@ -22,6 +22,8 @@ graph TB
 
 ## 2. 原生 Skill 文件（阶段编排器）
 
+> **Phase 归属**: 自建 Skill 编排器与 Hyperplan 对抗式规划推迟到 Phase 5 实现。Phase 1-2 仅实现 Rules 文件生成,Phase 3 实现 Skill Bridge 兼容层。
+
 MumuSpec 为每个变更阶段提供原生 Skill 文件，作为**阶段编排器**，负责在该阶段内分发到外部 Skill 生态：
 
 ```
@@ -39,6 +41,8 @@ MumuSpec 为每个变更阶段提供原生 Skill 文件，作为**阶段编排�
 每个 Skill 文件包含：触发条件、前置条件检查、执行步骤（含外部 Skill 分发点）、阻塞点定义、退出条件、阶段守卫调用。
 
 ## 3. 外部 Skill 生态兼容
+
+> **Phase 归属**: Skill Bridge 兼容层在 Phase 3 实现,Phase 1-2 仅实现 Rules 文件生成。
 
 MumuSpec 原生 Skill 作为编排器，在每个阶段内部按需分发给外部 Skill 生态。外部 Skill 提供 **HOW** 的指导，MumuSpec 提供 **WHAT** 的约束：
 
@@ -95,7 +99,97 @@ graph TD
 
 > Skill 生态详细配置（含 hyperplan 7 阶段流程、Skill 矩阵、分发协议、决策记录）见 [参考：Skill 生态](../reference/skill-ecosystem.md)。
 
-## 4. Rules 文件生成
+## 4. AI 工具适配层
+
+### 设计动机
+
+AI 编程工具生态快速演进(Claude Code → Cursor → OpenCode → Codex 等),MumuSpec 核心逻辑 SHALL NOT 依赖具体 AI 工具 API。建立 AI 工具适配层抽象,使 MumuSpec 能快速适配新出现的 AI 工具。
+
+### AIToolAdapter 接口
+
+```typescript
+interface AIToolAdapter {
+  // 生成 Rules 文件
+  generateRules(spec: SpecTree, config: RulesConfig): Promise<RulesFile>;
+
+  // 调用 Skill
+  invokeSkill(skillId: string, params: SkillParams): Promise<SkillResult>;
+
+  // 检查兼容性
+  checkCompatibility(): Promise<CompatibilityReport>;
+
+  // 获取适配器信息
+  getInfo(): AdapterInfo;
+}
+
+interface AdapterInfo {
+  name: string;           // 如 "claude-code"
+  displayName: string;    // 如 "Claude Code"
+  supportedFeatures: ('rules_generation' | 'skill_invocation' | 'mcp_server')[];
+  version: string;
+}
+```
+
+### 具体适配器
+
+#### ClaudeCodeAdapter
+
+- **适配工具**: Claude Code(Anthropic)
+- **支持特性**: rules_generation(CLAUDE.md)、skill_invocation、mcp_server
+- **Phase 归属**: Phase 1(基础 Rules 生成)+ Phase 3(Skill Bridge)
+- **配置项**: `ai_integration.tool: "claude-code"`
+
+#### CursorAdapter
+
+- **适配工具**: Cursor
+- **支持特性**: rules_generation(.cursorrules)
+- **Phase 归属**: Phase 1(基础 Rules 生成)
+- **配置项**: `ai_integration.tool: "cursor"`
+
+#### OpenCodeAdapter
+
+- **适配工具**: OpenCode
+- **支持特性**: rules_generation(AGENTS.md)、skill_invocation
+- **Phase 归属**: Phase 1(基础 Rules 生成)+ Phase 3(Skill Bridge)
+- **配置项**: `ai_integration.tool: "opencode"`
+
+#### CodexAdapter
+
+- **适配工具**: OpenAI Codex
+- **支持特性**: rules_generation
+- **Phase 归属**: Phase 1(基础 Rules 生成)
+- **配置项**: `ai_integration.tool: "codex"`
+
+### 降级路径
+
+当具体 AI 工具未适配时(如市场出现新的 AI 编程工具),MumuSpec SHALL 降级为通用 Rules 文件生成:
+
+1. 生成通用的 AGENTS.md 文件(所有 AI 工具均可读取)
+2. 在 `mumuspec status` 输出 WARN: "当前 AI 工具 [工具名] 未适配,使用通用 Rules 文件"
+3. 通用 Rules 文件包含:规范优先级体系说明、SHALL/SHALL NOT 约束清单、变更状态机说明
+
+### 适配器注册机制
+
+```yaml
+# .mumuspec.yaml
+ai_integration:
+  tool: "claude-code"  # claude-code | cursor | opencode | codex | generic
+  auto_detect: true    # 自动检测当前环境使用的 AI 工具
+```
+
+`auto_detect: true` 时,MumuSpec SHALL 自动检测环境变量与配置文件,选择合适的适配器。检测失败时降级为 generic。
+
+### 新 AI 工具适配流程
+
+当市场出现新的 AI 编程工具时:
+1. 实现新的 AIToolAdapter(仅需实现接口方法)
+2. 注册到适配器注册表
+3. 核心逻辑无需修改
+4. 适配器未完成前,用户可使用 generic 降级模式
+
+---
+
+## 5. Rules 文件生成
 
 MumuSpec 自动从规范生成 AI Rules 文件，供不同 AI 工具加载：
 
@@ -120,7 +214,7 @@ Rules 文件内容包含：
 - 禁止项优先级（SHALL NOT > SHALL）
 - Skill 生态兼容说明
 
-## 5. MCP Server
+## 6. MCP Server
 
 提供标准化 AI 工具接口：
 
@@ -138,7 +232,7 @@ Rules 文件内容包含：
 
 > 完整 MCP 工具列表见 [参考：MCP 工具](../reference/mcp-tools.md)。
 
-## 6. CLI 命令
+## 7. CLI 命令
 
 提供命令行工具操作 MumuSpec 的所有功能：规范管理、变更管理、状态机回退、worktree 管理、代码图谱查询、知识管理、校验、文档生成、测试用例管理、契约管理、认知框架管理等。
 
@@ -172,7 +266,7 @@ Rules 文件内容包含：
 
 > 完整 CLI 命令列表见 [参考：CLI 命令](../reference/cli-commands.md)。
 
-## 7. Git Hooks
+## 8. Git Hooks
 
 Pre-commit hook 集成 MumuSpec 快速检查：
 1. SHALL NOT 快速检查

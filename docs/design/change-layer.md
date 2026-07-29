@@ -33,6 +33,62 @@ graph LR
 - 旁路操作：Discard（任意非终态阶段可废弃）、accept-deviations（接受偏差归档）
 - 单一活跃变更约束：同时只允许一个活跃变更
 
+### 四大工作流规则
+
+MumuSpec 变更生命周期遵循四大工作流规则，这些规则是**按约束强度等级求值的可配置约束**，贯穿变更生命周期的所有阶段：
+
+1. **Worktree 隔离**（`workflow.worktree_isolation`，维度 RG）：每个变更在独立 worktree 中进行，物理隔离主分支，支持零上下文恢复。
+2. **单一活跃变更**（`workflow.single_active_change`，维度 RG）：同时只允许一个活跃变更，强制单一任务专注，避免规范与代码的并行冲突。
+3. **自顶向下设计**（`workflow.top_down_design`，维度 TD）：Design 阶段自顶向下逐层细化（根→模块→叶子），Build 阶段自下向上实现（叶子→模块→根）。
+4. **红绿 TDD 强制**（`workflow.tdd_enforced`，维度 TD）：测试用例是设计产出，Design 后锁定不可变更；Build 阶段执行红绿 TDD 循环（Red→Green→Refactor）。
+
+> 即使在 `low` 强度下关闭 `tdd_enforced`，测试不可变性约束（test-cases/ 与测试套件 hash 锁定）的 `design_locked` 仍然强制（属 TD 维度 medium 强度）；仅 `suites_hash` 与红绿循环顺序要求放宽。
+
+#### 强度联动（0.12.0 新增）
+
+四大工作流规则按维度归属随 `constraint_strength` 强度等级渐进式放开:
+
+| 工作流规则 | 维度 | high | medium | low |
+|-----------|------|------|--------|-----|
+| `worktree_isolation` | RG | 强制（block） | 推荐（warn，允许 branch 降级） | 关闭（info） |
+| `single_active_change` | RG | 强制 1 个 | 软警告 ≤3 并行 | 关闭（无上限，WARN） |
+| `top_down_design` | TD | 强制 Level 0→N | 推荐（允许模块内跳跃） | 关闭 |
+| `tdd_enforced` | TD | 强制 Red→Green→Refactor | 测试存在即可 | 关闭 |
+
+**求值优先级**: `workflow.*` 显式设置 > `constraint_strength.overrides.workflow.*` > `constraint_strength.<dimension>` 强度等级 > 默认值（high）。
+
+#### 配置化
+
+四大工作流规则均可通过两种方式配置:
+
+**方式 1: 显式二值开关（向后兼容 0.11.0）**
+
+```yaml
+# .mumuspec.yaml
+workflow:
+  worktree_isolation: true        # 默认 true，可关闭
+  single_active_change: true      # 默认 true，可关闭（关闭后允许 N 个并行变更，上限默认 3）
+  top_down_design: true           # 默认 true，可关闭
+  tdd_enforced: true              # 默认 true，可关闭
+```
+
+**方式 2: 通过约束强度等级联动（推荐，0.12.0+）**
+
+```yaml
+# .mumuspec.yaml
+constraint_strength:
+  technical_design: high          # 影响 top_down_design / tdd_enforced
+  requirement_goals: high         # 影响 worktree_isolation / single_active_change
+  overrides:
+    workflow:
+      worktree_isolation: inherit  # inherit 时按强度等级求值
+      # 显式 true/false 覆盖强度等级
+```
+
+关闭规则时 SHALL 在 `.mumuspec.yaml` 中显式记录，并在 `mumuspec status` 输出 WARN 提示。例如关闭 `single_active_change` 时输出 "已关闭单一活跃变更，可能影响变更隔离性" WARN。
+
+> 详细的强度等级映射、Phase Guard 检查项分级、阻塞点分级见 [动态约束强度系统](constraint-strength.md)。
+
 ### 边界条件
 
 #### 并发操作
@@ -59,6 +115,45 @@ graph LR
 | 无代码文件的项目 | 图谱功能跳过，规范校验仅检查格式 |
 | 无 src/ 目录的项目 | 根层规范直接管理，不创建子层 |
 
+## 设计哲学边界
+
+MumuSpec 遵循"内部强制、外部兼容、强度可调"的设计哲学边界：
+
+### 内部强制
+
+对使用 MumuSpec 管理的项目，工作流规则、SHALL/SHALL NOT 约束、漂移检测按 **配置的约束强度等级** 强制执行。这是 MumuSpec 的核心价值：确保规范与代码的一致性。
+
+强度等级分三档（high / medium / low），按"技术设计"和"需求目标"两个维度独立配置:
+- `high` — 阻断（block）
+- `medium` — 警告（warn，不阻断）
+- `low` — 提示（info，仅记录）
+
+详见 [动态约束强度系统](constraint-strength.md)。
+
+### 外部兼容
+
+通过 Skill Bridge 与外部 Skill 生态（Superpowers/OpenSpec/Comet 等）互操作时，MumuSpec SHALL NOT 强制外部 Skill 遵循 MumuSpec 工作流。具体表现为：
+
+- 外部 Skill（如 Superpowers 的 TDD 流程）不强制遵循 MumuSpec 的单一活跃变更约束
+- MumuSpec 仅对自身管理的变更工件（`.mumuspec/changes/` 下的变更）强制工作流
+- 外部 Skill 创建的工件不受 MumuSpec 工作流守卫约束
+- 约束强度配置不影响外部 Skill 的行为
+
+### 强度可调
+
+"内部强制"的程度从二值变为三档:
+- 团队可按项目阶段、变更类型、团队成熟度动态调整强度
+- 强度变更通过 `mumuspec constraints strength` 命令显式执行，记录到 `decisions.md`
+- 例外清单（如终态守卫、用户确认门禁）不论强度等级始终 `block`
+
+### 边界判定原则
+
+当判断某工件是否受 MumuSpec 工作流约束时：
+- 工件位于 `.mumuspec/changes/` 目录下 → 受约束（按强度等级求值）
+- 工件由外部 Skill 管理（如 Superpowers 的任务文件） → 不受约束
+- 工件位于项目代码中但无 MumuSpec 变更关联 → 不受约束（但漂移检测仍会检查）
+- `.mumuspec/constraints.yaml` 中的持久化约束 → 对所有 MumuSpec 管理的变更生效，独立于代码
+
 ## 2. Phase 1: Open（提案）
 
 **输入**: 用户描述需求
@@ -84,7 +179,9 @@ graph LR
 
 ### 3.1 认知框架启动（步骤 0）
 
-Design 阶段首先启动基于乔哈里窗变体的认知框架，系统化地梳理已知信息和未知盲区，为后续设计提供完备的信息地基。详见 [参考：认知框架](../reference/cognitive-framework.md)。
+> **Phase 归属与启用条件**: 认知框架(Q1-Q4 乔哈里窗变体)是 **Phase 2 引入的可选特性,默认关闭,需用户显式开启**(`cognitive_framework.enabled: true`)。在 Phase 1 MVP 与默认配置下,本步骤跳过,Design 阶段直接进入 3.2 自顶向下逐层设计。`full` 工作流且用户显式开启时,Design 阶段首先启动基于乔哈里窗变体的认知框架,系统化地梳理已知信息和未知盲区,为后续设计提供完备的信息地基。详见 [参考：认知框架](../reference/cognitive-framework.md)。
+
+> **REMOVED**: 自建认知框架作为 Design 阶段**强制步骤**的设计已移除。Phase 1-2 默认不启用,Phase 2 实现后由用户按需开启。
 
 **四阶段递进流程**：
 

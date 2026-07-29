@@ -2,11 +2,15 @@
 
 > 层级: Level 2 参考文档
 
+> 漂移检测分为 P0（必需，Pre-commit）、P1（重要，CI）、P2（可选，Report）三级。详见 §漂移检测分级。
+
 ---
 
 ## 规范漂移
 
 规范描述的约束与代码实际行为不一致。
+
+**级别**：P0（必需，Pre-commit 阶段阻断提交）
 
 ```yaml
 spec_drift:
@@ -21,9 +25,26 @@ spec_drift:
     auto_fix: false
 ```
 
+## SHALL NOT 违规漂移
+
+SHALL NOT 反向禁止约束被代码违反，作为 spec_drift 的专项快速检查在 Pre-commit 阶段执行。
+
+**级别**：P0（必需，Pre-commit 阶段阻断提交）
+
+```yaml
+shall_not_violation:
+  - check: "代码违反 spec.md 中声明的 SHALL NOT 约束"
+    detection: "lint rule subset of SHALL NOT checks"
+    severity: ERROR
+    auto_fix: false
+    recommendation: "移除违反 SHALL NOT 约束的代码"
+```
+
 ## 图谱漂移
 
 代码图谱与实际代码不一致。
+
+**级别**：P1（重要，CI 阶段阻断合并）
 
 ```yaml
 graph_drift:
@@ -40,6 +61,8 @@ graph_drift:
 
 ## 索引新鲜度
 
+**级别**：P1（重要，CI 阶段；与 graph_drift 同组）
+
 ```yaml
 index_freshness:
   - check: "Code changed after last index"
@@ -50,6 +73,8 @@ index_freshness:
 ```
 
 ## 测试不可变性漂移（0.6.0 新增）
+
+**级别**：P1（重要，CI 阶段阻断合并）
 
 ```yaml
 test_immutability_drift:
@@ -73,6 +98,8 @@ test_immutability_drift:
 ```
 
 ## 契约漂移（0.8.0 新增）
+
+**级别**：P2（可选，仅生成报告；含 6 类子项）
 
 ### 外部服务契约漂移
 
@@ -156,6 +183,8 @@ contract_drift:
 
 ## 知识漂移（0.9.0 新增）
 
+**级别**：P2（可选，仅生成报告；含 4 类子项）
+
 ```yaml
 knowledge_drift:
   # 知识页面关联的代码节点已删除
@@ -189,6 +218,8 @@ knowledge_drift:
 
 ## Ponytail 约束漂移（0.10.0 新增）
 
+**级别**：P1（重要，CI 阶段阻断合并）
+
 ```yaml
 ponytail_drift:
   # 代码引入了未在 design.md 中声明的新依赖
@@ -204,6 +235,21 @@ ponytail_drift:
     severity: WARN
     auto_fix: false
     recommendation: "检查是否违反 YAGNI，用 ponytail: 注释标记或移除"
+```
+
+## 设计文档漂移
+
+design.md 描述的组件关系与代码图谱不一致。
+
+**级别**：P2（可选，仅生成报告）
+
+```yaml
+design_doc_drift:
+  - check: "design.md 描述的组件依赖关系与代码图谱实际边不一致"
+    detection: "compare design.md component relations with code graph edges"
+    severity: WARN
+    auto_fix: false
+    recommendation: "设计文档与代码偏离，建议在设计阶段同步更新 design.md"
 ```
 
 ---

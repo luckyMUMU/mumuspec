@@ -2,22 +2,22 @@
 
 > 层级: Level 3 附录
 
+> **进度数据来源**: 本文档的 Phase 进度百分比引用自 [STATUS.md](../STATUS.md),为唯一权威来源。最后更新: 2026-07-24。
+
 ---
 
-## Phase 1: 核心规范引擎 (MVP)
+## Phase 1 MVP:核心规范驱动闭环
 
-**目标**：实现树状规范 + 双向约束 + 基础 CLI
+**目标**: 验证规范驱动开发的核心价值,30 分钟内完成首个变更
+**进度**: 0%
 
-- [ ] **[P0]** 规范文件格式定义（spec.md / design.md / prohibitions.md / index.yaml）
-- [ ] **[P0]** Ponytail 约束注入引擎（自动注入根层 spec.md）
-- [ ] **[P0]** 树状规范加载引擎（渐进式披露，含 spec + design）
-- [ ] **[P0]** CLI 核心命令（init / context / validate / check）
-- [ ] **[P0]** 基础 lint 规则引擎（执行 Enforcement 检查）
-- [ ] **[P1]** Ponytail lint 规则（YAGNI 检查、依赖检查、样板代码检测）
-- [ ] **[P1]** `ponytail:` 注释标记解析器
-- [ ] **[P1]** 目录级设计文档（design.md）格式与加载引擎
-- [ ] **[P1]** Rules 文件生成（CLAUDE.md / .cursorrules）
-- [ ] **[P2]** 规范继承冲突检测（加载时约束可满足性检查）
+任务:
+- [ ] Spec Layer 基础: 树状规范 + SHALL/SHALL NOT + 渐进式披露(不含 Ponytail)
+- [ ] Change Layer 基础: 五阶段状态机 + 基础回退(不含 TDD 强制、不含认知框架)
+- [ ] Guard Layer P0: Pre-commit SHALL NOT 检查 + spec_drift + shall_not_violation
+- [ ] AI Integration 基础: Rules 文件生成(CLAUDE.md/.cursorrules/AGENTS.md)
+- [ ] AI 工具适配层: AIToolAdapter 接口 + ClaudeCodeAdapter + CursorAdapter
+- [ ] CLI 基础: init/spec/change/status/validate 命令
 
 ### Phase 1 验收标准 (DoD)
 
@@ -30,32 +30,19 @@
 | 渐进式披露 | 跨 3 个模块的项目验证 | 各模块独立加载，互不干扰 |
 | CLI 可用性 | 新用户（无文档）完成 init→spec→check | < 15min，无需查阅外部文档 |
 
-## Phase 2: 变更生命周期
+## Phase 2:工作流增强
 
-**目标**：实现完整的变更管理流水线
+**目标**: 完善工作流规则与编码约束
+**进度**: 0%
 
-- [ ] **[P0]** 变更状态机（.mumuspec.yaml）
-- [ ] **[P0]** 五阶段流程（open → design → build → verify → archive）
-- [ ] **[P0]** 状态机回退机制（build→design, verify→design, verify→build）
-- [ ] **[P0]** 回退快照保存与恢复
-- [ ] **[P0]** Phase guard 脚本（正向 + 反向回退守卫）
-- [ ] **[P0]** delta spec 合并引擎
-- [ ] **[P0]** 测试用例规格引擎（test-cases/ 定义、锁定、hash 校验）
-- [ ] **[P0]** 红绿 TDD 循环强制执行（tdd_mode 固定、Phase Guard 校验）
-- [ ] **[P0]** 决策记录引擎（decisions.md 追加式日志 + hash 防篡改）
-- [ ] **[P0]** 认知框架引擎（cognitive-map.yaml 验证、收敛逻辑、Q4 扫描自动化）
-- [ ] **[P1]** 认知框架 CLI 命令（cognitive-map init/status/validate/converge）
-- [ ] **[P1]** 认知框架 MCP 工具（get_cognitive_map/check_convergence/update_cognitive_map）
-- [ ] **[P1]** hotfix/tweak 预设路径
-- [ ] **[P1]** Archive 阶段 git 提交 + MR/PR 创建 + 合并
-- [ ] **[P1]** 测试套件映射与锁定（suite-map.yaml、套件 hash 校验）
-- [ ] **[P1]** 设计文档同步机制（Design 阶段 delta-design 合并到 design.md）
-- [ ] **[P1]** Skill 文件定义（阶段编排器）
-- [ ] **[P1]** 外部 Skill 生态兼容层（Skill Bridge）
-- [ ] **[P1]** 阶段-Skill 映射与分发协议
-- [ ] **[P2]** Skill 优先级与冲突解决机制
-- [ ] **[P2]** Superpowers/Agent Skills 集成
-- [ ] **[P2]** Hyperplan 对抗式规划 Skill
+任务:
+- [ ] Ponytail 编码约束: 7 级阶梯 + Enforcement 注入
+- [ ] TDD 强制(可配置): 红绿循环 + 测试不可变性
+- [ ] 认知框架 Q1-Q4(可选,默认关闭): 乔哈里窗变体
+- [ ] 状态机回退增强: 3 种回退路径
+- [ ] 软假设降级方案: A-03/A-06/A-08 降级实现
+- [ ] Guard Layer P1: graph_drift + test_immutability_drift + ponytail_drift
+- [ ] workflow.* 配置项实现
 
 ### Phase 2 验收标准 (DoD)
 
@@ -68,22 +55,18 @@
 | 决策记录 | 查看 decisions.md | 各阶段决策已追加，hash 匹配 |
 | delta spec 合并 | Archive 后检查主规范 | ADDED/MODIFIED/REMOVED 正确合并 |
 
-## Phase 3: 知识层集成
+## Phase 3:知识层与契约层
 
-**目标**：实现代码图谱 + 规范-代码双向绑定 + 契约图谱 + LLM-Wiki + PageIndex
+**目标**: 知识回流闭环 + 契约管理
+**进度**: 0%
 
-- [ ] **[P0]** 代码图谱构建引擎（AST 解析 → 图谱）
-- [ ] **[P0]** 规范-代码绑定（GOVERNED_BY / ENFORCED_BY 边）
-- [ ] **[P0]** MCP Server 实现
-- [ ] **[P0]** 知识页面格式定义 + PageIndex 引擎
-- [ ] **[P0]** 代码图谱扩展（KnowledgePage/Decision/Risk 节点 + 知识边类型）
-- [ ] **[P1]** 影响分析工具（detect_changes）
-- [ ] **[P1]** 调用链追踪（trace_path + 规范标注）
-- [ ] **[P1]** 契约图谱集成（Contract 节点 + CONSUMES/EXPOSES/CONTRACT_DERIVES 边）
-- [ ] **[P1]** 契约约束派生引擎（契约 → spec.md 自动注入）
-- [ ] **[P1]** 知识 MCP 工具（get_knowledge_context / search_knowledge / get_code_knowledge）
-- [ ] **[P2]** 契约漂移检测引擎
-- [ ] **[P2]** 契约注册表管理（_registry.yaml 自动维护）
+任务:
+- [ ] Knowledge Layer 代码图谱: 可插拔后端(CBM/CGC/内置 adapter) — 6-8 人天(原 16 人天,改为可插拔后端架构后降低)
+- [ ] 知识价值评估: 4 项指标(引用次数/冲突检出率/新鲜度验证通过率/用户确认率) + deprecated 标记
+- [ ] LLM-Wiki 与 PageIndex
+- [ ] Contract Layer: 外部契约 + 对外契约 + 派生约束 + 6 类漂移
+- [ ] Skill Bridge: 兼容 Superpowers/OpenSpec/Comet 生态
+- [ ] Guard Layer P2: contract_drift + knowledge_drift + design_doc_drift
 
 ### Phase 3 验收标准 (DoD)
 
@@ -95,26 +78,16 @@
 | 影响分析 | `mumuspec impact <name>` | 正确识别受影响文件和函数 |
 | 契约派生 | `mumuspec contract derive <name>` | 约束正确注入 spec.md |
 
-## Phase 4: CI/CD 与自动化
+## Phase 4:CI/CD 与全漂移
 
-**目标**：实现全链路自动化校验
+**目标**: 团队协作与持续集成
+**进度**: 0%
 
-- [ ] **[P0]** Pre-commit hook（SHALL NOT 快速检查）
-- [ ] **[P0]** CI/CD pipeline 集成（全量校验）
-- [ ] **[P0]** 漂移检测引擎（规范漂移 + 图谱漂移 + 设计文档漂移 + 契约漂移 + 知识漂移 + Ponytail 约束漂移）
-- [ ] **[P0]** Archive 阶段知识提取子流程（D）
-- [ ] **[P1]** 图谱自动更新（git hooks）
-- [ ] **[P1]** 契约漂移检测集成到 CI/CD（外部服务漂移 + 对外接口漂移 + 向后兼容性检查）
-- [ ] **[P1]** 契约派生约束 CI 校验
-- [ ] **[P1]** 知识新鲜度管理 + 知识漂移检测 CI 集成
-- [ ] **[P1]** Ponytail 漂移检测集成到 CI/CD
-- [ ] **[P1]** 文档生成引擎（从 spec + design + contract 生成技术/业务/集成/依赖文档）
-- [ ] **[P1]** `mumuspec knowledge` CLI 命令
-- [ ] **[P2]** 文档模板系统（内置模板 + 自定义模板）
-- [ ] **[P2]** 文档一致性校验（文档漂移检测 + 自动重新生成）
-- [ ] **[P2]** 多格式输出（Markdown / HTML / PDF）
-- [ ] **[P2]** 契约文档生成（集成指南 + 外部依赖文档）
-- [ ] **[P2]** 仪表盘可视化
+任务:
+- [ ] CI/CD 集成: GitHub Actions/GitLab CI 模板
+- [ ] 全漂移检测: 12 种漂移完整实现
+- [ ] 知识提取: D1-D8 自动提取流程
+- [ ] 文档生成: 自动生成 API 文档与变更日志
 
 ### Phase 4 验收标准 (DoD)
 
@@ -126,19 +99,15 @@
 | 文档生成 | `mumuspec doc generate` | 生成技术/业务/集成/依赖文档 |
 | 文档一致性 | `mumuspec doc check` | 文档与规范一致 |
 
-## Phase 5: 生态与分发
+## Phase 5:Skill 编排器与生态
 
-**目标**：跨平台分发与社区生态
+**目标**: 自建 Skill 生态与对抗式规划
+**进度**: 0%
 
-- [ ] **[P0]** npm 包发布（@mumuspec/cli + @mumuspec/mcp-server）
-- [ ] **[P1]** 多平台 Skill 支持（Claude Code / Cursor / Copilot / Codex）
-- [ ] **[P1]** 规范模板库（常见技术栈的预置规范）
-- [ ] **[P1]** 契约模板库（RPC/REST/MQ 契约模板）
-- [ ] **[P2]** Ponytail 约束模板库（常见技术栈的预置 Ponytail 约束）
-- [ ] **[P2]** Skill 生态插件市场（社区贡献的 Skill 适配器）
-- [ ] **[P2]** 文档模板市场（社区贡献的文档生成模板）
-- [ ] **[P2]** 评估系统（Rubric / Pass@k）
-- [ ] **[P2]** 文档与教程
+任务:
+- [ ] 自建 Skill 编排器: 7 阶段 Skill 文件
+- [ ] Hyperplan 对抗式规划
+- [ ] 生态分发: npm/brew/cargo 包发布
 
 ### Phase 5 验收标准 (DoD)
 
@@ -155,15 +124,11 @@
 
 | 版本 | 对应 Phase | 核心特性 |
 |------|-----------|---------|
-| 0.2.0 | Phase 1 | 工作流规则（worktree 隔离、单一活跃变更、自顶向下/自下向上） |
-| 0.3.0 | Phase 2 | 状态机管理 + 回退机制 + Archive git 合并 |
-| 0.4.0 | Phase 2 | 外部 Skill 生态兼容层 |
-| 0.5.0 | Phase 4 | 目录级设计文档 + 文档生成引擎 |
-| 0.6.0 | Phase 2 | 红绿 TDD + 测试不可变性约束 |
-| 0.7.0 | Phase 2 | Hyperplan 对抗式规划 + Skill 矩阵 + 决策记录 |
-| 0.8.0 | Phase 2-3 | Contract Layer 契约层（外部 + 对外契约 + 漂移检测）；认知框架（乔哈里窗变体 Q1-Q4）集成到 Design 阶段 |
-| 0.9.0 | Phase 3-4 | Knowledge Layer 知识层（LLM-Wiki + PageIndex + 代码图谱集成）；全量审查修复 |
-| 0.10.0 | Phase 1-3 | 合并 Code Graph Layer 到 Knowledge Layer；引入 Ponytail 基础编码约束 |
+| 0.11.0 | Phase 1 MVP | 设计优化版本（核心规范驱动闭环） |
+| 0.12.0 | Phase 2 | 工作流增强（Ponytail + TDD + 认知框架） |
+| 0.13.0 | Phase 3 | 知识层与契约层 |
+| 0.14.0 | Phase 4 | CI/CD 与全漂移 |
+| 1.0.0 | Phase 5 | 正式发布（Skill 编排器与生态） |
 
 ---
 
@@ -180,33 +145,22 @@
 | CI/CD 工程师 | 0.5 | Phase 4 | Pre-commit hook、CI pipeline、文档生成 |
 | 技术文档 | 0.5 | 全周期 | 用户指南、API 参考、示例项目 |
 
-### 工作量估算（人天）
+## 工作量估算
 
-| Phase | 功能模块 | 估算（人天） | 依据 |
-|-------|---------|-------------|------|
-| Phase 1 | 规范格式 + 加载引擎 | 5 | YAML schema + 树遍历 + 渐进式披露逻辑 |
-| Phase 1 | CLI 核心命令 | 3 | init/context/validate/check 4 个命令 |
-| Phase 1 | lint 规则引擎 | 4 | 规则注册 + AST 检查 + ESLint 适配器 |
-| Phase 1 | Rules 文件生成 | 2 | 模板渲染 + 多格式输出 |
-| **Phase 1 小计** | | **14 人天** | 1 人 × 3 周（含缓冲） |
-| Phase 2 | 状态机 + 回退 | 5 | 五阶段 + 3 种回退 + 快照 |
-| Phase 2 | delta spec 合并 | 3 | ADDED/MODIFIED/REMOVED 语义合并 |
-| Phase 2 | TDD 引擎 | 4 | test-cases 锁定 + hash + 红绿循环 |
-| Phase 2 | Skill 集成 | 5 | Skill 文件 + Bridge + hyperplan + 矩阵 |
-| Phase 2 | 决策记录 | 2 | decisions.md + hash 防篡改 |
-| **Phase 2 小计** | | **19 人天** | 2 人 × 2 周（含缓冲） |
-| Phase 3 | 图谱引擎 | 8 | tree-sitter + SQLite + 增量索引 |
-| Phase 3 | 规范-代码绑定 | 4 | GOVERNED_BY/ENFORCED_BY 边 |
-| Phase 3 | 契约图谱 | 4 | Contract 节点 + 派生约束注入 |
-| **Phase 3 小计** | | **16 人天** | 2 人 × 2 周（含缓冲） |
-| Phase 4 | CI/CD 集成 | 4 | pre-commit + CI pipeline + GitHub Actions |
-| Phase 4 | 漂移检测 | 4 | 8 种漂移类型 |
-| Phase 4 | 文档生成 | 4 | 模板引擎 + 4 种文档类型 |
-| **Phase 4 小计** | | **12 人天** | 2 人 × 1.5 周（含缓冲） |
-| Phase 5 | npm 包 + 多平台 | 5 | 打包 + 发布 + Claude/Cursor/Codex 适配 |
-| Phase 5 | 模板库 + 文档 | 4 | 规范模板 + 契约模板 + 教程 |
-| **Phase 5 小计** | | **9 人天** | 1.5 人 × 1.5 周（含缓冲） |
-| **总计** | | **70 人天** | 约 3.5 个月（2 人并行） |
+**总工作量**: 80-85 人天(基于 [implementation-plan.md](../implementation-plan.md) 详细估算)
+
+> 注:本估算以 implementation-plan.md 为基准来源。其他文档提及工作量时 SHALL 引用此基准。
+
+### 各 Phase 工作量分布
+
+| Phase | 工作量 | 说明 |
+|-------|-------|------|
+| Phase 1 MVP | 20-25 人天 | 核心规范驱动闭环 |
+| Phase 2 | 15-18 人天 | 工作流增强 |
+| Phase 3 | 20-22 人天 | 知识层与契约层(图谱降为 6-8 人天) |
+| Phase 4 | 12-13 人天 | CI/CD 与全漂移 |
+| Phase 5 | 13-15 人天 | Skill 编排器与生态 |
+| **总计** | **80-93 人天** | 含缓冲后取 80-85 人天为基准 |
 
 ### 里程碑时间线
 

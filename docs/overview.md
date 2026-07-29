@@ -1,10 +1,25 @@
 # MumuSpec — 全局概览
 
-> **版本**: 0.10.0-draft | **日期**: 2026-07-09 | **状态**: 设计草案
+> **版本**: 0.12.1-draft | **日期**: 2026-07-27 | **状态**: 设计草案
 
 ---
 
-## 0. 目标用户
+## 0. 核心目标
+
+MumuSpec 的核心目标是**创建独立于代码的、基于"技术设计 + 需求目标"两个维度的持久化正反向约束指导 agent 的工作**。
+
+- **持久化** — 约束定义存储在 `.mumuspec/` 下，版本化管理，不随代码删除而消失
+- **独立于代码** — 约束描述"agent 应做 / 不应做"的行为准则，不引用具体代码路径
+- **双维度** — 沿"技术设计 (HOW)"与"需求目标 (WHAT)"两条独立轴线组织
+- **正反向并重** — 正向 SHALL 指明必达目标，反向 SHALL NOT 划定不可逾越红线
+- **树状分层** — 约束按目录树分层存放，底层级受高层级约束，冲突时以高层级为准（0.12.1+）
+- **动态可调** — 三档强度（high / medium / low）按团队成熟度、项目阶段、变更类型动态切换
+
+详见 [动态约束强度系统设计](design/constraint-strength.md)。
+
+---
+
+## 0.1 目标用户
 
 ### 画像 1: 独立开发者 Alex
 
@@ -74,29 +89,51 @@
 
 ## 1.3 设计假设
 
-| 编号 | 假设 | 影响范围 | 若假设不成立 |
-|------|------|---------|--------------|
-| A-01 | 项目使用 Git 进行版本控制 | 全局 | MumuSpec 无法管理变更历史 |
-| A-02 | 项目主语言被 tree-sitter 支持 | Knowledge Layer | 图谱功能降级为文件级索引 |
-| A-03 | 单一活跃变更约束可被团队接受 | Change Layer | 需引入变更队列机制 |
-| A-04 | AI 工具支持 MCP 协议或 Rules 文件 | AI Integration Layer | 需开发平台特定适配器 |
-| A-05 | 项目目录结构相对稳定（不频繁大重构） | Spec Layer | 规范层级需频繁重建 |
-| A-06 | 测试框架支持红绿 TDD 循环 | Change Layer | TDD 强制约束无法执行 |
-| A-07 | CI 环境可运行 Node.js | Guard Layer | 需提供 Docker 镜像 |
-| A-08 | 团队接受 SHALL NOT 优先于 SHALL | 全局 | 优先级体系需重新设计 |
+| 编号 | 假设 | 影响范围 | 若假设不成立 | 降级方案 |
+|------|------|---------|--------------|---------|
+| A-01 | 项目使用 Git 进行版本控制 | 全局 | MumuSpec 无法管理变更历史 | 无降级(硬性依赖) |
+| A-02 | 项目主语言被 tree-sitter 支持 | Knowledge Layer | 图谱功能降级为文件级索引 | 详见设计文档 |
+| A-03 | 单一活跃变更约束可被团队接受 | Change Layer | 需引入变更队列机制 | 关闭约束,允许 N 个并行变更(上限 3),WARN 提示隔离性风险 |
+| A-04 | AI 工具支持 MCP 协议或 Rules 文件 | AI Integration Layer | 需开发平台特定适配器 | 详见设计文档 |
+| A-05 | 项目目录结构相对稳定（不频繁大重构） | Spec Layer | 规范层级需频繁重建 | 详见设计文档 |
+| A-06 | 测试框架支持红绿 TDD 循环 | Change Layer | TDD 强制约束无法执行 | TDD 强制降级为可选(`tdd_enforced: false`),仅要求"测试存在但不强制红绿循环" |
+| A-07 | CI 环境可运行 Node.js | Guard Layer | 需提供 Docker 镜像 | 详见设计文档 |
+| A-08 | 团队接受 SHALL NOT 优先于 SHALL | 全局 | 优先级体系需重新设计 | 优先级体系可配置,允许团队设为"SHALL 优先"模式(`priority_mode: shall_first`) |
+
+### 隐性假设
+
+除上述显式假设外,MumuSpec 设计还隐含以下假设,现显式化并提供降级方案:
+
+| 隐性假设 | 降级方案 |
+|---------|---------|
+| AI 工具支持 MCP | Rules 文件生成作为最低兼容层,所有 AI 工具可通过 Rules 文件使用 MumuSpec |
+| 用户编写完整 SHALL NOT | 提供 SHALL NOT 模板与示例,lint 检测"SHALL NOT 无 Enforcement"时 WARN |
+| 代码图谱对每个项目都需要 | 图谱后端可关闭(`knowledge.graph_backend: none`),仅用 Spec Layer |
+| LLM-Wiki 提取有价值 | 增加知识价值评估指标(引用次数、冲突检出率),低价值知识自动标记 deprecated |
 
 ---
 
-## 2. 三大设计支柱
+## 2. 四大设计支柱
 
 ```mermaid
 graph LR
-    subgraph Pillars["MumuSpec 三大设计支柱"]
+    subgraph Pillars["MumuSpec 四大设计支柱"]
         P1["正向设计+反向禁止<br/>(Dual Constraint)<br/>· SHALL / MUST<br/>· SHALL NOT / MUST NOT (硬性禁止)<br/>· 禁止项=可执行检查"]
         P2["树状分布+渐进式披露<br/>(Tree Progressive)<br/>· 按目录树分层存放<br/>· 每层含本层+子层信息<br/>· 按切入层级加载<br/>· 避免上下文过载"]
         P3["持久化+代码一致<br/>(Code-Bound)<br/>· CI/CD 自动校验<br/>· 测试即契约<br/>· 代码图谱绑定<br/>· 漂移检测+告警"]
+        P4["双维度动态约束强度<br/>(Dynamic Constraint Strength)<br/>· 技术设计维度 (HOW)<br/>· 需求目标维度 (WHAT)<br/>· 三档强度 high/medium/low<br/>· 工作流限制渐进式放开"]
     end
 ```
+
+### 设计哲学边界:内部强制、外部兼容
+
+MumuSpec 遵循"内部强制、外部兼容"的设计哲学边界:
+
+- **内部强制**: 对使用 MumuSpec 管理的项目,工作流规则、SHALL/SHALL NOT 约束、漂移检测按配置的约束强度等级强制执行
+- **外部兼容**: 通过 Skill Bridge 与外部 Skill 生态(Superpowers/OpenSpec/Comet)互操作时,不强制外部 Skill 遵循 MumuSpec 工作流
+- **强度可调**: 内部强制的程度从二值变为三档(high/medium/low),按双维度独立配置
+
+详见 [Change Layer 设计哲学边界](./design/change-layer.md#设计哲学边界) 与 [动态约束强度系统设计](./design/constraint-strength.md)。
 
 ## 3. 四大工作流规则
 
@@ -110,7 +147,14 @@ graph LR
     end
 ```
 
-> 以上四条规则是硬性流程约束，贯穿变更生命周期的所有阶段。详见 [变更层设计](design/change-layer.md)。
+> 以上四条规则均为**按约束强度等级求值的可配置约束**。在 `constraint_strength` 配置下,工作流规则按维度归属随强度等级渐进式放开:
+> - `high` — 强制执行（block）
+> - `medium` — 推荐执行（warn，允许降级）
+> - `low` — 关闭（info）
+>
+> 团队仍可通过 `.mumuspec.yaml` 的 `workflow.*` 配置项显式覆盖强度等级（`inherit | true | false`）。详见 [Configuration 文档](./reference/configuration.md#workflow) 与 [动态约束强度系统](./design/constraint-strength.md#61-强度与工作流规则的关系)。
+
+> 四大规则贯穿变更生命周期的所有阶段,详见 [变更层设计](design/change-layer.md)。
 
 ## 4. 总体架构
 
@@ -174,6 +218,9 @@ graph TB
 | 0.8.0 | Contract Layer 契约层（外部服务契约 + 自身对外契约 + 漂移检测）；认知框架（乔哈里窗变体 Q1-Q4）集成到 Design 阶段；设计文档重构为渐进式披露文档组 |
 | 0.9.0 | Knowledge Layer 知识层（LLM-Wiki + PageIndex + 代码图谱集成）；全量审查修复 |
 | 0.10.0 | 合并 Code Graph Layer 到 Knowledge Layer 作为持久化知识来源；引入 Ponytail 作为基础编码约束 |
+| 0.11.0 | 2026-07-24 设计优化：Knowledge Layer 可插拔图谱后端、MVP 范围收敛、工作流规则可配置化、漂移检测分级、Skill Bridge 优先、AI 工具适配层、软假设降级方案、知识价值评估 |
+| 0.12.0 | 2026-07-27 动态约束强度系统：双维度（技术设计 + 需求目标）+ 三档强度（high/medium/low）+ 持久化 constraints.yaml（独立于代码的正反向约束）+ 工作流限制渐进式放开 |
+| 0.12.1 | 2026-07-27 constraints.yaml 树状层级化：按目录树分层存放与 spec.md 对齐；子层继承父层约束可收紧不可放宽；同 ID 冲突高层级优先；新增 `resolveConstraintTree()` 解析器与冲突审计 |
 
 ## 7. 实施路线图概要
 
@@ -186,6 +233,27 @@ graph TB
 | Phase 5 | 生态与分发 | npm 包 + 多平台 Skill + 模板库 |
 
 > 详细路线图见 [附录：实施路线图](appendix/roadmap.md)。
+
+## 7.1 MVP 范围
+
+Phase 1 MVP SHALL 仅包含以下核心能力:
+
+- **Spec Layer**: 树状规范 + SHALL/SHALL NOT + 渐进式披露(不含 Ponytail)
+- **Change Layer**: 五阶段状态机 + 基础回退(不含 TDD 强制、不含认知框架)
+- **Guard Layer**: Pre-commit SHALL NOT 检查 + 基础规范漂移(P0 级)
+- **AI Integration**: Rules 文件生成(CLAUDE.md/.cursorrules) + AI 工具适配层
+
+以下能力 SHALL 推迟到 Phase 2-3:
+- Ponytail 编码约束(Phase 2)
+- 认知框架 Q1-Q4(Phase 2,默认关闭,用户显式开启)
+- TDD 强制与测试不可变性(Phase 2,可配置)
+- Contract Layer(Phase 3)
+- Hyperplan 对抗式规划(Phase 5)
+- Skill Bridge 外部生态兼容(Phase 3)
+- Knowledge Layer 代码图谱(Phase 3)
+- LLM-Wiki 与 PageIndex(Phase 3)
+
+新用户首次使用 MVP 时,30 分钟内可完成首个变更(hotfix 路径)。详细进度参见 [STATUS.md](./STATUS.md)。
 
 ## 8. 开放问题
 
@@ -206,7 +274,7 @@ graph TB
 
 | 层级 | 文档 | 适合读者 |
 |------|------|---------|
-| **Level 0** | 本文档（全局概览） | 所有人 |
+| **Level 0** | 本文档（全局概览） · [STATUS.md](./STATUS.md)（项目状态：设计完备性与实现进度权威来源） | 所有人 |
 | **Level 1** | [规范层](design/spec-layer.md) · [契约层](design/contract-layer.md) · [变更层](design/change-layer.md) · [知识层](design/knowledge-layer.md) · [校验层](design/guard-layer.md) · [AI 集成层](design/ai-integration.md) | 实现者、使用者 |
-| **Level 2** | [CLI 命令](reference/cli-commands.md) · [MCP 工具](reference/mcp-tools.md) · [配置](reference/configuration.md) · [Phase Guard](reference/phase-guards.md) · [漂移检测](reference/drift-detection.md) · [认知框架](reference/cognitive-framework.md) · [Skill 生态](reference/skill-ecosystem.md) · [错误码](reference/error-codes.md) · [发布策略](reference/release-strategy.md) · [术语表](reference/glossary.md) | 操作者、CI 配置 |
-| **Level 3** | [目录结构](appendix/directory-structure.md) · [对比](appendix/comparison.md) · [路线图](appendix/roadmap.md) · [开放问题](appendix/open-questions.md) | 深入了解者 |
+| **Level 2** | [CLI 命令](reference/cli-commands.md) · [MCP 工具](reference/mcp-tools.md) · [配置](reference/configuration.md) · [Phase Guard](reference/phase-guards.md) · [漂移检测](reference/drift-detection.md) · [认知框架](reference/cognitive-framework.md) · [Skill 生态](reference/skill-ecosystem.md) · [错误码](reference/error-codes.md) · [打包与部署](reference/packaging-deployment.md) · [发布策略](reference/release-strategy.md) · [反馈流程](reference/feedback-process.md) · [术语表](reference/glossary.md) | 操作者、CI 配置 |
+| **Level 3** | [目录结构](appendix/directory-structure.md) · [对比](appendix/comparison.md)（已精简为速查表） · [MumuSpec 生态对比与差距分析](appendix/mumuspec-ecosystem-comparison.md) · [AI Coding Agent 生态深度调研报告](appendix/ai-agent-ecosystem-research.md) · [路线图](appendix/roadmap.md) · [开放问题](appendix/open-questions.md) | 深入了解者 |

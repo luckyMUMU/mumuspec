@@ -23,6 +23,88 @@ mumuspec archive <name>                 # 归档变更（git 提交 + MR + 合�
 mumuspec discard <name>                 # 废弃变更（清理 worktree + 释放变更槽位）
 ```
 
+## 特性配置管理
+
+管理 MumuSpec 特性配置，控制高级特性的启用/禁用。
+
+### mumuspec config enable
+
+启用指定的高级特性。
+
+```bash
+mumuspec config enable <feature>
+```
+
+**支持的 feature**:
+- `ponytail` - Ponytail 编码约束（Phase 2）
+- `cognitive-framework` - 认知框架 Q1-Q4（Phase 2）
+- `contract-layer` - Contract Layer（Phase 3）
+- `knowledge-graph` - Knowledge Layer 代码图谱（Phase 3，需配合 `knowledge.graph_backend` 配置）
+- `skill-bridge` - Skill Bridge 兼容层（Phase 3）
+- `hyperplan` - Hyperplan 对抗式规划（Phase 5）
+
+**示例**:
+
+```bash
+mumuspec config enable ponytail
+```
+
+输出:
+```
+✓ 已启用 Ponytail 编码约束
+请运行 mumuspec spec validate 重新验证规范
+```
+
+### mumuspec config disable
+
+禁用指定的特性。
+
+```bash
+mumuspec config disable <feature>
+```
+
+**示例**:
+
+```bash
+mumuspec config disable tdd-enforced
+```
+
+### mumuspec config list
+
+列出当前配置状态。
+
+```bash
+mumuspec config list
+```
+
+输出示例:
+```
+MumuSpec 配置状态:
+
+默认开启:
+  ✓ Spec Layer
+  ✓ Change Layer（基础）
+  ✓ Guard Layer（P0）
+  ✓ Rules 文件生成
+  ✓ AI 工具适配层（自动检测）
+
+高级特性（默认关闭）:
+  ✗ Ponytail 编码约束
+  ✗ 认知框架 Q1-Q4
+  ✗ Contract Layer
+  ✗ Knowledge Layer 代码图谱
+  ✗ Skill Bridge
+  ✗ Hyperplan
+
+工作流规则:
+  ✓ Worktree 隔离（默认开启）
+  ✓ 单一活跃变更（默认开启）
+  ✓ 自顶向下设计（默认开启）
+  ✓ TDD 强制（默认开启）
+
+使用 mumuspec config enable <feature> 开启高级特性
+```
+
 ## 诊断与引导
 
 ```bash
