@@ -1,0 +1,418 @@
+# .mumuspec/knowledge/_index.yaml
+# PageIndex 主索引（全局）
+# 自动生成 + 手动维护，MumuSpec 运行时读取
+
+version: 1
+updated_at: "2026-07-29T00:00:00Z"
+
+stats:
+  total_pages: 28
+  by_type:
+    decision: 14
+    pattern: 5
+    risk: 3
+    rationale: 2
+    lesson: 3
+  by_status:
+    confirmed: 28
+    stale: 0
+    superseded: 0
+    deprecated: 0
+
+pages:
+  # ==================== 决策类 (KP-0001 ~ KP-0009, KP-0017 ~ KP-0019, KP-0025, KP-0028) ====================
+  - id: "KP-0001"
+    title: "MumuSpec 核心设计决策：双约束 + 树状分层 + 渐进式披露 + 动态强度"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0001-dual-constraint-tree-progressive.md"
+    tags: ["dual-constraint", "tree-progressive", "core-design", "architecture"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0002"
+    title: "MumuSpec 六层架构决策"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0002-six-layer-architecture.md"
+    tags: ["architecture", "six-layers", "design"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0003"
+    title: "MumuSpec 四大工作流规则决策"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0003-workflow-rules.md"
+    tags: ["workflow", "tdd", "worktree", "design-order", "single-change"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0004"
+    title: "Ponytail 编码约束作为 MumuSpec 基础编码约束"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0004-ponytail-coding-constraints.md"
+    tags: ["ponytail", "yagni", "abstraction", "coding-constraints"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0005"
+    title: "Contract Layer 契约层设计决策"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0005-contract-layer.md"
+    tags: ["contract", "external", "outbound", "service-mesh"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0006"
+    title: "Knowledge Layer 知识层设计决策：可插拔图谱后端 + LLM-Wiki + PageIndex"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0006-knowledge-layer.md"
+    tags: ["knowledge", "code-graph", "llm-wiki", "page-index", "graph-backend"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0007"
+    title: "认知框架（乔哈里窗变体 Q1-Q4）集成到 Design 阶段"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0007-cognitive-framework.md"
+    tags: ["cognitive-framework", "johari-window", "q1-q4", "design-phase"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0008"
+    title: "动态约束强度系统设计决策"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0008-dynamic-constraint-strength.md"
+    tags: ["constraint-strength", "dynamic", "dual-dimension", "progressive"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-27T00:00:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0009"
+    title: "Phase 1 MVP 范围收敛决策"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0009-mvp-scope.md"
+    tags: ["mvp", "scope", "phase1", "prioritization"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-24T00:00:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0017"
+    title: "双层约束体系：业务约束层（spec.md）+ 行为约束层（constraints.yaml）"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0017-dual-constraint-layer.md"
+    tags: ["dual-constraint", "spec", "constraints", "behavior", "architecture"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-27T00:00:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0018"
+    title: "Hyperplan 对抗式规划 Skill 设计决策"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0018-hyperplan-adversarial.md"
+    tags: ["hyperplan", "adversarial", "design-review", "multi-role"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0019"
+    title: "AI 工具适配层（AIToolAdapter）设计决策"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0019-ai-tool-adapter.md"
+    tags: ["ai-adapter", "claude", "cursor", "codex", "aitooladapter"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0025"
+    title: "错误码标准化体系：E-<DOMAIN>-<NUMBER>"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0025-error-code-standard.md"
+    tags: ["error-code", "standard", "domain", "troubleshooting"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0028"
+    title: "Archive 阶段知识提取流程设计"
+    type: decision
+    status: confirmed
+    scope: "global"
+    file: "decisions/KP-0028-knowledge-extract.md"
+    tags: ["knowledge-extraction", "archive", "design-knowledge", "auto-extract"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  # ==================== 课程类 (KP-0010, KP-0011, KP-0023, KP-0027) ====================
+  - id: "KP-0010"
+    title: "参考项目调研总结：OpenSpec / Comet / CGC / CBM / Ponytail"
+    type: lesson
+    status: confirmed
+    scope: "global"
+    file: "lessons/KP-0010-reference-project-research.md"
+    tags: ["research", "ecosystem", "openspec", "comet", "cgc", "cbm", "ponytail"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0011"
+    title: "项目实施常见陷阱与避坑指南"
+    type: lesson
+    status: confirmed
+    scope: "global"
+    file: "lessons/KP-0011-implementation-pitfalls.md"
+    tags: ["pitfall", "lesson", "implementation", "best-practice"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0023"
+    title: "故障排查常见模式与解决方案"
+    type: lesson
+    status: confirmed
+    scope: "global"
+    file: "lessons/KP-0023-troubleshooting-patterns.md"
+    tags: ["troubleshooting", "faq", "installation", "configuration"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0027"
+    title: "项目规范实施的最佳实践与变通方案"
+    type: lesson
+    status: confirmed
+    scope: "global"
+    file: "lessons/KP-0027-project-conventions.md"
+    tags: ["convention", "best-practice", "demo", "ponytail", "boring-over-clever"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-10T00:00:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  # ==================== 模式类 (KP-0013, KP-0014, KP-0020, KP-0021, KP-0026) ====================
+  - id: "KP-0013"
+    title: "渐进式规范加载模式"
+    type: pattern
+    status: confirmed
+    scope: "global"
+    file: "patterns/KP-0013-spec-progressive-loading.md"
+    tags: ["pattern", "progressive-loading", "context-management", "token-saving"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0014"
+    title: "变更生命周期模式：五阶段状态机 + 回退机制"
+    type: pattern
+    status: confirmed
+    scope: "global"
+    file: "patterns/KP-0014-change-lifecycle.md"
+    tags: ["pattern", "change-lifecycle", "state-machine", "rollback"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0020"
+    title: "MCP Server 工具集设计模式"
+    type: pattern
+    status: confirmed
+    scope: "global"
+    file: "patterns/KP-0020-mcp-tool-set.md"
+    tags: ["mcp", "server", "tools", "search-graph", "contract"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0021"
+    title: "Skill 生态矩阵：阶段-Skill 映射与分发模式"
+    type: pattern
+    status: confirmed
+    scope: "global"
+    file: "patterns/KP-0021-skill-ecosystem-matrix.md"
+    tags: ["skill", "ecosystem", "phase", "mapping", "distribution"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0026"
+    title: "config.yaml 核心配置 Schema 模式"
+    type: pattern
+    status: confirmed
+    scope: "global"
+    file: "patterns/KP-0026-config-schema.md"
+    tags: ["configuration", "config-yaml", "schema", "setup"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  # ==================== 风险类 (KP-0015, KP-0016, KP-0022) ====================
+  - id: "KP-0015"
+    title: "Knowledge Layer 后端故障风险与降级策略"
+    type: risk
+    status: confirmed
+    scope: "global"
+    file: "risks/KP-0015-knowledge-backend-failure.md"
+    tags: ["risk", "knowledge-layer", "graph-backend", "degradation", "mitigation"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0016"
+    title: "规范漂移风险与防控策略"
+    type: risk
+    status: confirmed
+    scope: "global"
+    file: "risks/KP-0016-spec-drift.md"
+    tags: ["risk", "spec-drift", "code-drift", "enforcement", "blocking"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0022"
+    title: "Top 3 技术风险验证 Sprint"
+    type: risk
+    status: confirmed
+    scope: "global"
+    file: "risks/KP-0022-tech-risk-validation.md"
+    tags: ["risk", "validation", "sprint", "ast", "performance", "conflict"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-29T00:00:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  # ==================== 原理类 (KP-0012, KP-0024) ====================
+  - id: "KP-0012"
+    title: "为什么规范独立于代码：约束应描述行为而非实现"
+    type: rationale
+    status: confirmed
+    scope: "global"
+    file: "rationale/KP-0012-why-spec-not-code.md"
+    tags: ["rationale", "spec-design", "abstraction", "independent"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh
+
+  - id: "KP-0024"
+    title: "设计哲学：内部强制、外部兼容"
+    type: rationale
+    status: confirmed
+    scope: "global"
+    file: "rationale/KP-0024-design-philosophy.md"
+    tags: ["philosophy", "boundary", "internal", "external", "compatible"]
+    graph_nodes: []
+    related_specs: []
+    related_contracts: []
+    created_at: "2026-07-09T10:30:00Z"
+    verified_at: "2026-07-29T00:00:00Z"
+    freshness: fresh

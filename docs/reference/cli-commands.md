@@ -131,6 +131,18 @@ mumuspec worktree remove <name>         # 移除变更的 worktree
 mumuspec worktree list                  # 列出所有 MumuSpec 管理的 worktree
 ```
 
+## 安装与生态
+
+```bash
+mumuspec install catpaw --list                        # 列出可安装的 CatPaw 技能
+mumuspec install catpaw browser pdf --target user      # 安装技能（全局）
+mumuspec install catpaw pdf --target workspace --workspace-path <path>  # 安装到项目
+mumuspec install catpaw --search doc                   # 搜索可用技能
+mumuspec install catpaw --installed                    # 查看已安装技能
+mumuspec install claude                                # Claude Code 命令（coming soon）
+mumuspec install cursor                                # Cursor 命令（coming soon）
+```
+
 ## 知识层（代码图谱 + 知识管理）
 
 ### 代码图谱

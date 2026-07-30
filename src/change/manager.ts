@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, renameSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ensureFeedbackStructure, getChangeFeedbackDir } from '../feedback/manager.js';
 import type {
   ChangeState,
   ChangePhase,
@@ -171,6 +172,10 @@ export function createChange(
       open_questions_resolved: true,
       degraded: false,
     },
+    feedback_log: {
+      entries: [],
+      session_links: [],
+    },
   };
 
   // For hotfix/tweak, initialize single build layer
@@ -184,6 +189,12 @@ export function createChange(
 
   // Create initial artifacts
   createInitialArtifacts(projectRoot, changeName, workflow, affectedScopes);
+
+  // Ensure feedback directory structure exists
+  ensureFeedbackStructure(projectRoot);
+
+  // Create change-specific feedback directory
+  ensureDir(getChangeFeedbackDir(projectRoot, changeName));
 
   // Audit log
   appendAuditLog(getMumuSpecDir(projectRoot), {
@@ -591,4 +602,65 @@ function getNextPhaseHint(state: ChangeState): string | undefined {
     default:
       return undefined;
   }
+}
+
+// ========== Feedback Integration (0.12.1+) ==========
+
+/** Append a feedback reference to a change's feedback_log */
+export function appendFeedbackToChange(
+  projectRoot: string,
+  changeName: string,
+  feedbackId: string,
+  sessionId?: string,
+): void {
+  const state = loadChangeState(projectRoot, changeName);
+  if (!state) throw new Error(`Change not found: ${changeName}`);
+
+  if (!state.feedback_log) {
+    state.feedback_log = { entries: [], session_links: [] };
+  }
+
+  // Check if already linked
+  if (!state.feedback_log.entries.some(e => e.feedback_id === feedbackId)) {
+    state.feedback_log.entries.push({
+      feedback_id: feedbackId,
+      linked_at: now(),
+      acknowledged: false,
+    });
+  }
+
+  // Add session link if provided
+  if (sessionId && !state.feedback_log.session_links.some(
+    l => l.feedback_id === feedbackId && l.session_id === sessionId
+  )) {
+    state.feedback_log.session_links.push({
+      feedback_id: feedbackId,
+      session_id: sessionId,
+      linked_at: now(),
+    });
+  }
+
+  state.updated_at = now();
+  saveChangeState(projectRoot, changeName, state);
+}
+
+/** Get all feedback entries linked to a change */
+export function getChangeFeedbacks(projectRoot: string, changeName: string): Array<{
+  feedback_id: string;
+  linked_at: string;
+  acknowledged: boolean;
+  sessionId?: string;
+}> {
+  const state = loadChangeState(projectRoot, changeName);
+  if (!state?.feedback_log) return [];
+
+  return state.feedback_log.entries.map(entry => {
+    const link = state.feedback_log!.session_links.find(
+      l => l.feedback_id === entry.feedback_id
+    );
+    return {
+      ...entry,
+      sessionId: link?.session_id,
+    };
+  });
 }

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>局域网图片分享</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --primary: #3b82f6;
+      --text: #f1f5f9;
+      --text-mute: #94a3b8;
+      --danger: #ef4444;
+      --success: #22c55e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header { text-align: center; padding: 30px 0 20px; }
+    header h1 { font-size: 2rem; margin-bottom: 8px; }
+    header p { color: var(--text-mute); }
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      margin: 20px 0;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--card);
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--primary);
+      background: #1e3a5f;
+    }
+    .upload-zone input { display: none; }
+    .upload-zone .icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .upload-zone p { color: var(--text-mute); margin-top: 6px; }
+    .upload-zone .formats { font-size: 0.8rem; color: var(--text-mute); margin-top: 10px; }
+    .progress { margin-top: 16px; width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; display: none; }
+    .progress.active { display: block; }
+    .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 30px;
+    }
+    .image-card {
+      background: var(--card);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .image-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+    .image-card img { width: 100%; height: 180px; object-fit: cover; cursor: pointer; }
+    .image-card .info { padding: 10px 12px; }
+    .image-card .name { font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+    .image-card .meta { font-size: 0.75rem; color: var(--text-mute); display: flex; justify-content: space-between; }
+    .image-card .actions { padding: 0 12px 10px; display: flex; gap: 8px; }
+    .btn-small { padding: 4px 10px; border: none; border-radius: 6px; font-size: 0.75rem; cursor: pointer; opacity: 0.85; transition: opacity 0.2s; }
+    .btn-small:hover { opacity: 1; }
+    .btn-copy { background: var(--primary); color: white; }
+    .btn-delete { background: var(--danger); color: white; }
+    .btn-view { background: var(--border); color: var(--text); }
+    .empty { text-align: center; padding: 60px 20px; color: var(--text-mute); }
+    .empty .icon { font-size: 3rem; margin-bottom: 12px; }
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .lightbox.active { display: flex; }
+    .lightbox img { max-width: 95vw; max-height: 85vh; object-fit: contain; }
+    .lightbox .close-btn { position: absolute; top: 20px; right: 30px; font-size: 2rem; color: white; cursor: pointer; background: none; border: none; }
+    .lightbox .info-bar { margin-top: 16px; display: flex; gap: 16px; font-size: 0.85rem; color: var(--text-mute); }
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      padding: 10px 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      transition: transform 0.3s;
+      z-index: 2000;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🖼️ 局域网高清图片分享</h1>
+      <p>在局域网内无缝分享高清原图 · 零压缩 · 零运行时依赖</p>
+    </header>
+    <div class="upload-zone" id="uploadZone">
+      <div class="icon">☁️</div>
+      <strong>拖拽图片到这里，或点击选择文件</strong>
+      <p>支持批量上传高清原图，最大支持 50MB</p>
+      <p class="formats">JPG · PNG · GIF · WebP · BMP · SVG</p>
+      <input type="file" id="fileInput" multiple accept="image/*">
+      <div class="progress" id="progress">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </div>
+    <div id="imageGallery" class="gallery"></div>
+    <div class="empty" id="emptyState" style="display:none">
+      <div class="icon">🖼️</div>
+      <p>还没有图片，上传第一张吧！</p>
+    </div>
+  </div>
+  <div class="lightbox" id="lightbox">
+    <button class="close-btn" id="closeBtn">&times;</button>
+    <img id="lightboxImg" src="" alt="preview">
+    <div class="info-bar" id="lightboxInfo"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+    const uploadZone = document.getElementById("uploadZone");
+    const fileInput = document.getElementById("fileInput");
+    const progress = document.getElementById("progress");
+    const progressBar = document.getElementById("progressBar");
+    const gallery = document.getElementById("imageGallery");
+    const emptyState = document.getElementById("emptyState");
+    const lightbox = document.getElementById("lightbox");
+    const lightboxImg = document.getElementById("lightboxImg");
+    const lightboxInfo = document.getElementById("lightboxInfo");
+    const closeBtn = document.getElementById("closeBtn");
+    const toast = document.getElementById("toast");
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.className = "toast show";
+      setTimeout(() => { toast.className = "toast"; }, 2500);
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    uploadZone.addEventListener("click", () => fileInput.click());
+    uploadZone.addEventListener("dragover", (e) => { e.preventDefault(); uploadZone.classList.add("dragover"); });
+    uploadZone.addEventListener("dragleave", () => { uploadZone.classList.remove("dragover"); });
+    uploadZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove("dragover");
+      if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length) { uploadFiles(fileInput.files); fileInput.value = ""; }
+    });
+
+    async function uploadFiles(files) {
+      for (const file of files) {
+        progress.classList.add("active");
+        progressBar.style.width = "0%";
+        const formData = new FormData();
+        formData.append("image", file);
+        try {
+          progressBar.style.width = "50%";
+          const res = await fetch("/api/upload", { method: "POST", body: formData });
+          const data = await res.json();
+          progressBar.style.width = "100%";
+          if (data.success) showToast("✓ " + file.name + " 上传成功");
+          else showToast("✗ " + (data.error || "上传失败"));
+        } catch (err) {
+          showToast("✗ 网络错误: " + err.message);
+        }
+        setTimeout(() => { progress.classList.remove("active"); }, 500);
+      }
+      loadImages();
+    }
+
+    async function loadImages() {
+      const res = await fetch("/api/images");
+      const data = await res.json();
+      if (!data.images.length) {
+        gallery.style.display = "none";
+        emptyState.style.display = "block";
+        return;
+      }
+      gallery.style.display = "grid";
+      emptyState.style.display = "none";
+      gallery.innerHTML = "";
+      for (const img of data.images) {
+        const card = document.createElement("div");
+        card.className = "image-card";
+        const dims = img.width && img.height ? (img.width + "×" + img.height) : "未知";
+        card.innerHTML =
+          '<img src="/images/' + img.id + '" alt="' + img.originalName + '" loading="lazy">' +
+          '<div class="info">' +
+            '<div class="name" title="' + img.originalName + '">' + img.originalName + "</div>" +
+            '<div class="meta"><span>' + formatSize(img.size) + "</span><span>" + dims + "</span></div>" +
+          "</div>" +
+          '<div class="actions">' +
+            '<button class="btn-small btn-view" data-id="' + img.id + '">查看</button>' +
+            '<button class="btn-small btn-copy" data-url="' + location.origin + '/images/' + img.id + '">复制链接</button>' +
+            '<button class="btn-small btn-delete" data-id="' + img.id + '">删除</button>' +
+          "</div>";
+        gallery.appendChild(card);
+      }
+      gallery.querySelectorAll(".btn-view").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const id = btn.dataset.id;
+          const card = btn.closest(".image-card");
+          lightboxImg.src = "/images/" + id;
+          lightboxInfo.innerHTML = card.querySelector(".name").textContent + " · " + card.querySelector(".meta").textContent;
+          lightbox.classList.add("active");
+        })
+      );
+      gallery.querySelectorAll(".btn-copy").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          navigator.clipboard.writeText(btn.dataset.url)
+            .then(() => showToast("✓ 链接已复制"))
+            .catch(() => showToast("✗ 复制失败"));
+        })
+      );
+      gallery.querySelectorAll(".btn-delete").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          if (!confirm("确定删除？")) return;
+          await fetch("/api/images/" + btn.dataset.id, { method: "DELETE" });
+          loadImages();
+        })
+      );
+    }
+
+    closeBtn.addEventListener("click", () => { lightbox.classList.remove("active"); lightboxImg.src = ""; });
+    lightbox.addEventListener("click", (e) => { if (e.target === lightbox) { lightbox.classList.remove("active"); lightboxImg.src = ""; } });
+
+    loadImages();
+    setInterval(loadImages, 10000);
+  </script>
+</body>
+</html>

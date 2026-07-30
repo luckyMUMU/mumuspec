@@ -413,6 +413,19 @@ export interface ChangeState {
   accepted_deviations?: string[];
   deviation_reviewer?: string;
   deviation_approved_at?: string;
+  /** Feedback log — feedback IDs linked to this change + session links (0.12.1+) */
+  feedback_log?: {
+    entries: Array<{
+      feedback_id: string;
+      linked_at: string;
+      acknowledged: boolean;
+    }>;
+    session_links: Array<{
+      feedback_id: string;
+      session_id: string;
+      linked_at: string;
+    }>;
+  };
 }
 
 export interface RollbackHistoryEntry {
@@ -535,4 +548,70 @@ export interface AuditLogEntry {
   result: 'success' | 'fail';
   error?: string;
   [key: string]: unknown;
+}
+
+// ========== Feedback Types (0.12.1+) ==========
+
+/** User feedback type */
+export type FeedbackType = 'bug' | 'feature-request' | 'improvement' | 'question' | 'design-review';
+
+/** Feedback severity */
+export type FeedbackSeverity = 'critical' | 'major' | 'minor' | 'info';
+
+/** Feedback status */
+export type FeedbackStatus = 'open' | 'acknowledged' | 'in-progress' | 'resolved' | 'declined';
+
+/** User feedback entry (stored in .mumuspec/feedback/user/) */
+export interface UserFeedback {
+  id: string;
+  date: string;
+  submitter: string;
+  type: FeedbackType;
+  severity: FeedbackSeverity;
+  title: string;
+  changeName?: string;
+  sessionId?: string;
+  designRef?: string;
+  filePath: string;
+  body: string;
+  expected?: string;
+  actual?: string;
+  impact?: string;
+  suggestion?: string;
+  status: FeedbackStatus;
+}
+
+/** Compact feedback reference in index */
+export interface FeedbackEntry {
+  id: string;
+  date: string;
+  title: string;
+  type: string;
+  severity: string;
+  submitter: string;
+  changeName?: string;
+  sessionId?: string;
+  file: string;
+  status: string;
+}
+
+/** Bi-directional link between feedback and session summary */
+export interface FeedbackSessionLink {
+  feedback_id: string;
+  session_id: string;
+  linked_at: string;
+  /** Direction: 'feedback-to-session' (用户反馈引用 session) or 'session-to-feedback' (session 引用用户反馈) */
+  direction: 'feedback-to-session' | 'session-to-feedback';
+}
+
+/** Aggregated feedback log for a change (stored in change/feedback/feedback-log.yaml) */
+export interface FeedbackLog {
+  entries: Array<{
+    feedback_id: string;
+    linked_at: string;
+    acknowledged: boolean;
+    acknowledged_at?: string;
+  }>;
+  session_links: FeedbackSessionLink[];
+  last_updated: string;
 }

@@ -8,9 +8,17 @@ project_type: <greenfield|brownfield|legacy|demo>
 change_type: <feature|hotfix|tweak|build|archive>
 duration_minutes: <估算>
 outcome: success  # success | partial | failure | abandoned
+change_name: <关联的变更名称>
+feedback_ids:
+  - <关联的用户反馈 ID，如 FB-20260728-a1b2c3d4>
+  - <更多反馈 ID>
 ---
 
 # <会话简短标题,如 "为 API 层添加分页查询规范">
+
+> **Session ID**: `<session_id>`
+> **Agent**: `<agent> <agent_version>`
+> **结果**: `<outcome>`
 
 ## 1. 会话目标
 <本次 session 试图完成什么>
@@ -40,7 +48,7 @@ outcome: success  # success | partial | failure | abandoned
 - 阻断点 2: ...
 
 ## 5. 走捷径点 (重要)
-<哪些约束本应触发但没触发,或 Agent 主动绕开了的>
+<哪些约束本应触发但没有,或 Agent 主动绕开了的>
 
 - 期望触发但未触发: <约束 id + 场景>
 - 主动绕开: <约束 id + 理由 + 是否在 decisions.md 记录>
@@ -57,11 +65,11 @@ outcome: success  # success | partial | failure | abandoned
 - 盲区 1: <描述> → 建议补充到 <overview.md / constraint-strength.md / ...>
 - 盲区 2: ...
 
-## 8. 给改进的输入
-<基于本次会话,Agent 对 MumuSpec 改进的具体建议>
+## 8. 关联用户反馈
+<本次会话中提交或关联的用户反馈>
 
-- 建议 1: <改进点> → 优先级: <high|medium|low>
-- 建议 2: ...
+- FB-20260728-xxxxx: <标题>
+- <更多反馈>
 
 ## 9. 知识页面
 <本次会话生成或引用的 Knowledge Pages (KP-xxx)>

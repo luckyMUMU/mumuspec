@@ -28,3 +28,21 @@ export * from './knowledge/manager.js';
 
 // Rules
 export * from './rules/generator.js';
+
+// Install
+export * from './install/installer.js';
+
+// Hooks
+export * from './hooks/guard.js';
+
+// Eval
+export * from './eval/runner.js';
+
+// i18n
+export * from './i18n/locales.js';
+
+// Skill Authoring
+export * from './skill-authoring/protocol.js';
+
+// Bundle
+export * from './bundle/packager.js';

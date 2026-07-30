@@ -48,6 +48,54 @@ feedback/
 
 ## 3. 用户反馈流程
 
+### 3.0 CLI 快速提交（推荐）
+
+MumuSpec 0.12.1+ 提供 `mumuspec feedback submit` 命令，可在终端直接提交反馈：
+
+```bash
+# 提交一条简单反馈
+mumuspec feedback submit \
+  --title "init 命令在 Windows 下路径分隔符失败" \
+  --type bug \
+  --severity major \
+  --expected "init 应在 Windows 上正常工作" \
+  --actual "路径分隔符 \\ 导致文件写入失败" \
+  --impact "阻塞在 Windows 上使用 MumuSpec"
+
+# 关联变更与 session
+mumuspec feedback submit \
+  --title "设计文档缺少错误处理章节" \
+  --type design-review \
+  --change add-auth-module \
+  --session 20260728-auth-design \
+  --design ".mumuspec/changes/add-auth-module/design.md" \
+  --detail "建议在 Design 阶段增加错误处理流程..."
+
+# 从文件读取反馈内容（适合长反馈）
+mumuspec feedback submit \
+  --title "Phase Guard 触发时机不明确" \
+  --type improvement \
+  --file ./my-feedback.md
+```
+
+**可用参数**:
+
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| `--title` | ✓ | 反馈标题 |
+| `--type` | | 类型: `bug`, `feature-request`, `improvement`, `question`, `design-review` |
+| `--severity` | | 严重程度: `critical`, `major`, `minor`, `info` |
+| `--submitter` | | 提交者名称 |
+| `--change` | | 关联的变更名称 |
+| `--session` | | 关联的 session ID |
+| `--design` | | 关联的设计文档路径 |
+| `--expected` | | 期望行为 |
+| `--actual` | | 实际行为 |
+| `--detail` | | 详细说明 |
+| `--impact` | | 影响范围 |
+| `--suggestion` | | 改进建议 |
+| `--file` | | 从文件读取反馈正文 |
+
 ### 3.1 提交反馈
 
 用户可通过三种等价渠道提交反馈:
@@ -160,11 +208,67 @@ environment:
 | minor (体验问题) | 1 周 | 下一个 minor 版本 |
 | info (建议/问题) | 2 周 | 评估后纳入 roadmap |
 
+### 3.5 反馈查询与管理
+
+```bash
+# 列出所有反馈（默认按时间倒序）
+mumuspec feedback list
+
+# 按状态/类型/变更过滤
+mumuspec feedback list --status open
+mumuspec feedback list --type bug --change add-auth-module
+
+# 查看完整反馈内容
+mumuspec feedback show FB-20260728-a1b2c3d4
+
+# 更新反馈状态
+mumuspec feedback update-status FB-20260728-a1b2c3d4 --status acknowledged --reason "已确认，将在下个版本修复"
+
+# 查看与特定变更关联的反馈
+mumuspec change-feedbacks add-auth-module
+```
+
 ---
 
 ## 4. Session 摘要流程
 
-### 4.1 触发时机
+### 4.1 CLI 创建 Session 摘要（推荐）
+
+MumuSpec 0.12.1+ 提供 `mumuspec feedback session-summary` 命令：
+
+```bash
+# 创建 session 摘要并关联反馈
+mumuspec feedback session-summary \
+  --session-id 20260728-auth-design \
+  --title "Auth 模块设计阶段" \
+  --change-type feature \
+  --outcome success \
+  --agent catpaw \
+  --agent-version 2026.0726 \
+  --change add-auth-module \
+  --duration 45 \
+  --feedback FB-20260728-a1b2c3d4,FB-20260728-e5f6g7h8 \
+  --summary "完成了 Auth 模块的 Design 阶段，输出了 design.md 和 test-cases/" \
+  --patterns "Phase Guard 触发及时,TDD 红绿循环有效,认知框架需要更多轮次"
+```
+
+**可用参数**:
+
+| 参数 | 必需 | 说明 |
+|------|------|------|
+| `--session-id` | ✓ | 唯一 session ID |
+| `--title` | ✓ | Session 标题 |
+| `--change-type` | ✓ | 变更类型 |
+| `--outcome` | ✓ | 结果: `success`, `partial`, `failure`, `abandoned` |
+| `--agent` | | AI Agent 名称 |
+| `--agent-version` | | Agent 版本 |
+| `--change` | | 关联的变更名称 |
+| `--duration | | 持续时间（分钟） |
+| `--feedback` | | 逗号分隔的反馈 ID |
+| `--summary` | | 摘要内容 |
+| `--patterns` | | 逗号分隔的模式列表 |
+
+### 4.2 触发时机
 
 AI Agent (使用 MumuSpec 的 AI 编程助手) 在以下场景**主动生成** session 摘要:
 
@@ -173,9 +277,9 @@ AI Agent (使用 MumuSpec 的 AI 编程助手) 在以下场景**主动生成** s
 3. **执行了回退 (rollback)** 后 (记录失败模式)
 4. **Session 显式调用 `mumuspec session summary`** 时 (规划中,Phase 2)
 
-> 当前阶段 (Phase 1 MVP) Agent 可手动填写模板提交到 `feedback/sessions/`;Phase 2 起 CLI 提供自动化生成。
+> CLI 命令 `mumuspec feedback session-summary` 提供了自动化的 session 摘要创建，自动写入 `.mumuspec/feedback/sessions/` 并建立反馈关联。
 
-### 4.2 Session 摘要模板
+### 4.3 Session 摘要模板
 
 `feedback/_template/session-summary-template.md`:
 
@@ -265,7 +369,7 @@ outcome: success | partial | failure | abandoned
 AI Agent 完成 session
     │
     ├─ 自动填写 session-summary-template.md
-    │  (Phase 2 起由 mumuspec session summary 命令自动收集)
+    │  (使用 mumuspec feedback session-summary 命令自动收集)
     │
     ▼
 ┌──────────────────────────┐
@@ -289,6 +393,82 @@ AI Agent 完成 session
 │ - 同步 §改进计划          │
 └──────────────────────────┘
 ```
+
+### 4.4 反馈关联机制
+
+MumuSpec 0.12.1+ 建立了**反馈 ↔ Session** 的双向关联：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│  User Feedback (FB-YYYYMMDD-xxxx)                               │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ frontmatter:                                              │  │
+│  │   change_name: "add-auth-module"                          │  │
+│  │   session_id: "20260728-auth-design"                      │  │
+│  │   design_ref: ".mumuspec/changes/add-auth/.../design.md"  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│       │                                           ▲             │
+│       │ 写入关联引用                                  │ 反向追加    │
+│       ▼                                           │ 反馈链接    │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ Change State (.mumuspec/changes/add-auth-module/          │ │
+│  │                .mumuspec.yaml)                             │ │
+│  │  feedback_log:                                            │ │
+│  │    entries:                                               │ │
+│  │      - feedback_id: FB-20260728-xxxx                      │ │
+│  │        linked_at: "2026-07-28T..."                        │ │
+│  │        acknowledged: false                                │ │
+│  │    session_links:                                         │ │
+│  │      - feedback_id: FB-20260728-xxxx                      │ │
+│  │        session_id: "20260728-auth-design"                 │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│       │                                           ▲             │
+│       │ 关联引用                                     │ 反向引用    │
+│       ▼                                           │             │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ Session Summary (.mumuspec/feedback/sessions/             │ │
+│  │                   2026-07-28-auth-design.md)              │ │
+│  │  frontmatter:                                             │ │
+│  │    feedback_ids:                                          │ │
+│  │      - FB-20260728-xxxx                                   │ │
+│  │  正文末尾:                                                │ │
+│  │    <!-- feedback-link: FB-20260728-xxxx -->                │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**关联操作**:
+
+```bash
+# 1. 提交反馈时自动关联变更和 session
+mumuspec feedback submit \
+  --title "设计文档缺少错误处理" \
+  --change add-auth-module \
+  --session 20260728-auth-design
+
+# 2. 创建 session 摘要时反向关联反馈
+mumuspec feedback session-summary \
+  --session-id 20260728-auth-design \
+  --title "Auth 设计" \
+  --change-type feature \
+  --outcome success \
+  --feedback FB-20260728-a1b2c3d4
+
+# 3. 查看变更的所有关联反馈
+mumuspec change-feedbacks add-auth-module
+```
+
+**存储位置**:
+
+| 关联类型 | 存储位置 |
+|---------|---------|
+| 反馈文件 | `.mumuspec/feedback/user/<date>-<slug>.md` |
+| 反馈索引 | `.mumuspec/feedback/index.yaml` |
+| Session 索引 | `.mumuspec/feedback/sessions/.index.yaml` |
+| 变更反馈日志 | `.mumuspec/changes/<name>/feedback/` |
+| 变更状态 | `.mumuspec/changes/<name>/.mumuspec.yaml` → `feedback_log` |
 
 ---
 

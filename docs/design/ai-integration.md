@@ -22,23 +22,75 @@ graph TB
 
 ## 2. 原生 Skill 文件（阶段编排器）
 
-> **Phase 归属**: 自建 Skill 编排器与 Hyperplan 对抗式规划推迟到 Phase 5 实现。Phase 1-2 仅实现 Rules 文件生成,Phase 3 实现 Skill Bridge 兼容层。
+> **Phase 归属**: Skill 编排器在 Phase 2 实现（grill me 风格一站式入口），Hyperplan 对抗式规划推迟到 Phase 5 实现。Phase 1-2 实现 Rules 文件生成 + 编排器 Skill,Phase 3 实现 Skill Bridge 兼容层。
 
 MumuSpec 为每个变更阶段提供原生 Skill 文件，作为**阶段编排器**，负责在该阶段内分发到外部 Skill 生态：
 
 ```
 .mumuspec/skills/
-├── mumuspec-open.md          # 开启变更
-├── mumuspec-design.md        # 技术设计
-├── mumuspec-build.md         # 实现构建
-├── mumuspec-verify.md        # 验证
-├── mumuspec-archive.md       # 归档
-├── mumuspec-hotfix.md        # 热修复预设
-├── mumuspec-tweak.md         # 微调预设
+├── mumuspec.md               # 🎯 编排器入口（grill me 风格）
+├── phase-open.md             # Open 阶段：需求探索与变更初始化
+├── phase-design.md           # Design 阶段：技术设计与测试用例
+├── phase-build.md            # Build 阶段：TDD 实现与代码编写
+├── phase-verify.md           # Verify 阶段：验证与审查
+├── phase-archive.md          # Archive 阶段：归档与知识沉淀
+├── workflow.yaml             # 编排配置：阶段分发规则
 └── custom/                   # 项目自定义 Skill
 ```
 
 每个 Skill 文件包含：触发条件、前置条件检查、执行步骤（含外部 Skill 分发点）、阻塞点定义、退出条件、阶段守卫调用。
+
+### 编排器模式（grill me 风格）
+
+编排器 `mumuspec.md` 是 AI 开发者的**一站式入口**：
+
+1. **自动感知** — 检测当前项目是否初始化、是否有活跃变更、变更处于哪个阶段
+2. **智能推荐** — 根据当前状态推荐下一步操作
+3. **一键执行** — 单条命令启动完整工作流
+4. **阶段编排** — 自动分发给阶段 Skill 执行具体步骤
+
+```mermaid
+graph TD
+    Start["🎯 mumuspec 编排器启动"] --> CheckInit{"项目已初始化?"}
+    CheckInit -->|否| Init["mumuspec init"]
+    CheckInit -->|是| CheckActive{"有活跃变更?"}
+    
+    CheckActive -->|无| NewFlow["🆕 新变更流程"]
+    NewFlow --> AskType["询问变更类型"]
+    AskType --> Create["mumuspec new"]
+    Create --> PhaseOpen["分发: phase-open"]
+    
+    CheckActive -->|有| ContinueFlow["▶️ 继续当前变更"]
+    ContinueFlow --> ShowStatus["显示当前状态"]
+    ShowStatus --> Recommend["推荐下一步"]
+    Recommend --> Dispatch["分发到阶段 Skill"]
+    
+    Dispatch --> PhaseOpen
+    Dispatch --> PhaseDesign["分发: phase-design"]
+    Dispatch --> PhaseBuild["分发: phase-build"]
+    Dispatch --> PhaseVerify["分发: phase-verify"]
+    Dispatch --> PhaseArchive["分发: phase-archive"]
+```
+
+### 编排流程
+
+编排器启动时按以下顺序检测：
+
+1. **项目检测**：`mumuspec doctor` — 检查 .mumuspec/ 结构与配置文件
+2. **变更检测**：`mumuspec list` — 列出活跃变更
+3. **阶段检测**：`mumuspec status [name]` — 获取当前变更的详细状态
+4. **下一步推荐**：基于 Phase + Workflow 推荐
+
+### 阶段分发表
+
+| 当前 Phase | 编排器动作 | 目标 Skill |
+|-----------|-----------|-----------|
+| 无活跃变更 | 创建新变更 | `phase-open` |
+| `open` | 填写 proposal、定义 scope | `phase-open` |
+| `design` | 技术设计、认知框架、测试用例 | `phase-design` |
+| `build` | TDD 实现、代码编写 | `phase-build` |
+| `verify` | 验证、代码审查 | `phase-verify` |
+| `archive-in-progress` | 合并、知识提取、归档 | `phase-archive` |
 
 ## 3. 外部 Skill 生态兼容
 
@@ -235,6 +287,40 @@ Rules 文件内容包含：
 ## 7. CLI 命令
 
 提供命令行工具操作 MumuSpec 的所有功能：规范管理、变更管理、状态机回退、worktree 管理、代码图谱查询、知识管理、校验、文档生成、测试用例管理、契约管理、认知框架管理等。
+
+### mumuspec install — Skill 与命令安装
+
+为常见 AI 编程 agent 安装推荐技能与便捷命令：
+
+```bash
+# 列出可安装的 CatPaw 技能
+mumuspec install catpaw --list
+
+# 安装指定 CatPaw 技能（默认用户全局）
+mumuspec install catpaw browser pdf pptx
+
+# 安装到项目范围
+mumuspec install catpaw pdf --target workspace --workspace-path /path/to/project
+
+# 搜索可用技能
+mumuspec install catpaw --search doc
+
+# 查看已安装技能
+mumuspec install catpaw --installed
+```
+
+**可用 CatPaw 技能包**：
+
+| 包名 | 分类 | 描述 |
+|------|------|------|
+| browser | automation | 浏览器自动化：导航、表单、截图、数据提取 |
+| pdf | document | PDF 处理：提取文本/表格、合并/拆分、加密、OCR |
+| pptx | document | PowerPoint 处理：创建、读取、编辑演示文稿 |
+| xlsx | document | Excel 处理：创建、读取、编辑电子表格与公式 |
+| docx | document | Word 处理：创建、读取、编辑文档与样式 |
+| settings | productivity | CatPaw 设置管理：偏好、MCP、应用配置 |
+
+> 预留：`mumuspec install claude` 与 `mumuspec install cursor` 支持 Claude Code 与 Cursor 命令安装（coming soon）。
 
 ### mumuspec status — 变更状态概览
 

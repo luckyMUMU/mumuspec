@@ -1,6 +1,6 @@
 # MumuSpec — 全局概览
 
-> **版本**: 0.12.1-draft | **日期**: 2026-07-27 | **状态**: 设计草案
+> **版本**: 0.12.1-draft | **日期**: 2026-07-29 | **状态**: 设计草案
 
 ---
 
@@ -192,7 +192,43 @@ graph TB
 | **Guard Layer** | 自动化校验规范与代码一致性 | [设计](design/guard-layer.md) |
 | **AI Integration Layer** | 与 AI 编程工具的集成接口，兼容外部 Skill 生态 | [设计](design/ai-integration.md) |
 
-## 5. 参考项目借鉴
+## 4. AI 工作流编排（Skill 驱动）
+
+MumuSpec 采用 **grill me 风格**的一站式编排器，让 AI 通过 Skill 驱动完成开发工作流：
+
+```mermaid
+graph LR
+    MumuSpec["🎯 mumuspec 编排器<br/>（自动感知 + 阶段分发）"]
+    MumuSpec --> Open["phase-open<br/>需求探索 + 变更创建"]
+    MumuSpec --> Design["phase-design<br/>技术设计 + 测试用例"]
+    MumuSpec --> Build["phase-build<br/>TDD 实现 + 编码"]
+    MumuSpec --> Verify["phase-verify<br/>验证 + 审查"]
+    MumuSpec --> Archive["phase-archive<br/>合并 + 归档"]
+```
+
+### Skill 入口
+
+```
+.mumuspec/skills/
+├── mumuspec.md               # 🎯 编排器入口
+├── phase-open.md             # Open 阶段
+├── phase-design.md           # Design 阶段
+├── phase-build.md            # Build 阶段
+├── phase-verify.md           # Verify 阶段
+├── phase-archive.md          # Archive 阶段
+├── workflow.yaml             # 编排配置
+└── custom/                   # 项目自定义
+```
+
+### Agent 生态安装
+
+```bash
+# 安装 CatPaw 技能 + 命令
+mumuspec install catpaw browser pdf pptx
+mumuspec install catpaw --list
+```
+
+## 6. 参考项目借鉴
 
 | 项目 | 核心价值 | 借鉴点 |
 |------|---------|--------|
@@ -204,7 +240,7 @@ graph TB
 
 > 详细对比见 [附录：与参考项目对比](appendix/comparison.md)。
 
-## 6. 版本演进
+## 7. 版本演进
 
 | 版本 | 核心变更 |
 |------|---------|
@@ -221,8 +257,9 @@ graph TB
 | 0.11.0 | 2026-07-24 设计优化：Knowledge Layer 可插拔图谱后端、MVP 范围收敛、工作流规则可配置化、漂移检测分级、Skill Bridge 优先、AI 工具适配层、软假设降级方案、知识价值评估 |
 | 0.12.0 | 2026-07-27 动态约束强度系统：双维度（技术设计 + 需求目标）+ 三档强度（high/medium/low）+ 持久化 constraints.yaml（独立于代码的正反向约束）+ 工作流限制渐进式放开 |
 | 0.12.1 | 2026-07-27 constraints.yaml 树状层级化：按目录树分层存放与 spec.md 对齐；子层继承父层约束可收紧不可放宽；同 ID 冲突高层级优先；新增 `resolveConstraintTree()` 解析器与冲突审计 |
+| 0.12.2 | 2026-07-29 Skill 驱动工作流编排：grill me 风格一站式入口 (`.mumuspec/skills/`)、阶段 Skill 分发机制、AI 智能推荐；新增 `mumuspec install` 命令支持 CatPaw 技能安装 |
 
-## 7. 实施路线图概要
+## 8. 实施路线图概要
 
 | Phase | 目标 | 关键产出 |
 |-------|------|---------|
@@ -255,7 +292,7 @@ Phase 1 MVP SHALL 仅包含以下核心能力:
 
 新用户首次使用 MVP 时,30 分钟内可完成首个变更(hotfix 路径)。详细进度参见 [STATUS.md](./STATUS.md)。
 
-## 8. 开放问题
+## 9. 开放问题
 
 1. 多语言 AST 解析差异如何抽象？
 2. 规范继承冲突如何自动检测？
@@ -276,5 +313,5 @@ Phase 1 MVP SHALL 仅包含以下核心能力:
 |------|------|---------|
 | **Level 0** | 本文档（全局概览） · [STATUS.md](./STATUS.md)（项目状态：设计完备性与实现进度权威来源） | 所有人 |
 | **Level 1** | [规范层](design/spec-layer.md) · [契约层](design/contract-layer.md) · [变更层](design/change-layer.md) · [知识层](design/knowledge-layer.md) · [校验层](design/guard-layer.md) · [AI 集成层](design/ai-integration.md) | 实现者、使用者 |
-| **Level 2** | [CLI 命令](reference/cli-commands.md) · [MCP 工具](reference/mcp-tools.md) · [配置](reference/configuration.md) · [Phase Guard](reference/phase-guards.md) · [漂移检测](reference/drift-detection.md) · [认知框架](reference/cognitive-framework.md) · [Skill 生态](reference/skill-ecosystem.md) · [错误码](reference/error-codes.md) · [打包与部署](reference/packaging-deployment.md) · [发布策略](reference/release-strategy.md) · [反馈流程](reference/feedback-process.md) · [术语表](reference/glossary.md) | 操作者、CI 配置 |
+| **Level 2** | [CLI 命令](reference/cli-commands.md)（含 [安装与生态](reference/cli-commands.md#安装与生态）) · [MCP 工具](reference/mcp-tools.md) · [配置](reference/configuration.md) · [Phase Guard](reference/phase-guards.md) · [漂移检测](reference/drift-detection.md) · [认知框架](reference/cognitive-framework.md) · [Skill 生态](reference/skill-ecosystem.md) · [错误码](reference/error-codes.md) · [打包与部署](reference/packaging-deployment.md) · [发布策略](reference/release-strategy.md) · [反馈流程](reference/feedback-process.md) · [术语表](reference/glossary.md) | 操作者、CI 配置 |
 | **Level 3** | [目录结构](appendix/directory-structure.md) · [对比](appendix/comparison.md)（已精简为速查表） · [MumuSpec 生态对比与差距分析](appendix/mumuspec-ecosystem-comparison.md) · [AI Coding Agent 生态深度调研报告](appendix/ai-agent-ecosystem-research.md) · [路线图](appendix/roadmap.md) · [开放问题](appendix/open-questions.md) | 深入了解者 |

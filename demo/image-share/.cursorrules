@@ -1,0 +1,57 @@
+# Cursor Rules — LAN Image Share
+
+> Generated & maintained by MumuSpec. Project-specific overrides below.
+
+## Project Identity
+- Name: lan-image-share
+- Type: Node.js ESM TypeScript demo (zero runtime deps)
+
+## Absolute Prohibitions (Cursor SHALL NOT)
+
+1. **No runtime dependencies** — Do not add packages to `dependencies` in package.json
+2. **No filename-based paths** — Never use user-provided filenames for storage paths; always use UUID
+3. **No path traversal** — Validate all URL parameters before file operations
+4. **No skipped tests** — Do not add `.skip` to any test case
+5. **No sensitive data in logs** — Do not log file paths, internal errors structure to client responses
+
+## Architecture Rules
+
+- Server: `node:http` native module only (no Express/Koa/Fastify)
+- Storage: filesystem + JSON metadata (no database)
+- Parsing: handwritten multipart parser (no busboy/multer)
+- Frontend: vanilla HTML/CSS/JS (no framework)
+
+## Security Rules (Non-Lazy Domain)
+
+```typescript
+// CORRECT: UUID-based storage
+const filename = `${uuid}${extFromMime}`;
+const filePath = join(this.uploadDir, filename);
+
+// WRONG: Never do this
+const filePath = join(this.uploadDir, userInput);
+```
+
+```typescript
+// CORRECT: ID validation before file ops
+const record = this.cache?.find(img => img.id === id);
+if (!record) return 404;
+
+// WRONG: Don't trust URL params
+const filePath = join(dir, req.url.split('/').pop());
+```
+
+## File Organization
+
+- `src/types.ts` — shared interfaces and constants
+- `src/uploader.ts` — HTTP multipart parsing
+- `src/image-manager.ts` — CRUD + metadata persistence
+- `src/server.ts` — HTTP server and routing
+- `tests/*.test.ts` — mirrors src/ structure
+- `public/` — static assets only
+
+## Test Style
+
+- Use real HTTP requests, not mocked streams
+- Cover both success and failure paths
+- Assert on Buffers for binary data (compare base64 strings in JSON)

@@ -1,0 +1,6 @@
+# Sample drift detection eval
+name: sample-drift
+description: Check spec-code drift after changes
+type: drift
+expected:
+  maxWarnings: 5

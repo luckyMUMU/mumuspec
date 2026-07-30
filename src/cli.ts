@@ -32,7 +32,86 @@ import { resolveConstraintTree, STRENGTH_ACTION_MAP, WORKFLOW_RULE_DIMENSION, WO
 import { loadAllConstraints, resolveRootStrength } from './core/constraints-loader.js';
 import { resolveWorkflowRule } from './core/constraint-evaluator.js';
 
+// Feedback (0.12.1+)
+import { submitFeedback, listAllFeedbacks, getFeedbackContent, updateFeedbackStatus, createSessionSummary, ensureFeedbackStructure } from './feedback/manager.js';
+import { appendFeedbackToChange, getChangeFeedbacks } from './change/manager.js';
+
+// Install
+import {
+  getManifest,
+  installPackage,
+  searchPackages,
+  listInstalledCatpaw,
+  resolvePackage,
+  installCatpawMcp,
+  listInstalledMcp,
+  installCatpawCommand,
+  getMcpPresets,
+  getCommandPresets,
+  formatInstalledSkills,
+  type InstallResult,
+  type InstallMcpResult,
+  type InstallCommandResult,
+} from './install/installer.js';
+
+// Hooks
+import {
+  installHooks,
+  uninstallHooks,
+  getHookStatus,
+  runHook,
+  type HookInstallResult,
+  type HookRunResult,
+  type HookType,
+} from './hooks/guard.js';
+
+// Eval
+import {
+  loadScenario,
+  runScenario,
+  runAllEvals,
+  discoverScenarios,
+  initEvalsDir,
+  type EvalScenario,
+  type EvalReport,
+} from './eval/runner.js';
+
+// i18n
+import {
+  initLocale,
+  getLocale,
+  setLocale,
+  listAvailableLocales,
+  resolveSkillPath,
+  uiString,
+  t,
+  type Locale,
+} from './i18n/locales.js';
+
+// Skill Authoring
+import {
+  validateSkill,
+  listCustomSkills,
+  scaffoldSkill,
+  generateAuthoringProtocol,
+  AUTHORING_PROTOCOL,
+} from './skill-authoring/protocol.js';
+
+// Bundle
+import {
+  createBundle,
+  validateBundle,
+  installBundle,
+  publishBundle,
+  listBundles,
+  type BundleResult,
+  type PublishedInstallResult,
+} from './bundle/packager.js';
+
 const program = new Command();
+
+// Initialize locale before any command runs
+initLocale();
 
 program
   .name('mumuspec')
@@ -1367,5 +1446,1130 @@ constraintsCmd
       console.log('\n✓ No conflicts detected.');
     }
   });
+
+// === feedback ===
+const feedbackCmd = program.command('feedback').description('User feedback & session summary management');
+
+feedbackCmd
+  .command('submit')
+  .description('Submit user feedback with optional change/session linkage')
+  .requiredOption('--title <title>', 'feedback title')
+  .option('--type <type>', 'feedback type (bug|feature-request|improvement|question|design-review)', 'improvement')
+  .option('--severity <severity>', 'severity (critical|major|minor|info)', 'minor')
+  .option('--submitter <name>', 'submitter name', 'anonymous')
+  .option('--change <name>', 'associate with a change')
+  .option('--session <id>', 'associate with a session ID')
+  .option('--design <path>', 'reference to design doc path')
+  .option('--expected <text>', 'expected behavior')
+  .option('--actual <text>', 'actual behavior')
+  .option('--detail <text>', 'detailed description')
+  .option('--impact <text>', 'impact description')
+  .option('--suggestion <text>', 'improvement suggestion')
+  .option('--file <path>', 'read feedback body from file')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    // Read detail from file if specified
+    let detail = options.detail;
+    if (options.file) {
+      const { readFileSync } = require('node:fs') as typeof import('node:fs');
+      const filePath = resolve(options.file);
+      detail = readFileSync(filePath, 'utf8');
+    }
+
+    // Validate type
+    const validTypes = ['bug', 'feature-request', 'improvement', 'question', 'design-review'];
+    if (!validTypes.includes(options.type)) {
+      console.error(`Error: Invalid type '${options.type}'. Must be one of: ${validTypes.join(', ')}`);
+      process.exit(1);
+    }
+
+    // Validate change exists if specified
+    if (options.change) {
+      const state = loadChangeState(root, options.change);
+      if (!state) {
+        console.error(`Error: Change not found: ${options.change}`);
+        process.exit(1);
+      }
+    }
+
+    const result = submitFeedback(root, {
+      type: options.type as any,
+      severity: options.severity as any,
+      submitter: options.submitter,
+      changeName: options.change,
+      sessionId: options.session,
+      title: options.title,
+      expected: options.expected,
+      actual: options.actual,
+      detail,
+      impact: options.impact,
+      suggestion: options.suggestion,
+      designRef: options.design,
+    });
+
+    // Update change state if linked
+    if (options.change) {
+      appendFeedbackToChange(root, options.change, result.feedbackId, options.session);
+    }
+
+    console.log(`\n✓ Feedback submitted: ${result.feedbackId}`);
+    console.log(`  File: ${result.filePath}`);
+    if (options.change) console.log(`  Linked to change: ${options.change}`);
+    if (options.session) console.log(`  Linked to session: ${options.session}`);
+  });
+
+feedbackCmd
+  .command('list')
+  .description('List feedback entries')
+  .option('--status <status>', 'filter by status (open|acknowledged|in-progress|resolved|declined)')
+  .option('--type <type>', 'filter by type')
+  .option('--change <name>', 'filter by change name')
+  .option('--limit <n>', 'limit results', '20')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const feedbacks = listAllFeedbacks(root, {
+      status: options.status,
+      type: options.type,
+      changeName: options.change,
+    });
+
+    const limit = parseInt(options.limit);
+    const display = feedbacks.slice(0, limit);
+
+    if (display.length === 0) {
+      console.log('No feedback entries found.');
+      return;
+    }
+
+    console.log(`\n${display.length} feedback entry(s) (of ${feedbacks.length} total):\n`);
+    for (const f of display) {
+      const changeInfo = f.changeName ? ` [${f.changeName}]` : '';
+      console.log(`  [${f.status}] ${f.id} — ${f.title}${changeInfo}`);
+      console.log(`    Type: ${f.type} | Severity: ${f.severity} | Date: ${f.date} | By: ${f.submitter}`);
+      if (f.sessionId) console.log(`    Session: ${f.sessionId}`);
+    }
+  });
+
+feedbackCmd
+  .command('show')
+  .description('Show full feedback content')
+  .argument('<id>', 'feedback ID (e.g., FB-20260728-a1b2c3d4)')
+  .action((id) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const feedback = getFeedbackContent(root, id);
+    if (!feedback) {
+      console.error(`Error: Feedback not found: ${id}`);
+      process.exit(1);
+    }
+
+    console.log(`\n=== Feedback: ${feedback.id} ===`);
+    console.log(`Title: ${feedback.title}`);
+    console.log(`Type: ${feedback.type} | Severity: ${feedback.severity} | Status: ${feedback.status}`);
+    console.log(`Date: ${feedback.date} | Submitter: ${feedback.submitter}`);
+    if (feedback.changeName) console.log(`Change: ${feedback.changeName}`);
+    if (feedback.sessionId) console.log(`Session: ${feedback.sessionId}`);
+    if (feedback.designRef) console.log(`Design: ${feedback.designRef}`);
+    console.log(`\n---\n${feedback.body}`);
+  });
+
+feedbackCmd
+  .command('update-status')
+  .description('Update feedback status')
+  .argument('<id>', 'feedback ID')
+  .requiredOption('--status <status>', 'new status (open|acknowledged|in-progress|resolved|declined)')
+  .option('--reason <text>', 'reason for status change')
+  .action((id, options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const validStatuses = ['open', 'acknowledged', 'in-progress', 'resolved', 'declined'];
+    if (!validStatuses.includes(options.status)) {
+      console.error(`Error: Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+      process.exit(1);
+    }
+
+    updateFeedbackStatus(root, id, options.status as any, options.reason);
+    console.log(`✓ Feedback ${id} status updated to: ${options.status}`);
+  });
+
+feedbackCmd
+  .command('session-summary')
+  .description('Create a session summary with optional feedback linkage')
+  .requiredOption('--session-id <id>', 'unique session ID')
+  .requiredOption('--title <title>', 'session title')
+  .requiredOption('--change-type <type>', 'change type (feature|hotfix|tweak|build|archive)')
+  .requiredOption('--outcome <outcome>', 'session outcome (success|partial|failure|abandoned)')
+  .option('--agent <name>', 'AI agent name', 'unknown')
+  .option('--agent-version <ver>', 'AI agent version')
+  .option('--change <name>', 'associated change name')
+  .option('--duration <minutes>', 'session duration in minutes')
+  .option('--feedback <ids>', 'comma-separated feedback IDs to link')
+  .option('--summary <text>', 'session summary text')
+  .option('--patterns <items>', 'comma-separated patterns observed')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const feedbackIds = options.feedback
+      ? options.feedback.split(',').map((s: string) => s.trim())
+      : undefined;
+
+    const patterns = options.patterns
+      ? options.patterns.split(',').map((s: string) => s.trim())
+      : undefined;
+
+    const result = createSessionSummary(root, {
+      sessionId: options.sessionId,
+      agent: options.agent,
+      agentVersion: options.agentVersion,
+      changeType: options.changeType,
+      outcome: options.outcome as any,
+      title: options.title,
+      changeName: options.change,
+      durationMinutes: options.duration ? parseInt(options.duration) : undefined,
+      feedbackIds,
+      artifactSummary: options.summary,
+      patternsObserved: patterns,
+    });
+
+    console.log(`\n✓ Session summary created: ${result.sessionId}`);
+    console.log(`  File: ${result.filePath}`);
+    if (feedbackIds && feedbackIds.length > 0) {
+      console.log(`  Linked feedback: ${feedbackIds.join(', ')}`);
+    }
+  });
+
+// === feedback (change-scoped) ===
+program
+  .command('change-feedbacks')
+  .description('List feedbacks linked to a change')
+  .argument('<change>', 'change name')
+  .action((change) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const feedbacks = getChangeFeedbacks(root, change);
+
+    if (feedbacks.length === 0) {
+      console.log(`No feedback linked to change: ${change}`);
+      return;
+    }
+
+    console.log(`\n${feedbacks.length} feedback(s) linked to ${change}:\n`);
+    for (const f of feedbacks) {
+      const ack = f.acknowledged ? '✓' : '○';
+      console.log(`  [${ack}] ${f.feedback_id} (${f.linked_at?.split('T')[0] || ''})${f.sessionId ? ` [session: ${f.sessionId}]` : ''}`);
+    }
+  });
+
+// === install ===
+const installCmd = program
+  .command('install')
+  .description('Install skills, MCP servers, and commands for AI coding agents');
+
+// --- catpaw skill install ---
+installCmd
+  .command('catpaw')
+  .description('Install CatPaw skills from the curated manifest')
+  .argument('[packages...]', 'skill package names to install (e.g., browser pdf pptx)')
+  .option('--list', 'list available packages in the manifest')
+  .option('--installed', 'list currently installed skills via paw CLI')
+  .option('--target <scope>', 'installation target: user (global) or workspace (project)', 'user')
+  .option('--workspace-path <path>', 'workspace path (required when --target workspace)')
+  .option('--search <keyword>', 'search available packages by keyword')
+  .action((packages, options) => {
+
+    // --list: show available packages
+    if (options.list) {
+      const manifest = getManifest('catpaw');
+      if (manifest.length === 0) {
+        console.log('No packages available for CatPaw in the manifest.');
+        return;
+      }
+      console.log('\nAvailable CatPaw skill packages:\n');
+      const categories = new Map<string, typeof manifest>();
+      for (const pkg of manifest) {
+        const list = categories.get(pkg.category) || [];
+        list.push(pkg);
+        categories.set(pkg.category, list);
+      }
+      for (const [category, pkgs] of categories) {
+        console.log(`  [${category}]`);
+        for (const pkg of pkgs) {
+          const idStr = pkg.skillId ? ` (skill-id: ${pkg.skillId})` : ' (local)';
+          console.log(`    ${pkg.name}${idStr}`);
+          console.log(`      ${pkg.description}`);
+        }
+      }
+      console.log('\nUsage: mumuspec install catpaw <package1> [package2 ...]');
+      console.log('       mumuspec install catpaw mumuspec-workflow     # Install workflow orchestrator');
+      return;
+    }
+
+    // --search: search packages
+    if (options.search) {
+      const results = searchPackages('catpaw', options.search);
+      if (results.length === 0) {
+        console.log(`No packages match "${options.search}".`);
+        return;
+      }
+      console.log(`\n${results.length} package(s) matching "${options.search}":`);
+      for (const pkg of results) {
+        console.log(`  ${pkg.name} — ${pkg.description}`);
+      }
+      return;
+    }
+
+    // --installed: show currently installed skills
+    if (options.installed) {
+      const workspacePath = options.workspacePath || undefined;
+      const result = listInstalledCatpaw(workspacePath);
+      if (result.success) {
+        console.log('\nInstalled CatPaw Skills:');
+        console.log(formatInstalledSkills(result.skills));
+      } else {
+        console.error(`Error listing installed skills: ${result.error}`);
+        process.exit(1);
+      }
+      return;
+    }
+
+    // Install packages
+    if (!packages || packages.length === 0) {
+      console.error('Error: No packages specified. Use --list to see available packages, or provide package names.');
+      console.error('Example: mumuspec install catpaw browser pdf');
+      process.exit(1);
+    }
+
+    const target = options.target as 'user' | 'workspace';
+    const workspacePath = options.workspacePath;
+
+    // Validate workspace path requirement
+    if (target === 'workspace' && !workspacePath) {
+      console.error('Error: --workspace-path is required when --target workspace');
+      console.error('       Use --workspace-path . for current directory');
+      process.exit(1);
+    }
+
+    // For workspace installs, validate directory exists
+    if (workspacePath) {
+      if (!existsSync(workspacePath)) {
+        console.error(`Error: Workspace path does not exist: ${workspacePath}`);
+        process.exit(1);
+      }
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const pkgName of packages) {
+      const pkg = resolvePackage('catpaw', pkgName);
+      if (!pkg) {
+        console.error(`✗ Unknown package: "${pkgName}" (use --list to see available packages)`);
+        failCount++;
+        continue;
+      }
+
+      console.log(`\nInstalling "${pkgName}" (${pkg.description})...`);
+      const result = installPackage('catpaw', pkgName, target, workspacePath);
+
+      if (result.success) {
+        console.log(`✓ Installed "${pkgName}" [${target} scope]`);
+        if (result.path) console.log(`  Path: ${result.path}`);
+        successCount++;
+      } else {
+        console.error(`✗ Failed to install "${pkgName}": ${result.error}`);
+        failCount++;
+      }
+    }
+
+    console.log(`\nDone: ${successCount} succeeded, ${failCount} failed.`);
+    if (failCount > 0) process.exit(1);
+  });
+
+// --- catpaw MCP server install ---
+installCmd
+  .command('mcp')
+  .description('Install MCP server workspace configuration for CatPaw')
+  .argument('[server]', 'MCP server preset name (e.g., mumuspec)')
+  .option('--list', 'list available MCP server presets')
+  .option('--installed', 'list currently installed MCP configs in workspace')
+  .option('--workspace-path <path>', 'workspace path (required)', '.')
+  .action((server, options) => {
+    const workspacePath = options.workspacePath;
+
+    // --list: show available MCP presets
+    if (options.list) {
+      const presets = getMcpPresets();
+      console.log('\nAvailable MCP server presets:\n');
+      for (const preset of presets) {
+        console.log(`  ${preset.name}`);
+        console.log(`    ${preset.description}`);
+        console.log(`    Command: ${preset.config.command} ${(preset.config.args || []).join(' ')}`);
+      }
+      console.log('\nUsage: mumuspec install mcp <server-name> --workspace-path .');
+      return;
+    }
+
+    // --installed: show workspace MCP configs
+    if (options.installed) {
+      const result = listInstalledMcp(workspacePath);
+      console.log(`\nMCP servers in ${workspacePath}:`);
+      if (result.installed.length > 0) {
+        for (const name of result.installed) {
+          console.log(`  ✓ ${name}`);
+        }
+      } else {
+        console.log('  (none configured)');
+      }
+      if (result.available.length > 0) {
+        console.log(`\nAvailable presets: ${result.available.join(', ')}`);
+      }
+      return;
+    }
+
+    // Install MCP server config
+    if (!server) {
+      console.error('Error: No MCP server specified. Use --list to see presets.');
+      process.exit(1);
+    }
+
+    console.log(`Installing MCP server "${server}" to ${workspacePath}...`);
+    const result = installCatpawMcp(server, workspacePath);
+
+    if (result.success) {
+      console.log(`✓ Installed MCP config: ${result.serverName}`);
+      console.log(`  Config file: ${result.path}`);
+      console.log('\nRestart CatPaw or reload workspace to activate the MCP server.');
+    } else {
+      console.error(`✗ Failed to install MCP server: ${result.error}`);
+      process.exit(1);
+    }
+  });
+
+// --- catpaw command install ---
+installCmd
+  .command('command')
+  .description('Install CatPaw custom slash commands')
+  .argument('[command]', 'command preset name (e.g., /mumuspec)')
+  .option('--list', 'list available command presets')
+  .option('--target <scope>', 'installation target: user (global) or workspace (project)', 'user')
+  .option('--workspace-path <path>', 'workspace path (required when --target workspace)')
+  .action((command, options) => {
+    const target = options.target as 'user' | 'workspace';
+    const workspacePath = options.workspacePath;
+
+    if (target === 'workspace' && !workspacePath) {
+      console.error('Error: --workspace-path is required when --target workspace');
+      process.exit(1);
+    }
+
+    // --list: show available command presets
+    if (options.list) {
+      const presets = getCommandPresets();
+      console.log('\nAvailable command presets:\n');
+      for (const preset of presets) {
+        console.log(`  ${preset.name}`);
+        console.log(`    ${preset.description}`);
+      }
+      console.log('\nUsage: mumuspec install command <command-name>');
+      return;
+    }
+
+    // Install command
+    if (!command) {
+      console.error('Error: No command specified. Use --list to see presets.');
+      process.exit(1);
+    }
+
+    console.log(`Installing custom command "${command}" [${target} scope]...`);
+    const result = installCatpawCommand(command, target, workspacePath);
+
+    if (result.success) {
+      console.log(`✓ Installed command: ${result.commandName}`);
+      console.log(`  Command file: ${result.path}`);
+      console.log('\nUse /' + (result.commandName.startsWith('/') ? result.commandName.slice(1) : result.commandName) + ' in CatPaw to invoke.');
+    } else {
+      console.error(`✗ Failed to install command: ${result.error}`);
+      process.exit(1);
+    }
+  });
+
+// Future: Claude Code commands install
+installCmd
+  .command('claude')
+  .description('Install Claude Code slash commands (coming soon)')
+  .action(() => {
+    console.log('Claude Code command installer is coming soon.');
+    console.log('Supported agents: catpaw (now), claude, cursor (planned).');
+  });
+
+// Future: Cursor commands install
+installCmd
+  .command('cursor')
+  .description('Install Cursor IDE slash commands (coming soon)')
+  .action(() => {
+    console.log('Cursor IDE command installer is coming soon.');
+    console.log('Supported agents: catpaw (now), claude, cursor (planned).');
+  });
+
+// Default: show help when no subcommand given
+installCmd.action(() => {
+  console.log('Install skills, MCP servers, and commands for AI coding agents.\n');
+  console.log('Usage:');
+  console.log('  mumuspec install catpaw [packages...]       Install CatPaw skills');
+  console.log('  mumuspec install mcp <server>               Install MCP server config to workspace');
+  console.log('  mumuspec install command <name>             Install custom slash command');
+  console.log('  mumuspec install claude [commands...]       Install Claude Code commands (coming soon)');
+  console.log('  mumuspec install cursor [commands...]       Install Cursor commands (coming soon)');
+  console.log('\nCatPaw skill options:');
+  console.log('  --list                List available skill packages');
+  console.log('  --search <keyword>    Search packages by keyword');
+  console.log('  --installed           List currently installed skills');
+  console.log('  --target user         Install to user scope (default)');
+  console.log('  --target workspace    Install to workspace scope');
+  console.log('  --workspace-path      Path for workspace installation');
+  console.log('\nMCP options:');
+  console.log('  --list                List available MCP presets');
+  console.log('  --installed           Show workspace MCP configs');
+  console.log('  --workspace-path      Workspace path (default: current directory)');
+  console.log('\nCommand options:');
+  console.log('  --list                List available command presets');
+  console.log('  --target user         Install to user scope (default)');
+  console.log('  --target workspace    Install to workspace scope');
+});
+
+// === hooks (Native Hook Guard) ===
+const hooksCmd = program
+  .command('hooks')
+  .description('Manage git hooks that auto-trigger MumuSpec guard checks');
+
+hooksCmd
+  .command('install')
+  .description('Install Mumuspec guard hooks into .git/hooks/')
+  .option('--force', 'overwrite existing non-mumuspec hooks')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .action((options) => {
+    const results = installHooks({
+      workspacePath: options.workspacePath,
+      force: options.force,
+    });
+
+    let installed = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const r of results) {
+      if (r.success && !r.skipped) {
+        console.log(`✓ Installed: ${r.hook} → ${r.path}`);
+        installed++;
+      } else if (r.skipped) {
+        console.log(`⊘ Skipped: ${r.hook} — ${r.error}`);
+        skipped++;
+      } else {
+        console.error(`✗ Failed: ${r.hook} — ${r.error}`);
+        failed++;
+      }
+    }
+
+    console.log(`\nDone: ${installed} installed, ${skipped} skipped, ${failed} failed.`);
+    console.log('\nHooks will auto-run on git events (pre-commit, post-merge, etc.)');
+    if (failed > 0) process.exit(1);
+  });
+
+hooksCmd
+  .command('uninstall')
+  .description('Remove Mumuspec hooks from .git/hooks/')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .action((options) => {
+    const results = uninstallHooks(options.workspacePath);
+
+    for (const r of results) {
+      if (r.success && !r.skipped) {
+        console.log(`✓ Removed: ${r.hook}`);
+      } else if (r.skipped) {
+        console.log(`⊘ Skipped: ${r.hook} — ${r.error}`);
+      } else {
+        console.error(`✗ Failed: ${r.hook} — ${r.error}`);
+      }
+    }
+  });
+
+hooksCmd
+  .command('status')
+  .description('Show installed hooks status')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .action((options) => {
+    const status = getHookStatus(options.workspacePath);
+
+    console.log('\nMumuSpec Git Hooks Status:\n');
+    for (const hook of status.available) {
+      const isInstalled = status.installed.includes(hook);
+      console.log(`  ${isInstalled ? '✓' : '○'} ${hook}`);
+    }
+    console.log(`\n${status.installed.length}/${status.available.length} hooks installed.`);
+  });
+
+hooksCmd
+  .command('run <type>')
+  .description('Manually execute hook guard logic (pre-commit, post-merge, post-checkout, commit-msg)')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .option('--args <args>', 'additional args (comma-separated)', '')
+  .action((type, options) => {
+    const hookType = type as HookType;
+    const validHooks: HookType[] = ['pre-commit', 'post-merge', 'post-checkout', 'commit-msg'];
+
+    if (!validHooks.includes(hookType)) {
+      console.error(`Error: Unknown hook type "${type}". Valid: ${validHooks.join(', ')}`);
+      process.exit(1);
+    }
+
+    const extraArgs = options.args ? options.args.split(',') : [];
+    const result = runHook(hookType, extraArgs, options.workspacePath);
+
+    console.log(`\nHook: ${result.hook}`);
+
+    if (result.errors.length > 0) {
+      console.log('\nErrors:');
+      for (const e of result.errors) {
+        console.error(`  ✗ ${e}`);
+      }
+    }
+
+    if (result.warnings.length > 0) {
+      console.log('\nWarnings:');
+      for (const w of result.warnings) {
+        console.log(`  ⚠ ${w}`);
+      }
+    }
+
+    if (result.passed) {
+      console.log('\n✓ Hook passed.');
+    } else {
+      console.error(`\n✗ Hook failed with ${result.errors.length} error(s).`);
+      process.exit(1);
+    }
+  });
+
+hooksCmd.action(() => {
+  console.log('Manage git hooks for automatic MumuSpec guard checks.\n');
+  console.log('Usage:');
+  console.log('  mumuspec hooks install        Install hooks to .git/hooks/');
+  console.log('  mumuspec hooks uninstall      Remove hooks from .git/hooks/');
+  console.log('  mumuspec hooks status         Show hook installation status');
+  console.log('  mumuspec hooks run <type>     Manually run guard logic');
+  console.log('\nHook types: pre-commit, post-merge, post-checkout, commit-msg');
+});
+
+// === dashboard (Status Dashboard) ===
+program
+  .command('dashboard')
+  .description('Show real-time status dashboard for the active change')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .option('--json', 'output as JSON')
+  .action((options) => {
+    const root = findProjectRoot(options.workspacePath);
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project. Run `mumuspec init` first.');
+      process.exit(1);
+    }
+
+    const config = loadConfig(root);
+    const activeChange = getActiveChange(root);
+    const hookStatus = getHookStatus(options.workspacePath);
+    const knowledgePages = listKnowledgePages(root, config);
+    const stalePages = listStalePages(root, config);
+
+    // Build dashboard data
+    const dashboard = {
+      project: config.project.name,
+      projectRoot: root,
+      activeChange: null as {
+        name: string;
+        phase: string;
+        workflow: string;
+        summary: string;
+        hookInstalled: boolean;
+        knowledgePages: number;
+        stalePages: number;
+      } | null,
+      hooks: hookStatus,
+    };
+
+    if (activeChange) {
+      const summary = getChangeStatusSummary(root, activeChange);
+      dashboard.activeChange = {
+        name: activeChange,
+        phase: '',
+        workflow: '',
+        summary,
+        hookInstalled: hookStatus.installed.length > 0,
+        knowledgePages: knowledgePages.length,
+        stalePages: stalePages.length,
+      };
+
+      // Parse phase/workflow from state (extracted from summary)
+      try {
+        const stateData = loadChangeState(root, activeChange);
+        if (stateData) {
+          dashboard.activeChange.phase = stateData.phase;
+          dashboard.activeChange.workflow = stateData.workflow;
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    // JSON output
+    if (options.json) {
+      console.log(JSON.stringify(dashboard, null, 2));
+      return;
+    }
+
+    // Text output — panel style
+    console.log('');
+    console.log('╔══════════════════════════════════════════════════════════╗');
+    console.log('║                   MUMUSPEC DASHBOARD                     ║');
+    console.log('╚══════════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`Project: ${dashboard.project}`);
+    console.log(`Root:    ${dashboard.projectRoot}`);
+    console.log('');
+
+    // Active change section
+    if (dashboard.activeChange) {
+      const ac = dashboard.activeChange;
+      console.log('┌─── Active Change ───────────────────────────────────────┐');
+      console.log(`│ Name:     ${ac.name}`);
+      console.log(`│ Phase:    ${ac.phase}`);
+      console.log(`│ Workflow: ${ac.workflow}`);
+      console.log(`│ Hooks:    ${ac.hookInstalled ? '✓ installed' : '○ not installed'}`);
+      console.log(`│ Knowledge: ${ac.knowledgePages} pages (${ac.stalePages} stale)`);
+      console.log('└─────────────────────────────────────────────────────────┘');
+      console.log('');
+      console.log(ac.summary);
+    } else {
+      console.log('No active change.');
+      console.log('  Run `mumuspec new <name>` to create one.');
+    }
+
+    console.log('');
+
+    // Hooks section
+    console.log('─── Hooks ─────────────────────────────────────────────────');
+    for (const hook of hookStatus.available) {
+      const isInstalled = hookStatus.installed.includes(hook);
+      console.log(`  ${isInstalled ? '✓' : '○'} ${hook}`);
+    }
+
+    console.log('');
+  });
+
+// === eval (Lightweight Eval Framework) ===
+const evalCmd = program
+  .command('eval')
+  .description('Run eval scenarios to verify guard/skill behavior');
+
+evalCmd
+  .command('init')
+  .description('Initialize .mumuspec/evals/ with sample scenarios')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .action((options) => {
+    const root = findProjectRoot(options.workspacePath);
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project. Run `mumuspec init` first.');
+      process.exit(1);
+    }
+
+    const result = initEvalsDir(root);
+    if (result.errors.length > 0) {
+      for (const err of result.errors) {
+        console.error(`✗ ${err}`);
+      }
+      process.exit(1);
+    }
+
+    console.log('✓ Created eval scenarios:');
+    for (const f of result.created) {
+      console.log(`  ${f}`);
+    }
+    console.log('\nEdit the scenarios in .mumuspec/evals/ to match your project.');
+  });
+
+evalCmd
+  .command('list')
+  .description('List available eval scenarios')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .action((options) => {
+    const root = findProjectRoot(options.workspacePath);
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const scenarios = discoverScenarios(root);
+    if (scenarios.length === 0) {
+      console.log('No eval scenarios found.');
+      console.log('  Run `mumuspec eval init` to create sample scenarios.');
+      return;
+    }
+
+    console.log(`\n${scenarios.length} eval scenario(s):\n`);
+    for (const file of scenarios) {
+      try {
+        const s = loadScenario(file);
+        console.log(`  ${s.name}${s.description ? ` — ${s.description}` : ''}`);
+        console.log(`    Type: ${s.type}`);
+        console.log(`    File: ${file}`);
+      } catch (err) {
+        console.log(`  ✗ ${file} — ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  });
+
+evalCmd
+  .command('run [name]')
+  .description('Run eval scenarios (all or by name)')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .option('--verbose', 'show detailed output')
+  .action((name, options) => {
+    const root = findProjectRoot(options.workspacePath);
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    let report: EvalReport;
+
+    if (name) {
+      // Run specific scenario
+      const evalsDir = join(root, '.mumuspec', 'evals');
+      const filePath = join(evalsDir, `${name}.yaml`);
+
+      if (!existsSync(filePath)) {
+        console.error(`Error: Scenario "${name}" not found at ${filePath}`);
+        console.error('  Run `mumuspec eval list` to see available scenarios.');
+        process.exit(1);
+      }
+
+      const scenario = loadScenario(filePath);
+      const result = runScenario(scenario);
+      report = {
+        total: 1,
+        passed: result.passed ? 1 : 0,
+        failed: result.passed ? 0 : 1,
+        results: [result],
+        duration: result.duration,
+      };
+    } else {
+      // Run all
+      report = runAllEvals(root);
+    }
+
+    // Output
+    console.log(`\nEval Report: ${report.passed}/${report.total} passed (${report.duration}ms)\n`);
+
+    for (const result of report.results) {
+      const icon = result.passed ? '✓' : '✗';
+      console.log(`  ${icon} ${result.scenario}`);
+      if (options.verbose) {
+        console.log(`    ${result.details}`);
+      }
+      for (const err of result.errors) {
+        console.error(`    ✗ ${err}`);
+      }
+      for (const warn of result.warnings) {
+        console.log(`    ⚠ ${warn}`);
+      }
+    }
+
+    console.log('');
+
+    if (report.failed > 0) {
+      console.error(`✗ ${report.failed} scenario(s) failed.`);
+      process.exit(1);
+    } else if (report.total === 0) {
+      console.log('No eval scenarios found. Run `mumuspec eval init` to get started.');
+    } else {
+      console.log('✓ All scenarios passed.');
+    }
+  });
+
+evalCmd.action(() => {
+  console.log('Run eval scenarios to verify guard/skill behavior.\n');
+  console.log('Usage:');
+  console.log('  mumuspec eval init              Create sample eval scenarios');
+  console.log('  mumuspec eval list              List available scenarios');
+  console.log('  mumuspec eval run [name]        Run scenarios (all or specific)');
+  console.log('\nScenarios are YAML files in .mumuspec/evals/');
+  console.log('Each scenario verifies compliance/drift/guard behavior with assertions.');
+});
+
+// === i18n (Internationalization) ===
+program
+  .command('i18n')
+  .description('Manage internationalization and locale settings')
+  .command('status')
+  .description('Show current locale and available translations')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .action((options) => {
+    const root = options.workspacePath;
+    const locales = listAvailableLocales(root);
+    const current = getLocale();
+
+    console.log(`\nCurrent locale: ${current}`);
+    console.log(`Available: ${locales.join(', ')}`);
+    console.log(`\nSet locale: MUMUSPEC_LANG=en mumuspec ...`);
+    console.log(`Config: .mumuspec.yaml → language: "en"`);
+  });
+
+program
+  .command('skill-path')
+  .description('Resolve a skill file path with locale fallback')
+  .argument('<name>', 'skill name (e.g., mumuspec, phase-open)')
+  .action((name) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const path = resolveSkillPath(root, name);
+    if (path) {
+      console.log(path);
+    } else {
+      console.log(`No skill "${name}" found for locale "${getLocale()}"`);
+      process.exit(1);
+    }
+  });
+
+// === skill-authoring (Authoring Protocol) ===
+const authoringCmd = program
+  .command('skill')
+  .description('Skill authoring and management (MumuSpec Skill Protocol)');
+
+authoringCmd
+  .command('init')
+  .description('Initialize skill authoring protocol for the project')
+  .action(() => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const result = generateAuthoringProtocol(root);
+    if (result.created) {
+      console.log(`✓ Created: ${result.path}`);
+      console.log(`Protocol version: ${AUTHORING_PROTOCOL.version}`);
+      console.log(`Subagents: ${AUTHORING_PROTOCOL.subagents.join(', ')}`);
+    } else {
+      console.log(`Already exists: ${result.path}`);
+    }
+  });
+
+authoringCmd
+  .command('validate [name]')
+  .description('Validate a custom skill (or all skills)')
+  .action((name) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    if (name) {
+      const result = validateSkill(root, name);
+      console.log(`\nSkill: ${name}`);
+      console.log(`Valid: ${result.valid ? '✓' : '✗'}`);
+      for (const err of result.errors) {
+        console.error(`  ✗ ${err}`);
+      }
+      for (const warn of result.warnings) {
+        console.log(`  ⚠ ${warn}`);
+      }
+      if (!result.valid) process.exit(1);
+    } else {
+      const skills = listCustomSkills(root);
+      if (skills.length === 0) {
+        console.log('No custom skills found.');
+        return;
+      }
+      console.log(`\n${skills.length} custom skill(s):\n`);
+      for (const s of skills) {
+        console.log(`  ${s.valid ? '✓' : '✗'} ${s.name}`);
+        console.log(`    Path: ${s.path}`);
+      }
+    }
+  });
+
+authoringCmd
+  .command('scaffold <name>')
+  .description('Scaffold a new custom skill directory')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .option('--type <type>', 'skill type (phase, workflow, analysis, custom)', 'custom')
+  .option('--description <desc>', 'skill description')
+  .action((name, options) => {
+    const root = findProjectRoot(options.workspacePath);
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const result = scaffoldSkill(root, name, {
+      type: options.type,
+      description: options.description,
+    });
+
+    if (result.errors.length > 0) {
+      for (const err of result.errors) {
+        console.error(`✗ ${err}`);
+      }
+      process.exit(1);
+    }
+
+    console.log(`✓ Scaffolded skill "${name}":`);
+    for (const f of result.created) {
+      console.log(`  ${f}`);
+    }
+  });
+
+authoringCmd.action(() => {
+  console.log('Skill authoring and management.\n');
+  console.log('Usage:');
+  console.log('  mumuspec skill init           Initialize authoring protocol');
+  console.log('  mumuspec skill validate [name]  Validate skill(s)');
+  console.log('  mumuspec skill scaffold <name>  Create new skill scaffold');
+});
+
+// === bundle (Bundle/Publish Workflow) ===
+const bundleCmd = program
+  .command('bundle')
+  .description('Bundle, validate, and publish skills');
+
+bundleCmd
+  .command('create [name]')
+  .description('Create a bundle from .mumuspec/skills/')
+  .option('--workspace-path <path>', 'workspace path', '.')
+  .option('--include-evals', 'include eval scenarios')
+  .option('--include-authoring', 'include authoring protocol')
+  .action((name, options) => {
+    const root = findProjectRoot(options.workspacePath);
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const result = createBundle(root, {
+      name: name || undefined,
+      includeEvals: options.includeEvals,
+      includeAuthoring: options.includeAuthoring,
+    });
+
+    if (result.success) {
+      console.log(`✓ Bundle created: ${result.outputPath}`);
+      console.log(`  Files: ${result.fileCount}`);
+    } else {
+      console.error(`✗ Bundle failed: ${result.error}`);
+      process.exit(1);
+    }
+  });
+
+bundleCmd
+  .command('validate <path>')
+  .description('Validate a bundle manifest')
+  .action((bundlePath) => {
+    const result = validateBundle(bundlePath);
+    console.log(`\nBundle: ${bundlePath}`);
+    console.log(`Valid: ${result.valid ? '✓' : '✗'}`);
+    for (const err of result.errors) {
+      console.error(`  ✗ ${err}`);
+    }
+    if (!result.valid) process.exit(1);
+  });
+
+bundleCmd
+  .command('install <path>')
+  .description('Install a bundle into a workspace')
+  .option('--target <path>', 'target workspace', '.')
+  .action((bundlePath, options) => {
+    const result = installBundle(bundlePath, options.target);
+    if (result.success) {
+      console.log(`✓ Installed ${result.installed.length} file(s)`);
+    } else {
+      console.error(`✗ Install failed: ${result.error}`);
+      process.exit(1);
+    }
+  });
+
+bundleCmd
+  .command('list')
+  .description('List available bundles in the project')
+  .action(() => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const bundles = listBundles(root);
+    if (bundles.length === 0) {
+      console.log('No bundles found.');
+      return;
+    }
+
+    console.log(`\n${bundles.length} bundle(s):`);
+    for (const b of bundles) {
+      console.log(`  ${b}`);
+    }
+  });
+
+bundleCmd
+  .command('publish <path>')
+  .description('Publish a bundle (placeholder for registry integration)')
+  .action((bundlePath) => {
+    const result = publishBundle(bundlePath);
+    if (result.success) {
+      console.log(`✓ Bundle ready for publishing: ${result.bundlePath}`);
+      console.log('  (Registry integration coming soon)');
+    } else {
+      console.error(`✗ Publish failed: ${result.error}`);
+      process.exit(1);
+    }
+  });
+
+bundleCmd.action(() => {
+  console.log('Bundle, validate, and publish skills.\n');
+  console.log('Usage:');
+  console.log('  mumuspec bundle create [name]   Create skill bundle');
+  console.log('  mumuspec bundle validate <path> Validate bundle');
+  console.log('  mumuspec bundle install <path>  Install bundle to workspace');
+  console.log('  mumuspec bundle list            List project bundles');
+  console.log('  mumuspec bundle publish <path>  Publish bundle');
+});
 
 program.parse();
