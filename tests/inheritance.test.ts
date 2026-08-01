@@ -50,7 +50,7 @@ last_updated: "2026-01-01"
 ## Requirement: Transport
 
 ### SHALL
-- 必须使用 HTTP
+- 必须使用 HTTP 协议进行数据传输
 `;
 
     const conflictChildContent = `---
@@ -62,7 +62,7 @@ last_updated: "2026-01-01"
 ## Requirement: Transport
 
 ### SHALL NOT
-- 禁止使用 HTTP
+- 禁止使用 HTTP 协议进行明文通信
 `;
 
     const parent = parseSpecFile(conflictParentContent, '/parent/spec.md');

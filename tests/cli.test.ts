@@ -41,7 +41,8 @@ describe('CLI end-to-end', () => {
       cwd: projectDir,
     });
 
-    expect(output).toContain('MumuSpec initialized');
+    expect(output).toContain('Initialized Successfully');
+    expect(output).toContain('Project Analysis');
 
     // Check files were created
     expect(existsSync(join(projectDir, '.mumuspec', 'config.yaml'))).toBe(true);
@@ -53,9 +54,15 @@ describe('CLI end-to-end', () => {
     expect(existsSync(join(projectDir, '.cursorrules'))).toBe(true);
     expect(existsSync(join(projectDir, 'AGENTS.md'))).toBe(true);
 
-    // Check spec.md has Ponytail constraints
+    // Check knowledge base was populated
+    expect(existsSync(join(projectDir, '.mumuspec', 'knowledge', '_index.yaml'))).toBe(true);
+    expect(existsSync(join(projectDir, '.mumuspec', 'knowledge', 'decisions'))).toBe(true);
+    expect(existsSync(join(projectDir, '.mumuspec', 'knowledge', 'lessons'))).toBe(true);
+
+    // Check spec.md has Ponytail constraints and auto-generated content
     const specContent = readFileSync(join(projectDir, '.mumuspec', 'spec.md'), 'utf8');
     expect(specContent).toContain('Ponytail');
+    expect(specContent).toContain('Project Structure Standards');
   });
 
   it('should run doctor after init', () => {
@@ -126,14 +133,15 @@ describe('CLI end-to-end', () => {
       cwd: projectDir,
     });
 
-    // Transition to design
-    const output = execSync(`node "${cliPath}" state transition feature-1 design`, {
+    // Transition to design (requires --confirm for blocking point BP-3)
+    const output = execSync(`node "${cliPath}" state transition feature-1 design --confirm`, {
       encoding: 'utf8',
       cwd: projectDir,
     });
 
     expect(output).toContain('Transitioned');
     expect(output).toContain('open → design');
+    expect(output).toContain('BP-3');
   });
 
   it('should validate specs', () => {
@@ -262,7 +270,8 @@ describe('CLI end-to-end', () => {
     expect(verifyOutput).toContain('verified');
   });
 
-  it('should list knowledge pages (empty)', () => {
+  it('should list knowledge pages (auto-populated after init)', () => {
+    // Init populates the knowledge base with default pages
     execSync(`node "${cliPath}" init "${projectDir}" --name test-project`, {
       cwd: projectDir,
     });
@@ -272,7 +281,9 @@ describe('CLI end-to-end', () => {
       cwd: projectDir,
     });
 
-    expect(output).toContain('No knowledge pages');
+    // After init, knowledge base contains auto-generated pages
+    expect(output).toContain('KP-');
+    expect(output).toContain('Project type');
   });
 
   it('should show install help', () => {
@@ -327,14 +338,16 @@ describe('CLI end-to-end', () => {
     }).toThrow();
   });
 
-  it('should show coming soon for claude agent', () => {
-    const output = execSync(`node "${cliPath}" install claude`, { encoding: 'utf8' });
-    expect(output).toContain('coming soon');
+  it('should require --list for claude agent install', () => {
+    expect(() => {
+      execSync(`node "${cliPath}" install claude`, { stdio: 'pipe' });
+    }).toThrow();
   });
 
-  it('should show coming soon for cursor agent', () => {
-    const output = execSync(`node "${cliPath}" install cursor`, { encoding: 'utf8' });
-    expect(output).toContain('coming soon');
+  it('should require --list for cursor agent install', () => {
+    expect(() => {
+      execSync(`node "${cliPath}" install cursor`, { stdio: 'pipe' });
+    }).toThrow();
   });
 
   // === MCP install tests ===

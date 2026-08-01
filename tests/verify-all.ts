@@ -178,9 +178,10 @@ try {
   const nextOut = run('state next feature-x', projectDir);
   check('state next 建议下一阶段', nextOut.includes('design'));
 
-  // State transition
-  const transOut = run('state transition feature-x design', projectDir);
+  // State transition (requires --confirm for blocking point BP-3)
+  const transOut = run('state transition feature-x design --confirm', projectDir);
   check('state transition open→design 成功', transOut.includes('open → design'));
+  check('state transition 显示 BP-3 阻塞点通过', transOut.includes('BP-3'));
 
   // Verify transition
   const statusAfter = run('status feature-x', projectDir);
