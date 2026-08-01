@@ -5,6 +5,29 @@ import type {
   GuardResult,
 } from '../core/types.js';
 
+/**
+ * Blocking point definitions.
+ * Each transition that requires user confirmation is listed here
+ * with its BP code and description.
+ */
+const BLOCKING_TRANSITIONS: Record<string, { bp: string; description: string; required: boolean }> = {
+  'open→design': { bp: 'BP-3', description: '工件审查与确认', required: true },
+  'open→build': { bp: 'BP-3', description: '工件审查与确认（预设路径）', required: true },
+  'design→build': { bp: 'BP-4', description: '设计方案确认', required: true },
+  'build→verify': { bp: 'BP-9', description: '计划就绪暂停确认', required: false },
+  'verify→archive-in-progress': { bp: 'BP-17', description: '归档最终确认', required: true },
+};
+
+/** Check if a transition requires user confirmation */
+export function requiresUserConfirmation(from: ChangePhase, to: ChangePhase): { required: boolean; bp: string; description: string } {
+  const key = `${from}→${to}`;
+  const info = BLOCKING_TRANSITIONS[key];
+  if (info) {
+    return { required: info.required, bp: info.bp, description: info.description };
+  }
+  return { required: false, bp: '', description: '' };
+}
+
 /** Valid state transitions */
 const FORWARD_TRANSITIONS: Record<ChangePhase, ChangePhase[]> = {
   'open': ['design', 'build'], // build for hotfix/tweak
@@ -92,11 +115,24 @@ export function executeTransition(
   to: ChangePhase,
   options?: { userConfirmed?: boolean; reason?: string },
 ): { state: ChangeState; success: boolean; error?: string } {
-  if (!canTransition(state.phase, to)) {
+  // Check if already in target phase (clearer error message)
+  if (state.phase === to) {
     return {
       state,
       success: false,
-      error: `E-CHANGE-006: Invalid transition from ${state.phase} to ${to}`,
+      error: `E-CHANGE-007: Already in phase '${to}', no transition needed`,
+    };
+  }
+
+  if (!canTransition(state.phase, to)) {
+    const validTargets = getValidTransitions(state.phase);
+    const hint = validTargets.length > 0
+      ? `valid targets from ${state.phase}: [${validTargets.join(', ')}]`
+      : `${state.phase} is terminal`;
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: Invalid transition from ${state.phase} to ${to} (${hint})`,
     };
   }
 

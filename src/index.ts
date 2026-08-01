@@ -7,6 +7,9 @@ export * from './core/config.js';
 export * from './core/utils.js';
 export * from './core/constraint-evaluator.js';
 export * from './core/constraints-loader.js';
+export * from './core/project-analyzer.js';
+export * from './core/init-generator.js';
+export * from './core/doc-importer.js';
 
 // Spec Layer
 export * from './spec/parser.js';

@@ -37,6 +37,13 @@ export function writeText(filePath: string, content: string): void {
   writeFileSync(filePath, content, 'utf8');
 }
 
+/** Move a file from source to destination, creating directories as needed */
+export function moveFile(srcPath: string, destPath: string): void {
+  ensureDir(dirname(destPath));
+  const { renameSync } = require('node:fs');
+  renameSync(srcPath, destPath);
+}
+
 /** Ensure a directory exists */
 export function ensureDir(dirPath: string): void {
   if (!existsSync(dirPath)) {

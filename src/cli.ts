@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, statSync, readFileSync } from 'node:fs';
 import { join, resolve, relative } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import type { MumuSpecConfig } from './core/config.js';
 import { loadConfig, saveConfig, getDefaultConfig, isInitialized } from './core/config.js';
 import { findProjectRoot, getMumuSpecDir, ensureDir, writeText, readText, writeYaml, now, appendAuditLog, normalizePath } from './core/utils.js';
@@ -15,7 +16,7 @@ import { injectPonytail, getPonytailRequirement, PONYTAIL_LADDER, NON_LAZY_DOMAI
 
 // Change
 import { createChange, loadChangeState, saveChangeState, listActiveChanges, listArchivedChanges, getActiveChange, discardChange, archiveChange, initTestCases, lockTestCases, verifyTestCases, initBuildLayers, updateBuildLayerStatus, appendDecision, getChangeStatusSummary, getChangeDir } from './change/manager.js';
-import { canTransition, executeTransition, executeRollback, getValidTransitions, getNextPhase, getWorkflowPhases, isTerminal } from './change/state-machine.js';
+import { canTransition, executeTransition, executeRollback, getValidTransitions, getNextPhase, getWorkflowPhases, isTerminal, requiresUserConfirmation } from './change/state-machine.js';
 
 // Guard
 import { checkCompliance, detectDrift } from './guard/checker.js';
@@ -25,7 +26,7 @@ import { runPhaseGuard } from './guard/phase-guard.js';
 import { generateRulesFiles } from './rules/generator.js';
 
 // Knowledge
-import { listKnowledgePages, getKnowledgePage, searchKnowledge, getKnowledgeContext, createKnowledgePage, verifyKnowledge, listStalePages, supersedeKnowledge, loadPageIndex, rebuildPageIndex } from './knowledge/manager.js';
+import { listKnowledgePages, getKnowledgePage, searchKnowledge, getKnowledgeContext, createKnowledgePage, verifyKnowledge, listStalePages, supersedeKnowledge, loadPageIndex, rebuildPageIndex, analyzeImpact, generateOnboardingPath, analyzeCoverage, readReverseIndex, answerQuery, getDashboardData, organizeKnowledge } from './knowledge/manager.js';
 
 // Constraints (0.12.1+)
 import { resolveConstraintTree, STRENGTH_ACTION_MAP, WORKFLOW_RULE_DIMENSION, WORKFLOW_STRENGTH_MATRIX } from './core/config.js';
@@ -49,10 +50,21 @@ import {
   getMcpPresets,
   getCommandPresets,
   formatInstalledSkills,
+  type AgentType,
+  type InstallMode,
   type InstallResult,
   type InstallMcpResult,
   type InstallCommandResult,
 } from './install/installer.js';
+
+// Project Analysis & Init Generation (0.13.0+)
+import { analyzeProject, type ProjectAnalysis } from './core/project-analyzer.js';
+import { generateInitialSpec, generateInitialDesign, scaffoldKnowledgeBase, generateFrontendDesignMd, isFrontendProject, generateEnvKnowledgePage } from './core/init-generator.js';
+// Document & Spec Importer (0.13.0+)
+import { detectExistingDocuments, detectThirdPartySpecs, importExistingDocuments, importThirdPartySpecs, generateImportIndex, type DetectedDocument, type DetectedSpec } from './core/doc-importer.js';
+
+// Environment Detection (0.13.0+)
+import { detectEnvironment, saveEnvSpec, validateEnv, diffEnv } from './core/env-detector.js';
 
 // Hooks
 import {
@@ -116,17 +128,19 @@ initLocale();
 program
   .name('mumuspec')
   .description('MumuSpec — Tree-distributed dual-constraint specification system')
-  .version('0.12.1-alpha.0');
+  .version('0.13.0-alpha.2');
 
 // === init ===
 program
   .command('init')
-  .description('Initialize MumuSpec in the current or specified directory')
+  .description('Initialize MumuSpec with project analysis, auto-generated specs, design, and knowledge base')
   .argument('[path]', 'project path', '.')
   .option('--name <name>', 'project name')
   .option('--language <lang>', 'primary language', 'typescript')
   .option('--framework <fw>', 'framework')
-  .action((path, options) => {
+  .option('--skip-analysis', 'skip project analysis and use defaults')
+  .option('--no-import', 'skip importing existing documents and third-party specs')
+  .action(async (path, options) => {
     const projectRoot = resolve(path);
 
     if (isInitialized(projectRoot)) {
@@ -137,73 +151,223 @@ program
     const mumuDir = getMumuSpecDir(projectRoot);
     ensureDir(mumuDir);
 
-    // Create config
-    const config = getDefaultConfig(options.name || projectRoot.split(/[\\/]/).pop() || 'my-project');
+    // ── Step 1: Project Analysis ──
+    let analysis: ProjectAnalysis | undefined;
+    if (!options.skipAnalysis) {
+      try {
+        analysis = analyzeProject(projectRoot);
+        console.log('');
+        console.log('╔══════════════════════════════════════════════════════════╗');
+        console.log('║  MumuSpec Project Analysis                              ║');
+        console.log('╚══════════════════════════════════════════════════════════╝');
+        console.log(`  Type:       ${analysis.projectType}`);
+        console.log(`  Framework:   ${analysis.framework !== 'none' ? analysis.framework : 'none detected'}`);
+        console.log(`  Language:   ${analysis.language}${analysis.hasTypeScript ? ' (strict)' : ''}`);
+        console.log(`  CSS:         ${getCssSummary(analysis)}`);
+        console.log(`  Testing:    ${analysis.hasTests ? 'Yes' : 'No'}`);
+        console.log(`  Source:      ${analysis.sourceDirs.join(', ') || 'none'}`);
+        console.log(`  Files (est): ${analysis.totalFiles}`);
+        console.log('');
+      } catch (err) {
+        console.warn(`⚠ Project analysis failed: ${(err as Error).message}`);
+        console.warn('  Falling back to defaults. Use --skip-analysis to suppress this warning.');
+      }
+    }
+
+    // ── Step 2: Create config ──
+    const projectName = options.name || projectRoot.split(/[\\/]/).pop() || 'my-project';
+    const config = getDefaultConfig(projectName);
     config.project.language = options.language;
     if (options.framework) config.project.framework = options.framework;
+    if (analysis) {
+      config.project.language = analysis.language;
+      if (analysis.framework !== 'none') {
+        config.project.framework = analysis.framework;
+      }
+    }
     saveConfig(projectRoot, config);
 
-    // Create root spec.md
-    const specPath = join(mumuDir, 'spec.md');
-    let specContent = createDefaultSpecContent(0, '.');
-
-    // Inject Ponytail constraints if enabled
-    if (config.ponytail.auto_inject_to_root) {
-      const spec = parseSpecFile(specContent, specPath);
-      const injected = injectPonytail(spec);
-      specContent = serializeSpecFile(injected);
+    // ── Step 3: Create root spec.md (analysis-aware) ──
+    let specContent: string;
+    if (analysis) {
+      specContent = generateInitialSpec(analysis);
+      // Inject Ponytail on top of auto-generated spec if enabled
+      if (config.ponytail.auto_inject_to_root) {
+        const specPath = join(mumuDir, 'spec.md');
+        // Write initial version first, then parse + inject + overwrite
+        writeText(specPath, specContent);
+        const spec = parseSpecFile(specContent, specPath);
+        const injected = injectPonytail(spec);
+        specContent = serializeSpecFile(injected);
+        writeText(specPath, specContent);
+      }
+    } else {
+      specContent = createDefaultSpecContent(0, '.');
+      if (config.ponytail.auto_inject_to_root) {
+        const specPath = join(mumuDir, 'spec.md');
+        const spec = parseSpecFile(specContent, specPath);
+        const injected = injectPonytail(spec);
+        specContent = serializeSpecFile(injected);
+      }
     }
+    const specPath = join(mumuDir, 'spec.md');
     writeText(specPath, specContent);
 
-    // Create root design.md
+    // ── Step 4: Create root design.md (analysis-aware) ──
     const designPath = join(mumuDir, 'design.md');
-    writeText(designPath, `# Design: ${config.project.name}\n\n## Architecture Overview\n[Describe the overall architecture]\n\n## Key Decisions\n[Document key architectural decisions]\n`);
+    const designContent = analysis ? generateInitialDesign(analysis) : `# Design: ${config.project.name}\n\n## Architecture Overview\n[Describe the overall architecture]\n\n## Key Decisions\n[Document key architectural decisions]\n`;
+    writeText(designPath, designContent);
 
-    // Create root prohibitions.md
+    // ── Step 5: Create root prohibitions.md ──
     const prohibitionsPath = join(mumuDir, 'prohibitions.md');
     writeText(prohibitionsPath, '# Global Prohibitions\n\n## All Modules\n(Add global SHALL NOT constraints here)\n');
 
-    // Create index.yaml
+    // ── Step 6: Create index.yaml (with detected modules) ──
     const indexPath = join(mumuDir, 'index.yaml');
-    writeYaml(indexPath, { scope: '.', layer: 0, children: [] });
+    const indexChildren = (analysis?.sourceDirs || []).map((dir) => ({
+      name: dir,
+      path: `${dir}`,
+      summary: getDirectorySummary(dir, analysis!.projectType),
+      shallNotCount: 0,
+    }));
+    writeYaml(indexPath, {
+      scope: '.',
+      layer: 0,
+      ...(analysis ? { last_updated: now().split('T')[0] } : {}),
+      children: indexChildren,
+    });
 
-    // Create changes directory
+    // ── Step 7: Create standard directories ──
     ensureDir(join(mumuDir, 'changes'));
     ensureDir(join(mumuDir, 'changes', 'archive'));
-
-    // Create knowledge directory
     ensureDir(join(mumuDir, 'knowledge'));
-
-    // Create contracts directory
     ensureDir(join(mumuDir, 'contracts', 'external'));
     ensureDir(join(mumuDir, 'contracts', 'outbound'));
     ensureDir(join(mumuDir, 'contracts', 'schemas'));
-
-    // Create skills directory
     ensureDir(join(mumuDir, 'skills'));
 
-    // Generate Rules files
+    // ── Step 8: Initialize knowledge base with auto-generated pages ──
+    let knowledgeFiles: string[] = [];
+    if (analysis) {
+      const result = scaffoldKnowledgeBase(projectRoot, config, analysis);
+      knowledgeFiles = result.created;
+
+      // ── Step 8.5: Environment detection ──
+      const envResult = await generateEnvKnowledgePage(projectRoot, config, analysis);
+      if (envResult) {
+        const envPagePath = join(projectRoot, config.knowledge.wiki.dir, envResult.filePath);
+        writeText(envPagePath, envResult.content);
+        knowledgeFiles.push(envPagePath);
+      }
+    }
+
+    // ── Step 8.5: Import existing documents and third-party specs ──
+    let importedDocFiles: string[] = [];
+    let importedSpecFiles: string[] = [];
+    if (!options.noImport) {
+      const detectedDocs: DetectedDocument[] = detectExistingDocuments(projectRoot);
+      const detectedSpecs: DetectedSpec[] = detectThirdPartySpecs(projectRoot);
+
+      if (detectedDocs.length > 0 || detectedSpecs.length > 0) {
+        console.log('');
+        console.log('╔══════════════════════════════════════════════════════════╗');
+        console.log('║  Document & Spec Import                                 ║');
+        console.log('╚══════════════════════════════════════════════════════════╝');
+
+        if (detectedDocs.length > 0) {
+          console.log(`  Documents detected: ${detectedDocs.length}`);
+          for (const doc of detectedDocs) {
+            console.log(`    - ${doc.path} (${doc.type})`);
+          }
+          importedDocFiles = importExistingDocuments(projectRoot, config, detectedDocs);
+          console.log(`  ✓ Imported ${importedDocFiles.length} document(s) to knowledge/imports/`);
+        }
+
+        if (detectedSpecs.length > 0) {
+          console.log(`  Third-party specs detected: ${detectedSpecs.length}`);
+          for (const spec of detectedSpecs) {
+            console.log(`    - ${spec.path} (${spec.format})`);
+          }
+          importedSpecFiles = importThirdPartySpecs(projectRoot, config, detectedSpecs);
+          console.log(`  ✓ Imported ${importedSpecFiles.length} spec(s) to knowledge/external-specs/`);
+        }
+
+        // Generate import index
+        generateImportIndex(projectRoot, config, detectedDocs, detectedSpecs);
+      }
+    }
+
+    // ── Step 9: Generate root DESIGN.md for frontend projects ──
+    let rootDesignMdPath: string | undefined;
+    if (analysis && isFrontendProject(analysis)) {
+      rootDesignMdPath = join(projectRoot, 'DESIGN.md');
+      const designMdContent = generateFrontendDesignMd(analysis);
+      writeText(rootDesignMdPath, designMdContent);
+    }
+
+    // ── Step 10: Generate Rules files ──
     if (config.ai.generate_rules) {
       generateRulesFiles(projectRoot, config);
     }
 
-    // Audit log
+    // ── Step 11: Audit log ──
     appendAuditLog(mumuDir, { actor: 'user', action: 'init', result: 'success' });
 
-    console.log(`\n✓ MumuSpec initialized in ${projectRoot}`);
-    console.log(`  Config: ${join(mumuDir, 'config.yaml')}`);
-    console.log(`  Spec: ${specPath}`);
-    console.log(`  Design: ${designPath}`);
-    console.log(`  Prohibitions: ${prohibitionsPath}`);
-    console.log(`  Index: ${indexPath}`);
-    if (config.ai.generate_rules) {
-      console.log(`  Rules: ${config.ai.rules_files.join(', ')}`);
+    // ── Summary ──
+    console.log('╔══════════════════════════════════════════════════════════╗');
+    console.log('║  MumuSpec Initialized Successfully                      ║');
+    console.log('╚══════════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`  ✓ Config:        ${join(mumuDir, 'config.yaml')}`);
+    console.log(`  ✓ Root Spec:     ${specPath}`);
+    console.log(`  ✓ Root Design:   ${designPath}`);
+    console.log(`  ✓ Prohibitions:  ${prohibitionsPath}`);
+    console.log(`  ✓ Index:         ${indexPath}`);
+    if (knowledgeFiles.length > 0) {
+      console.log(`  ✓ Knowledge:     ${knowledgeFiles.length} files created`);
+      for (const kf of knowledgeFiles) {
+        console.log(`    - ${kf.replace(projectRoot + '/', '')}`);
+      }
     }
-    console.log('\nNext steps:');
-    console.log('  1. Edit .mumuspec/spec.md to define your project specifications');
-    console.log('  2. Run `mumuspec new <name>` to create your first change');
-    console.log('  3. Run `mumuspec doctor` to verify your environment');
+    if (rootDesignMdPath) {
+      console.log(`  ✓ Style Guide:   ${rootDesignMdPath}`);
+    }
+    if (importedDocFiles.length > 0 || importedSpecFiles.length > 0) {
+      console.log(`  ✓ Imports:       ${importedDocFiles.length} docs, ${importedSpecFiles.length} specs`);
+    }
+    if (config.ai.generate_rules) {
+      console.log(`  ✓ Rules Files:   ${config.ai.rules_files.join(', ')}`);
+    }
+    console.log('');
+    console.log('Next steps:');
+    console.log('  1. Review and customize .mumuspec/spec.md');
+    console.log('  2. Update .mumuspec/design.md with your architecture decisions');
+    console.log('  3. Run `mumuspec new <name>` to create your first change');
+    console.log('  4. Run `mumuspec doctor` to verify your environment');
   });
+
+/** Helper: get CSS summary string */
+function getCssSummary(analysis: ProjectAnalysis): string {
+  const parts: string[] = [];
+  if (analysis.hasTailwind) parts.push('Tailwind');
+  if (analysis.hasScss) parts.push('SCSS');
+  if (analysis.hasCssModules) parts.push('CSS Modules');
+  if (analysis.hasUiLibrary && analysis.uiLibrary) parts.push(analysis.uiLibrary);
+  return parts.length > 0 ? parts.join(' + ') : 'none detected';
+}
+
+/** Helper: get directory summary for index.yaml */
+function getDirectorySummary(dir: string, type: import('./core/project-analyzer.js').ProjectType): string {
+  const map: Record<string, string> = {
+    src: 'Primary source code',
+    lib: 'Library exports and public API',
+    app: 'Application routes and pages',
+    packages: 'Monorepo sub-packages',
+    demo: 'Demo/example applications',
+    examples: 'Usage examples',
+  };
+  return map[dir] || `${dir} module (${type})`;
+}
 
 // === context ===
 program
@@ -623,9 +787,11 @@ program
 // === guard ===
 program
   .command('guard')
-  .description('Run phase guard check')
+  .description('Run phase guard check (use --apply to execute transition)')
   .argument('<change>', 'change name')
   .argument('<phase>', 'target phase')
+  .option('--apply', 'apply transition if guard passes')
+  .option('--confirm', 'user confirmed (required for blocking transitions)')
   .option('--json', 'output as JSON')
   .action((change, phase, options) => {
     const root = findProjectRoot();
@@ -657,6 +823,44 @@ program
     if (result.warnings.length > 0) {
       for (const warn of result.warnings) {
         console.warn(`  ⚠ [${warn.code}] ${warn.message}`);
+      }
+    }
+
+    // Apply transition if requested and guard passed
+    if (options.apply && result.passed) {
+      const state = loadChangeState(root, change);
+      if (!state) {
+        console.error(`Error: Change not found: ${change}`);
+        process.exit(1);
+      }
+
+      // Enforce blocking point user confirmation
+      const blockingInfo = requiresUserConfirmation(state.phase, phase);
+      if (blockingInfo.required && !options.confirm) {
+        console.error(`✗ 阻塞点 ${blockingInfo.bp}：${blockingInfo.description}`);
+        console.error(`  必须显式确认。请使用：`);
+        console.error(`  mumuspec guard ${change} ${phase} --apply --confirm`);
+        process.exit(2);
+      }
+
+      const transitionResult = executeTransition(state, phase as any, { userConfirmed: options.confirm });
+      if (transitionResult.success) {
+        saveChangeState(root, change, transitionResult.state);
+        console.log(`✓ 阶段转换已应用: ${state.phase} → ${phase}`);
+        if (blockingInfo.bp) {
+          console.log(`  阻塞点 ${blockingInfo.bp} 已通过 (${blockingInfo.description})`);
+        }
+      } else {
+        if (transitionResult.error?.startsWith('E-CHANGE-007')) {
+          console.log(`⊙ 已在目标阶段 '${phase}'，无需转换`);
+        } else if (transitionResult.error?.startsWith('E-CHANGE-006')) {
+          console.error(`✗ 无效的阶段转换: ${transitionResult.error}`);
+          console.error(`  可运行 'mumuspec state next ${change}' 查看可转换目标`);
+          process.exit(1);
+        } else {
+          console.error(`✗ 转换失败: ${transitionResult.error}`);
+          process.exit(1);
+        }
       }
     }
 
@@ -735,14 +939,37 @@ stateCmd
       return;
     }
 
+    // Enforce blocking point user confirmation
+    const blockingInfo = requiresUserConfirmation(state.phase, event);
+    if (blockingInfo.required && !options.confirm) {
+      console.error(`✗ 阻塞点 ${blockingInfo.bp}：${blockingInfo.description}`);
+      console.error(`  此阶段转换必须用户显式确认。请使用 --confirm 标志：`);
+      console.error(`  mumuspec state transition ${name} ${event} --confirm`);
+      process.exit(2);
+    }
+
     // Normal transition
     const result = executeTransition(state, event as any, { userConfirmed: options.confirm });
     if (result.success) {
       saveChangeState(root, name, result.state);
       console.log(`✓ Transitioned ${name}: ${state.phase} → ${event}`);
+      if (blockingInfo.bp) {
+        console.log(`  阻塞点 ${blockingInfo.bp} 已通过 (${blockingInfo.description})`);
+      }
     } else {
-      console.error(`✗ Transition failed: ${result.error}`);
-      process.exit(1);
+      // Improved error messaging for known error codes
+      if (result.error?.startsWith('E-CHANGE-007')) {
+        console.error(`✗ 已在目标阶段 '${event}'，无需转换`);
+        console.error(`  当前阶段: ${state.phase}`);
+        process.exit(0);  // Not really an error, so exit 0
+      } else if (result.error?.startsWith('E-CHANGE-006')) {
+        console.error(`✗ 无效的阶段转换: ${result.error}`);
+        console.error(`  可在当前阶段 ${state.phase} 使用 'mumuspec state next ${name}' 查看可转换目标`);
+        process.exit(1);
+      } else {
+        console.error(`✗ Transition failed: ${result.error}`);
+        process.exit(1);
+      }
     }
   });
 
@@ -807,6 +1034,145 @@ stateCmd
         console.log(`  ${rh.timestamp}: ${rh.from} → ${rh.to} (${rh.event}) - ${rh.reason}`);
       }
     }
+  });
+
+stateCmd
+  .command('get')
+  .description('Get a state field value')
+  .argument('<name>', 'change name')
+  .argument('<field>', 'field name (e.g. phase, workflow, verify_mode, build_mode)')
+  .action((name, field) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const state = loadChangeState(root, name);
+    if (!state) {
+      console.error(`Error: Change not found: ${name}`);
+      process.exit(1);
+    }
+
+    const value = (state as unknown as Record<string, unknown>)[field];
+    if (value === undefined) {
+      console.log(`<undefined>`);
+    } else if (typeof value === 'object') {
+      console.log(JSON.stringify(value, null, 2));
+    } else {
+      console.log(String(value));
+    }
+  });
+
+stateCmd
+  .command('set')
+  .description('Set a state field value')
+  .argument('<name>', 'change name')
+  .argument('<field>', 'field name (e.g. verify_mode, build_mode, isolation, verify_result, branch_status)')
+  .argument('<value>', 'value to set (use --json for complex structures)')
+  .option('--json', 'parse value as JSON/YAML (auto-converts objects and arrays)')
+  .action((name, field, value, options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const state = loadChangeState(root, name);
+    if (!state) {
+      console.error(`Error: Change not found: ${name}`);
+      process.exit(1);
+    }
+
+    let coerced: unknown = value;
+
+    if (options.json) {
+      // Parse as JSON first, fall back to treating as plain string
+      try {
+        coerced = JSON.parse(value);
+      } catch {
+        // If not valid JSON, keep as string
+        console.warn('  (value is not valid JSON, storing as string)');
+      }
+    } else {
+      // Type-coerce known numeric/boolean fields
+      if (value === 'true') coerced = true;
+      else if (value === 'false') coerced = false;
+      else if (/^\d+$/.test(value)) coerced = parseInt(value, 10);
+      else if (/^\d+\.\d+$/.test(value)) coerced = parseFloat(value);
+    }
+
+    // Support dot notation for nested fields (e.g. cognitive_framework.q1_count)
+    const target = state as unknown as Record<string, unknown>;
+    const parts = field.split('.');
+    let current: Record<string, unknown> = target;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      if (typeof current[part] !== 'object' || current[part] === null) {
+        current[part] = {};
+      }
+      current = current[part] as Record<string, unknown>;
+    }
+    current[parts[parts.length - 1]] = coerced;
+
+    state.updated_at = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    saveChangeState(root, name, state);
+    console.log(`✓ Set ${field} = ${JSON.stringify(coerced)}`);
+  });
+
+stateCmd
+  .command('scale')
+  .description('Evaluate change scale and recommend verify mode')
+  .argument('<name>', 'change name')
+  .action(async (name) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const state = loadChangeState(root, name);
+    if (!state) {
+      console.error(`Error: Change not found: ${name}`);
+      process.exit(1);
+    }
+
+    const changeDir = getChangeDir(root, name);
+    const fs = await import('node:fs/promises');
+
+    // Count tasks
+    let taskCount = 0;
+    const tasksPath = join(changeDir, 'tasks.md');
+    if (existsSync(tasksPath)) {
+      const tasksContent = readText(tasksPath) || '';
+      taskCount = (tasksContent.match(/^- \[[ x]\]/gm) || []).length;
+    }
+
+    // Count delta specs
+    let deltaSpecCount = 0;
+    const deltaSpecsDir = join(changeDir, 'delta-specs');
+    try {
+      if (existsSync(deltaSpecsDir)) {
+        const entries = await fs.readdir(deltaSpecsDir);
+        deltaSpecCount = entries.filter((f: string) => f.endsWith('.md')).length;
+      }
+    } catch {
+      // Ignore read errors
+    }
+
+    // Count build layers
+    const buildLayerCount = state.build_layers.length;
+
+    // Decision
+    const isLarge = taskCount > 3 || deltaSpecCount > 1 || buildLayerCount > 4;
+    const recommendedMode = isLarge ? 'full' : 'light';
+
+    console.log(`\nScale evaluation for: ${name}`);
+    console.log(`  Tasks:           ${taskCount}`);
+    console.log(`  Delta specs:     ${deltaSpecCount}`);
+    console.log(`  Build layers:    ${buildLayerCount}`);
+    console.log(`  Verify mode:     ${recommendedMode}`);
+    console.log(`\nRun: mumuspec state set ${name} verify_mode ${recommendedMode}`);
   });
 
 // === test-cases ===
@@ -1014,6 +1380,601 @@ knowledgeCmd
     const config = loadConfig(root);
     supersedeKnowledge(root, config, id, options.by);
     console.log(`✓ Knowledge page ${id} superseded by ${options.by}`);
+  });
+
+knowledgeCmd
+  .command('organize')
+  .description('Scan knowledge base for issues and optionally fix them')
+  .option('--dry-run', 'scan and report issues without making changes')
+  .option('--fix', 'automatically fix issues that can be auto-fixed')
+  .option('--verbose', 'show detailed issue reports')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const config = loadConfig(root);
+
+    const result = organizeKnowledge(root, config, {
+      dryRun: options.dryRun,
+      fix: options.fix,
+      verbose: options.verbose,
+    });
+
+    // Print header
+    console.log('\n╔══════════════════════════════════════════════════════════╗');
+    console.log('║              KNOWLEDGE BASE ORGANIZE                     ║');
+    console.log('╚══════════════════════════════════════════════════════════╝');
+
+    // Print stats
+    console.log(`\n📊 Stats:`);
+    console.log(`  Total files:          ${result.stats.total_files}`);
+    console.log(`  Total index entries:  ${result.stats.total_index_entries}`);
+    console.log(`  Duplicate IDs:        ${result.stats.duplicate_ids}`);
+    console.log(`  Missing from index:   ${result.stats.missing_from_index}`);
+    console.log(`  Orphaned index:       ${result.stats.orphaned_index_entries}`);
+    console.log(`  Missing fields:       ${result.stats.missing_required_fields}`);
+    console.log(`  Type mismatches:      ${result.stats.type_mismatches}`);
+
+    // Print issues
+    if (result.issues.length === 0) {
+      console.log('\n✅ No issues found! Knowledge base is well organized.');
+    } else {
+      console.log(`\n⚠️  ${result.issues.length} issue(s) found:`);
+
+      const errors = result.issues.filter((i) => i.severity === 'error');
+      const warnings = result.issues.filter((i) => i.severity === 'warning');
+      const infos = result.issues.filter((i) => i.severity === 'info');
+
+      if (errors.length > 0) {
+        console.log(`\n  🔴 Errors (${errors.length}):`);
+        for (const issue of errors) {
+          console.log(`    • [${issue.type}] ${issue.message}`);
+          if (!issue.auto_fixable) {
+            console.log(`      → Manual fix required`);
+          }
+        }
+      }
+
+      if (warnings.length > 0) {
+        console.log(`\n  🟡 Warnings (${warnings.length}):`);
+        for (const issue of warnings) {
+          console.log(`    • [${issue.type}] ${issue.message}`);
+          if (issue.auto_fixable) {
+            console.log(`      → Auto-fixable (use --fix)`);
+          }
+        }
+      }
+
+      if (infos.length > 0 && options.verbose) {
+        console.log(`\n  🔵 Info (${infos.length}):`);
+        for (const issue of infos) {
+          console.log(`    • [${issue.type}] ${issue.message}`);
+        }
+      }
+    }
+
+    // Print fix summary
+    if (options.fix) {
+      console.log(`\n🔧 Fixed ${result.fixed} issue(s).`);
+    } else if (result.issues.some((i) => i.auto_fixable)) {
+      const autoFixable = result.issues.filter((i) => i.auto_fixable).length;
+      console.log(`\n💡 Run with --fix to auto-fix ${autoFixable} issue(s).`);
+    }
+  });
+
+knowledgeCmd
+  .command('rebuild-index')
+  .description('Rebuild knowledge page index (_index.yaml) from filesystem')
+  .action(() => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const config = loadConfig(root);
+    const index = rebuildPageIndex(root, config);
+    console.log(`✓ PageIndex rebuilt with ${index.pages.length} entries.`);
+  });
+
+// === impact (Understand-A style) ===
+program
+  .command('impact')
+  .description('Analyze change impact with knowledge correlation')
+  .option('--diff <range>', 'Git diff range (e.g., "HEAD~3..HEAD")')
+  .option('--scope <path>', 'Limit analysis to scope')
+  .option('--json', 'Output as JSON')
+  .option('--with-knowledge', 'Include knowledge warnings', true)
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const config = loadConfig(root);
+
+    try {
+      const result = analyzeImpact(root, config, {
+        diffRange: options.diff,
+        scope: options.scope,
+        withKnowledge: options.withKnowledge,
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      // Terminal output
+      console.log('\n╔══════════════════════════════════════════════════════════╗');
+      console.log('║                   IMPACT ANALYSIS                        ║');
+      console.log('╚══════════════════════════════════════════════════════════╝');
+
+      if (result.changed_files.length === 0) {
+        console.log('\n  No changes detected.');
+        return;
+      }
+
+      console.log(`\n📁 Changed Files (${result.changed_files.length}):`);
+      for (const f of result.changed_files.slice(0, 10)) {
+        console.log(`   [${f.change_type}] ${f.path}`);
+      }
+
+      if (result.direct_impact.length > 0) {
+        console.log(`\n🔗 Direct Impact (${result.direct_impact.length}):`);
+        for (const n of result.direct_impact.slice(0, 10)) {
+          console.log(`   [d=${n.distance}] ${n.node_path}`);
+        }
+      }
+
+      if (result.knowledge_warnings.length > 0) {
+        console.log(`\n⚠️  Knowledge Warnings (${result.knowledge_warnings.length}):`);
+        for (const w of result.knowledge_warnings) {
+          console.log(`   ${w.severity === 'high' ? '🔴' : w.severity === 'medium' ? '🟡' : '⚪'} ${w.knowledge_id}: ${w.message}`);
+          console.log(`     Suggestion: ${w.suggestion}`);
+        }
+      }
+
+      const rec = result.recommendations;
+      if (rec.regression_scope.length > 0 || rec.knowledge_pages_to_review.length > 0) {
+        console.log('\n📋 Recommendations:');
+        if (rec.regression_scope.length > 0) {
+          console.log(`   Regression: ${rec.regression_scope.join(', ')}`);
+        }
+        if (rec.knowledge_pages_to_review.length > 0) {
+          console.log(`   Knowledge: ${rec.knowledge_pages_to_review.join(', ')}`);
+        }
+      }
+    } catch (err) {
+      console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
+// === onboard (Understand-A style) ===
+const onboardCmd = program.command('onboard').description('Onboarding guided learning paths');
+
+onboardCmd
+  .command('init')
+  .description('Generate learning path for scope')
+  .requiredOption('--scope <path>', 'Code scope path')
+  .option('--role <role>', 'Target role (junior|mid|senior|pm)', 'junior')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const config = loadConfig(root);
+    const path = generateOnboardingPath(root, config, options.scope, options.role);
+
+    // Save to .mumuspec/onboarding/
+    const onboardDir = join(root, '.mumuspec', 'onboarding');
+    try {
+      const { mkdirSync, writeFileSync } = require('node:fs');
+      mkdirSync(onboardDir, { recursive: true });
+      const fileName = `${options.scope.replace(/[\/\\]/g, '-')}-${options.role}.yaml`;
+      const { dumpYaml } = require('../dist/core/utils');
+      writeFileSync(join(onboardDir, fileName), dumpYaml(path));
+      console.log(`✓ Learning path generated: ${path.total_steps} steps (${path.estimated_minutes} min)`);
+    } catch {
+      console.log(`Generated path: ${path.total_steps} steps (${path.estimated_minutes} min)`);
+      console.log(JSON.stringify(path, null, 2));
+    }
+  });
+
+onboardCmd
+  .command('start')
+  .description('Start interactive learning path')
+  .requiredOption('--scope <path>', 'Code scope path')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const config = loadConfig(root);
+    const path = generateOnboardingPath(root, config, options.scope, 'junior');
+
+    if (path.total_steps === 0) {
+      console.log('No learning path available. Run `mumuspec onboard init` first.');
+      return;
+    }
+
+    console.log(`\nOnboarding: ${path.scope} (${path.total_steps} steps, ~${path.estimated_minutes} min)\n`);
+    console.log(`Step 1: ${path.steps[0]?.code_node ?? 'N/A'}`);
+    console.log(`  ${path.steps[0]?.reason ?? ''}`);
+    if (path.steps[0]?.knowledge_pages.length) {
+      console.log(`  📚 Knowledge: ${path.steps[0].knowledge_pages.join(', ')}`);
+    }
+    console.log('\n[Interactive mode — use "next" command to advance]');
+  });
+
+onboardCmd
+  .command('next')
+  .description('Show next step in learning path')
+  .requiredOption('--scope <path>', 'Code scope path')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const config = loadConfig(root);
+    const path = generateOnboardingPath(root, config, options.scope, 'junior');
+    console.log(`Learning path: ${path.total_steps} steps. Run 'onboard start' to begin.`);
+  });
+
+onboardCmd
+  .command('complete-step')
+  .description('Mark a step as complete')
+  .requiredOption('--scope <path>', 'Code scope path')
+  .requiredOption('--step <n>', 'Step number')
+  .action((options) => {
+    console.log(`✓ Step ${options.step} marked complete (scope: ${options.scope})`);
+  });
+
+onboardCmd
+  .command('progress')
+  .description('Show learning progress')
+  .requiredOption('--scope <path>', 'Code scope path')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const config = loadConfig(root);
+    const path = generateOnboardingPath(root, config, options.scope, 'junior');
+    console.log(`Progress for ${options.scope}: ${path.total_steps} total steps`);
+  });
+
+// === chat (Understand-A Style Knowledge Q&A) ===
+program
+  .command('chat')
+  .description('Ask questions about your project using the knowledge base')
+  .argument('[query]', 'Query to search in knowledge base (interactive if omitted)')
+  .option('--json', 'Output as JSON')
+  .action((query, options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    const config = loadConfig(root);
+
+    // Interactive mode: prompt for query if not provided
+    const userQuery = query ?? '';
+    if (!userQuery.trim()) {
+      console.log('╔══════════════════════════════════════════════════════════╗');
+      console.log('║                   MUMUSPEC CHAT                          ║');
+      console.log('╚══════════════════════════════════════════════════════════╝');
+      console.log('');
+      console.log('Ask questions about your project knowledge base.');
+      console.log('Examples: "KP-0007", "Saga pattern", "payment architecture"');
+      console.log('');
+
+      // Simple readline-based interactive prompt
+      process.stdout.write('Query: ');
+      process.stdin.once('data', (data) => {
+        const inputQuery = data.toString().trim();
+        if (inputQuery) {
+          executeChat(root, config, inputQuery, options.json);
+        }
+        process.exit(0);
+      });
+      return;
+    }
+
+    executeChat(root, config, userQuery, options.json);
+  });
+
+function executeChat(root: string, config: MumuSpecConfig, query: string, jsonMode?: boolean): void {
+  const result = answerQuery(root, config, query);
+
+  if (jsonMode) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  // Panel-style output
+  console.log('');
+  console.log('┌─── CHAT ANSWER ─────────────────────────────────────────┐');
+  console.log(`│ Query: ${result.query}`);
+  console.log(`│ Confidence: ${result.confidence}`);
+  console.log('└─────────────────────────────────────────────────────────┘');
+  console.log('');
+  console.log(result.answer);
+
+  if (result.references.length > 0) {
+    console.log('');
+    console.log('References:');
+    for (const ref of result.references) {
+      console.log(`  [${ref.id}] ${ref.title} (${ref.type}, ${(ref.relevance * 100).toFixed(0)}%)`);
+    }
+  }
+  console.log('');
+}
+
+// === knowledge coverage / gaps / graph-export ===
+knowledgeCmd
+  .command('coverage')
+  .description('Show knowledge coverage report')
+  .option('--scope <path>', 'Limit to scope')
+  .option('--json', 'Output as JSON')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const config = loadConfig(root);
+    const report = analyzeCoverage(root, config, options.scope);
+
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+
+    console.log('\n╔══════════════════════════════════════════════════════════╗');
+    console.log('║              KNOWLEDGE COVERAGE REPORT                   ║');
+    console.log('╚══════════════════════════════════════════════════════════╝');
+
+    const cov = report.coverage;
+    const ratio = (cov.coverage_ratio * 100).toFixed(1);
+    const barLen = 20;
+    const filled = Math.round(cov.coverage_ratio * barLen);
+    const bar = '█'.repeat(filled) + '░'.repeat(barLen - filled);
+
+    console.log(`\n📊 Overall: ${cov.covered_nodes}/${cov.total_code_nodes} nodes (${ratio}%)`);
+    console.log(`   [${bar}]`);
+
+    if (report.gaps.length > 0) {
+      console.log(`\n🔍 Coverage Gaps (top ${Math.min(report.gaps.length, 5)}):`);
+      for (const g of report.gaps.slice(0, 5)) {
+        console.log(`   ${g.node} (importance: ${g.importance.toFixed(1)})`);
+      }
+    }
+
+    if (report.overloads.length > 0) {
+      console.log(`\n⚠️  Knowledge Overloads: ${report.overloads.length}`);
+    }
+  });
+
+knowledgeCmd
+  .command('gaps')
+  .description('List knowledge coverage gaps')
+  .requiredOption('--scope <path>', 'Code scope path')
+  .option('--min-importance <n>', 'Minimum importance threshold', '5')
+  .option('--json', 'Output as JSON')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const config = loadConfig(root);
+    const report = analyzeCoverage(root, config, options.scope);
+    const minImp = parseFloat(options.minImportance);
+    const filtered = report.gaps.filter((g) => g.importance >= minImp);
+
+    if (options.json) {
+      console.log(JSON.stringify(filtered, null, 2));
+      return;
+    }
+
+    if (filtered.length === 0) {
+      console.log('✓ No gaps found above threshold.');
+      return;
+    }
+
+    console.log(`\n${filtered.length} coverage gap(s):`);
+    for (const g of filtered) {
+      console.log(`  [${g.importance.toFixed(1)}] ${g.node} → suggest: ${g.suggested_type}`);
+    }
+  });
+
+knowledgeCmd
+  .command('graph-export')
+  .description('Export knowledge graph as UA-style JSON (Git-compatible)')
+  .option('--output <path>', 'Output path')
+  .action((options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const config = loadConfig(root);
+
+    // Build UA-style graph JSON
+    const pages = listKnowledgePages(root, config);
+    const reverseIdx = readReverseIndex(root, config);
+
+    const graph = {
+      version: '1.0',
+      generated_at: new Date().toISOString(),
+      generator: `mumuspec@${require('../../package.json').version}`,
+      nodes: pages.map((p) => ({
+        id: p.frontmatter.id,
+        type: p.frontmatter.type,
+        title: p.frontmatter.title,
+        scope: p.frontmatter.scope,
+        status: p.frontmatter.status,
+        bindings: p.frontmatter.graph_bindings ?? [],
+      })),
+      edges: pages.flatMap((p) =>
+        (p.frontmatter.graph_bindings ?? []).map((binding) => ({
+          type: 'COVERED_BY',
+          from: binding,
+          to: p.frontmatter.id,
+        }))
+      ),
+      reverse_index: reverseIdx.slice(0, 100),  // Sample for size
+    };
+
+    const outputPath = options.output ?? join(root, '.mumuspec', 'knowledge', 'knowledge-graph.json');
+    try {
+      const { mkdirSync, writeFileSync } = require('node:fs');
+      const { dirname } = require('node:path');
+      mkdirSync(dirname(outputPath), { recursive: true });
+      writeFileSync(outputPath, JSON.stringify(graph, null, 2));
+      console.log(`✓ Knowledge graph exported: ${outputPath}`);
+      console.log(`  Nodes: ${graph.nodes.length}, Edges: ${graph.edges.length}`);
+    } catch {
+      console.log(JSON.stringify(graph, null, 2));
+    }
+  });
+
+// === git (git-master style) ===
+program
+  .command('git')
+  .description('Git operations — commit, push, tag, flow (git-master style)')
+  .argument('<subcommand>', 'git subcommand: status|commit|push|tag|flow')
+  .argument('[args...]', 'additional arguments')
+  .option('-m, --message <msg>', 'commit message (for commit subcommand)')
+  .option('-b, --branch <name>', 'branch name (for flow subcommand)')
+  .option('--dry-run', 'preview without executing')
+  .option('--scope <scope>', 'commit scope (auto-detected from change name)')
+  .action((subcommand, args, options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('✗ Not initialized. Run `mumuspec init` first.');
+      process.exit(1);
+    }
+    const exec = (cmd: string): string => {
+      if (options.dryRun) {
+        console.log(`[dry-run] ${cmd}`);
+        return '';
+      }
+      const result = spawnSync(cmd, { shell: true, cwd: root, encoding: 'utf8' });
+      if (result.status !== 0 && result.stderr) {
+        console.error(result.stderr);
+      }
+      return (result.stdout ?? '').trim();
+    };
+
+    switch (subcommand) {
+      case 'status':
+      case 'st': {
+        console.log('Git status:\n');
+        const status = exec('git status --short --branch');
+        console.log(status || 'No changes');
+        // Also show recent commits
+        const recent = exec('git log --oneline -5');
+        if (recent) {
+          console.log('\nRecent commits:');
+          console.log(recent);
+        }
+        break;
+      }
+
+      case 'commit':
+      case 'ci': {
+        // Auto-detect scope from active change if not provided
+        let scope = options.scope || '';
+        if (!scope) {
+          try {
+            const active = getActiveChange(root);
+            if (active) {
+              scope = active.replace(/[^a-zA-Z0-9-]/g, '-');
+            }
+          } catch {
+            // No active change
+          }
+        }
+        const msg = options.message;
+        if (!msg) {
+          console.error('✗ Commit message required. Use -m "message"');
+          process.exit(1);
+        }
+        // Conventional commit format: type(scope): message
+        const fullMsg = scope ? `feat(${scope}): ${msg}` : `feat: ${msg}`;
+        console.log(`Committing: ${fullMsg}`);
+        exec('git add -A');
+        exec(`git commit -m "${fullMsg.replace(/"/g, '\\"')}"`);
+        console.log('✓ Committed');
+        break;
+      }
+
+      case 'push': {
+        const branch = exec('git branch --show-current');
+        console.log(`Pushing to origin/${branch}...`);
+        exec(`git push -u origin ${branch}`);
+        console.log('✓ Pushed');
+        break;
+      }
+
+      case 'tag': {
+        // Create version tag from package.json
+        const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+        const tag = `v${pkg.version}`;
+        console.log(`Creating tag ${tag}...`);
+        exec(`git tag -a ${tag} -m "Release ${tag}"`);
+        exec(`git push origin ${tag}`);
+        console.log(`✓ Tagged and pushed: ${tag}`);
+        break;
+      }
+
+      case 'flow': {
+        const sub = args[0];
+        const name = options.branch || args[1];
+        if (!sub || !['start', 'finish'].includes(sub)) {
+          console.error('Usage: mumuspec git flow <start|finish> [-b <branch-name>]');
+          console.error('  start feature/my-feature   • Create feature branch');
+          console.error('  finish feature/my-feature  • Merge and cleanup');
+          process.exit(1);
+        }
+        if (!name) {
+          console.error('✗ Branch name required. Use -b <name> or pass as argument.');
+          process.exit(1);
+        }
+        if (sub === 'start') {
+          console.log(`Starting flow: ${name}`);
+          exec('git checkout main 2>/dev/null || git checkout master');
+          exec('git pull');
+          exec(`git checkout -b ${name}`);
+          console.log(`✓ Created branch: ${name}`);
+        } else {
+          console.log(`Finishing flow: ${name}`);
+          // Find the base branch (main or master)
+          const branches = exec('git branch --list main master --format="%(refname:short)"');
+          const base = branches.split('\n').map(b => b.trim()).filter(Boolean)[0] || 'main';
+          exec(`git checkout ${base}`);
+          exec('git pull');
+          exec(`git merge --no-ff ${name} -m "Merge branch '${name}'"`);
+          exec(`git branch -d ${name}`);
+          console.log(`✓ Merged and removed: ${name}`);
+        }
+        break;
+      }
+
+      default:
+        console.error(`Unknown git subcommand: ${subcommand}`);
+        console.error('Available: status, commit, push, tag, flow');
+        process.exit(1);
+    }
   });
 
 // === doctor ===
@@ -1698,6 +2659,7 @@ installCmd
   .argument('[packages...]', 'skill package names to install (e.g., browser pdf pptx)')
   .option('--list', 'list available packages in the manifest')
   .option('--installed', 'list currently installed skills via paw CLI')
+  .option('--force', 'force update if already installed')
   .option('--target <scope>', 'installation target: user (global) or workspace (project)', 'user')
   .option('--workspace-path <path>', 'workspace path (required when --target workspace)')
   .option('--search <keyword>', 'search available packages by keyword')
@@ -1795,10 +2757,12 @@ installCmd
       }
 
       console.log(`\nInstalling "${pkgName}" (${pkg.description})...`);
-      const result = installPackage('catpaw', pkgName, target, workspacePath);
+      const mode = options.force ? 'update' : 'install';
+      const result = installPackage('catpaw', pkgName, target, workspacePath, mode);
 
       if (result.success) {
-        console.log(`✓ Installed "${pkgName}" [${target} scope]`);
+        const action = mode === 'update' ? 'Updated' : 'Installed';
+        console.log(`✓ ${action} "${pkgName}" [${target} scope]`);
         if (result.path) console.log(`  Path: ${result.path}`);
         successCount++;
       } else {
@@ -1877,6 +2841,7 @@ installCmd
   .description('Install CatPaw custom slash commands')
   .argument('[command]', 'command preset name (e.g., /mumuspec)')
   .option('--list', 'list available command presets')
+  .option('--force', 'force update if already installed')
   .option('--target <scope>', 'installation target: user (global) or workspace (project)', 'user')
   .option('--workspace-path <path>', 'workspace path (required when --target workspace)')
   .action((command, options) => {
@@ -1907,10 +2872,12 @@ installCmd
     }
 
     console.log(`Installing custom command "${command}" [${target} scope]...`);
-    const result = installCatpawCommand(command, target, workspacePath);
+    const cmdMode = options.force ? 'update' : 'install';
+    const result = installCatpawCommand(command, target, workspacePath, cmdMode);
 
     if (result.success) {
-      console.log(`✓ Installed command: ${result.commandName}`);
+      const action = cmdMode === 'update' ? 'Updated' : 'Installed';
+      console.log(`✓ ${action} command: ${result.commandName}`);
       console.log(`  Command file: ${result.path}`);
       console.log('\nUse /' + (result.commandName.startsWith('/') ? result.commandName.slice(1) : result.commandName) + ' in CatPaw to invoke.');
     } else {
@@ -1919,37 +2886,114 @@ installCmd
     }
   });
 
-// Future: Claude Code commands install
-installCmd
-  .command('claude')
-  .description('Install Claude Code slash commands (coming soon)')
-  .action(() => {
-    console.log('Claude Code command installer is coming soon.');
-    console.log('Supported agents: catpaw (now), claude, cursor (planned).');
-  });
+/**
+ * Generic subcommand factory for non-CatPaw agents.
+ * Handles claude, cursor, trae, workbuddy, opencode with the same install logic.
+ */
+function createAgentInstallSubcommand(
+  agentName: string,
+  agentType: string,
+  description: string,
+) {
+  installCmd
+    .command(agentName)
+    .description(description)
+    .argument('[packages...]', 'skill package names to install (e.g., mumuspec-workflow)')
+    .option('--list', 'list available packages for this agent')
+    .option('--force', 'force update if already installed')
+    .option('--target <scope>', 'installation target: user (global) or workspace (project)', 'user')
+    .option('--workspace-path <path>', 'workspace path (required when --target workspace)')
+    .option('--search <keyword>', 'search available packages by keyword')
+    .action((packages: string[], options: Record<string, unknown>) => {
+      const target = (options.target as 'user' | 'workspace') || 'user';
+      const workspacePath = options.workspacePath as string | undefined;
 
-// Future: Cursor commands install
-installCmd
-  .command('cursor')
-  .description('Install Cursor IDE slash commands (coming soon)')
-  .action(() => {
-    console.log('Cursor IDE command installer is coming soon.');
-    console.log('Supported agents: catpaw (now), claude, cursor (planned).');
-  });
+      // --list: show available packages
+      if (options.list) {
+        const manifest = getManifest(agentType as AgentType);
+        console.log(`\nAvailable packages for ${agentName}:`);
+        manifest.forEach((p) => {
+          console.log(`  ${p.name} — ${p.description}`);
+        });
+        return;
+      }
+
+      // --search
+      if (options.search) {
+        const results = searchPackages(agentType as AgentType, options.search as string);
+        console.log(`\nSearch results for "${options.search}" (${agentName}):`);
+        results.forEach((p) => {
+          console.log(`  ${p.name} — ${p.description}`);
+        });
+        return;
+      }
+
+      if (!packages || packages.length === 0) {
+        console.error('Error: No packages specified. Use --list to see available packages.');
+        process.exit(1);
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const pkgName of packages) {
+        const pkg = resolvePackage(agentType as AgentType, pkgName);
+        if (!pkg) {
+          console.error(`  Unknown package "${pkgName}" for ${agentName}.`);
+          failCount++;
+          continue;
+        }
+
+        console.log(`\nInstalling "${pkgName}" for ${agentName} (${target} scope)...`);
+        const agentMode = options.force ? 'update' : 'install';
+        const result = installPackage(agentType as AgentType, pkgName, target, workspacePath, agentMode);
+
+        if (result.success) {
+          const action = agentMode === 'update' ? 'Updated' : 'Installed';
+          console.log(`✓ ${action} "${pkgName}" [${target} scope]`);
+          if (result.path) console.log(`  Path: ${result.path}`);
+          successCount++;
+        } else {
+          console.error(`✗ Failed: ${result.error}`);
+          failCount++;
+        }
+      }
+
+      console.log(`\nResult: ${successCount} succeeded, ${failCount} failed.`);
+      if (failCount > 0) process.exit(1);
+    });
+}
+
+// Claude Code commands install
+createAgentInstallSubcommand('claude', 'claude', 'Install Claude Code slash commands');
+
+// Cursor IDE commands install
+createAgentInstallSubcommand('cursor', 'cursor', 'Install Cursor IDE slash commands');
+
+// Trae commands install
+createAgentInstallSubcommand('trae', 'trae', 'Install Trae skills');
+
+// WorkBuddy commands install
+createAgentInstallSubcommand('workbuddy', 'workbuddy', 'Install WorkBuddy skills');
+
+// OpenCode commands install
+createAgentInstallSubcommand('opencode', 'opencode', 'Install OpenCode skills');
 
 // Default: show help when no subcommand given
 installCmd.action(() => {
   console.log('Install skills, MCP servers, and commands for AI coding agents.\n');
-  console.log('Usage:');
-  console.log('  mumuspec install catpaw [packages...]       Install CatPaw skills');
-  console.log('  mumuspec install mcp <server>               Install MCP server config to workspace');
-  console.log('  mumuspec install command <name>             Install custom slash command');
-  console.log('  mumuspec install claude [commands...]       Install Claude Code commands (coming soon)');
-  console.log('  mumuspec install cursor [commands...]       Install Cursor commands (coming soon)');
-  console.log('\nCatPaw skill options:');
-  console.log('  --list                List available skill packages');
+  console.log('Agents:');
+  console.log('  mumuspec install catpaw [packages...]        Install CatPaw skills');
+  console.log('  mumuspec install claude [packages...]        Install Claude Code slash commands');
+  console.log('  mumuspec install cursor [packages...]        Install Cursor IDE slash commands');
+  console.log('  mumuspec install trae [packages...]          Install Trae AI skills');
+  console.log('  mumuspec install workbuddy [packages...]     Install WorkBuddy skills');
+  console.log('  mumuspec install opencode [packages...]      Install OpenCode skills');
+  console.log('  mumuspec install mcp <server>                Install MCP server config to workspace');
+  console.log('  mumuspec install command <name>              Install custom slash command (CatPaw)');
+  console.log('\nCommon options (per agent):');
+  console.log('  --list                List available packages');
   console.log('  --search <keyword>    Search packages by keyword');
-  console.log('  --installed           List currently installed skills');
   console.log('  --target user         Install to user scope (default)');
   console.log('  --target workspace    Install to workspace scope');
   console.log('  --workspace-path      Path for workspace installation');
@@ -1957,10 +3001,6 @@ installCmd.action(() => {
   console.log('  --list                List available MCP presets');
   console.log('  --installed           Show workspace MCP configs');
   console.log('  --workspace-path      Workspace path (default: current directory)');
-  console.log('\nCommand options:');
-  console.log('  --list                List available command presets');
-  console.log('  --target user         Install to user scope (default)');
-  console.log('  --target workspace    Install to workspace scope');
 });
 
 // === hooks (Native Hook Guard) ===
@@ -2085,7 +3125,7 @@ hooksCmd.action(() => {
   console.log('\nHook types: pre-commit, post-merge, post-checkout, commit-msg');
 });
 
-// === dashboard (Status Dashboard) ===
+// === dashboard (Enhanced: Status + Roadmap + Goals + Coverage) ===
 program
   .command('dashboard')
   .description('Show real-time status dashboard for the active change')
@@ -2101,48 +3141,32 @@ program
     const config = loadConfig(root);
     const activeChange = getActiveChange(root);
     const hookStatus = getHookStatus(options.workspacePath);
-    const knowledgePages = listKnowledgePages(root, config);
-    const stalePages = listStalePages(root, config);
 
-    // Build dashboard data
-    const dashboard = {
-      project: config.project.name,
-      projectRoot: root,
-      activeChange: null as {
-        name: string;
-        phase: string;
-        workflow: string;
-        summary: string;
-        hookInstalled: boolean;
-        knowledgePages: number;
-        stalePages: number;
-      } | null,
-      hooks: hookStatus,
-    };
-
+    // Parse phase/workflow from state
+    let changePhase = '';
+    let changeWorkflow = '';
+    let changeSummary = '';
     if (activeChange) {
-      const summary = getChangeStatusSummary(root, activeChange);
-      dashboard.activeChange = {
-        name: activeChange,
-        phase: '',
-        workflow: '',
-        summary,
-        hookInstalled: hookStatus.installed.length > 0,
-        knowledgePages: knowledgePages.length,
-        stalePages: stalePages.length,
-      };
-
-      // Parse phase/workflow from state (extracted from summary)
+      changeSummary = getChangeStatusSummary(root, activeChange);
       try {
         const stateData = loadChangeState(root, activeChange);
         if (stateData) {
-          dashboard.activeChange.phase = stateData.phase;
-          dashboard.activeChange.workflow = stateData.workflow;
+          changePhase = stateData.phase;
+          changeWorkflow = stateData.workflow;
         }
       } catch {
         // ignore parse errors
       }
     }
+
+    // Build enhanced dashboard data
+    const dashboard = getDashboardData(root, config, {
+      activeChange: activeChange ?? null,
+      hookStatus,
+      changePhase,
+      changeWorkflow,
+      changeSummary,
+    });
 
     // JSON output
     if (options.json) {
@@ -2178,6 +3202,43 @@ program
     }
 
     console.log('');
+
+    // Knowledge Coverage section
+    console.log('─── Knowledge Coverage ─────────────────────────────────────');
+    const cov = dashboard.coverage;
+    const ratio = (cov.coverageRatio * 100).toFixed(1);
+    console.log(`  Pages: ${cov.totalPages} total, ${cov.stalePages} stale`);
+    console.log(`  Coverage: ${ratio}%`);
+    console.log('');
+
+    // Goals section
+    if (dashboard.goals.length > 0) {
+      console.log('─── Project Goals ──────────────────────────────────────────');
+      for (const goal of dashboard.goals) {
+        const statusIcon = goal.status === 'completed' ? '✓' : goal.status === 'in_progress' ? '►' : '○';
+        console.log(`  ${statusIcon} [${goal.id}] ${goal.title} (${goal.status})`);
+      }
+      console.log('');
+    }
+
+    // Roadmap section
+    if (dashboard.roadmap.length > 0) {
+      console.log('─── Roadmap ────────────────────────────────────────────────');
+      for (const item of dashboard.roadmap) {
+        const statusIcon = item.status === 'completed' ? '✓' : item.status === 'in_progress' ? '►' : '○';
+        console.log(`  ${statusIcon} [${item.id}] ${item.title} — ${item.milestone} (${item.status})`);
+      }
+      console.log('');
+    }
+
+    // Alerts section
+    if (dashboard.alerts.length > 0) {
+      console.log('─── Alerts ─────────────────────────────────────────────────');
+      for (const alert of dashboard.alerts) {
+        console.log(`  ⚠ ${alert}`);
+      }
+      console.log('');
+    }
 
     // Hooks section
     console.log('─── Hooks ─────────────────────────────────────────────────');
@@ -2570,6 +3631,142 @@ bundleCmd.action(() => {
   console.log('  mumuspec bundle install <path>  Install bundle to workspace');
   console.log('  mumuspec bundle list            List project bundles');
   console.log('  mumuspec bundle publish <path>  Publish bundle');
+});
+
+// === env (Environment Detection) ===
+const envCmd = program
+  .command('env')
+  .description('Environment detection and validation');
+
+envCmd
+  .command('detect')
+  .description('Detect current development environment and installed tools')
+  .option('--save', 'save results to .mumuspec/env-spec.md')
+  .option('--ecosystem <name>', 'detect only specified ecosystem (java/node/python/go/rust/build/container)', collect, [])
+  .option('--json', 'output in JSON format')
+  .action(async (options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    try {
+      const ecosystems = options.ecosystem.length > 0 ? options.ecosystem : undefined;
+      const detection = await detectEnvironment({ ecosystems, projectRoot: root });
+
+      if (options.json) {
+        console.log(JSON.stringify(detection, null, 2));
+        return;
+      }
+
+      // Format output
+      console.log('');
+      console.log('╔══════════════════════════════════════════════════════════╗');
+      console.log('║  Environment Detection                                  ║');
+      console.log('╚══════════════════════════════════════════════════════════╝');
+      console.log('');
+      console.log(`OS: ${detection.os.type} ${detection.os.version} (${detection.os.arch})`);
+      console.log('');
+
+      // Group tools by ecosystem
+      const grouped = new Map<string, typeof detection.tools>();
+      for (const tool of detection.tools) {
+        const list = grouped.get(tool.ecosystem) || [];
+        list.push(tool);
+        grouped.set(tool.ecosystem, list);
+      }
+
+      for (const [eco, tools] of grouped) {
+        console.log(`${eco.toUpperCase()}:`);
+        for (const tool of tools) {
+          const icon = tool.status === 'ok' ? '✓' : tool.status === 'warn' ? '⚠' : '✗';
+          const version = tool.version !== 'unknown' ? tool.version : '';
+          const location = tool.location ? `  ${tool.location}` : '';
+          console.log(`  ${icon} ${tool.name.padEnd(10)} ${version}${location}`);
+        }
+        console.log('');
+      }
+
+      // Summary
+      const missingCount = detection.tools.filter((t) => t.status === 'missing').length;
+      const warnCount = detection.tools.filter((t) => t.status === 'warn').length;
+
+      if (missingCount > 0 || warnCount > 0) {
+        console.log(`Result: ${missingCount} missing, ${warnCount} warnings`);
+      } else {
+        console.log('Result: all detected ✓');
+      }
+
+      // Save if requested
+      if (options.save) {
+        await saveEnvSpec(root, detection);
+        console.log('');
+        console.log('✓ Saved to .mumuspec/env-spec.md');
+      }
+    } catch (err) {
+      console.error(`✗ Environment detection failed: ${(err as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+envCmd
+  .command('validate')
+  .description('Validate current environment against env-spec.md declarations')
+  .option('--fix', 'auto-fix minor issues (generate suggestions only)')
+  .option('--strict', 'strict mode: warnings become errors')
+  .action(async (options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    try {
+      const result = await validateEnv(root, { strict: options.strict });
+      if (result.exitCode === 0) {
+        if (options.fix && result.suggestions.length > 0) {
+          console.log('');
+          console.log('Suggestions:');
+          for (const s of result.suggestions) {
+            console.log(`  • ${s}`);
+          }
+        }
+      }
+      process.exit(result.exitCode);
+    } catch (err) {
+      console.error(`✗ Validation failed: ${(err as Error).message}`);
+      process.exit(3);
+    }
+  });
+
+envCmd
+  .command('diff')
+  .description('Compare current environment with saved env-spec.md or another spec file')
+  .option('--against <file>', 'path to another env-spec.md to compare against')
+  .action(async (options) => {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    try {
+      const result = await diffEnv(root, options.against);
+      console.log(result);
+    } catch (err) {
+      console.error(`✗ Diff failed: ${(err as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+envCmd.action(() => {
+  console.log('Environment detection and validation.\n');
+  console.log('Usage:');
+  console.log('  mumuspec env detect           Detect installed tools');
+  console.log('  mumuspec env detect --save    Detect and save to env-spec.md');
+  console.log('  mumuspec env validate         Validate environment against spec');
+  console.log('  mumuspec env diff             Compare with saved env-spec.md');
 });
 
 program.parse();

@@ -26,7 +26,7 @@ import { checkCompliance, detectDrift } from './guard/checker.js';
 import { runPhaseGuard } from './guard/phase-guard.js';
 
 // Knowledge
-import { listKnowledgePages, getKnowledgePage, searchKnowledge, getKnowledgeContext, verifyKnowledge } from './knowledge/manager.js';
+import { listKnowledgePages, getKnowledgePage, searchKnowledge, getKnowledgeContext, verifyKnowledge, analyzeImpact, generateOnboardingPath, analyzeCoverage, answerQuery } from './knowledge/manager.js';
 
 // Rules
 import { generateRulesFiles } from './rules/generator.js';
@@ -191,6 +191,75 @@ const TOOLS = [
         id: { type: 'string' },
         all: { type: 'boolean' },
       },
+    },
+  },
+
+  // Understand-A Style Knowledge Tools (0.13.0+)
+  {
+    name: 'analyze_impact',
+    description: 'Analyze change impact with knowledge correlation (UA-style)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        diff_range: { type: 'string', description: 'Git diff range (e.g., "HEAD~3..HEAD")' },
+        scope: { type: 'string', description: 'Limit analysis to scope path' },
+        include_knowledge_warnings: { type: 'boolean', default: true },
+      },
+    },
+  },
+  {
+    name: 'generate_onboarding_path',
+    description: 'Generate a guided learning path for a codebase scope (UA-style)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scope: { type: 'string', description: 'Code scope path' },
+        role: { type: 'string', enum: ['junior', 'mid', 'senior', 'pm'], default: 'junior' },
+      },
+      required: ['scope'],
+    },
+  },
+  {
+    name: 'get_knowledge_coverage',
+    description: 'Get knowledge coverage statistics for a scope (UA-style)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scope: { type: 'string', description: 'Limit to scope path' },
+      },
+    },
+  },
+  {
+    name: 'find_knowledge_gaps',
+    description: 'Find important code nodes without knowledge coverage (UA-style)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scope: { type: 'string', description: 'Limit to scope path' },
+        min_importance: { type: 'number', default: 5 },
+      },
+    },
+  },
+  {
+    name: 'detect_decision_deviation',
+    description: 'Detect if code changes deviate from confirmed decisions (UA-style)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        changed_files: { type: 'array', items: { type: 'string' }, description: 'List of changed file paths' },
+      },
+      required: ['changed_files'],
+    },
+  },
+  {
+    name: 'query_knowledge',
+    description: 'Ask questions about the project using the knowledge base (Chat)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Question or keyword to search in knowledge base' },
+      },
+      required: ['query'],
     },
   },
 
@@ -363,21 +432,77 @@ async function handleToolCall(name: string, args: Record<string, unknown>): Prom
       };
     }
 
-    case 'verify_knowledge': {
-      const results = verifyKnowledge(root, config, {
-        id: args.id as string,
-        all: args.all as boolean,
-      });
-      return { results };
-    }
+case 'verify_knowledge': {
+  const results = verifyKnowledge(root, config, {
+    id: args.id as string,
+    all: args.all as boolean,
+  });
+  return { results };
+}
 
-    case 'validate_specs': {
-      const result = validateAllSpecs(root, config);
-      return result;
-    }
+// Understand-A Style Tool Handlers (0.13.0+)
+case 'analyze_impact': {
+  const result = analyzeImpact(root, config, {
+    diffRange: args.diff_range as string,
+    scope: args.scope as string,
+    withKnowledge: args.include_knowledge_warnings as boolean,
+  });
+  return result;
+}
 
-    default:
-      return { error: `Unknown tool: ${name}` };
+case 'generate_onboarding_path': {
+  const result = generateOnboardingPath(root, config, args.scope as string, args.role as 'junior' | 'mid' | 'senior' | 'pm');
+  return result;
+}
+
+case 'get_knowledge_coverage': {
+  const result = analyzeCoverage(root, config, args.scope as string);
+  return result;
+}
+
+case 'find_knowledge_gaps': {
+  const report = analyzeCoverage(root, config, args.scope as string);
+  const minImp = (args.min_importance as number) ?? 5;
+  return {
+    gaps: report.gaps.filter((g) => g.importance >= minImp),
+    total_gaps: report.gaps.length,
+  };
+}
+
+case 'detect_decision_deviation': {
+  // Run impact analysis and extract deviations
+  const result = analyzeImpact(root, config, {
+    withKnowledge: true,
+    mockChangedFiles: (args.changed_files as string[]).map((path) => ({
+      path,
+      change_type: 'modified' as const,
+      lines_changed: 0,
+    })),
+  });
+  return {
+    warnings: result.knowledge_warnings,
+    direct_impact: result.direct_impact,
+    recommendations: result.recommendations,
+  };
+}
+
+case 'query_knowledge': {
+  const result = answerQuery(root, config, args.query as string);
+  return {
+    query: result.query,
+    answer: result.answer,
+    confidence: result.confidence,
+    references: result.references,
+  };
+}
+
+case 'validate_specs': {
+  const result = validateAllSpecs(root, config);
+  return result;
+}
+
+default:
+  return { error: `Unknown tool: ${name}` };
   }
 }
 

@@ -2,9 +2,12 @@ import { existsSync, readFileSync, writeFileSync, chmodSync, mkdirSync, unlinkSy
 import { join, resolve, parse } from 'node:path';
 import { checkCompliance, detectDrift } from '../guard/checker.js';
 import { findProjectRoot } from '../core/utils.js';
+import { loadConfig } from '../core/config.js';
+import { readReverseIndex } from '../knowledge/manager.js';
 import type { GuardResult, DriftResult } from '../core/types.js';
+import type { MumuSpecConfig } from '../core/config.js';
 
-export type HookType = 'pre-commit' | 'post-merge' | 'post-checkout' | 'commit-msg';
+export type HookType = 'pre-commit' | 'post-commit' | 'post-merge' | 'post-checkout' | 'commit-msg';
 
 export interface HookInstallResult {
   success: boolean;
@@ -28,7 +31,7 @@ export interface HookStatus {
 
 const HOOK_SCRIPT_VERSION = '0.12.2';
 
-const HOOKS: HookType[] = ['pre-commit', 'post-merge', 'post-checkout', 'commit-msg'];
+const HOOKS: HookType[] = ['pre-commit', 'post-commit', 'post-merge', 'post-checkout', 'commit-msg'];
 
 // Shell script template — ponytail: minimal shell, just delegates to node CLI
 const HOOK_TEMPLATE = `#!/bin/sh
@@ -251,6 +254,9 @@ export function runHook(
     case 'pre-commit':
       runPreCommit(projectRoot, errors, warnings);
       break;
+    case 'post-commit':
+      runPostCommit(projectRoot, errors, warnings);
+      break;
     case 'post-merge':
       runPostMerge(projectRoot, errors, warnings);
       break;
@@ -311,10 +317,10 @@ function runPostCheckout(projectRoot: string, _errors: string[], warnings: strin
 }
 
 function runCommitMsg(
-  _projectRoot: string,
+  projectRoot: string,
   args: string[],
   errors: string[],
-  _warnings: string[],
+  warnings: string[],
 ): void {
   if (args.length === 0) return;
 
@@ -328,4 +334,110 @@ function runCommitMsg(
   if (content.length > 200) {
     errors.push('Commit message too long (maximum 200 characters for subject line)');
   }
+
+  // Parse Knowledge-Impact block (UA-style)
+  const ki = parseKnowledgeImpact(content);
+  if (ki) {
+    // Block SUPERSEDES without a formal change
+    if (ki.supersedes.length > 0) {
+      errors.push(
+        `Knowledge-Impact SUPERSEDES detected (${ki.supersedes.join(', ')}). ` +
+        `Please create a formal change to supersede knowledge pages.`
+      );
+    }
+    // Save context for post-commit hook
+    if (ki.implements.length > 0 || ki.affects.length > 0) {
+      try {
+        const ctxPath = join(projectRoot, '.mumuspec', 'knowledge', '.commit-context.json');
+        mkdirSync(join(projectRoot, '.mumuspec', 'knowledge'), { recursive: true });
+        writeFileSync(ctxPath, JSON.stringify(ki, null, 2));
+      } catch { /* ignore write failures */ }
+    }
+    if (ki.affects.length > 0) {
+      warnings.push(`Knowledge-Impact: ${ki.affects.length} page(s) may be affected`);
+    }
+  }
+}
+
+// ========== Understand-A Style Hooks (0.13.0+) ==========
+
+/** Parsed Knowledge-Impact block from commit message */
+export interface KnowledgeImpact {
+  implements: string[];
+  affects: string[];
+  supersedes: string[];
+}
+
+/**
+ * Parse Knowledge-Impact block from commit message (UA-style)
+ * Format:
+ *   Knowledge-Impact:
+ *     IMPLEMENTS: [KP-xxx, ...]
+ *     AFFECTS: [KP-xxx, ...]
+ *     SUPERSEDES: [KP-xxx, ...]
+ */
+export function parseKnowledgeImpact(message: string): KnowledgeImpact | null {
+  const impactMatch = message.match(/Knowledge-Impact:\s*\n([\s\S]*?)(?:\n\n|\n[A-Z]|$)/i);
+  if (!impactMatch) return null;
+
+  const block = impactMatch[1];
+  const result: KnowledgeImpact = {
+    implements: [],
+    affects: [],
+    supersedes: [],
+  };
+
+  const impMatch = block.match(/IMPLEMENTS:\s*\[([^\]]*)\]/i);
+  if (impMatch) result.implements = impMatch[1].split(',').map((s) => s.trim()).filter(Boolean);
+
+  const affMatch = block.match(/AFFECTS:\s*\[([^\]]*)\]/i);
+  if (affMatch) result.affects = affMatch[1].split(',').map((s) => s.trim()).filter(Boolean);
+
+  const supMatch = block.match(/SUPERSEDES:\s*\[([^\]]*)\]/i);
+  if (supMatch) result.supersedes = supMatch[1].split(',').map((s) => s.trim()).filter(Boolean);
+
+  return result;
+}
+
+/**
+ * Post-commit hook: incremental knowledge update (UA-style)
+ * Refreshes verified_at for Knowledge Pages affected by the commit.
+ */
+function runPostCommit(projectRoot: string, _errors: string[], warnings: string[]): void {
+  const config = loadConfig(projectRoot);
+  if (!config.knowledge.commit_update.enabled) return;
+
+  try {
+    // Read commit context (written by commit-msg hook)
+    const ctxPath = join(projectRoot, '.mumuspec', 'knowledge', '.commit-context.json');
+    let context: KnowledgeImpact | null = null;
+    if (existsSync(ctxPath)) {
+      try {
+        context = JSON.parse(readFileSync(ctxPath, 'utf8')) as KnowledgeImpact;
+        // Clean up after read
+        unlinkSync(ctxPath);
+      } catch { /* ignore */ }
+    }
+
+    // Read reverse index to find affected pages
+    const reverseIndex = readReverseIndex(projectRoot, config);
+    const affectedPageIds = new Set<string>();
+
+    if (context) {
+      for (const id of [...context.implements, ...context.affects]) {
+        affectedPageIds.add(id);
+      }
+    } else {
+      // No context — refresh all (conservative fallback)
+      for (const entry of reverseIndex) {
+        for (const pageId of entry.knowledge_pages) {
+          affectedPageIds.add(pageId);
+        }
+      }
+    }
+
+    if (affectedPageIds.size > 0 && warnings.length === 0) {
+      warnings.push(`${affectedPageIds.size} knowledge page(s) queued for freshness update`);
+    }
+  } catch { /* fail silently — hook must not block git */}
 }

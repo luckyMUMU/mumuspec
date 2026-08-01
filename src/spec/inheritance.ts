@@ -72,28 +72,55 @@ function isConflicting(shall: string, shallNot: string): boolean {
   const shallLower = shall.toLowerCase();
   const shallNotLower = shallNot.toLowerCase();
 
-  // If SHALL says "must use X" and SHALL NOT says "禁止使用 X" (or "must not use X")
-  // Look for direct negation patterns
+  // Check polarity: one positive (must) and one negative (forbid)
+  const shallHasPositive = shallLower.includes('must') || shallLower.includes('必须') || shallLower.includes('应该');
+  const shallNotHasNegative = shallNotLower.includes('禁') || shallNotLower.includes('not') || shallNotLower.includes('不得');
+
+  if (!(shallHasPositive && shallNotHasNegative)) {
+    return false;
+  }
 
   // Extract key terms (verbs, nouns)
   const shallTerms = extractKeyTerms(shallLower);
   const shallNotTerms = extractKeyTerms(shallNotLower);
 
-  // Check if they reference the same action with opposite polarity
-  // e.g., "must use X" vs "禁止使用 X"
-  for (const term of shallTerms) {
-    if (shallNotTerms.includes(term)) {
-      // Same term in both - potential conflict
-      // Check if one says "must" and other says "not/禁止"
-      const shallHasPositive = shallLower.includes('must') || shallLower.includes('必须') || shallLower.includes('应该');
-      const shallNotHasNegative = shallNotLower.includes('禁止') || shallNotLower.includes('not') || shallNotLower.includes('不得');
+  // Require at least 2 matching key terms to reduce false positives
+  // (single shared words like "npm" or "frontmatter" are not enough on their own)
+  const matchingTerms = shallTerms.filter((term) => shallNotTerms.includes(term));
 
-      if (shallHasPositive && shallNotHasNegative) {
-        return true;
+  // Also check for significant Chinese character overlap (handles CJK text without spaces)
+  // e.g., "HTTP 协议" vs "HTTP 协议" where split produces larger chunks
+  const sharedChinese = hasSignificantChineseOverlap(shallLower, shallNotLower);
+
+  // Conflict detection requires BOTH signals to avoid false positives:
+  // - Single English term (e.g., "npm") can appear in passing in unrelated rules
+  // - Common Chinese grammatical phrases (e.g., "必须通过") appear across many rules
+  // - Together they indicate a genuine conflict (shared topic + shared domain term)
+  return matchingTerms.length >= 2 || (matchingTerms.length >= 1 && sharedChinese);
+}
+
+/**
+ * Check if two CJK-containing strings share significant character overlap.
+ * Returns true if they share a Chinese substring of ≥3 chars (indicating same topic).
+ */
+function hasSignificantChineseOverlap(a: string, b: string): boolean {
+  // Extract Chinese character sequences (CJK Unified Ideographs)
+  const chineseRegex = /[\u4e00-\u9fff]+/g;
+  const aChinese = a.match(chineseRegex) || [];
+  const bChinese = b.match(chineseRegex) || [];
+
+  // Check if any Chinese substring of length ≥4 from A appears in B
+  // Threshold: 4 chars avoids common phrases like "必须通过" (3 chars)
+  for (const seq of aChinese) {
+    if (seq.length >= 4 && b.includes(seq)) return true;
+    // Also check substrings of length 4 within longer sequences
+    if (seq.length > 4) {
+      for (let i = 0; i <= seq.length - 4; i++) {
+        const sub = seq.substring(i, i + 4);
+        if (b.includes(sub)) return true;
       }
     }
   }
-
   return false;
 }
 

@@ -1,12 +1,62 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ChangeState, GuardResult } from '../core/types.js';
 import { readText, computeHash } from '../core/utils.js';
 import { getChangeDir, loadChangeState, verifyTestCases } from '../change/manager.js';
 import { applyStrengthToGuardResult } from './checker.js';
 import type { ConstraintStrengthField } from '../core/config.js';
+import { parse as parseYaml } from 'yaml';
 
-/** Run a phase guard check */
+/**
+ * Load design schema from templates/design-schema.yaml
+ * Returns the schema or null if file doesn't exist
+ */
+function loadDesignSchema(projectRoot: string): Record<string, unknown> | null {
+  try {
+    const schemaPath = join(projectRoot, 'templates', 'design-schema.yaml');
+    if (!existsSync(schemaPath)) return null;
+    const content = readFileSync(schemaPath, 'utf-8');
+    return parseYaml(content) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if design.md has all required sections based on schema
+ * Returns missing section names
+ */
+function checkRequiredSections(
+  designContent: string,
+  workflow: string,
+  schema: Record<string, unknown> | null,
+): string[] {
+  if (!schema || !schema.sections) return [];
+
+  const sections = schema.sections as Array<{
+    name: string;
+    patterns: string[];
+    required_for: string[];
+  }>;
+
+  const missing: string[] = [];
+  for (const section of sections) {
+    if (!section.required_for.includes(workflow)) continue;
+
+    const hasSection = section.patterns.some((pattern) => {
+      const regex = new RegExp(pattern, 'im');
+      return regex.test(designContent);
+    });
+
+    if (!hasSection) {
+      missing.push(section.name);
+    }
+  }
+  return missing;
+}
+
+/**
+ * Run a phase guard check */
 export function runPhaseGuard(
   projectRoot: string,
   changeName: string,
@@ -208,6 +258,26 @@ function checkDesignToBuild(
     errors.push({ code: 'E-GUARD-001', message: 'tdd_mode 必须为 tdd' });
   }
 
+  // DS-001: Structured Design Template check (E-DESIGN-009)
+  if (existsSync(designPath)) {
+    const designContent = readText(designPath) || '';
+    const schema = loadDesignSchema(projectRoot);
+    if (schema) {
+      const missingSections = checkRequiredSections(designContent, state.workflow, schema);
+      if (missingSections.length > 0) {
+        errors.push({
+          code: 'E-DESIGN-009',
+          message: `Design 文档缺少必填字段: ${missingSections.join(', ')}`,
+          detail: `请补充以下 section 后重试: ${missingSections.join(', ')}。可使用 \`mumuspec guard X design --verbose\` 查看匹配规则。`,
+        });
+      }
+    }
+  }
+
+  // DS-004: Cross-artifact consistency check (E-DESIGN-010)
+  const consistencyErrors = checkCrossArtifactConsistencySync(state, projectRoot, changeName);
+  errors.push(...consistencyErrors);
+
   // Check cognitive framework (only for full workflow)
   if (state.workflow === 'full' && state.cognitive_framework?.enabled) {
     const cf = state.cognitive_framework;
@@ -231,7 +301,158 @@ function checkDesignToBuild(
     }
   }
 
+  // Check grill-me result (full workflow only)
+  if (state.workflow === 'full' && state.grill_me_result) {
+    const gm = state.grill_me_result;
+    if (!gm.completed) {
+      errors.push({ code: 'E-DESIGN-007', message: 'grill-me 压力测试未完成' });
+    }
+    if (gm.rounds > gm.max_rounds) {
+      errors.push({
+        code: 'E-DESIGN-008',
+        message: `grill-me 追问轮次超出上限 (${gm.rounds}/${gm.max_rounds})`,
+      });
+    }
+    if (!gm.consensus_reached && gm.deferred_count > 0) {
+      warnings.push({
+        code: 'W-DESIGN-001',
+        message: `grill-me 有 ${gm.deferred_count} 个 deferred 分支未达成共识`,
+      });
+    }
+  }
+
   return { passed: errors.length === 0, errors, warnings };
+}
+
+/**
+ * DS-004: Cross-artifact consistency check (sync version)
+ * Verifies alignment between proposal, design, cognitive-map, and delta-specs
+ */
+function checkCrossArtifactConsistencySync(
+  state: ChangeState,
+  projectRoot: string,
+  changeName: string,
+): Array<{ code: string; message: string; detail?: string }> {
+  const errors: Array<{ code: string; message: string; detail?: string }> = [];
+  const changeDir = getChangeDir(projectRoot, changeName);
+
+  // Read all artifacts
+  const proposalPath = join(changeDir, 'proposal.md');
+  const designPath = join(changeDir, 'design.md');
+  const deltaSpecsDir = join(changeDir, 'delta-specs');
+
+  if (!existsSync(proposalPath) || !existsSync(designPath)) {
+    return errors; // Handled by other checks
+  }
+
+  const proposalContent = readText(proposalPath) || '';
+  const designContent = readText(designPath) || '';
+
+  // Check 1: Plan Coverage - proposal Plan steps should appear in design Layers
+  const planSection = extractSection(proposalContent, ['Plan', '计划']);
+  const designLayersSection = extractSection(designContent, ['Implementation Layers', '实现']);
+  if (planSection && designLayersSection) {
+    const planSteps = extractListItems(planSection);
+    const missingSteps = planSteps.filter((step) => {
+      const normalizedStep = step.substring(0, 30).toLowerCase();
+      return !designLayersSection.toLowerCase().includes(normalizedStep);
+    });
+    if (missingSteps.length > 0 && planSteps.length > 2) {
+      errors.push({
+        code: 'E-DESIGN-010',
+        message: `跨工件不一致: proposal Plan 中 ${missingSteps.length} 个步骤未在 design Layers 中找到对应`,
+        detail: `缺失步骤: ${missingSteps.slice(0, 3).join('; ')}${missingSteps.length > 3 ? '...' : ''}`,
+      });
+    }
+  }
+
+  // Check 2: FR Satisfaction - proposal FR should be reflected in design
+  const frSection = extractSection(proposalContent, ['Requirements', '需求', 'FR']);
+  if (frSection && designContent) {
+    const frItems = extractListItems(frSection).filter((item) => item.match(/^FR-/));
+    const missingFr: string[] = [];
+    for (const fr of frItems) {
+      const frId = fr.match(/^(FR-\d+)/)?.[1];
+      if (frId && !designContent.includes(frId)) {
+        missingFr.push(frId);
+      }
+    }
+    if (missingFr.length > 0) {
+      errors.push({
+        code: 'E-DESIGN-010',
+        message: `跨工件不一致: proposal 中 ${missingFr.join(', ')} 未在 design 中被引用`,
+      });
+    }
+  }
+
+  // Check 3: Delta-Spec alignment (sync)
+  if (existsSync(deltaSpecsDir) && designContent) {
+    try {
+      const { readdirSync } = require('node:fs');
+      const deltaFiles = readdirSync(deltaSpecsDir).filter((f: string) => f.endsWith('.md'));
+      for (const df of deltaFiles) {
+        const dfContent = readText(join(deltaSpecsDir, df)) || '';
+        const scopeMatch = dfContent.match(/scope:\s*(.+)/i);
+        if (scopeMatch) {
+          const scope = scopeMatch[1].trim();
+          const fileName = scope.split('/').pop() || scope;
+          if (fileName && !designContent.includes(fileName) && fileName !== '(new)') {
+            errors.push({
+              code: 'E-DESIGN-010',
+              message: `跨工件不一致: delta-spec ${df} 的 scope "${scope}" 未在 design 中提及`,
+            });
+          }
+        }
+      }
+    } catch {
+      // Ignore delta-spec read errors
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Extract a section from markdown content by heading patterns
+ */
+function extractSection(content: string, headingPatterns: string[]): string | null {
+  const lines = content.split('\n');
+  let inSection = false;
+  const sectionLines: string[] = [];
+
+  for (const line of lines) {
+    const isHeading = headingPatterns.some((pattern) =>
+      new RegExp(`^#+\\s*${pattern}`, 'i').test(line.trim()),
+    );
+
+    if (isHeading) {
+      inSection = true;
+      continue;
+    }
+
+    if (inSection) {
+      if (line.match(/^#{1,3}\s/) && !headingPatterns.some((p) => new RegExp(`^#+\\s*${p}`, 'i').test(line.trim()))) {
+        break;
+      }
+      sectionLines.push(line);
+    }
+  }
+
+  return sectionLines.length > 0 ? sectionLines.join('\n') : null;
+}
+
+/**
+ * Extract list items from a section
+ */
+function extractListItems(sectionContent: string): string[] {
+  const items: string[] = [];
+  for (const line of sectionContent.split('\n')) {
+    const match = line.match(/^\s*[-*]\s+(.+)$/) || line.match(/^\s*\d+\.\s+(.+)$/);
+    if (match) {
+      items.push(match[1].trim());
+    }
+  }
+  return items;
 }
 
 /** build_to_verify guard */
@@ -261,6 +482,19 @@ function checkBuildToVerify(
   // Check suites locked
   if (!state.test_cases.suites_locked) {
     warnings.push({ code: 'E-GUARD-004', message: 'test suites 未锁定' });
+  }
+
+  // DS-005: Task granularity warning (W-DESIGN-001)
+  if (state.hyperplan_result && state.hyperplan_result.triggered) {
+    // Check if any tasks exceed granularity limit (read from state or config)
+    const GranularityLimit = 15; // minutes
+    const taskLayers = state.build_layers.filter(
+      (l) => l.status !== 'done' && l.scope.includes('min'),
+    );
+    // Note: In full implementation, this would check task metadata
+    // For now, this is a placeholder for the warning mechanism
+    void GranularityLimit;
+    void taskLayers;
   }
 
   return { passed: errors.length === 0, errors, warnings };
@@ -295,6 +529,33 @@ function checkVerifyToArchive(
   const testVerify = verifyTestCases(projectRoot, changeName);
   if (!testVerify.valid) {
     errors.push({ code: 'E-GUARD-004', message: 'test immutability 校验失败' });
+  }
+
+  // Check verify_result is pass
+  if (state.verify_result !== 'pass' && state.verify_result !== 'pass-with-deviations') {
+    errors.push({
+      code: 'E-VERIFY-001',
+      message: `verify_result 不为 pass (当前: ${state.verify_result})`,
+    });
+  }
+
+  // Check branch_status handled
+  if (state.branch_status !== 'handled') {
+    errors.push({
+      code: 'E-VERIFY-002',
+      message: `branch_status 未处理 (当前: ${state.branch_status})`,
+    });
+  }
+
+  // Check SHALL/NOT enforcement evidence in verify.md
+  if (existsSync(verifyPath)) {
+    const verifyContent = readText(verifyPath) || '';
+    if (!verifyContent.includes('SHALL') && !verifyContent.includes('SHALL NOT')) {
+      warnings.push({
+        code: 'W-VERIFY-001',
+        message: 'verify.md 未包含 SHALL/SHALL NOT 校验记录',
+      });
+    }
   }
 
   return { passed: errors.length === 0, errors, warnings };

@@ -119,6 +119,28 @@ export interface MumuSpecConfig {
       error_after_days: number;
     };
     drift_detection: boolean;
+    /** Reverse index config (UA-style) */
+    reverse_index: {
+      file: string;
+      auto_rebuild: string[];
+      fallback: boolean;
+    };
+    /** Commit-time knowledge update (UA-style) */
+    commit_update: {
+      enabled: boolean;
+      timeout_ms: number;
+      async: boolean;
+      llm_enhancement: boolean;
+    };
+    /** Commit message Knowledge-Impact parsing */
+    commit_message: {
+      parse_knowledge_impact: boolean;
+    };
+    /** Knowledge coverage analysis (UA-style) */
+    coverage: {
+      importance_formula: string;
+      gap_threshold: number;
+    };
   };
   enforcement: {
     engine: string;
@@ -821,6 +843,24 @@ export function getDefaultConfig(projectName: string = 'my-project'): MumuSpecCo
         error_after_days: 180,
       },
       drift_detection: true,
+      reverse_index: {
+        file: '_reverse-index.yaml',
+        auto_rebuild: ['pre-commit', 'post-merge', 'post-checkout'],
+        fallback: true,
+      },
+      commit_update: {
+        enabled: true,
+        timeout_ms: 500,
+        async: true,
+        llm_enhancement: false,
+      },
+      commit_message: {
+        parse_knowledge_impact: true,
+      },
+      coverage: {
+        importance_formula: 'ref_count * node_count',
+        gap_threshold: 5,
+      },
     },
     enforcement: {
       engine: 'builtin',

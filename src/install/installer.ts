@@ -1,9 +1,13 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+// ESM-compatible __dirname
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 // Agent types supported by the install command
-export type AgentType = 'catpaw' | 'claude' | 'cursor';
+export type AgentType = 'catpaw' | 'claude' | 'cursor' | 'trae' | 'workbuddy' | 'opencode';
 
 // Installation target scope
 export type InstallTarget = 'user' | 'workspace';
@@ -154,11 +158,60 @@ Use the mumuspec-workflow skill to drive the development workflow.`,
   },
 ];
 
-// Future: Claude Code commands registry
-const CLAUDE_PACKAGES: PackageManifestEntry[] = [];
+// Claude Code commands registry
+const CLAUDE_PACKAGES: PackageManifestEntry[] = [
+  {
+    name: 'mumuspec-workflow',
+    description: 'MumuSpec workflow — full lifecycle change management',
+    agent: 'claude',
+    command: 'mumuspec',
+    category: 'workflow',
+  },
+];
 
-// Future: Cursor commands registry
-const CURSOR_PACKAGES: PackageManifestEntry[] = [];
+// Cursor commands registry
+const CURSOR_PACKAGES: PackageManifestEntry[] = [
+  {
+    name: 'mumuspec-workflow',
+    description: 'MumuSpec workflow — full lifecycle change management',
+    agent: 'cursor',
+    command: 'mumuspec',
+    category: 'workflow',
+  },
+];
+
+// Trae commands registry
+const TRAE_PACKAGES: PackageManifestEntry[] = [
+  {
+    name: 'mumuspec-workflow',
+    description: 'MumuSpec workflow — full lifecycle change management',
+    agent: 'trae',
+    command: 'mumuspec',
+    category: 'workflow',
+  },
+];
+
+// WorkBuddy commands registry
+const WORKBUDDY_PACKAGES: PackageManifestEntry[] = [
+  {
+    name: 'mumuspec-workflow',
+    description: 'MumuSpec workflow — full lifecycle change management',
+    agent: 'workbuddy',
+    command: 'mumuspec',
+    category: 'workflow',
+  },
+];
+
+// OpenCode commands registry
+const OPENCODE_PACKAGES: PackageManifestEntry[] = [
+  {
+    name: 'mumuspec-workflow',
+    description: 'MumuSpec workflow — full lifecycle change management',
+    agent: 'opencode',
+    command: 'mumuspec',
+    category: 'workflow',
+  },
+];
 
 // ============================================================
 // Shared utilities
@@ -199,6 +252,29 @@ function resolvePawCmd(): string {
   return 'paw';
 }
 
+/**
+ * Resolve the CatPaw user data directory.
+ * Prefers CATPAW_HOME / MEITPAW_HOME env vars (set by CatPaw runtime), falls back to
+ * USERPROFILE/.meituan-catpaw or HOME/.meituan-catpaw.
+ */
+function resolveCatpawDataDir(): string | undefined {
+  // CatPaw runtime sets these env vars
+  if (process.env.CATPAW_HOME) {
+    return process.env.CATPAW_HOME;
+  }
+  if (process.env.MEITPAW_HOME) {
+    return process.env.MEITPAW_HOME;
+  }
+  // Fallback: conventional location
+  const home = process.platform === 'win32'
+    ? process.env.USERPROFILE
+    : process.env.HOME;
+  if (home) {
+    return join(home, '.meituan-catpaw');
+  }
+  return undefined;
+}
+
 // ============================================================
 // Manifest access
 // ============================================================
@@ -214,6 +290,12 @@ export function getManifest(agent: AgentType): PackageManifestEntry[] {
       return CLAUDE_PACKAGES;
     case 'cursor':
       return CURSOR_PACKAGES;
+    case 'trae':
+      return TRAE_PACKAGES;
+    case 'workbuddy':
+      return WORKBUDDY_PACKAGES;
+    case 'opencode':
+      return OPENCODE_PACKAGES;
     default:
       return [];
   }
@@ -255,6 +337,13 @@ export function getCommandPresets(): CommandPresetEntry[] {
 }
 
 // ============================================================
+// Update mode type
+// ============================================================
+
+/** Behavior when target already exists */
+export type InstallMode = 'install' | 'update';
+
+// ============================================================
 // Core install functions
 // ============================================================
 
@@ -266,19 +355,17 @@ export function installPackage(
   packageName: string,
   target: InstallTarget,
   workspacePath?: string,
+  mode: InstallMode = 'install',
 ): InstallResult {
   switch (agent) {
     case 'catpaw':
-      return installCatpawPackage(packageName, target, workspacePath);
+      return installCatpawPackage(packageName, target, workspacePath, mode);
     case 'claude':
     case 'cursor':
-      return {
-        success: false,
-        packageName,
-        agent,
-        target,
-        error: `Agent "${agent}" installer not yet implemented. Coming soon.`,
-      };
+    case 'trae':
+    case 'workbuddy':
+    case 'opencode':
+      return installGenericAgentPackage(agent, packageName, target, workspacePath, mode);
     default:
       return {
         success: false,
@@ -288,6 +375,178 @@ export function installPackage(
         error: `Unknown agent: ${agent}`,
       };
   }
+}
+
+// ============================================================
+// Generic agent install (claude / cursor / trae / workbuddy / opencode)
+// ============================================================
+
+/**
+ * Agent skill directory conventions.
+ * - claude: ~/.claude/commands/<command>.md
+ * - cursor: .cursor/commands/<command>.md (workspace) or ~/.cursor/commands/<command>.md (user)
+ * - trae: ~/.trae/skills/<skill>/SKILL.md
+ * - workbuddy: ~/.workbuddy/skills/<skill>/SKILL.md
+ * - opencode: ~/.opencode/skills/<skill>/SKILL.md
+ */
+function getAgentSkillDir(
+  agent: AgentType,
+  target: InstallTarget,
+  workspacePath?: string,
+): { baseDir: string; skillsSubDir: string; fileExt: string } {
+  const homeDir = process.platform === 'win32'
+    ? (process.env.USERPROFILE || '')
+    : (process.env.HOME || '');
+
+  const workspace = workspacePath || process.cwd();
+
+  switch (agent) {
+    case 'claude':
+      return {
+        baseDir: target === 'workspace' ? workspace : homeDir,
+        skillsSubDir: target === 'workspace' ? '.claude/commands' : '.claude/commands',
+        fileExt: '.md',
+      };
+    case 'cursor':
+      return {
+        baseDir: target === 'workspace' ? workspace : homeDir,
+        skillsSubDir: target === 'workspace' ? '.cursor/commands' : '.cursor/commands',
+        fileExt: '.md',
+      };
+    case 'trae':
+      return {
+        baseDir: target === 'workspace' ? workspace : homeDir,
+        skillsSubDir: target === 'workspace' ? '.trae/skills' : '.trae/skills',
+        fileExt: 'SKILL.md',
+      };
+    case 'workbuddy':
+      return {
+        baseDir: target === 'workspace' ? workspace : homeDir,
+        skillsSubDir: target === 'workspace' ? '.workbuddy/skills' : '.workbuddy/skills',
+        fileExt: 'SKILL.md',
+      };
+    case 'opencode':
+      return {
+        baseDir: target === 'workspace' ? workspace : homeDir,
+        skillsSubDir: target === 'workspace' ? '.opencode/skills' : '.opencode/skills',
+        fileExt: 'SKILL.md',
+      };
+    default:
+      return { baseDir: workspace, skillsSubDir: '', fileExt: '.md' };
+  }
+}
+
+/**
+ * Generic agent installer — copies skill files from source to agent skill directory.
+ * For claude/cursor, creates a command file. For trae/workbuddy/opencode,
+ * copies the SKILL.md into a skill subdirectory.
+ */
+function installGenericAgentPackage(
+  agent: AgentType,
+  packageName: string,
+  target: InstallTarget,
+  workspacePath?: string,
+  mode: InstallMode = 'install',
+): InstallResult {
+  const pkg = resolvePackage(agent, packageName);
+
+  if (!pkg) {
+    return {
+      success: false,
+      packageName,
+      agent,
+      target,
+      error: `Package "${packageName}" not found for agent "${agent}".`,
+    };
+  }
+
+  try {
+    const dirInfo = getAgentSkillDir(agent, target, workspacePath);
+    const sourceSkill = findSkillSource(packageName);
+
+    if (!sourceSkill) {
+      return {
+        success: false,
+        packageName,
+        agent,
+        target,
+        error: `Skill source for "${packageName}" not found in distribution.`,
+      };
+    }
+
+    let targetPath: string;
+
+    if (agent === 'claude' || agent === 'cursor') {
+      // Command-style: <base>/<skillsSubDir>/<command>.md
+      const cmdName = pkg.command || packageName;
+      targetPath = join(dirInfo.baseDir, dirInfo.skillsSubDir, `${cmdName}${dirInfo.fileExt}`);
+    } else {
+      // Skill-style: <base>/<skillsSubDir>/<skill>/SKILL.md
+      targetPath = join(dirInfo.baseDir, dirInfo.skillsSubDir, packageName, dirInfo.fileExt);
+    }
+
+    // Check if already installed
+    if (existsSync(targetPath)) {
+      if (mode === 'install') {
+        return {
+          success: false,
+          packageName,
+          agent,
+          target,
+          path: targetPath,
+          error: `Already installed at "${targetPath}". Use --force to update.`,
+        };
+      }
+      // mode === 'update': proceed with overwrite
+    }
+
+    const targetDir = targetPath.substring(0, targetPath.lastIndexOf('/'));
+    mkdirSync(targetDir, { recursive: true });
+
+    const content = readFileSync(sourceSkill, 'utf8');
+    writeFileSync(targetPath, content, 'utf8');
+
+    return {
+      success: true,
+      packageName,
+      agent,
+      target,
+      path: targetPath,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      packageName,
+      agent,
+      target,
+      error: `Failed to install "${packageName}" for ${agent}: ${message}`,
+    };
+  }
+}
+
+/**
+ * Find the source skill file in the distribution.
+ * Checks project root skills/ then node_modules/mumuspec/skills/.
+ */
+function findSkillSource(packageName: string): string | undefined {
+  const candidates = [
+    // Project root skills dir
+    join(process.cwd(), 'skills', `${packageName}.md`),
+    join(process.cwd(), 'skills', packageName, 'SKILL.md'),
+    // Distribution (installed npm package) skills dir
+    join(__dirname, '..', '..', 'skills', `${packageName}.md`),
+    join(__dirname, '..', '..', 'skills', packageName, 'SKILL.md'),
+    // node_modules fallback
+    join(process.cwd(), 'node_modules', 'mumuspec', 'skills', `${packageName}.md`),
+    join(process.cwd(), 'node_modules', 'mumuspec', 'skills', packageName, 'SKILL.md'),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+
+  return undefined;
 }
 
 /**
@@ -303,10 +562,11 @@ function installCatpawPackage(
   packageName: string,
   target: InstallTarget,
   workspacePath?: string,
+  mode: InstallMode = 'install',
 ): InstallResult {
   // Check if this is the mumuspec-workflow local skill
   if (packageName === 'mumuspec-workflow') {
-    return installMumuspecWorkflowSkill(target, workspacePath);
+    return installMumuspecWorkflowSkill(target, workspacePath, mode);
   }
 
   const pkg = resolvePackage('catpaw', packageName);
@@ -337,6 +597,10 @@ function installCatpawPackage(
     // Build the install command
     const args: string[] = ['skills', 'install', '--skill-id', String(pkg.skillId)];
 
+    // Note: paw CLI does not support --force. For marketplace skills,
+    // we simply run the install command which will reinstall/overwrite.
+    // If the skill ID is stale or already installed, paw handles it.
+
     if (target === 'workspace' && workspacePath) {
       args.push('--target', 'workspace', '--workspace-path', workspacePath);
     } else if (target === 'workspace' && !workspacePath) {
@@ -364,10 +628,8 @@ function installCatpawPackage(
         if (target === 'workspace' && workspacePath) {
           installPath = join(workspacePath, '.meituan-catpaw', 'skills', result.skillId);
         } else {
-          const homeDir = process.platform === 'win32'
-            ? process.env.USERPROFILE
-            : process.env.HOME;
-          installPath = join(homeDir || '', '.meituan-catpaw', 'skills', result.skillId);
+          const dataDir = resolveCatpawDataDir();
+          installPath = join(dataDir || '', 'skills', result.skillId);
         }
       }
     } catch {
@@ -395,6 +657,17 @@ function installCatpawPackage(
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    // In update mode, if paw CLI fails (e.g. stale skill ID, network issue),
+    // provide a helpful message rather than a hard error.
+    if (mode === 'update') {
+      return {
+        success: false,
+        packageName,
+        agent: 'catpaw',
+        target,
+        error: `Marketplace update failed for "${packageName}": ${message}. The skill may already be installed with a different ID, or the manifest skill ID may be stale.`,
+      };
+    }
     return {
       success: false,
       packageName,
@@ -412,6 +685,7 @@ function installCatpawPackage(
 function installMumuspecWorkflowSkill(
   target: InstallTarget,
   workspacePath?: string,
+  mode: InstallMode = 'install',
 ): InstallResult {
   try {
     let targetDir: string;
@@ -428,19 +702,30 @@ function installMumuspecWorkflowSkill(
       }
       targetDir = join(workspacePath, '.meituan-catpaw', 'skills', 'mumuspec-workflow');
     } else {
-      const homeDir = process.platform === 'win32'
-        ? process.env.USERPROFILE
-        : process.env.HOME;
-      if (!homeDir) {
+      const dataDir = resolveCatpawDataDir();
+      if (!dataDir) {
         return {
           success: false,
           packageName: 'mumuspec-workflow',
           agent: 'catpaw',
           target,
-          error: 'Cannot determine home directory for user scope install',
+          error: 'Cannot determine CatPaw data directory for user scope install',
         };
       }
-      targetDir = join(homeDir, '.meituan-catpaw', 'skills', 'mumuspec-workflow');
+      targetDir = join(dataDir, 'skills', 'mumuspec-workflow');
+    }
+
+    // Check if already installed
+    const targetFile = join(targetDir, 'SKILL.md');
+    if (existsSync(targetFile) && mode === 'install') {
+      return {
+        success: false,
+        packageName: 'mumuspec-workflow',
+        agent: 'catpaw',
+        target,
+        path: targetDir,
+        error: `Already installed at "${targetDir}". Use --force to update.`,
+      };
     }
 
     // Create target directory
@@ -448,7 +733,6 @@ function installMumuspecWorkflowSkill(
 
     // Copy SKILL.md — source is at project or user-level install
     const sourceSkill = findMumuspecWorkflowSource();
-    const targetFile = join(targetDir, 'SKILL.md');
 
     if (sourceSkill) {
       // Read from source and write to target
@@ -480,19 +764,25 @@ function installMumuspecWorkflowSkill(
 
 /**
  * Find the source path for the mumuspec-workflow skill.
+ * Updated: skills now live in project root `skills/` directory.
  */
 function findMumuspecWorkflowSource(): string | undefined {
-  // Check common locations
   const candidates = [
-    // Project-level
+    // Project root skills (new canonical location)
+    join(process.cwd(), 'skills', 'mumuspec.md'),
+    join(process.cwd(), 'skills', 'mumuspec-workflow', 'SKILL.md'),
+    // Distribution (installed npm package)
+    join(__dirname, '..', '..', 'skills', 'mumuspec.md'),
+    join(__dirname, '..', '..', 'skills', 'mumuspec-workflow', 'SKILL.md'),
+    // node_modules fallback
+    join(process.cwd(), 'node_modules', 'mumuspec', 'skills', 'mumuspec.md'),
+    // Legacy: project-level catpaw skill
     join(process.cwd(), '.catpaw', 'skills', 'mumuspec-workflow', 'SKILL.md'),
-    // User-level (existing install)
+    // Legacy: user-level install
     join(
       process.platform === 'win32' ? process.env.USERPROFILE || '' : process.env.HOME || '',
       '.meituan-catpaw', 'skills', 'mumuspec-workflow', 'SKILL.md',
     ),
-    // Local project relative
-    join(process.cwd(), 'dist', 'mumuspec-workflow', 'SKILL.md'),
   ];
 
   for (const candidate of candidates) {
@@ -665,6 +955,7 @@ export function installCatpawCommand(
   presetName: string,
   target: InstallTarget,
   workspacePath?: string,
+  mode: InstallMode = 'install',
 ): InstallCommandResult {
   const preset = COMMAND_PRESETS.find((p) => p.name === presetName);
   if (!preset) {
@@ -706,6 +997,17 @@ export function installCatpawCommand(
     // Write command file (strip leading / from name for filename)
     const filename = presetName.startsWith('/') ? presetName.slice(1) : presetName;
     const targetFile = join(targetDir, `${filename}.md`);
+
+    // Check if already installed
+    if (existsSync(targetFile) && mode === 'install') {
+      return {
+        success: false,
+        commandName: presetName,
+        path: targetFile,
+        error: `Command already installed at "${targetFile}". Use --force to update.`,
+      };
+    }
+
     writeFileSync(targetFile, preset.template, 'utf8');
 
     return {
@@ -836,12 +1138,12 @@ export function formatInstalledSkills(
  * Validate that a given agent type is supported.
  */
 export function isAgentSupported(agent: string): agent is AgentType {
-  return agent === 'catpaw' || agent === 'claude' || agent === 'cursor';
+  return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode'].includes(agent);
 }
 
 /**
  * Get the list of supported agents.
  */
 export function getSupportedAgents(): AgentType[] {
-  return ['catpaw', 'claude', 'cursor'];
+  return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode'];
 }

@@ -399,6 +399,13 @@ export interface ChangeState {
     open_questions_resolved: boolean;
     degraded: boolean;
   };
+  grill_me_result?: {
+    completed: boolean;
+    rounds: number;
+    max_rounds: number;
+    deferred_count: number;
+    consensus_reached: boolean;
+  };
   git_merge?: {
     merged: boolean;
     commit_sha?: string;
@@ -413,6 +420,23 @@ export interface ChangeState {
   accepted_deviations?: string[];
   deviation_reviewer?: string;
   deviation_approved_at?: string;
+  verify_result?: 'pending' | 'pass' | 'pass-with-deviations' | 'fail';
+  branch_status?: 'pending' | 'handled';
+  verification_report?: string;
+  verify_mode?: 'light' | 'full';
+  /** Clarification loop result (0.13.0+) */
+  clarify_result?: {
+    completed: boolean;
+    questions_asked: number;
+    questions_answered: number;
+  };
+  /** AI self-review result (0.13.0+) */
+  review_result?: {
+    completed: boolean;
+    critical_count: number;
+    major_count: number;
+    minor_count: number;
+  };
   /** Feedback log — feedback IDs linked to this change + session links (0.12.1+) */
   feedback_log?: {
     entries: Array<{
@@ -469,13 +493,14 @@ export interface DriftResult {
 export interface KnowledgePageFrontmatter {
   id: string;
   title: string;
-  type: 'decision' | 'pattern' | 'risk' | 'rationale' | 'lesson';
+  type: 'decision' | 'pattern' | 'risk' | 'rationale' | 'lesson' | 'imported';
   status: 'confirmed' | 'superseded' | 'deprecated' | 'proposed';
   scope: string;
   created_at: string;
   verified_at?: string;
   tags?: string[];
   graph_bindings?: string[];
+  related_pages?: string[];
   supersedes?: string;
   superseded_by?: string;
 }
@@ -508,6 +533,31 @@ export interface PageIndex {
 export interface ReverseIndexEntry {
   code_node: string;
   knowledge_pages: string[];
+}
+
+/** Knowledge organization scan result */
+export interface KnowledgeOrganizeResult {
+  issues: KnowledgeIssue[];
+  stats: {
+    total_files: number;
+    total_index_entries: number;
+    duplicate_ids: number;
+    missing_from_index: number;
+    orphaned_index_entries: number;
+    missing_required_fields: number;
+    type_mismatches: number;
+  };
+  fixed: number;
+}
+
+/** Knowledge issue found by organize scan */
+export interface KnowledgeIssue {
+  severity: 'error' | 'warning' | 'info';
+  type: 'duplicate_id' | 'missing_from_index' | 'orphaned_index' | 'missing_field' | 'type_mismatch' | 'missing_file';
+  page_id?: string;
+  file?: string;
+  message: string;
+  auto_fixable: boolean;
 }
 
 /** Cognitive map quadrant entry */
@@ -615,3 +665,370 @@ export interface FeedbackLog {
   session_links: FeedbackSessionLink[];
   last_updated: string;
 }
+
+// ========== Understand-A Style Types (0.13.0+) ==========
+// Inspired by Understand-Anything (Lum1104/UA) — Knowledge Layer enhancement
+
+/** Reference to a spec entry */
+export interface SpecRef {
+  id: string;
+  title: string;
+}
+
+/** Reference to a knowledge page */
+export interface KnowledgeRef {
+  id: string;
+  title: string;
+}
+
+/** Changed file in a diff */
+export interface ChangedFile {
+  /** File path relative to project root */
+  path: string;
+  /** Type of change */
+  change_type: 'added' | 'modified' | 'deleted';
+  /** Approximate lines changed */
+  lines_changed: number;
+}
+
+/** A code node impacted by changes */
+export interface ImpactNode {
+  /** Code node path (e.g., "src/api/routes.ts" or "src/api/routes.ts:processPayment") */
+  node_path: string;
+  /** Type of code node */
+  node_type: 'File' | 'Function' | 'Class' | 'Module';
+  /** Distance from changed file: 1 = direct, 2+ = indirect */
+  distance: number;
+  /** Direct dependents (for BFS expansion) */
+  dependents?: string[];
+  /** Impacted spec entries */
+  impacted_specs?: SpecRef[];
+  /** Impacted knowledge pages */
+  impacted_knowledge?: KnowledgeRef[];
+}
+
+/** Knowledge warning generated from impact analysis */
+export interface KnowledgeWarning {
+  /** Knowledge page ID */
+  knowledge_id: string;
+  /** Type of warning */
+  warning_type: 'SCOPE_OVERLAP' | 'RISK_AMPLIFY' | 'DECISION_DEVIATION';
+  /** Human-readable warning message */
+  message: string;
+  /** Suggested action */
+  suggestion: string;
+  /** Severity level */
+  severity: 'high' | 'medium' | 'low';
+}
+
+/** Recommendations from impact analysis */
+export interface ImpactRecommendation {
+  /** Suggested regression test scope (code paths) */
+  regression_scope: string[];
+  /** Focus areas for code review */
+  review_focus: string[];
+  /** Knowledge pages to review */
+  knowledge_pages_to_review: string[];
+}
+
+/** Complete impact analysis result */
+export interface ImpactAnalysis {
+  /** ISO timestamp of analysis generation */
+  generated_at: string;
+  /** Git diff range used for analysis */
+  diff_range: string;
+  /** List of changed files */
+  changed_files: ChangedFile[];
+  /** Directly impacted code nodes (distance 1) */
+  direct_impact: ImpactNode[];
+  /** Indirectly impacted code nodes (distance 2+) */
+  indirect_impact: ImpactNode[];
+  /** Warnings related to knowledge pages */
+  knowledge_warnings: KnowledgeWarning[];
+  /** Recommendations for review and testing */
+  recommendations: ImpactRecommendation;
+}
+
+/** A single step in a learning path */
+export interface LearningStep {
+  /** Step order (1-based) */
+  order: number;
+  /** Code node path */
+  code_node: string;
+  /** Type of code node */
+  code_node_type: string;
+  /** Why this order (pedagogical reason) */
+  reason: string;
+  /** Associated knowledge page IDs */
+  knowledge_pages: string[];
+  /** What to understand at this step */
+  learning_objectives: string[];
+  /** Self-check questions */
+  check_questions: string[];
+}
+
+/** Learning path for onboarding */
+export interface LearningPath {
+  /** Scope of the learning path (code path) */
+  scope: string;
+  /** ISO timestamp of generation */
+  generated_at: string;
+  /** Target role */
+  generated_for: string;
+  /** Ordered learning steps */
+  steps: LearningStep[];
+  /** Total number of steps */
+  total_steps: number;
+  /** Estimated completion time in minutes */
+  estimated_minutes: number;
+}
+
+/** Coverage statistics by code node type */
+export interface CoverageStatsByType {
+  total: number;
+  covered: number;
+}
+
+/** Knowledge coverage statistics */
+export interface CoverageStats {
+  /** Total code nodes in scope */
+  total_code_nodes: number;
+  /** Nodes with knowledge coverage */
+  covered_nodes: number;
+  /** Coverage ratio (0.0-1.0) */
+  coverage_ratio: number;
+  /** Coverage by node type */
+  by_type: Record<string, CoverageStatsByType>;
+}
+
+/** Knowledge coverage gap */
+export interface CoverageGap {
+  /** Code node path */
+  node: string;
+  /** Type of code node */
+  node_type: string;
+  /** Importance score (higher = more important to document) */
+  importance: number;
+  /** Suggested knowledge type */
+  suggested_type: 'decision' | 'pattern' | 'rationale';
+}
+
+/** Knowledge overload (too many pages for one node) */
+export interface KnowledgeOverload {
+  /** Code node path */
+  node: string;
+  /** Number of knowledge pages */
+  pages_count: number;
+}
+
+/** Knowledge coverage analysis report */
+export interface CoverageReport {
+  /** Scope of analysis */
+  scope: string;
+  /** ISO timestamp of generation */
+  generated_at: string;
+  /** Coverage statistics */
+  coverage: CoverageStats;
+  /** Coverage gaps sorted by importance desc */
+  gaps: CoverageGap[];
+  /** Overloaded nodes */
+  overloads: KnowledgeOverload[];
+}
+
+// ========== Chat & Dashboard Types (Understand-A Style) ==========
+
+/** A reference to a knowledge page used in chat answers */
+export interface ChatKnowledgeRef {
+  /** Knowledge page ID */
+  id: string;
+  /** Page title */
+  title: string;
+  /** Page type */
+  type: 'decision' | 'pattern' | 'risk' | 'rationale' | 'lesson' | 'imported';
+  /** Relevance score (0-1) */
+  relevance: number;
+}
+
+/** Result of a chat query against the knowledge base */
+export interface ChatAnswer {
+  /** Original query */
+  query: string;
+  /** ISO timestamp of answer generation */
+  generated_at: string;
+  /** Text answer synthesized from knowledge base */
+  answer: string;
+  /** Knowledge pages referenced */
+  references: ChatKnowledgeRef[];
+  /** Confidence level */
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/** Project goal or milestone */
+export interface ProjectGoal {
+  /** Goal identifier */
+  id: string;
+  /** Goal title */
+  title: string;
+  /** Goal description */
+  description: string;
+  /** Status */
+  status: 'planned' | 'in_progress' | 'completed';
+  /** Related knowledge page IDs */
+  related_pages: string[];
+}
+
+/** Roadmap item for project planning */
+export interface RoadmapItem {
+  /** Item identifier */
+  id: string;
+  /** Item title */
+  title: string;
+  /** Quarter or milestone */
+  milestone: string;
+  /** Status */
+  status: 'planned' | 'in_progress' | 'completed';
+  /** Related specs or changes */
+  related_changes: string[];
+}
+
+/** Enhanced dashboard data including roadmap and goals */
+export interface DashboardData {
+  /** Project name */
+  project: string;
+  /** Project root path */
+  projectRoot: string;
+  /** Active change info */
+  activeChange: {
+    name: string;
+    phase: string;
+    workflow: string;
+    summary: string;
+    hookInstalled: boolean;
+    knowledgePages: number;
+    stalePages: number;
+  } | null;
+  /** Hook installation status */
+  hooks: {
+    available: string[];
+    installed: string[];
+  };
+  /** Knowledge coverage summary */
+  coverage: {
+    totalPages: number;
+    stalePages: number;
+    coverageRatio: number;
+  };
+  /** Project goals */
+  goals: ProjectGoal[];
+  /** Roadmap items */
+  roadmap: RoadmapItem[];
+  /** Stale alerts requiring attention */
+  alerts: string[];
+}
+
+// ========== Environment Detection Types (0.13.0+) ==========
+
+/** Tool ecosystem identifiers */
+export type ToolEcosystem = 'java' | 'node' | 'python' | 'go' | 'rust' | 'build' | 'container';
+
+/** Tool status */
+export type ToolStatus = 'ok' | 'warn' | 'missing';
+
+/** Detected tool information */
+export interface DetectedTool {
+  /** Tool name (e.g., "jdk", "maven", "node") */
+  name: string;
+  /** Ecosystem this tool belongs to */
+  ecosystem: ToolEcosystem;
+  /** Detected version string */
+  version: string;
+  /** Filesystem path to the tool executable */
+  location: string;
+  /** Relevant environment variables */
+  envVars: Record<string, string>;
+  /** Detection status */
+  status: ToolStatus;
+}
+
+/** OS information */
+export interface OSInfo {
+  /** OS type */
+  type: 'windows' | 'linux' | 'macos';
+  /** CPU architecture */
+  arch: 'x64' | 'arm64' | 'x86';
+  /** OS version string */
+  version: string;
+  /** Relevant environment variables (filtered) */
+  envVars: Record<string, string>;
+}
+
+/** Complete environment detection result */
+export interface EnvironmentDetection {
+  /** ISO timestamp of detection */
+  timestamp: string;
+  /** Operating system info */
+  os: OSInfo;
+  /** List of detected tools */
+  tools: DetectedTool[];
+  /** List of required but missing tools */
+  missing: string[];
+  /** Warnings (e.g., version too old) */
+  warnings: string[];
+}
+
+/** Environment specification entry */
+export interface EnvironmentSpecEntry {
+  /** Tool name */
+  tool: string;
+  /** Requirement description */
+  requirement: string;
+  /** Minimum version required */
+  minVersion?: string;
+  /** Required environment variables */
+  requiredEnvVars?: string[];
+  /** Last detected tool info */
+  detected?: DetectedTool;
+  /** ISO timestamp of last check */
+  lastChecked?: string;
+}
+
+/** A section in the env-spec.md file */
+export interface EnvSpecSection {
+  /** Category name (e.g., "Java Development Kit") */
+  category: string;
+  /** SHALL constraints */
+  shall: string[];
+  /** SHALL NOT constraints */
+  shallNot: string[];
+  /** Auto-detected tools */
+  detected: DetectedTool[];
+  /** Manual notes */
+  notes?: string;
+}
+
+/** env-spec.md file structure */
+export interface EnvSpecFile {
+  /** Frontmatter layer */
+  layer: 0;
+  /** Scope is always ".env" */
+  scope: '.env';
+  /** Type identifier */
+  type: 'environment';
+  /** Last update timestamp */
+  lastUpdated: string;
+  /** Environment specification sections */
+  environments: EnvSpecSection[];
+}
+
+/** Tool detector configuration */
+export interface ToolDetectorConfig {
+  /** Command to query version */
+  command: string;
+  /** Regex to extract version from output */
+  versionRegex: RegExp;
+  /** Environment variables to capture */
+  envVars?: string[];
+  /** Command to query location */
+  locationCmd?: string;
+}
+
