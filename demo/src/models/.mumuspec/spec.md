@@ -1,7 +1,7 @@
 ---
 layer: 2
 scope: "src/models"
-last_updated: "2026-07-10"
+last_updated: "2026-07-30"
 ---
 
 ## Requirement: Task 数据模型

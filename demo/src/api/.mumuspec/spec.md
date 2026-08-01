@@ -1,7 +1,7 @@
 ---
 layer: 2
 scope: "src/api"
-last_updated: "2026-07-10"
+last_updated: "2026-07-30"
 ---
 
 ## Requirement: 服务器
