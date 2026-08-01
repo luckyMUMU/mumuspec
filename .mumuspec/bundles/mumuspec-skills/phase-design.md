@@ -1,6 +1,6 @@
 ---
 name: phase-design
-description: "MumuSpec Phase 2: Design。以 /phase-design 启动。认知框架 Q1-Q4 + 自顶向下逐层设计 + Hyperplan 对抗审查 + 测试用例锁定。"
+description: "MumuSpec Phase 2: Design。以 /phase-design 启动。认知框架 Q1-Q4 + grill-me 深度追问 + 自顶向下逐层设计 + Hyperplan 对抗审查 + 测试用例锁定。"
 metadata:
   short-description: "Design 阶段工作流"
   phase: design
@@ -15,12 +15,13 @@ metadata:
 
 **阻塞点**：
 - BP-4: 设计方案确认
+- BP-4.5: grill-me 共识确认
 - BP-5: 认知框架 Q2 回答
 - BP-6: 认知框架 Q3 确认
 - BP-7: Hyperplan 开放问题解决
 - BP-8: 测试用例锁定确认
 
-**退出条件**：design.md + cognitive-map.yaml + test-cases/（已锁定）+ build_layers 创建完成，用户已确认，Phase Guard 通过
+**退出条件**：design.md + cognitive-map.yaml + test-cases/（已锁定）+ grill-me 共识记录 + build_layers 创建完成，用户已确认，Phase Guard 通过
 
 **设计原则**：自顶向下（Level 0 → Level N 逐层细化），测试用例作为设计的一部分在各层同步定义。
 
@@ -114,9 +115,99 @@ mumuspec state check <name> design
 
 **收敛规则**：Stage 2+3 合计不超过 5 轮。达到上限后强制收敛，未解决问题标记为 `unresolved`。
 
+### Step 2.5: grill-me 压力测试 — 设计方案共识验证 — BLOCKING POINT (BP-4.5)
+
+> **grill-me 来源**：适配 mattpocock/skills 的 grill-me 模式（决策树 DFS 追问）
+
+#### 触发条件
+
+```
+cognitive_framework.converged == true
+AND workflow == "full"
+AND has_undesignated_decisions(cognitive-map.yaml)
+```
+
+#### 执行协议
+
+```
+输入: cognitive-map.yaml (Q1 锚定 + Q3 确认约束 + Q4 残留)
+输出: grill-me 共识记录 + cognitive-map.yaml 更新
+
+1. 从 cognitive-map.yaml 提取未决策的设计分支
+2. 按 DFS 顺序遍历决策树:
+   a. 每个决策点: 检查是否已有 Q3 confirmed 约束覆盖
+   b. 若已覆盖 → skip
+   c. 若未覆盖 → 生成问题 + 推荐答案 + 事实依据
+3. 提问规则:
+   - 每次只提 1 个问题
+   - 附带 2-4 个选项（含 Agent 推荐标记）
+   - 等待用户回答
+4. 回答处理:
+   - confirmed → 写入 cognitive-map.yaml 作为新 Q3 条目
+   - rejected + 替代方案 → 写入 cognitive-map.yaml 作为新 Q3 条目
+   - skip/maybe → 标记为 "deferred"，写入 Q4 残留
+5. 退出条件（任一满足即退出）:
+   - 用户显式确认"已达成共识"
+   - 遍历完所有决策分支
+   - 达到 10 轮上限
+6. 设置 cognitive-map.yaml 中 grill_me.completed: true
+```
+
+#### 问题生成规则
+
+| 分支类型 | 问题模板 |
+|---------|--------|
+| 技术选型 | "基于 [Q1 引用]，推荐 [方案] 因为 [理由]。这是最佳选择吗？" |
+| 架构决策 | "设计选择 [方案 A]，因为 [权衡]。你同意吗？" |
+| 依赖假设 | "设计依赖 [X]，当前状态 [Y]。假设成立吗？" |
+| 边界条件 | "[场景] 下推荐行为 [Z]。符合预期吗？" |
+
+#### 事实与决策分离
+
+**Agent 自查**（不问用户）：框架版本、API 签名、Schema、已有约束、目录结构
+
+**询问用户**（不自查）：业务优先级、兼容性需求、复杂度接受度、隐性设计意图
+
+#### 上限保护
+
+当达到 10 轮上限时：停止追问，剩余分支标记为 `deferred-limit-reached`，设置 `consensus_reached = false`（仍可进入 Hyperplan，但增加"遗留问题"审查维度）。
+
+#### 反馈循环
+
+grill-me 发现深度冲突（用户拒绝核心设计）→ 触发认知框架增量轮，grill-me 确认的约束作为新 Q1 信息。
+
+#### 产出
+
+- cognitive-map.yaml 更新（追加 grill_me 条目）
+- decisions.md 追加 grill-me 章节
+- `.mumuspec.yaml` 的 `grill_me_result` 字段更新
+
+cognitive-map.yaml 新增 schema：
+```yaml
+grill_me:
+  completed: false
+  rounds: 0
+  max_rounds: 10
+  deferred_count: 0
+  consensus_reached: false
+  entries:
+    - id: "GM-001"
+      round: 1
+      branch: "tech-choice:api-style"
+      question: "..."
+      options: ["..."]
+      recommended: "..."
+      answer: "..."
+      status: "confirmed"    # confirmed | rejected | deferred
+      q1_refs: ["Q1-001"]
+      timestamp: "..."
+```
+
+---
+
 ### Step 3: 自顶向下逐层设计
 
-基于认知框架的 Q1 锚定声明和 Q3 确认约束，进行自顶向下逐层设计：
+基于认知框架的 Q1 锚定声明、Q3 确认约束和 grill-me 共识记录，进行自顶向下逐层设计：
 
 1. **Level 0 根层** → **Level 1 模块层** → **Level 2 组件层** → **Level 3+ 叶子层**
 2. 每层定义 SHALL/SHALL NOT 和测试用例
@@ -234,6 +325,7 @@ mumuspec decisions append --phase design --change <name>
 - `test_cases.design_content_hash` 匹配
 - `tdd_mode == "tdd"`
 - Hyperplan 硬约束已合并、开放问题已解决（若触发）
+- grill-me：`grill_me_result.completed == true`、`rounds <= 10`
 - 认知框架：Q1 > 0、Q2/Q3 无待处理（或达上限）、Q4 扫描 ≥ 3 维度、已收敛
 - `ponytail_constraints_defined: true`
 - **用户已确认** (BP-4)
@@ -268,6 +360,8 @@ Guard 检查项（`design_to_build`）：
 - cognitive_framework.q3_pending == 0 or rounds >= 5
 - cognitive_framework.q4_scans_completed >= 3
 - cognitive_framework.converged: true
+- grill_me_result.completed: true
+- grill_me_result.rounds <= 10
 - ponytail_constraints_defined: true
 - decisions_log.counts.design > 0
 - decisions_log.content_hash matches

@@ -1,5 +1,5 @@
 {
-  "name": "test-bundle",
+  "name": "mumuspec-skills",
   "version": "0.1.0",
   "description": "MumuSpec skill bundle",
   "files": [
@@ -44,5 +44,5 @@
       "hash": "f09f6b4b56c45c82"
     }
   ],
-  "createdAt": "2026-07-29T16:51:19.747Z"
+  "createdAt": "2026-07-30T12:51:56.608Z"
 }
