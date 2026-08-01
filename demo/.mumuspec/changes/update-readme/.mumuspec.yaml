@@ -1,33 +1,37 @@
-name: add-priority-field
+name: update-readme
 phase: archive-completed
-workflow: full
-created_at: 2026-07-10T09:12:29.430Z
-updated_at: 2026-07-31 17:28:12
-affected_scopes:
-  - src/models
-  - src/storage
-  - src/api
-build_layers: []
+workflow: tweak
+created_at: 2026-07-31T17:33:52.908Z
+updated_at: 2026-07-31T17:35:12.052Z
+affected_scopes: []
+build_layers:
+  - layer: 0
+    scope: .
+    status: done
 test_cases:
   design_locked: true
   suites_locked: false
   suites_locked_layers: []
   suites_hash: {}
-  design_content_hash: b7eaa82129dc4e1a
+  design_content_hash: 03c44e9380975374
 rollback_count: 0
 rebuild_count: 0
 rollback_limit: 3
 rebuild_limit: 5
-build_mode: executing-plans
+build_mode: direct
 tdd_mode: tdd
-isolation: worktree
+isolation: branch
 single_active_change: true
-user_confirmed: false
+user_confirmed: true
 decisions_log:
-  counts: {}
+  counts:
+    open: 1
+  content_hash: abc123
+verify_result: pass
+branch_status: handled
 rollback_history: []
 cognitive_framework:
-  enabled: true
+  enabled: false
   q1_count: 0
   q2_pending: 0
   q3_pending: 0
@@ -39,4 +43,6 @@ hyperplan_result:
   hard_constraints_merged: true
   open_questions_resolved: true
   degraded: false
-verify_mode: full
+feedback_log:
+  entries: []
+  session_links: []

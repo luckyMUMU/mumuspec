@@ -1,0 +1,57 @@
+name: portable-exe-packaging
+phase: archive-completed
+workflow: full
+created_at: 2026-08-01T01:57:28.316Z
+updated_at: 2026-08-01T02:06:09.410Z
+affected_scopes:
+  - image-share
+  - src
+build_layers:
+  - layer: 0
+    scope: scripts
+    status: done
+  - layer: 1
+    scope: image-share
+    status: done
+test_cases:
+  design_locked: true
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+  design_content_hash: 03c44e9380975374
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: direct
+tdd_mode: tdd
+isolation: worktree
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts: {}
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 2
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 3
+  converged: true
+  rounds_completed: 0
+  cognitive_map_ref: cognitive-map.yaml
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+verify_result: pass
+branch_status: handled
+knowledge_extraction:
+  completed: true
+  pages_created_count: 7
+  graph_bindings_verified: true
+  conflicts_resolved: true

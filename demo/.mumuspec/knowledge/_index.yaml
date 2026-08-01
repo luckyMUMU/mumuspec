@@ -1,0 +1,177 @@
+pages:
+  - id: KE-portable-exe-packaging-89786779
+    title: "Auto-extracted from portable-exe-packaging: SEA 有什么限制?"
+    type: decision
+    status: confirmed
+    scope: portable-exe-packaging
+    file: .mumuspec\knowledge\decisions\KE-portable-exe-packaging-89786779.md
+    tags:
+      - auto-extracted
+      - q1
+      - decision
+      - portable-exe-packaging
+  - id: KE-portable-exe-packaging-9cf30eb5
+    title: "Auto-extracted from portable-exe-packaging: Node.js SEA 是什么?"
+    type: decision
+    status: confirmed
+    scope: portable-exe-packaging
+    file: .mumuspec\knowledge\decisions\KE-portable-exe-packaging-9cf30eb5.md
+    tags:
+      - auto-extracted
+      - q1
+      - decision
+      - portable-exe-packaging
+  - id: KE-portable-exe-packaging-hyperplan
+    title: Adversarial design review insights from portable-exe-packaging
+    type: decision
+    status: confirmed
+    scope: portable-exe-packaging
+    file: .mumuspec\knowledge\decisions\KE-portable-exe-packaging-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - portable-exe-packaging
+  - id: KE-test-knowledge-extraction-e6672c6f
+    title: "Auto-extracted from test-knowledge-extraction: Which ORM should be used for database access?"
+    type: decision
+    status: confirmed
+    scope: test-knowledge-extraction
+    file: .mumuspec\knowledge\decisions\KE-test-knowledge-extraction-e6672c6f.md
+    tags:
+      - auto-extracted
+      - q1
+      - decision
+      - test-knowledge-extraction
+  - id: KE-test-knowledge-extraction-hyperplan
+    title: Adversarial design review insights from test-knowledge-extraction
+    type: decision
+    status: confirmed
+    scope: test-knowledge-extraction
+    file: .mumuspec\knowledge\decisions\KE-test-knowledge-extraction-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - test-knowledge-extraction
+  - id: KP-001
+    title: 使用 Node.js 原生 http 模块替代 Express 框架
+    type: decision
+    status: confirmed
+    scope: .
+    file: .mumuspec\knowledge\decisions\KP-001.md
+    tags:
+      - architecture
+      - ponytail
+      - http
+    verified_at: 2026-07-10
+  - id: KE-portable-exe-packaging-patterns
+    title: Architecture patterns from portable-exe-packaging
+    type: pattern
+    status: confirmed
+    scope: portable-exe-packaging
+    file: .mumuspec\knowledge\patterns\KE-portable-exe-packaging-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - portable-exe-packaging
+  - id: KE-test-knowledge-extraction-patterns
+    title: Architecture patterns from test-knowledge-extraction
+    type: pattern
+    status: confirmed
+    scope: test-knowledge-extraction
+    file: .mumuspec\knowledge\patterns\KE-test-knowledge-extraction-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - test-knowledge-extraction
+  - id: KP-002
+    title: validateTask 验证模式 — 使用数组 + includes 进行枚举验证
+    type: pattern
+    status: confirmed
+    scope: src/models
+    file: .mumuspec\knowledge\patterns\KP-002.md
+    tags:
+      - validation
+      - pattern
+      - typescript
+    verified_at: 2026-07-10
+  - id: KP-003
+    title: 内存存储单例模式 — 模块级 Map 不导出
+    type: pattern
+    status: confirmed
+    scope: src/storage
+    file: .mumuspec\knowledge\patterns\KP-003.md
+    tags:
+      - storage
+      - singleton
+      - pattern
+    verified_at: 2026-07-10
+  - id: KP-004
+    title: 统一 JSON 响应格式 { success, data, error }
+    type: pattern
+    status: confirmed
+    scope: src/api
+    file: .mumuspec\knowledge\patterns\KP-004.md
+    tags:
+      - api
+      - response-format
+      - pattern
+    verified_at: 2026-07-10
+  - id: KE-portable-exe-packaging-q4-risk
+    title: Residual risks from portable-exe-packaging
+    type: risk
+    status: confirmed
+    scope: portable-exe-packaging
+    file: .mumuspec\knowledge\risks\KE-portable-exe-packaging-q4-risk.md
+    tags:
+      - auto-extracted
+      - q4
+      - risk
+      - portable-exe-packaging
+  - id: KE-test-knowledge-extraction-q4-risk
+    title: Residual risks from test-knowledge-extraction
+    type: risk
+    status: confirmed
+    scope: test-knowledge-extraction
+    file: .mumuspec\knowledge\risks\KE-test-knowledge-extraction-q4-risk.md
+    tags:
+      - auto-extracted
+      - q4
+      - risk
+      - test-knowledge-extraction
+  - id: KP-005
+    title: 路由解析使用 split 而非正则 — 简单路径场景的 boring 选择
+    type: rationale
+    status: confirmed
+    scope: src/api
+    file: .mumuspec\knowledge\rationale\KP-005.md
+    tags:
+      - routing
+      - ponytail
+      - rationale
+    verified_at: 2026-07-10
+  - id: KE-portable-exe-packaging-lessons
+    title: Lessons from portable-exe-packaging decisions
+    type: lesson
+    status: confirmed
+    scope: portable-exe-packaging
+    file: .mumuspec\knowledge\lessons\KE-portable-exe-packaging-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - portable-exe-packaging
+  - id: KE-test-knowledge-extraction-lessons
+    title: Lessons from test-knowledge-extraction decisions
+    type: lesson
+    status: confirmed
+    scope: test-knowledge-extraction
+    file: .mumuspec\knowledge\lessons\KE-test-knowledge-extraction-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - test-knowledge-extraction

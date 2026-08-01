@@ -1,0 +1,49 @@
+entries:
+  - quadrant: Q1
+    category: persistent
+    question: "Which ORM should be used for database access?"
+    answer: "Use TypeORM for PostgreSQL integration"
+    confidence: high
+    source: team-convention
+
+  - quadrant: Q1
+    category: temporary
+    question: "What is the current API prefix?"
+    answer: "/api/v1"
+    confidence: high
+    source: observation
+
+  - quadrant: Q2
+    category: unknown
+    question: "How to handle concurrent write conflicts?"
+    answer: "TBD - need load test results"
+    confidence: medium
+    source: grill-me
+
+  - quadrant: Q3
+    status: confirmed
+    question: "Why choose repository pattern over active record?"
+    answer: "Repository pattern enables unit testing without database, supports multiple data sources"
+    confidence: high
+    source: design-drill-down
+
+  - quadrant: Q3
+    status: rejected
+    question: "Should we use microservices?"
+    answer: "No, team size too small for operational overhead"
+    confidence: medium
+    source: hyperplan
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "What happens if database connection pool is exhausted?"
+    answer: "Implement connection pool monitoring and auto-scaling triggers"
+    confidence: low
+    source: risk-scan
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "How does this design handle GDPR compliance?"
+    answer: "Need legal review before production deployment"
+    confidence: low
+    source: risk-scan
