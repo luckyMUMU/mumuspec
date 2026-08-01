@@ -16,11 +16,11 @@ source_artifact: "docs/design/knowledge-layer.md#6-可插拔后端架构"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/knowledge/manager.ts
+  - src/knowledge/loader.ts
 
 # === 索引 ===
-tags: ["risk", "knowledge-layer", "graph-backend", "degradation", "mitigation"]
+tags: ["risk", "knowledge-layer", "graph-backend", "degradation", "mitigation", "roadmap"]
 related_pages:
   - "KP-0006"
 backward_refs: []

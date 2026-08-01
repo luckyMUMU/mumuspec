@@ -16,11 +16,11 @@ source_artifact: "docs/appendix/open-questions.md#知识提取的准确性"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/knowledge/extractor.ts
+  - src/change/manager.ts
 
 # === 索引 ===
-tags: ["knowledge-extraction", "archive", "design-knowledge", "auto-extract"]
+tags: ["knowledge-extraction", "archive", "design-knowledge", "auto-extract", "goal"]
 related_pages:
   - "KP-0006"
   - "KP-0010"

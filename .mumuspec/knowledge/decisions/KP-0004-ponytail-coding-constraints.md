@@ -16,8 +16,9 @@ source_artifact: "docs/design/spec-layer.md#ponytail"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/spec/ponytail.ts
+  - src/core/constraint-evaluator.ts
+  - src/AGENTS.md
 
 # === 索引 ===
 tags: ["ponytail", "yagni", "abstraction", "coding-constraints"]

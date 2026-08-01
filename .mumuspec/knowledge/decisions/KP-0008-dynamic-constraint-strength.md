@@ -16,11 +16,12 @@ source_artifact: "docs/design/constraint-strength.md"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/core/constraint-strength.ts
+  - src/core/types.ts
+  - src/cli.ts
 
 # === 索引 ===
-tags: ["constraint-strength", "dynamic", "dual-dimension", "progressive"]
+tags: ["constraint-strength", "dynamic", "dual-dimension", "progressive", "vision"]
 related_pages:
   - "KP-0001"
   - "KP-0003"

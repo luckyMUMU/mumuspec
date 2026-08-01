@@ -16,8 +16,9 @@ source_artifact: "docs/design/spec-layer.md#渐进式披露"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/spec/loader.ts
+  - src/spec/inheritance.ts
+  - src/core/config.ts
 
 # === 索引 ===
 tags: ["pattern", "progressive-loading", "context-management", "token-saving"]

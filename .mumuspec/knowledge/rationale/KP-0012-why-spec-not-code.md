@@ -16,11 +16,11 @@ source_artifact: "overview.md#0-核心目标"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/spec/types.ts
+  - src/core/types.ts
 
 # === 索引 ===
-tags: ["rationale", "spec-design", "abstraction", "independent"]
+tags: ["rationale", "spec-design", "abstraction", "independent", "vision"]
 related_pages:
   - "KP-0001"
 backward_refs: []

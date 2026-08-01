@@ -1,0 +1,94 @@
+# Cognitive Map: introduce-grill-me-skill
+# Generated: 2026-08-01
+
+Q1_anchor:
+  - id: Q1-001
+    statement: "Design 阶段已有认知框架 Q1-Q4（乔哈里窗变体），位于 phase-design.md Step 2"
+    confidence: high
+    source: "phase-design.md lines 53-115"
+
+  - id: Q1-002
+    statement: "Design 阶段已有 Hyperplan 对抗审查（5 角色），条件触发，位于 Step 4"
+    confidence: high
+    source: "phase-design.md lines 131-153, KP-0018"
+
+  - id: Q1-003
+    statement: "grill-me 核心原则：决策树 DFS、每次一问、推荐答案、事实/决策分离、显式门禁"
+    confidence: high
+    source: "mattpocock/skills research"
+
+  - id: Q1-004
+    statement: "认知框架 Q2 提问一轮最多 5 个，grill-me 每次只问 1 个 — 更深入但更慢"
+    confidence: high
+    source: "phase-design.md vs grill-me SKILL.md"
+
+  - id: Q1-005
+    statement: "cognitive-map.yaml 已有 schema：q1_count, q2_pending, q3_pending, q4_scans_completed, converged"
+    confidence: high
+    source: "phase-design.md, .mumuspec.yaml schema"
+
+  - id: Q1-006
+    statement: "Phase Guard 检查 design_to_build 转换，当前有 18+ 检查项"
+    confidence: high
+    source: "phase-design.md lines 250-274"
+
+  - id: Q1-007
+    statement: "MumuSpec 工作流分 full/hotfix/tweak，预设路径跳过 Design"
+    confidence: high
+    source: "mumuspec SKILL.md"
+
+  - id: Q1-008
+    statement: "phase-design.md 位于 .mumuspec/bundles/mumuspec-skills/ 和 skills/ 两处，需同步修改"
+    confidence: high
+    source: "file system observation"
+
+Q2_explore:
+  - id: Q2-001
+    question: "grill-me 步骤完成后需要什么程度的确认？单个问题确认还是整体验证？"
+    status: simulated_answer
+    answer: "每个问题独立确认，但最终也需要整体共识门禁（双层确认）"
+
+  - id: Q2-002
+    question: "grill-me 失败时（用户拒绝核心设计）的处理流程？"
+    status: simulated_answer
+    answer: "grill-me 深度冲突 → 回退认知框架增量轮；轻度确认 → 正常推进"
+
+Q3_reasoning:
+  - id: Q3-001
+    chain: "Q1-001 + Q1-003 → grill-me 应作为认知框架的验证层而非替代"
+    conclusion: "grill-me 是 Q4 盲区扫描的补充：Agent 扫描 + 用户拷问 = 双重验证"
+    status: confirmed
+
+  - id: Q3-002
+    chain: "Q1-004 + Q1-007 → hotfix/tweak 不应触发 grill-me"
+    conclusion: "grill-me 仅在全量工作流的 Design 阶段执行，预设完全跳过"
+    status: confirmed
+
+  - id: Q3-003
+    chain: "Q1-006 + Q1-008 → 双文件同步修改需求"
+    conclusion: "修改 phase-design.md 时 bundle 和 skills/ 目录须同步，Build 阶段需注意"
+    status: confirmed
+
+Q4_blind_spots:
+  - dimension: "隐藏耦合"
+    finding: "grill-me 仅在 phase-design 内部增加步骤，不影响外部接口 — 低风险"
+
+  - dimension: "并发安全"
+    finding: "Design 阶段串行执行（认知框架 → grill-me → Hyperplan），无并发问题"
+
+  - dimension: "测试盲区"
+    finding: "需设计测试用例验证追问轮次上限、退出条件、状态写入"
+
+  - dimension: "契约兼容性"
+    finding: "扩展 design_to_build 守卫，旧变更无 grill_me 字段需默认值处理"
+
+grill_me:
+  completed: false
+  rounds: 0
+  deferred_count: 0
+  consensus_reached: false
+  entries: []
+
+cognitive_framework:
+  converged: true
+  rounds_completed: 1

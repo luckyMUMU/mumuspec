@@ -16,8 +16,9 @@ source_artifact: "docs/reference/mcp-tools.md"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/mcp-server.ts
+  - src/knowledge/manager.ts
+  - src/spec/loader.ts
 
 # === 索引 ===
 tags: ["mcp", "server", "tools", "search-graph", "contract"]

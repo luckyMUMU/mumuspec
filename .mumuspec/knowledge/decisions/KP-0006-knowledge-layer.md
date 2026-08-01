@@ -16,11 +16,12 @@ source_artifact: "docs/design/knowledge-layer.md"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/knowledge/manager.ts
+  - src/knowledge/loader.ts
+  - src/knowledge/index.ts
 
 # === 索引 ===
-tags: ["knowledge", "code-graph", "llm-wiki", "page-index", "graph-backend"]
+tags: ["knowledge", "code-graph", "llm-wiki", "page-index", "graph-backend", "vision"]
 related_pages:
   - "KP-0002"
   - "KP-0005"

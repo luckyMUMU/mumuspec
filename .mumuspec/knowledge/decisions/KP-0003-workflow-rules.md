@@ -16,8 +16,10 @@ source_artifact: "overview.md#3-四大工作流规则"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/change/manager.ts
+  - src/change/state-machine.ts
+  - src/guard/checker.ts
+  - src/guard/phase-guard.ts
 
 # === 索引 ===
 tags: ["workflow", "tdd", "worktree", "design-order", "single-change"]

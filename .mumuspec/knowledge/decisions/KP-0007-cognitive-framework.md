@@ -16,11 +16,12 @@ source_artifact: "docs/reference/cognitive-framework.md"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/eval/scorer.ts
+  - src/eval/quadrant.ts
+  - src/knowledge/loader.ts
 
 # === 索引 ===
-tags: ["cognitive-framework", "johari-window", "q1-q4", "design-phase"]
+tags: ["cognitive-framework", "johari-window", "q1-q4", "design-phase", "goal"]
 related_pages:
   - "KP-0002"
   - "KP-0006"

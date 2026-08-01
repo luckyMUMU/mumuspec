@@ -16,11 +16,11 @@ source_artifact: "docs/reference/error-codes.md"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/core/errors.ts
+  - src/guard/checker.ts
 
 # === 索引 ===
-tags: ["error-code", "standard", "domain", "troubleshooting"]
+tags: ["error-code", "standard", "domain", "troubleshooting", "roadmap"]
 related_pages:
   - "KP-0023"
 backward_refs: []

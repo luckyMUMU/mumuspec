@@ -1,3 +1,60 @@
 scope: .
 layer: 0
-children: []
+last_updated: "2026-07-30"
+children:
+  - name: core
+    path: src/core
+    summary: 核心基础设施层（配置/类型/工具/错误/约束求值）
+    shallNotCount: 4
+  - name: spec
+    path: src/spec
+    summary: 规范解析与加载层（parser/loader/validator/inheritance/ponytail）
+    shallNotCount: 3
+  - name: change
+    path: src/change
+    summary: 变更生命周期管理（manager/state-machine）
+    shallNotCount: 4
+  - name: guard
+    path: src/guard
+    summary: 合规检查与阶段门禁（checker/phase-guard）
+    shallNotCount: 3
+  - name: knowledge
+    path: src/knowledge
+    summary: 知识库管理（PageIndex/LLM-Wiki）
+    shallNotCount: 3
+  - name: rules
+    path: src/rules
+    summary: AI 规则文件生成
+    shallNotCount: 2
+  - name: install
+    path: src/install
+    summary: 零依赖包安装器
+    shallNotCount: 2
+  - name: bundle
+    path: src/bundle
+    summary: 技能打包与发布
+    shallNotCount: 2
+  - name: feedback
+    path: src/feedback
+    summary: 用户反馈管理
+    shallNotCount: 2
+  - name: hooks
+    path: src/hooks
+    summary: Git Hooks 管理
+    shallNotCount: 2
+  - name: eval
+    path: src/eval
+    summary: 评估场景运行
+    shallNotCount: 2
+  - name: i18n
+    path: src/i18n
+    summary: 国际化支持
+    shallNotCount: 2
+  - name: skill-authoring
+    path: src/skill-authoring
+    summary: 技能创作协议
+    shallNotCount: 2
+  - name: image-share
+    path: demo/image-share
+    summary: LAN 图片分享 demo 项目
+    shallNotCount: 6

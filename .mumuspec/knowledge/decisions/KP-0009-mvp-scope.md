@@ -16,11 +16,12 @@ source_artifact: "overview.md#71-mvp-范围"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/cli.ts
+  - src/core/config.ts
+  - src/index.ts
 
 # === 索引 ===
-tags: ["mvp", "scope", "phase1", "prioritization"]
+tags: ["mvp", "scope", "phase1", "prioritization", "vision"]
 related_pages:
   - "KP-0001"
   - "KP-0008"

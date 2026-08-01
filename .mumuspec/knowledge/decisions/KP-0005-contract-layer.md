@@ -16,11 +16,12 @@ source_artifact: "docs/design/contract-layer.md"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/spec/loader.ts
+  - src/spec/types.ts
+  - src/guard/checker.ts
 
 # === 索引 ===
-tags: ["contract", "external", "outbound", "service-mesh"]
+tags: ["contract", "external", "outbound", "service-mesh", "goal"]
 related_pages:
   - "KP-0002"
   - "KP-0006"

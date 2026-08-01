@@ -1,0 +1,108 @@
+- code_node: src/core/types.ts
+  knowledge_pages:
+    - KP-0001
+    - KP-0002
+    - KP-0008
+    - KP-0017
+    - KP-0012
+- code_node: src/core/config.ts
+  knowledge_pages:
+    - KP-0001
+    - KP-0009
+    - KP-0013
+- code_node: src/spec/loader.ts
+  knowledge_pages:
+    - KP-0001
+    - KP-0002
+    - KP-0005
+    - KP-0017
+    - KP-0013
+    - KP-0020
+- code_node: src/knowledge/manager.ts
+  knowledge_pages:
+    - KP-0001
+    - KP-0002
+    - KP-0006
+    - KP-0020
+    - KP-0032
+    - KP-0015
+- code_node: src/change/manager.ts
+  knowledge_pages:
+    - KP-0003
+    - KP-0028
+    - KP-0014
+- code_node: src/change/state-machine.ts
+  knowledge_pages:
+    - KP-0003
+    - KP-0014
+- code_node: src/guard/checker.ts
+  knowledge_pages:
+    - KP-0003
+    - KP-0005
+    - KP-0017
+    - KP-0025
+- code_node: src/guard/phase-guard.ts
+  knowledge_pages:
+    - KP-0003
+- code_node: src/spec/ponytail.ts
+  knowledge_pages:
+    - KP-0004
+- code_node: src/core/constraint-evaluator.ts
+  knowledge_pages:
+    - KP-0004
+- code_node: src/AGENTS.md
+  knowledge_pages:
+    - KP-0004
+- code_node: src/spec/types.ts
+  knowledge_pages:
+    - KP-0005
+    - KP-0012
+- code_node: src/knowledge/loader.ts
+  knowledge_pages:
+    - KP-0006
+    - KP-0007
+    - KP-0015
+- code_node: src/knowledge/index.ts
+  knowledge_pages:
+    - KP-0006
+- code_node: src/eval/scorer.ts
+  knowledge_pages:
+    - KP-0007
+- code_node: src/eval/quadrant.ts
+  knowledge_pages:
+    - KP-0007
+- code_node: src/core/constraint-strength.ts
+  knowledge_pages:
+    - KP-0008
+- code_node: src/cli.ts
+  knowledge_pages:
+    - KP-0008
+    - KP-0009
+    - KP-0014
+    - KP-0032
+- code_node: src/index.ts
+  knowledge_pages:
+    - KP-0009
+- code_node: src/core/errors.ts
+  knowledge_pages:
+    - KP-0025
+- code_node: src/knowledge/extractor.ts
+  knowledge_pages:
+    - KP-0028
+- code_node: src/spec/inheritance.ts
+  knowledge_pages:
+    - KP-0013
+- code_node: src/mcp-server.ts
+  knowledge_pages:
+    - KP-0020
+    - KP-0032
+- code_node:
+    node: .mumuspec/bundles/mumuspec-skills/phase-design.md
+    edge: extends
+  knowledge_pages:
+    - KP-0035
+- code_node:
+    node: KP-0007
+    edge: complements
+  knowledge_pages:
+    - KP-0035

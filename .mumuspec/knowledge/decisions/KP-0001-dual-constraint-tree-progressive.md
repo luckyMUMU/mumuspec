@@ -16,11 +16,13 @@ source_artifact: "overview.md"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/core/types.ts
+  - src/core/config.ts
+  - src/spec/loader.ts
+  - src/knowledge/manager.ts
 
 # === 索引 ===
-tags: ["dual-constraint", "tree-progressive", "core-design", "architecture"]
+tags: ["dual-constraint", "tree-progressive", "core-design", "architecture", "goal"]
 related_pages:
   - "KP-0002"
   - "KP-0003"

@@ -16,8 +16,9 @@ source_artifact: "docs/design/change-layer.md"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/change/manager.ts
+  - src/change/state-machine.ts
+  - src/cli.ts
 
 # === 索引 ===
 tags: ["pattern", "change-lifecycle", "state-machine", "rollback"]

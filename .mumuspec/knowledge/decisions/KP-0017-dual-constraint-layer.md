@@ -16,11 +16,12 @@ source_artifact: "docs/design/spec-layer.md#11-双层约束体系"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/spec/loader.ts
+  - src/guard/checker.ts
+  - src/core/types.ts
 
 # === 索引 ===
-tags: ["dual-constraint", "spec", "constraints", "behavior", "architecture"]
+tags: ["dual-constraint", "spec", "constraints", "behavior", "architecture", "goal"]
 related_pages:
   - "KP-0001"
   - "KP-0008"

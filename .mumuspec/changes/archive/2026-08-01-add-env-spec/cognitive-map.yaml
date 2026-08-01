@@ -1,0 +1,44 @@
+# Cognitive Map: add-env-spec
+
+questions:
+  q1_foundational:
+    - id: Q1-001
+      question: "环境检测器应该支持哪些工具生态？"
+      answer: "Java (JDK/Maven/Gradle)、Node (Node/npm/pnpm/yarn)、Python、Go、Rust、Build tools、Container"
+      status: answered
+    - id: Q1-002
+      question: "检测命令的输出格式如何统一？"
+      answer: "每个工具定义 command + versionRegex，提取语义化版本号"
+      status: answered
+    - id: Q1-003
+      question: "如何处理工具版本过低的情况？"
+      answer: "标记 status=warn，不阻断检测，validate 时根据 strict 模式决定退出码"
+      status: answered
+
+  q2_design:
+    - id: Q2-001
+      question: "env-spec.md 如何与现有 spec.md 共存？"
+      answer: "独立文件，frontmatter 用 type: environment 区分"
+      status: answered
+    - id: Q2-002
+      question: "init 时如何推断需要检测哪些生态？"
+      answer: "扫描项目根目录文件（pom.xml、package.json 等）推断"
+      status: answered
+
+  q3_implementation:
+    - id: Q3-001
+      question: "如何实现跨平台兼容？"
+      answer: "使用 process.platform 判断，Windows 用 where，Unix 用 which"
+      status: answered
+
+dimensions:
+  - name: "安全性"
+    covered: true
+  - name: "性能"
+    covered: true
+  - name: "可测试性"
+    covered: true
+  - name: "可扩展性"
+    covered: true
+
+status: converged

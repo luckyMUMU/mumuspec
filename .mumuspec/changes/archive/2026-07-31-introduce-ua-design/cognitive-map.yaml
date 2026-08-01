@@ -1,0 +1,184 @@
+# Cognitive Map — introduce-ua-design
+# Phase: Design | Language: Chinese
+
+change_name: introduce-ua-design
+rounds_completed: 2
+converged: true
+
+# ═══════════════════════════════════════════════════════════
+# Q1: Known Knowns — 已知事实（来源可追溯，置信度 high）
+# ═══════════════════════════════════════════════════════════
+q1_known_knowns:
+  # —— 已有知识基础设施 ——
+  - id: Q1-001
+    content: "知识页面存储在 .mumuspec/knowledge/，5 种类型: decision/pattern/risk/rationale/lesson"
+    source: KP-0006
+    confidence: high
+    verified_by: knowledge_file
+
+  - id: Q1-002
+    content: "Reverse Index 从代码节点→知识页面的反向索引已存在（_reverse-index.yaml）"
+    source: knowledge/manager.ts rebuildReverseIndex()
+    confidence: high
+    verified_by: code
+
+  - id: Q1-003
+    content: "Knowledge Page 有 graph_bindings 字段关联代码节点（字符串数组）"
+    source: types.ts KnowledgePageFrontmatter.graph_bindings
+    confidence: high
+    verified_by: code
+
+  # —— 已有 CLI 命令 ——
+  - id: Q1-004
+    content: "knowledge context 已实现：按 scope 加载 + verified_at 排序 + 每层 max_pages_per_layer 限制"
+    source: cli.ts knowledgeCmd.context
+    confidence: high
+    verified_by: code
+
+  - id: Q1-005
+    content: "hooks/guard.ts 已实现 installHooks 支持 pre-commit/post-merge/post-checkout/commit-msg"
+    source: src/hooks/guard.ts
+    confidence: high
+    verified_by: code
+
+  - id: Q1-006
+    content: "executePlans 模式 + TDD 红绿循环是 Build 阶段的默认模式"
+    source: config.yaml build_mode, tdd_mode
+    confidence: high
+    verified_by: code
+
+  # —— Understand-Anything 核心设计 ——
+  - id: Q1-007
+    content: "UA 采用 Tree-sitter 结构解析 + LLM 语义理解的混合架构，通过多智能体流水线分析代码库"
+    source: KP-0029 调研
+    confidence: high
+    verified_by: documentation
+
+  - id: Q1-008
+    content: "UA 的知识图谱以 JSON 格式存储，可提交 Git，新成员克隆即用"
+    source: KP-0029 UA Dashboard 章节
+    confidence: high
+    verified_by: documentation
+
+  - id: Q1-009
+    content: "UA 的 /understand-diff 命令可分析未提交变更对系统的影响范围（涟漪效应）"
+    source: KP-0029 变更影响分析章节
+    confidence: high
+    verified_by: documentation
+
+  # —— 影响范围 ——
+  - id: Q1-010
+    content: "affected_scopes 包含 6 个文件：manager.ts / cli.ts / guard.ts / types.ts / mcp-server.ts / config.yaml"
+    source: .mumuspec.yaml
+    confidence: high
+    verified_by: change_config
+
+  # —— Q2 回答迁移到 Q1 ——
+  - id: Q1-K01
+    content: "impact 命令 SHALL 完全依赖 Code Graph 适配器进行代码结构分析（最准确但需 CBM/CGC 外部依赖）"
+    source: Q2-001 用户回答
+    confidence: high
+    verified_by: user_input
+
+  - id: Q1-K02
+    content: "onboarding 拓扑排序 SHALL 采用两层模式：graph_bindings 初步排序 + Code Graph 子图精确化"
+    source: Q2-002 用户回答
+    confidence: high
+    verified_by: user_input
+
+  - id: Q1-K03
+    content: "偏离检测 SHALL 可配置：默认规则检测（文件级匹配），可选 LLM 增强判断语义偏离"
+    source: Q2-003 用户回答
+    confidence: high
+    verified_by: user_input
+
+  - id: Q1-K04
+    content: "知识覆盖度 importance SHALL 计算为：引用次数 × 关联代码节点数 加权"
+    source: Q2-004 用户回答
+    confidence: high
+    verified_by: user_input
+
+  - id: Q1-K05
+    content: "当 Code Graph 不可用时 impact/onboarding SHALL 降级为仅使用 Reverse Index 数据"
+    source: Q1-K01 + KP-0006 降级策略
+    confidence: high
+    verified_by: design_decision
+
+# ═══════════════════════════════════════════════════════════
+# Q2: Known Unknowns — 已收敛（全部已回答并迁移到 Q1）
+# ═══════════════════════════════════════════════════════════
+q2_known_unknowns:
+  - id: Q2-001
+    content: "impact 命令是否需要代码图谱？"
+    status: answered
+    answer: "完全依赖 Code Graph 适配器"
+  - id: Q2-002
+    content: "onboarding 拓扑排序策略？"
+    status: answered
+    answer: "两层模式：graph_bindings + Code Graph"
+  - id: Q2-003
+    content: "偏离检测是否需要 LLM？"
+    status: answered
+    answer: "可配置：默认规则 + 可选 LLM 增强"
+  - id: Q2-004
+    content: "importance 计算公式？"
+    status: answered
+    answer: "引用次数 × 关联代码节点数 加权"
+
+# ═══════════════════════════════════════════════════════════
+# Q3: Unknown Knowns — 可推导的隐性约束
+# ═══════════════════════════════════════════════════════════
+q3_unknown_knowns:
+  - id: Q3-001
+    content: "Code Graph 适配器接口需新增 getDependents(node) 方法用于 impact 分析的 BFS 扩展"
+    status: confirmed
+    reasoning_chain: [Q1-K01, Q1-002]
+
+  - id: Q3-002
+    content: "impact 分析的 BFS SHALL 限制最大深度为 3 跳（防止大图分析超时）"
+    status: confirmed
+    reasoning_chain: [Q1-009, Q1-006]
+
+  - id: Q3-003
+    content: "知识图谱 JSON SHALL 保持与现有 Knowledge Page 格式的向后兼容（graph_bindings 字段一致）"
+    status: confirmed
+    reasoning_chain: [Q1-008, Q1-003]
+
+  - id: Q3-004
+    content: "post-commit hook 的偏离检测 SHALL 异步执行（写入队列，不阻塞 git push）"
+    status: confirmed
+    reasoning_chain: [Q1-K03, Q1-005]
+
+  - id: Q3-005
+    content: "onboarding 的 progress 持久化 SHALL 使用独立的 YAML 文件（不修改 Knowledge Page 本身）"
+    status: confirmed
+    reasoning_chain: [Q1-K02, Q1-001]
+
+# ═══════════════════════════════════════════════════════════
+# Q4: Unknown Unknowns — 盲区扫描结果
+# ═══════════════════════════════════════════════════════════
+q4_unknown_unknowns:
+  - id: Q4-001
+    content: "Code Graph 适配器未安装时的降级体验：需明确告知用户降级后的能力边界"
+    severity: medium
+    mitigation: "CLI 输出警告 + 文档说明降级能力"
+
+  - id: Q4-002
+    content: "大型代码库（>10 万行）的 BFS 性能：3 跳 BFS 可能超时"
+    severity: medium
+    mitigation: "设置 max_nodes 上限（默认 1000），超出后截断并提示"
+
+  - id: Q4-003
+    content: "Knowledge-Impact 提交消息语法与 Conventional Commits 生态的兼容性"
+    severity: low
+    mitigation: "Knowledge-Impact 块放在消息尾部，不影响 Conventional Commits 解析"
+
+  - id: Q4-004
+    content: "onboarding 路径中 Knowledge Page 被删除或标记 deprecated 时的处理"
+    severity: low
+    mitigation: "跳过已废弃节点，在 UI 中标注「知识已过期」"
+
+  - id: Q4-005
+    content: "多用户同时修改同一 Knowledge Page 时的冲突（极少见但可能）"
+    severity: low
+    mitigation: "使用文件锁或 git merge 策略处理"

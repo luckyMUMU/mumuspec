@@ -16,11 +16,12 @@ source_artifact: "overview.md#4-总体架构"
 
 # === 图谱关联 ===
 graph_bindings:
-  nodes: []
-  edges: []
+  - src/core/types.ts
+  - src/spec/loader.ts
+  - src/knowledge/manager.ts
 
 # === 索引 ===
-tags: ["architecture", "six-layers", "design"]
+tags: ["architecture", "six-layers", "design", "vision"]
 related_pages:
   - "KP-0001"
   - "KP-0005"
