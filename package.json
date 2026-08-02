@@ -1,6 +1,6 @@
 {
   "name": "mumuspec",
-  "version": "0.15.0-beta.1",
+  "version": "0.15.0-beta.2",
   "description": "MumuSpec — Tree-distributed dual-constraint specification system for AI-assisted development",
   "type": "module",
   "main": "dist/index.js",

@@ -31,6 +31,104 @@ workflow:
       - condition: "phase == 'archive-inprogress'"
         target: phase-archive
 
+  # ──────────────────────────────────────────────────────────────────────
+  # 有向有环图（Directed Cyclic Graph）定义
+  # ──────────────────────────────────────────────────────────────────────
+  # 底层状态机从简单的线性流转改为有向有环图（DCG）。
+  #
+  # 图的节点 = 工作流阶段（ChangePhase）
+  # 图的边 = 阶段转换（PhaseEdge）
+  #
+  # 边类型:
+  #   - forward: 正向推进向归档完成
+  #   - backward: 回退 / 返工（形成环的关键）
+  #   - skip: 条件跳过（hotfix/tweak 预设路径）
+  #
+  # 图的环结构（显式允许）:
+  #   open → design → build → design (rollback)
+  #   open → design → build → verify → design (rollback)
+  #   open → design → build → verify → build (rebuild)
+  #   open → design → build → verify → archive-in-progress → build (CI fail)
+  graph:
+    nodes:
+      - open
+      - design
+      - build
+      - verify
+      - archive-in-progress
+      - archive-completed  # terminal
+      - discarded          # terminal
+
+    edges:
+      # ── Forward edges (progress toward completion) ──
+      - from: open
+        to: design
+        direction: forward
+        blocking_point: { bp: BP-3, description: "工件审查与确认", required: true }
+
+      - from: design
+        to: build
+        direction: forward
+        blocking_point: { bp: BP-4, description: "设计方案确认", required: true }
+
+      - from: build
+        to: verify
+        direction: forward
+
+      - from: verify
+        to: archive-in-progress
+        direction: forward
+        blocking_point: { bp: BP-17, description: "归档最终确认", required: true }
+
+      - from: archive-in-progress
+        to: archive-completed
+        direction: forward
+
+      # ── Skip edges (conditional shortcuts for hotfix/tweak) ──
+      - from: open
+        to: build
+        direction: skip
+        condition: "workflow == 'hotfix' OR workflow == 'tweak'"
+        blocking_point: { bp: BP-3, description: "工件审查与确认（预设路径）", required: true }
+
+      # ── Backward edges (rollback — these create cycles) ──
+      - from: build
+        to: design
+        direction: backward
+        count_as: rollback
+
+      - from: verify
+        to: design
+        direction: backward
+        count_as: rollback
+
+      - from: verify
+        to: build
+        direction: backward
+        count_as: rebuild
+
+      - from: archive-in-progress
+        to: build
+        direction: backward
+        count_as: rollback
+
+      # ── Terminal edges (abandon change) ──
+      - from: open
+        to: discarded
+        direction: skip
+      - from: design
+        to: discarded
+        direction: skip
+      - from: build
+        to: discarded
+        direction: skip
+      - from: verify
+        to: discarded
+        direction: skip
+      - from: archive-in-progress
+        to: discarded
+        direction: skip
+
   # 阶段 Skill 定义（与 docs/reference/skills/ 对齐）
   phases:
     open:

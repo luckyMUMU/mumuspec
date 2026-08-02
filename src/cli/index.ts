@@ -54,7 +54,7 @@ initLocale();
 program
   .name('mumuspec')
   .description('MumuSpec — Tree-distributed dual-constraint specification system')
-  .version('0.15.0-beta.1');
+  .version('0.15.0-beta.2');
 
 // === init ===
 program

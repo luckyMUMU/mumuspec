@@ -4,70 +4,293 @@ import type {
   Workflow,
   GuardResult,
 } from '../core/types.js';
+import { PhaseGraph, DEFAULT_PHASE_GRAPH, type PhaseEdge } from './phase-graph.js';
 
 /**
- * Blocking point definitions.
- * Each transition that requires user confirmation is listed here
- * with its BP code and description.
+ * State machine implementation using a Directed Cyclic Graph (DCG).
+ *
+ * The graph explicitly models:
+ * - Forward edges: progress toward completion
+ * - Backward edges: rollback/rework (these create cycles)
+ * - Skip edges: conditional shortcuts (hotfix/tweak)
+ *
+ * All public APIs maintain backward compatibility with the previous flat
+ * transition tables. Internally, all operations delegate to the PhaseGraph.
  */
-const BLOCKING_TRANSITIONS: Record<string, { bp: string; description: string; required: boolean }> = {
-  'open→design': { bp: 'BP-3', description: '工件审查与确认', required: true },
-  'open→build': { bp: 'BP-3', description: '工件审查与确认（预设路径）', required: true },
-  'design→build': { bp: 'BP-4', description: '设计方案确认', required: true },
-  'build→verify': { bp: 'BP-9', description: '计划就绪暂停确认', required: false },
-  'verify→archive-in-progress': { bp: 'BP-17', description: '归档最终确认', required: true },
-};
 
-/** Check if a transition requires user confirmation */
-export function requiresUserConfirmation(from: ChangePhase, to: ChangePhase): { required: boolean; bp: string; description: string } {
-  const key = `${from}→${to}`;
-  const info = BLOCKING_TRANSITIONS[key];
-  if (info) {
-    return { required: info.required, bp: info.bp, description: info.description };
+/**
+ * Legacy rollback type identifiers — preserved for backward compatibility.
+ * These map to specific backward edges in the DCG.
+ */
+export type RollbackType =
+  | 'build_to_design'
+  | 'verify_to_design'
+  | 'verify_to_build'
+  | 'archive_ci_fail';
+
+/**
+ * Map legacy rollback types to their corresponding graph edges.
+ */
+function resolveRollbackEdge(graph: PhaseGraph, type: RollbackType): PhaseEdge | undefined {
+  const mapping: Record<RollbackType, { from: ChangePhase; to: ChangePhase }> = {
+    'build_to_design': { from: 'build', to: 'design' },
+    'verify_to_design': { from: 'verify', to: 'design' },
+    'verify_to_build': { from: 'verify', to: 'build' },
+    'archive_ci_fail': { from: 'archive-in-progress', to: 'build' },
+  };
+
+  const { from, to } = mapping[type];
+  return graph.getEdge(from, to);
+}
+
+/**
+ * Get the PhaseGraph instance. Currently uses the default singleton,
+ * but allows future injection of custom graphs.
+ */
+function getGraph(): PhaseGraph {
+  return DEFAULT_PHASE_GRAPH;
+}
+
+/**
+ * Get the graph instance (public accessor for advanced usage).
+ */
+export function getPhaseGraph(): PhaseGraph {
+  return DEFAULT_PHASE_GRAPH;
+}
+
+// ─── Backward-compatible API ──────────────────────────────────────────────
+
+/**
+ * Check if a transition is valid (edge exists in the DCG).
+ * For backward compatibility, this does not check runtime conditions.
+ * Use `canTransitionWithContext` for context-aware checks.
+ */
+export function canTransition(from: ChangePhase, to: ChangePhase): boolean {
+  return getGraph().hasEdge(from, to);
+}
+
+/**
+ * Context-aware transition check.
+ * Returns true only if the edge exists AND any runtime conditions are satisfied.
+ */
+export function canTransitionWithContext(
+  from: ChangePhase,
+  to: ChangePhase,
+  state: ChangeState,
+): boolean {
+  return getGraph().hasEdge(from, to, {
+    workflow: state.workflow,
+    ...stateToContext(state),
+  });
+}
+
+/**
+ * Get all valid transitions from a phase (all outgoing edges).
+ */
+export function getValidTransitions(from: ChangePhase): ChangePhase[] {
+  return getGraph().getOutgoingEdges(from).map((e) => e.to);
+}
+
+/**
+ * Get valid transitions with context awareness (filters conditional edges).
+ */
+export function getValidTransitionsWithContext(from: ChangePhase, state: ChangeState): ChangePhase[] {
+  return getGraph()
+    .getOutgoingEdges(from, { workflow: state.workflow, ...stateToContext(state) })
+    .map((e) => e.to);
+}
+
+/**
+ * Check if a transition requires user confirmation (has a blocking point).
+ */
+export function requiresUserConfirmation(from: ChangePhase, to: ChangePhase): {
+  required: boolean;
+  bp: string;
+  description: string;
+} {
+  const edge = getGraph().getEdge(from, to);
+  if (edge?.blockingPoint) {
+    return {
+      required: edge.blockingPoint.required,
+      bp: edge.blockingPoint.bp,
+      description: edge.blockingPoint.description,
+    };
   }
   return { required: false, bp: '', description: '' };
 }
 
-/** Valid state transitions */
-const FORWARD_TRANSITIONS: Record<ChangePhase, ChangePhase[]> = {
-  'open': ['design', 'build'], // build for hotfix/tweak
-  'design': ['build'],
-  'build': ['verify', 'design'], // design via rollback
-  'verify': ['archive-in-progress', 'design', 'build'], // rollbacks
-  'archive-in-progress': ['archive-completed', 'build'], // build via CI fail rollback
-  'archive-completed': [],
-  'discarded': [],
-};
+/**
+ * Execute a transition (returns updated state).
+ * Preserves backward-compatible signature.
+ */
+export function executeTransition(
+  state: ChangeState,
+  to: ChangePhase,
+  options?: { userConfirmed?: boolean; reason?: string },
+): { state: ChangeState; success: boolean; error?: string } {
+  const from = state.phase;
+  const graph = getGraph();
 
-/** Rollback transitions */
-const ROLLBACK_TRANSITIONS: Record<string, { from: ChangePhase; to: ChangePhase; counted: boolean; event: string }> = {
-  'build_to_design': { from: 'build', to: 'design', counted: true, event: 'build-rollback' },
-  'verify_to_design': { from: 'verify', to: 'design', counted: true, event: 'verify-rollback' },
-  'verify_to_build': { from: 'verify', to: 'build', counted: false, event: 'verify-rebuild' },
-  'archive_ci_fail': { from: 'archive-in-progress', to: 'build', counted: true, event: 'archive-rollback' },
-};
+  // Check if already in target phase
+  if (from === to) {
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-007: Already in phase '${to}', no transition needed`,
+    };
+  }
 
-/** Check if a transition is valid */
-export function canTransition(from: ChangePhase, to: ChangePhase): boolean {
-  const allowed = FORWARD_TRANSITIONS[from] || [];
-  return allowed.includes(to);
+  // Check for terminal states
+  if (graph.isTerminalState(from)) {
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: ${from} is terminal`,
+    };
+  }
+
+  // Check edge existence
+  if (!graph.hasEdge(from, to)) {
+    const validTargets = graph.getOutgoingEdges(from).map((e) => e.to);
+    const hint = validTargets.length > 0
+      ? `valid targets from ${from}: [${validTargets.join(', ')}]`
+      : `${from} is terminal`;
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: Invalid transition from ${from} to ${to} (${hint})`,
+    };
+  }
+
+  const edge = graph.getEdge(from, to)!;
+
+  // Execute side effects based on edge type
+  const newState: ChangeState = {
+    ...state,
+    phase: to,
+    updated_at: new Date().toISOString(),
+    user_confirmed: options?.userConfirmed ?? state.user_confirmed,
+  };
+
+  // Handle backward edge side effects (rollback/rebuild resets)
+  if (edge.direction === 'backward') {
+    newState.rollback_history = [
+      ...state.rollback_history,
+      {
+        from,
+        to,
+        reason: options?.reason ?? `transition: ${edge.label}`,
+        timestamp: new Date().toISOString(),
+        counted: edge.countAs === 'rollback',
+        event: `${directionToEvent(edge.direction)}-${from}-to-${to}`,
+      },
+    ];
+
+    if (edge.countAs === 'rollback') {
+      newState.rollback_count = state.rollback_count + 1;
+      // Reset build layers and test locks on rollback
+      newState.build_layers = state.build_layers.map((l) => ({ ...l, status: 'pending' as const }));
+      newState.test_cases = {
+        ...state.test_cases,
+        design_locked: false,
+        suites_locked: false,
+        suites_locked_layers: [],
+        suites_hash: {},
+      };
+    } else if (edge.countAs === 'rebuild') {
+      newState.rebuild_count = state.rebuild_count + 1;
+      // Only reset done layers on rebuild
+      newState.build_layers = state.build_layers.map((l) => ({
+        ...l,
+        status: l.status === 'done' ? 'pending' : l.status,
+      }));
+    }
+  }
+
+  return { state: newState, success: true };
 }
 
-/** Get all valid transitions from a phase */
-export function getValidTransitions(from: ChangePhase): ChangePhase[] {
-  return [...(FORWARD_TRANSITIONS[from] || [])];
+/**
+ * Execute a rollback using the legacy rollback type API.
+ * Maps to backward edges in the DCG.
+ */
+export function executeRollback(
+  state: ChangeState,
+  rollbackType: RollbackType,
+  reason: string,
+): { state: ChangeState; success: boolean; error?: string } {
+  const edge = resolveRollbackEdge(getGraph(), rollbackType);
+  if (!edge) {
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: Unknown rollback type: ${rollbackType}`,
+    };
+  }
+
+  // Validate current phase matches edge source
+  if (state.phase !== edge.from) {
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: Cannot rollback from ${state.phase} (expected ${edge.from})`,
+    };
+  }
+
+  // Check limits
+  if (edge.countAs === 'rollback') {
+    if (state.rollback_count >= state.rollback_limit) {
+      return {
+        state,
+        success: false,
+        error: `E-CHANGE-002: rollback_count已达上限 (${state.rollback_count}/${state.rollback_limit})`,
+      };
+    }
+  } else if (edge.countAs === 'rebuild') {
+    if (state.rebuild_count >= state.rebuild_limit) {
+      return {
+        state,
+        success: false,
+        error: `E-CHANGE-003: rebuild_count已达上限 (${state.rebuild_count}/${state.rebuild_limit}), 强制升级为Design回退`,
+      };
+    }
+  }
+
+  // Execute via the general transition function
+  return executeTransition(state, edge.to, { reason });
 }
 
-/** Check if a rollback is valid and within limits */
+/**
+ * Execute a rollback by edge (new DCG-style API).
+ */
+export function executeRollbackByEdge(
+  state: ChangeState,
+  to: ChangePhase,
+  reason: string,
+): { state: ChangeState; success: boolean; error?: string } {
+  const edge = getGraph().getEdge(state.phase, to);
+  if (!edge || edge.direction !== 'backward') {
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: No backward edge from ${state.phase} to ${to}`,
+    };
+  }
+  return executeTransition(state, to, { reason });
+}
+
+/**
+ * Check if a rollback is valid and within limits (guard-style check).
+ */
 export function canRollback(
   state: ChangeState,
-  rollbackType: keyof typeof ROLLBACK_TRANSITIONS,
+  rollbackType: RollbackType,
 ): GuardResult {
+  const edge = resolveRollbackEdge(getGraph(), rollbackType);
   const errors: { code: string; message: string }[] = [];
   const warnings: { code: string; message: string }[] = [];
 
-  const transition = ROLLBACK_TRANSITIONS[rollbackType];
-  if (!transition) {
+  if (!edge) {
     errors.push({
       code: 'E-CHANGE-006',
       message: `Unknown rollback type: ${rollbackType}`,
@@ -75,15 +298,15 @@ export function canRollback(
     return { passed: false, errors, warnings };
   }
 
-  if (state.phase !== transition.from) {
+  if (state.phase !== edge.from) {
     errors.push({
       code: 'E-CHANGE-006',
-      message: `Cannot rollback from ${state.phase} (expected ${transition.from})`,
+      message: `Cannot rollback from ${state.phase} (expected ${edge.from})`,
     });
     return { passed: false, errors, warnings };
   }
 
-  if (transition.counted) {
+  if (edge.countAs === 'rollback') {
     if (state.rollback_count >= state.rollback_limit) {
       errors.push({
         code: 'E-CHANGE-002',
@@ -91,9 +314,8 @@ export function canRollback(
       });
       return { passed: false, errors, warnings };
     }
-  } else {
+  } else if (edge.countAs === 'rebuild') {
     if (state.rebuild_count >= state.rebuild_limit) {
-      // Force upgrade to verify_to_design_rollback
       warnings.push({
         code: 'E-CHANGE-003',
         message: `rebuild_count已达上限 (${state.rebuild_count}/${state.rebuild_limit}), 强制升级为Design回退`,
@@ -109,131 +331,55 @@ export function canRollback(
   return { passed: true, errors, warnings };
 }
 
-/** Execute a transition (returns updated state) */
-export function executeTransition(
-  state: ChangeState,
-  to: ChangePhase,
-  options?: { userConfirmed?: boolean; reason?: string },
-): { state: ChangeState; success: boolean; error?: string } {
-  // Check if already in target phase (clearer error message)
-  if (state.phase === to) {
-    return {
-      state,
-      success: false,
-      error: `E-CHANGE-007: Already in phase '${to}', no transition needed`,
-    };
-  }
-
-  if (!canTransition(state.phase, to)) {
-    const validTargets = getValidTransitions(state.phase);
-    const hint = validTargets.length > 0
-      ? `valid targets from ${state.phase}: [${validTargets.join(', ')}]`
-      : `${state.phase} is terminal`;
-    return {
-      state,
-      success: false,
-      error: `E-CHANGE-006: Invalid transition from ${state.phase} to ${to} (${hint})`,
-    };
-  }
-
-  // Check for terminal states
-  if (state.phase === 'archive-completed' || state.phase === 'discarded') {
-    return {
-      state,
-      success: false,
-      error: `E-CHANGE-006: ${state.phase} is terminal`,
-    };
-  }
-
-  const newState: ChangeState = {
-    ...state,
-    phase: to,
-    updated_at: new Date().toISOString(),
-    user_confirmed: options?.userConfirmed ?? state.user_confirmed,
-  };
-
-  return { state: newState, success: true };
-}
-
-/** Execute a rollback (returns updated state with side effects) */
-export function executeRollback(
-  state: ChangeState,
-  rollbackType: keyof typeof ROLLBACK_TRANSITIONS,
-  reason: string,
-): { state: ChangeState; success: boolean; error?: string } {
-  const guard = canRollback(state, rollbackType);
-  if (!guard.passed) {
-    return {
-      state,
-      success: false,
-      error: guard.errors.map((e) => `${e.code}: ${e.message}`).join('; '),
-    };
-  }
-
-  const transition = ROLLBACK_TRANSITIONS[rollbackType];
-  const newState: ChangeState = {
-    ...state,
-    phase: transition.to,
-    updated_at: new Date().toISOString(),
-    rollback_history: [
-      ...state.rollback_history,
-      {
-        from: transition.from,
-        to: transition.to,
-        reason,
-        timestamp: new Date().toISOString(),
-        counted: transition.counted,
-        event: transition.event,
-      },
-    ],
-  };
-
-  if (transition.counted) {
-    newState.rollback_count = state.rollback_count + 1;
-    // Reset build layers and test locks
-    newState.build_layers = state.build_layers.map((l) => ({ ...l, status: 'pending' as const }));
-    newState.test_cases = {
-      ...state.test_cases,
-      design_locked: false,
-      suites_locked: false,
-      suites_locked_layers: [],
-      suites_hash: {},
-    };
-  } else {
-    newState.rebuild_count = state.rebuild_count + 1;
-    // Only reset failed layers (for verify_to_build)
-    // In practice, specific layers would be reset; here we reset all pending
-    newState.build_layers = state.build_layers.map((l) => ({
-      ...l,
-      status: l.status === 'done' ? 'pending' : l.status,
-    }));
-  }
-
-  return { state: newState, success: true };
-}
-
-/** Get the next phase suggestion */
+/**
+ * Get the next phase suggestion.
+ *
+ * Strategy:
+ * - For hotfix/tweak workflows: prefer skip edges (conditional shortcuts)
+ * - For full workflow: follow forward edges
+ * - Terminal states return undefined
+ */
 export function getNextPhase(state: ChangeState): { phase: ChangePhase; description: string } | undefined {
-  switch (state.phase) {
-    case 'open':
-      if (state.workflow === 'hotfix' || state.workflow === 'tweak') {
-        return { phase: 'build', description: '跳过Design，进入Build阶段（hotfix/tweak）' };
-      }
-      return { phase: 'design', description: '进入Design阶段（技术设计）' };
-    case 'design':
-      return { phase: 'build', description: '进入Build阶段（实现+TDD）' };
-    case 'build':
-      return { phase: 'verify', description: '进入Verify阶段（验证）' };
-    case 'verify':
-      return { phase: 'archive-in-progress', description: '进入Archive阶段（归档）' };
-    case 'archive-in-progress':
-      return { phase: 'archive-completed', description: '完成归档' };
-    default:
-      return undefined;
+  if (getGraph().isTerminalState(state.phase)) {
+    return undefined;
   }
+
+  const graph = getGraph();
+  const context = { workflow: state.workflow };
+
+  // For preset workflows (hotfix/tweak), check skip edges first
+  if (state.workflow === 'hotfix' || state.workflow === 'tweak') {
+    const skipEdges = graph.getSkipEdges(state.phase, context).filter(
+      (e) => e.to !== 'discarded', // Don't suggest discard as next phase
+    );
+    if (skipEdges.length > 0) {
+      const edge = skipEdges[0];
+      return { phase: edge.to, description: `跳过阶段（${state.workflow} 预设）→ ${edge.to}` };
+    }
+  }
+
+  // Follow forward edges
+  const forwardEdges = graph.getForwardEdges(state.phase);
+  if (forwardEdges.length > 0) {
+    const edge = forwardEdges[0];
+    return { phase: edge.to, description: edge.label };
+  }
+
+  // Fallback: context-aware skip edges (not discard)
+  const skipEdges = graph.getSkipEdges(state.phase, context).filter(
+    (e) => e.to !== 'discarded',
+  );
+  if (skipEdges.length > 0) {
+    const edge = skipEdges[0];
+    return { phase: edge.to, description: edge.label };
+  }
+
+  return undefined;
 }
 
-/** Get workflow-appropriate phases */
+/**
+ * Get workflow-appropriate phases (preserved for backward compatibility).
+ */
 export function getWorkflowPhases(workflow: Workflow): ChangePhase[] {
   switch (workflow) {
     case 'hotfix':
@@ -245,7 +391,53 @@ export function getWorkflowPhases(workflow: Workflow): ChangePhase[] {
   }
 }
 
-/** Check if a phase is terminal */
+/**
+ * Check if a phase is terminal.
+ */
 export function isTerminal(phase: ChangePhase): boolean {
-  return phase === 'archive-completed' || phase === 'discarded';
+  return getGraph().isTerminalState(phase);
+}
+
+// ─── New DCG-specific API ─────────────────────────────────────────────────
+
+/**
+ * Find a path from current phase to a target phase.
+ * @param from Starting phase
+ * @param to Target phase
+ * @param state Optional state for context-aware filtering
+ */
+export function findTransitionPath(from: ChangePhase, to: ChangePhase, state?: ChangeState): ChangePhase[] {
+  const context = state ? { workflow: state.workflow } : undefined;
+  return getGraph().findPath(from, to, context);
+}
+
+/**
+ * Detect all cycles in the phase graph.
+ * Useful for debugging and documentation generation.
+ */
+export function detectPhaseCycles(): ChangePhase[][] {
+  return getGraph().detectCycles();
+}
+
+/**
+ * Get all edges in the graph (for inspection/documentation).
+ */
+export function getAllPhaseEdges(): PhaseEdge[] {
+  return getGraph().getAllEdges();
+}
+
+// ─── Internal helpers ─────────────────────────────────────────────────────
+
+function stateToContext(state: ChangeState): Record<string, unknown> {
+  const context: Record<string, unknown> = {};
+  if (state.workflow) context.workflow = state.workflow;
+  return context;
+}
+
+function directionToEvent(direction: 'forward' | 'backward' | 'skip'): string {
+  switch (direction) {
+    case 'forward': return 'forward';
+    case 'backward': return 'rollback';
+    case 'skip': return 'skip';
+  }
 }
