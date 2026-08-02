@@ -1,0 +1,102 @@
+/**
+ * guard command — Run phase guard checks.
+ */
+import type { Command } from 'commander';
+import { findProjectRoot } from '../../core/utils.js';
+import { loadConfig } from '../../core/config.js';
+import { loadChangeState, saveChangeState } from '../../change/manager.js';
+import { executeTransition, requiresUserConfirmation } from '../../change/state-machine.js';
+import type { ChangePhase } from '../../core/types.js';
+import { runPhaseGuard } from '../../guard/phase-guard.js';
+
+export function registerGuardCommand(program: Command): void {
+  program
+    .command('guard')
+    .description('Run phase guard check (use --apply to execute transition)')
+    .argument('<change>', 'change name')
+    .argument('<phase>', 'target phase')
+    .option('--apply', 'apply transition if guard passes')
+    .option('--confirm', 'user confirmed (required for blocking transitions)')
+    .option('--json', 'output as JSON')
+    .action((change, phase, options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+
+      const config = loadConfig(root);
+      const result = runPhaseGuard(root, change, phase, {
+        strength: config.constraint_strength,
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      if (result.passed) {
+        console.log(`✓ Phase guard passed: ${change} → ${phase}`);
+      } else {
+        console.error(`✗ Phase guard failed: ${change} → ${phase}`);
+        for (const err of result.errors) {
+          console.error(`  [${err.code}] ${err.message}`);
+          if (err.detail) console.error(`    ${err.detail}`);
+        }
+      }
+
+      if (result.warnings.length > 0) {
+        for (const warn of result.warnings) {
+          console.warn(`  ⚠ [${warn.code}] ${warn.message}`);
+        }
+      }
+
+      // Apply transition if requested and guard passed
+      if (options.apply && result.passed) {
+        const state = loadChangeState(root, change);
+        if (!state) {
+          console.error(`Error: Change not found: ${change}`);
+          process.exit(1);
+        }
+
+        // Enforce blocking point user confirmation
+        const blockingInfo = requiresUserConfirmation(state.phase, phase);
+        if (blockingInfo.required && !options.confirm) {
+          console.error(`✗ 阻塞点 ${blockingInfo.bp}：${blockingInfo.description}`);
+          console.error(`  必须显式确认。请使用：`);
+          console.error(`  mumuspec guard ${change} ${phase} --apply --confirm`);
+          process.exit(2);
+        }
+
+        // Validate phase
+        const validPhases: ChangePhase[] = ['open', 'design', 'build', 'verify', 'archive-in-progress', 'archive-completed'];
+        if (!validPhases.includes(phase as ChangePhase)) {
+          console.error(`✗ 无效的目标阶段: ${phase}`);
+          console.error(`  有效阶段: ${validPhases.join(', ')}`);
+          process.exit(1);
+        }
+
+        const transitionResult = executeTransition(state, phase as ChangePhase, { userConfirmed: options.confirm });
+        if (transitionResult.success) {
+          saveChangeState(root, change, transitionResult.state);
+          console.log(`✓ 阶段转换已应用: ${state.phase} → ${phase}`);
+          if (blockingInfo.bp) {
+            console.log(`  阻塞点 ${blockingInfo.bp} 已通过 (${blockingInfo.description})`);
+          }
+        } else {
+          if (transitionResult.error?.startsWith('E-CHANGE-007')) {
+            console.log(`⊙ 已在目标阶段 '${phase}'，无需转换`);
+          } else if (transitionResult.error?.startsWith('E-CHANGE-006')) {
+            console.error(`✗ 无效的阶段转换: ${transitionResult.error}`);
+            console.error(`  可运行 'mumuspec state next ${change}' 查看可转换目标`);
+            process.exit(1);
+          } else {
+            console.error(`✗ 转换失败: ${transitionResult.error}`);
+            process.exit(1);
+          }
+        }
+      }
+
+      if (!result.passed) process.exit(1);
+    });
+}

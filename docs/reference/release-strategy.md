@@ -33,7 +33,7 @@
 3. 运行 `npm version <type>` 生成 tag
 4. `npm publish --tag next`（先发 next 标签）
 5. 邀请测试者验证（至少 2 个项目）
-6. `npm dist-tag add @mumuspec/cli@<version> latest`（正式发布）
+6. `npm dist-tag add mumuspec@<version> latest`（正式发布）
 7. 发布 Release Notes（GitHub Releases）
 8. 更新文档站点
 ```

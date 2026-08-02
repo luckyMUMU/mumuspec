@@ -52,7 +52,27 @@ mumuspec state check <name> build
 
 ### Step 2: 创建实现计划
 
-**立即执行**：使用 Skill 工具加载 `writing-plans` skill。跳过此步骤被禁止。
+**立即执行**：使用 Skill 工具加载 `writing-plans` skill。
+
+> **降级说明**：若 `writing-plans` skill 不可用，按以下方式手动创建 `tasks.md`：
+
+```markdown
+# Implementation Tasks: <change-name>
+
+## Layer <N>: <层名称>
+- [ ] <任务描述>
+  - 文件: <受影响的文件>
+  - 验收: <如何验证>
+
+## Layer <N-1>: <层名称>
+- [ ] <任务描述>
+```
+
+手动创建规则：
+- 每个任务必须可独立验证（有明确的"完成"定义）
+- 每个任务标注受影响的文件路径
+- 按照 `build_layers` 从最深（叶子）到最浅（根）排序
+- 每个 task 包含 Red-Green 步骤：先写失败测试 → 再写实现 → 重构
 
 创建计划：
 - 保存到 `tasks.md`

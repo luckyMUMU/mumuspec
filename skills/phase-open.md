@@ -29,6 +29,79 @@ metadata:
 
 ---
 
+## Required Skill 降级策略
+
+当 required skill 不可用时，执行以下 inline fallback。**降级时必须记录到 decisions.md Open 章节**。
+
+| Skill | 不可用时的替代方案 |
+|-------|------------------|
+| `brainstorming` | 使用平台内置 AskQuestion 工具，按"目标→非目标→范围边界→关键未知→验收场景"结构进行多轮 Q&A（见 Fallback A） |
+| `gitnexus-impact-analysis` | 使用 `grep`/`find` + 代码阅读手动分析影响范围（见 Fallback B） |
+| `using-git-worktrees` | 降级为 branch 模式或直接使用当前工作区，记录降级原因（见 Fallback C） |
+| `spec-driven-development` | 使用 delta-specs/ 标准模板手动编写（见 Fallback D） |
+
+### Fallback A：brainstorming 替代流程
+
+```
+Round 1: 使用 AskQuestion 探索目标、非目标、范围边界
+Round 2: 使用 AskQuestion 探索关键未知、风险依赖
+Round 3: 使用 AskQuestion 确认草拟验收场景
+每轮提问至少 2 个问题，用户确认后进入下一轮
+至少执行 2 轮 Q&A 才可进入 Step 1b 确认
+```
+
+### Fallback B：gitnexus-impact-analysis 替代流程
+
+```bash
+# 1. 确认当前 HEAD
+BASE_REF=$(git rev-parse HEAD)
+echo "$BASE_REF" > .mumuspec/changes/<name>/code-graph/base-ref.txt
+
+# 2. 分析受影响文件（手动方式）
+#    - 读取 proposal.md 中的 affected_scopes
+#    - 使用 grep -r 搜索相关 import/require 引用
+#    - 读取相关源文件理解调用链
+#    - 创建 impact-analysis.json（按标准格式）
+
+# 3. 搜索受影响函数
+grep -rn "functionName" src/ --include="*.ts" --include="*.js"
+```
+
+### Fallback C：using-git-worktrees 替代流程
+
+```bash
+# 尝试创建 worktree
+if git worktree add .worktrees/<name> -b "mumuspec/<name>" 2>/dev/null; then
+  echo "Worktree created successfully"
+else
+  # 降级：记录原因到 decisions.md
+  echo "降级为当前工作区模式（原因：worktree 创建失败）"
+  # 继续使用当前工作区，不阻断流程
+fi
+```
+
+### Fallback D：spec-driven-development 替代流程
+
+直接按以下结构创建 delta-specs/：
+```markdown
+---
+id: DS-XXX-001
+layer: 0
+scope: <scope>
+delta: ADDED|MODIFIED|REMOVED
+---
+
+## Requirement: <需求名称>
+
+### SHALL
+- SHALL <要求描述>
+
+### SHALL NOT
+- SHALL NOT <禁止描述>
+```
+
+---
+
 ## 执行步骤
 
 ### Step 0: 输出语言约束
@@ -39,7 +112,9 @@ metadata:
 
 ### Step 1: 需求探索与澄清
 
-**立即执行**：使用 Skill 工具加载 `brainstorming` skill。跳过此步骤被禁止。
+**立即执行**：使用 Skill 工具加载 `brainstorming` skill。
+
+> **降级说明**：若 `brainstorming` skill 不可用，按上方 **Fallback A** 使用 AskQuestion 工具手动执行需求探索。**必须记录降级到 decisions.md**。
 
 加载 skill 后，按照其指导探索问题空间，但不可将一轮 Q&A 视为充分澄清。必须持续提问、与用户对齐，形成涵盖以下内容的澄清总结：
 - **目标**：用户真正想解决的问题和预期结果
@@ -106,7 +181,9 @@ mumuspec state init <name> full
 
 ### Step 3: 代码图谱影响分析
 
-**立即执行**：使用 Skill 工具加载 `gitnexus-impact-analysis` skill。跳过此步骤被禁止。
+**立即执行**：使用 Skill 工具加载 `gitnexus-impact-analysis` skill。
+
+> **降级说明**：若 `gitnexus-impact-analysis` skill 不可用，按上方 **Fallback B** 手动执行影响分析。**必须记录降级到 decisions.md**。
 
 加载后执行影响分析，结果记录到 `code-graph/impact-analysis.json`：
 - 受影响文件列表
@@ -144,6 +221,8 @@ mumuspec contract compat-check --change <name>
 ### Step 6: 创建 worktree 隔离
 
 **立即执行**：使用 Skill 工具加载 `using-git-worktrees` skill。
+
+> **降级说明**：若 `using-git-worktrees` skill 不可用或 worktree 创建失败，按上方 **Fallback C** 降级为当前工作区模式。**必须记录降级原因到 decisions.md**。
 
 > **降级处理**：若 worktree 创建失败（磁盘空间/权限/git 异常），降级为 branch 模式：
 > - 记录降级原因到 `decisions.md` Open 章节

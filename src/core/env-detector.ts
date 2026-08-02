@@ -7,14 +7,11 @@
 import { exec } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { arch, platform, release, type, homedir, cpus } from 'node:os';
+import { arch, platform, release } from 'node:os';
 import { promisify } from 'node:util';
-import { parse, stringify } from 'yaml';
 import type {
   DetectedTool,
   EnvironmentDetection,
-  EnvSpecFile,
-  EnvSpecSection,
   OSInfo,
   ToolDetectorConfig,
   ToolEcosystem,
@@ -432,10 +429,7 @@ export async function validateEnv(
   // Run fresh detection
   const detection = await detectEnvironment({ projectRoot });
 
-  // Parse saved spec for requirements
-  const savedContent = readFileSync(envSpecPath, 'utf8');
-  const hasShallMatch = savedContent.includes('SHALL');
-
+  // ponytail: saved spec comparison deferred; only fresh detection validated
   let exitCode = 0;
 
   // Check each saved requirement against detected
@@ -464,18 +458,13 @@ export async function diffEnv(
   projectRoot: string,
   againstFile?: string
 ): Promise<string> {
-  let savedDetection: EnvironmentDetection | null = null;
-
+  // ponytail: minimal stub — saved-diff comparison not yet implemented
   const envSpecPath = againstFile || join(projectRoot, '.mumuspec', 'env-spec.md');
-
   if (existsSync(envSpecPath)) {
     try {
-      const content = readFileSync(envSpecPath, 'utf8');
-      // Extract Detected section from saved spec and parse
-      // For simplicity, we'll re-detect and show current vs should-be
-      savedDetection = null; // Will use file content for display
+      readFileSync(envSpecPath, 'utf8');
     } catch {
-      // ignore parse errors
+      // ignore read errors
     }
   }
 

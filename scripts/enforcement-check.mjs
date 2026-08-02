@@ -9,7 +9,7 @@
  *   PONYTAIL-4: detect overly clever solutions
  *   STRUCT-1: spec.md frontmatter validation (layer, scope, last_updated)
  *   STRUCT-2: SHALL must have corresponding Enforcement entry
- *   CHANGE-3: package.json ↔ src/cli.ts version consistency
+ *   CHANGE-3: package.json ↔ src/cli/index.ts version consistency
  *   ENV-3: env-spec.md format check (frontmatter + SHALL/SHALL NOT + Detected)
  *
  * Usage: node scripts/enforcement-check.mjs [--strict]
@@ -227,13 +227,25 @@ function checkChange3() {
   console.log('\n[CHANGE-3] Version consistency check');
 
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  const cliSrc = readFileSync(join(root, 'src', 'cli.ts'), 'utf8');
-  const cliVerMatch = cliSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
+
+  // Check src/cli/index.ts first (new location after modularization)
+  const cliIndexPath = join(root, 'src', 'cli', 'index.ts');
+  let cliVerMatch = null;
+  if (existsSync(cliIndexPath)) {
+    const cliIndexSrc = readFileSync(cliIndexPath, 'utf8');
+    cliVerMatch = cliIndexSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
+  }
+
+  // Fallback: check src/cli.ts
+  if (!cliVerMatch) {
+    const cliSrc = readFileSync(join(root, 'src', 'cli.ts'), 'utf8');
+    cliVerMatch = cliSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
+  }
 
   if (!cliVerMatch) {
-    report('error', 'CHANGE-3', 'src/cli.ts: cannot find .version() call');
+    report('error', 'CHANGE-3', 'src/cli.ts and src/cli/index.ts: cannot find .version() call');
   } else if (cliVerMatch[1] !== pkg.version) {
-    report('error', 'CHANGE-3', `version mismatch: package.json=${pkg.version}, cli.ts=${cliVerMatch[1]}`);
+    report('error', 'CHANGE-3', `version mismatch: package.json=${pkg.version}, cli source=${cliVerMatch[1]}`);
   }
 }
 

@@ -32,7 +32,7 @@ function generateRulesContent(
 
   const isClaude = fileName === 'CLAUDE.md';
   const isCursor = fileName === '.cursorrules';
-  const isAgents = fileName === 'AGENTS.md';
+  // ponytail: isAgents reserved for future AGENTS.md header variant
 
   // Header
   if (isClaude) {

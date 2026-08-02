@@ -51,3 +51,19 @@ HTTP Request
 - **Context**: 所有 API 端点需要一致的响应结构
 - **Decision**: `{ success: boolean, data?: T, error?: string }`
 - **Reasoning**: 统一格式便于客户端处理，减少约定成本
+
+---
+
+## Frontend Design (前端设计规范)
+
+详见变更工件：`.mumuspec/changes/build-frontend/design.md`
+
+### 视觉风格概览
+- **风格**: 现代极简（Notion/Linear 参考）
+- **主色**: Indigo-500 (#6366f1)
+- **排版**: 系统字体栈 + 4px 基础间距系统
+- **组件**: TaskCard、StatusBadge、Button、Input、FilterBar、SortSelector
+
+### CORS 支持
+- API 响应统一添加 `Access-Control-Allow-*` 头以允许前端跨域访问
+- 前端运行在 port 3001，API 在 port 3000

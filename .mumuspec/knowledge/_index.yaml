@@ -4,7 +4,7 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0015-docs_appendix_ai-agent-ecosystem-research.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0015-docs_appendix_ai-agent-ecosystem-research.md
     tags:
       - imported
       - docs
@@ -16,7 +16,7 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0016-docs_appendix_mumuspec-ecosystem-comparison.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0016-docs_appendix_mumuspec-ecosystem-comparison.md
     tags:
       - imported
       - docs
@@ -28,7 +28,7 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0017-docs_design_ai-integration.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0017-docs_design_ai-integration.md
     tags:
       - imported
       - docs
@@ -40,7 +40,7 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0018-docs_design_change-layer.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0018-docs_design_change-layer.md
     tags:
       - imported
       - docs
@@ -52,7 +52,7 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0019-docs_design_constraint-strength.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0019-docs_design_constraint-strength.md
     tags:
       - imported
       - docs
@@ -64,7 +64,7 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0020-docs_design_contract-layer.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0020-docs_design_contract-layer.md
     tags:
       - imported
       - docs
@@ -76,7 +76,7 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0021-docs_design_guard-layer.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0021-docs_design_guard-layer.md
     tags:
       - imported
       - docs
@@ -88,7 +88,7 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0022-docs_design_knowledge-layer.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0022-docs_design_knowledge-layer.md
     tags:
       - imported
       - docs
@@ -100,7 +100,7 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0023-docs_design_spec-layer.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0023-docs_design_spec-layer.md
     tags:
       - imported
       - docs
@@ -112,7 +112,7 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0024-docs_implementation-plan.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0024-docs_implementation-plan.md
     tags:
       - imported
       - docs
@@ -124,52 +124,102 @@ pages:
     type: decision
     status: confirmed
     scope: imported
-    file: .mumuspec\knowledge\decisions\KD-0025-docs_reference_cognitive-framework.md
+    file: .mumuspec\knowledge\decisions\imported\KD-0025-docs_reference_cognitive-framework.md
     tags:
       - imported
       - docs
       - cognitive-framework
       - design
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: KE-enhance-design-phase-0244dc62
-    title: "Auto-extracted from enhance-design-phase: 当前设计阶段最大的痛点是什么?"
+  - id: KE-enhance-design-phase-qa-summary
+    title: Knowledge extracted from enhance-design-phase
     type: decision
     status: confirmed
     scope: enhance-design-phase
-    file: .mumuspec\knowledge\decisions\KE-enhance-design-phase-0244dc62.md
+    file: .mumuspec\knowledge\decisions\changes\KE-enhance-design-phase-qa-summary.md
     tags:
-      - auto-extracted
-      - q1
+      - merged
       - decision
+      - pattern
+      - lesson
+      - risk
       - enhance-design-phase
-  - id: KE-enhance-design-phase-41b18eaa
-    title: "Auto-extracted from enhance-design-phase: 设计阶段在 SDD 中的核心作用是什么?"
+  - id: KE-refactor-init-and-archive-qa-summary
+    title: Knowledge extracted from refactor-init-and-archive
     type: decision
     status: confirmed
-    scope: enhance-design-phase
-    file: .mumuspec\knowledge\decisions\KE-enhance-design-phase-41b18eaa.md
+    scope: refactor-init-and-archive
+    file: .mumuspec\knowledge\decisions\changes\KE-refactor-init-and-archive-qa-summary.md
     tags:
-      - auto-extracted
-      - q1
+      - merged
       - decision
-      - enhance-design-phase
-  - id: KE-enhance-design-phase-hyperplan
-    title: Adversarial design review insights from enhance-design-phase
+      - pattern
+      - lesson
+      - risk
+      - refactor-init-and-archive
+  - id: KE-refactor-persistent-spec-qa-summary
+    title: Knowledge extracted from refactor-persistent-spec
     type: decision
     status: confirmed
-    scope: enhance-design-phase
-    file: .mumuspec\knowledge\decisions\KE-enhance-design-phase-hyperplan.md
+    scope: refactor-persistent-spec
+    file: .mumuspec\knowledge\decisions\changes\KE-refactor-persistent-spec-qa-summary.md
     tags:
-      - auto-extracted
-      - hyperplan
+      - merged
       - decision
-      - enhance-design-phase
+      - pattern
+      - lesson
+      - risk
+      - refactor-persistent-spec
+  - id: KE-introduce-ua-design-decisions
+    title: Knowledge extracted from introduce-ua-design
+    type: decision
+    status: confirmed
+    scope: introduce-ua-design
+    file: .mumuspec\knowledge\decisions\changes\KE-introduce-ua-design-decisions.md
+    tags:
+      - merged
+      - decision
+      - pattern
+      - architecture
+      - knowledge-layer
+      - chat
+      - dashboard
+      - introduce-ua-design
+  - id: KE-add-env-spec-decisions
+    title: Knowledge extracted from add-env-spec
+    type: decision
+    status: confirmed
+    scope: add-env-spec
+    file: .mumuspec\knowledge\decisions\changes\KE-add-env-spec-decisions.md
+    tags:
+      - merged
+      - decision
+      - pattern
+      - env-detector
+      - security
+      - cli
+      - add-env-spec
+  - id: KE-introduce-grill-me-skill-decisions
+    title: Knowledge extracted from introduce-grill-me-skill
+    type: decision
+    status: confirmed
+    scope: introduce-grill-me-skill
+    file: .mumuspec\knowledge\decisions\changes\KE-introduce-grill-me-skill-decisions.md
+    tags:
+      - merged
+      - decision
+      - pattern
+      - grill-me
+      - design-phase
+      - orchestrator
+      - consensus
+      - introduce-grill-me-skill
   - id: KP-0001
     title: MumuSpec 核心设计决策：双约束 + 树状分层 + 渐进式披露 + 动态强度
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0001-dual-constraint-tree-progressive.md
+    file: .mumuspec\knowledge\decisions\global\KP-0001-dual-constraint-tree-progressive.md
     tags:
       - dual-constraint
       - tree-progressive
@@ -182,7 +232,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0002-six-layer-architecture.md
+    file: .mumuspec\knowledge\decisions\global\KP-0002-six-layer-architecture.md
     tags:
       - architecture
       - six-layers
@@ -194,7 +244,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0003-workflow-rules.md
+    file: .mumuspec\knowledge\decisions\global\KP-0003-workflow-rules.md
     tags:
       - workflow
       - tdd
@@ -207,7 +257,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0004-ponytail-coding-constraints.md
+    file: .mumuspec\knowledge\decisions\global\KP-0004-ponytail-coding-constraints.md
     tags:
       - ponytail
       - yagni
@@ -219,7 +269,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0005-contract-layer.md
+    file: .mumuspec\knowledge\decisions\global\KP-0005-contract-layer.md
     tags:
       - contract
       - external
@@ -232,7 +282,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0006-knowledge-layer.md
+    file: .mumuspec\knowledge\decisions\global\KP-0006-knowledge-layer.md
     tags:
       - knowledge
       - code-graph
@@ -246,7 +296,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0007-cognitive-framework.md
+    file: .mumuspec\knowledge\decisions\global\KP-0007-cognitive-framework.md
     tags:
       - cognitive-framework
       - johari-window
@@ -259,7 +309,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0008-dynamic-constraint-strength.md
+    file: .mumuspec\knowledge\decisions\global\KP-0008-dynamic-constraint-strength.md
     tags:
       - constraint-strength
       - dynamic
@@ -272,7 +322,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0009-mvp-scope.md
+    file: .mumuspec\knowledge\decisions\global\KP-0009-mvp-scope.md
     tags:
       - mvp
       - scope
@@ -285,7 +335,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0017-dual-constraint-layer.md
+    file: .mumuspec\knowledge\decisions\global\KP-0017-dual-constraint-layer.md
     tags:
       - dual-constraint
       - spec
@@ -299,7 +349,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0018-hyperplan-adversarial.md
+    file: .mumuspec\knowledge\decisions\global\KP-0018-hyperplan-adversarial.md
     tags:
       - hyperplan
       - adversarial
@@ -311,7 +361,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0019-ai-tool-adapter.md
+    file: .mumuspec\knowledge\decisions\global\KP-0019-ai-tool-adapter.md
     tags:
       - ai-adapter
       - claude
@@ -324,7 +374,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0025-error-code-standard.md
+    file: .mumuspec\knowledge\decisions\global\KP-0025-error-code-standard.md
     tags:
       - error-code
       - standard
@@ -337,7 +387,7 @@ pages:
     type: decision
     status: confirmed
     scope: global
-    file: .mumuspec\knowledge\decisions\KP-0028-knowledge-extract.md
+    file: .mumuspec\knowledge\decisions\global\KP-0028-knowledge-extract.md
     tags:
       - knowledge-extraction
       - archive
@@ -345,17 +395,6 @@ pages:
       - auto-extract
       - goal
     verified_at: 2026-07-29T00:00:00Z
-  - id: KE-enhance-design-phase-patterns
-    title: Architecture patterns from enhance-design-phase
-    type: pattern
-    status: confirmed
-    scope: enhance-design-phase
-    file: .mumuspec\knowledge\patterns\KE-enhance-design-phase-patterns.md
-    tags:
-      - auto-extracted
-      - pattern
-      - architecture
-      - enhance-design-phase
   - id: KP-0035
     title: 完整目录结构示例
     type: pattern
@@ -785,17 +824,6 @@ pages:
       - comparison
       - pattern
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: KE-enhance-design-phase-q4-risk
-    title: Residual risks from enhance-design-phase
-    type: risk
-    status: confirmed
-    scope: enhance-design-phase
-    file: .mumuspec\knowledge\risks\KE-enhance-design-phase-q4-risk.md
-    tags:
-      - auto-extracted
-      - q4
-      - risk
-      - enhance-design-phase
   - id: KP-0015
     title: Knowledge Layer 后端故障风险与降级策略
     type: risk
@@ -911,17 +939,6 @@ pages:
       - overview
       - introduction
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: KE-enhance-design-phase-lessons
-    title: Lessons from enhance-design-phase decisions
-    type: lesson
-    status: confirmed
-    scope: enhance-design-phase
-    file: .mumuspec\knowledge\lessons\KE-enhance-design-phase-lessons.md
-    tags:
-      - auto-extracted
-      - lesson
-      - decisions
-      - enhance-design-phase
   - id: KL-0006
     title: 开放问题
     type: lesson
@@ -1033,7 +1050,7 @@ pages:
       - spec-creation
       - reverse-engineering
       - bootstrap
-    verified_at: 2026-07-30T00:0000Z
+    verified_at: 2026-07-30T00:00:00Z
   - id: IMPORT-AGENTS
     title: Agent Rules
     type: pattern
@@ -1053,16 +1070,6 @@ pages:
     tags:
       - imported
       - changelog
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-CLAUDE
-    title: Claude Code Rules
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\claude.md
-    tags:
-      - imported
-      - claude
     verified_at: 2026-07-31T16:19:01.701Z
   - id: IMPORT-DEMO__MUMUSPEC_DESIGN
     title: "Design: task-api"
@@ -1174,32 +1181,12 @@ pages:
       - imported
       - license
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_BUNDLE__MUMUSPEC_DESIGN
-    title: "Design: bundle"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_bundle_.mumuspec_design.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
   - id: IMPORT-SRC_BUNDLE__MUMUSPEC_SPEC
     title: bundle spec
     type: pattern
     status: confirmed
     scope: imported
     file: .mumuspec\knowledge\imports\src_bundle_.mumuspec_spec.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_CHANGE__MUMUSPEC_DESIGN
-    title: "Design: change"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_change_.mumuspec_design.md
     tags:
       - imported
       - src-spec
@@ -1214,32 +1201,12 @@ pages:
       - imported
       - src-spec
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_CORE__MUMUSPEC_DESIGN
-    title: "Design: core"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_core_.mumuspec_design.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
   - id: IMPORT-SRC_CORE__MUMUSPEC_SPEC
     title: core spec
     type: pattern
     status: confirmed
     scope: imported
     file: .mumuspec\knowledge\imports\src_core_.mumuspec_spec.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_EVAL__MUMUSPEC_DESIGN
-    title: "Design: eval"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_eval_.mumuspec_design.md
     tags:
       - imported
       - src-spec
@@ -1254,32 +1221,12 @@ pages:
       - imported
       - src-spec
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_FEEDBACK__MUMUSPEC_DESIGN
-    title: "Design: feedback"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_feedback_.mumuspec_design.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
   - id: IMPORT-SRC_FEEDBACK__MUMUSPEC_SPEC
     title: feedback spec
     type: pattern
     status: confirmed
     scope: imported
     file: .mumuspec\knowledge\imports\src_feedback_.mumuspec_spec.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_GUARD__MUMUSPEC_DESIGN
-    title: "Design: guard"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_guard_.mumuspec_design.md
     tags:
       - imported
       - src-spec
@@ -1294,32 +1241,12 @@ pages:
       - imported
       - src-spec
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_HOOKS__MUMUSPEC_DESIGN
-    title: "Design: hooks"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_hooks_.mumuspec_design.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
   - id: IMPORT-SRC_HOOKS__MUMUSPEC_SPEC
     title: hooks spec
     type: pattern
     status: confirmed
     scope: imported
     file: .mumuspec\knowledge\imports\src_hooks_.mumuspec_spec.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_I18N__MUMUSPEC_DESIGN
-    title: "Design: i18n"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_i18n_.mumuspec_design.md
     tags:
       - imported
       - src-spec
@@ -1334,32 +1261,12 @@ pages:
       - imported
       - src-spec
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_INSTALL__MUMUSPEC_DESIGN
-    title: "Design: install"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_install_.mumuspec_design.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
   - id: IMPORT-SRC_INSTALL__MUMUSPEC_SPEC
     title: install spec
     type: pattern
     status: confirmed
     scope: imported
     file: .mumuspec\knowledge\imports\src_install_.mumuspec_spec.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_KNOWLEDGE__MUMUSPEC_DESIGN
-    title: "Design: knowledge"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_knowledge_.mumuspec_design.md
     tags:
       - imported
       - src-spec
@@ -1374,16 +1281,6 @@ pages:
       - imported
       - src-spec
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_RULES__MUMUSPEC_DESIGN
-    title: "Design: rules"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_rules_.mumuspec_design.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
   - id: IMPORT-SRC_RULES__MUMUSPEC_SPEC
     title: rules spec
     type: pattern
@@ -1394,32 +1291,12 @@ pages:
       - imported
       - src-spec
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_SKILL_AUTHORING__MUMUSPEC_DESIGN
-    title: "Design: skill-authoring"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_skill-authoring_.mumuspec_design.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
   - id: IMPORT-SRC_SKILL_AUTHORING__MUMUSPEC_SPEC
     title: skill-authoring spec
     type: pattern
     status: confirmed
     scope: imported
     file: .mumuspec\knowledge\imports\src_skill-authoring_.mumuspec_spec.md
-    tags:
-      - imported
-      - src-spec
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: IMPORT-SRC_SPEC__MUMUSPEC_DESIGN
-    title: "Design: spec"
-    type: pattern
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\imports\src_spec_.mumuspec_design.md
     tags:
       - imported
       - src-spec

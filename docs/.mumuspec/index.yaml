@@ -1,0 +1,15 @@
+scope: docs
+layer: 1
+children:
+  - name: appendix
+    path: docs/appendix
+    prd_summary: "附录——补充调研、对比分析、路线图、开放问题"
+    tech_summary: "Level 3 深度文档，面向深入了解者"
+  - name: design
+    path: docs/design
+    prd_summary: "架构层设计文档——六层架构的详细设计"
+    tech_summary: "Level 1 设计文档，面向实现者与使用者"
+  - name: reference
+    path: docs/reference
+    prd_summary: "操作参考——CLI 命令、MCP 工具、配置、错误码"
+    tech_summary: "Level 2 参考文档，面向操作者与 CI 配置"

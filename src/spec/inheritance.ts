@@ -107,7 +107,7 @@ function hasSignificantChineseOverlap(a: string, b: string): boolean {
   // Extract Chinese character sequences (CJK Unified Ideographs)
   const chineseRegex = /[\u4e00-\u9fff]+/g;
   const aChinese = a.match(chineseRegex) || [];
-  const bChinese = b.match(chineseRegex) || [];
+  // ponytail: bChinese analysis deferred to future semantic diff
 
   // Check if any Chinese substring of length ≥4 from A appears in B
   // Threshold: 4 chars avoids common phrases like "必须通过" (3 chars)

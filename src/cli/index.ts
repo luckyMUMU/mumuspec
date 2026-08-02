@@ -1,0 +1,339 @@
+#!/usr/bin/env node
+/**
+ * MumuSpec CLI — Main entry point.
+ * Command modules are split across src/cli/commands/ for maintainability.
+ */
+import { Command } from 'commander';
+import { resolve, join } from 'node:path';
+import { saveConfig, getDefaultConfig, isInitialized } from '../core/config.js';
+import { getMumuSpecDir, ensureDir, writeText, writeYaml, now, appendAuditLog } from '../core/utils.js';
+
+// Spec
+import { createDefaultSpecContent, parseSpecFile, serializeSpecFile } from '../spec/parser.js';
+import { injectPonytail } from '../spec/ponytail.js';
+
+// Project Analysis & Init Generation (0.13.0+)
+import { analyzeProject, type ProjectAnalysis } from '../core/project-analyzer.js';
+import { generateInitialSpec, generateInitialDesign, scaffoldKnowledgeBase, generateFrontendDesignMd, isFrontendProject, generateEnvKnowledgePage } from '../core/init-generator.js';
+// Document & Spec Importer (0.13.0+)
+import { detectExistingDocuments, detectThirdPartySpecs, importExistingDocuments, importThirdPartySpecs, generateImportIndex, type DetectedDocument, type DetectedSpec } from '../core/doc-importer.js';
+
+// Rules
+import { generateRulesFiles } from '../rules/generator.js';
+
+// i18n
+import { initLocale } from '../i18n/locales.js';
+
+// Shared helpers
+import { getCssSummary, getDirectorySummary } from './helpers.js';
+
+// Command modules
+import { registerSpecCommands } from './commands/spec.js';
+import { registerChangeCommands } from './commands/change.js';
+import { registerGuardCommand } from './commands/guard.js';
+import { registerStateCommands } from './commands/state.js';
+import { registerKnowledgeCommands } from './commands/knowledge.js';
+import { registerConstraintsCommands } from './commands/constraints.js';
+import { registerFeedbackCommands } from './commands/feedback.js';
+import { registerInstallCommands } from './commands/install.js';
+import { registerFinalizeArchiveCommand } from './commands/finalize-archive.js';
+import { registerHooksCommands } from './commands/hooks.js';
+import { registerDashboardCommands } from './commands/dashboard.js';
+import { registerEvalCommands } from './commands/eval.js';
+import { registerI18nCommands } from './commands/i18n.js';
+import { registerSkillCommands } from './commands/skill.js';
+import { registerBundleCommands } from './commands/bundle.js';
+import { registerEnvCommands } from './commands/env.js';
+import { registerDoctorCommand } from './commands/doctor.js';
+
+const program = new Command();
+
+// Initialize locale before any command runs
+initLocale();
+
+program
+  .name('mumuspec')
+  .description('MumuSpec — Tree-distributed dual-constraint specification system')
+  .version('0.15.0-beta.1');
+
+// === init ===
+program
+  .command('init')
+  .description('Initialize MumuSpec with project analysis, auto-generated specs, design, and knowledge base')
+  .argument('[path]', 'project path', '.')
+  .option('--name <name>', 'project name')
+  .option('--language <lang>', 'primary language', 'typescript')
+  .option('--framework <fw>', 'framework')
+  .option('--skip-analysis', 'skip project analysis and use defaults')
+  .option('--no-import', 'skip importing existing documents and third-party specs')
+  .option('--force', 'overwrite existing prd.md and tech.md files')
+  .action(async (path, options) => {
+    const projectRoot = resolve(path);
+
+    if (isInitialized(projectRoot)) {
+      console.error('Error: MumuSpec is already initialized in this directory.');
+      process.exit(1);
+    }
+
+    const mumuDir = getMumuSpecDir(projectRoot);
+    ensureDir(mumuDir);
+
+    // ── Step 1: Project Analysis ──
+    let analysis: ProjectAnalysis | undefined;
+    if (!options.skipAnalysis) {
+      try {
+        analysis = analyzeProject(projectRoot);
+        console.log('');
+        console.log('╔══════════════════════════════════════════════════════════╗');
+        console.log('║  MumuSpec Project Analysis                              ║');
+        console.log('╚══════════════════════════════════════════════════════════╝');
+        console.log(`  Type:       ${analysis.projectType}`);
+        console.log(`  Framework:   ${analysis.framework !== 'none' ? analysis.framework : 'none detected'}`);
+        console.log(`  Language:   ${analysis.language}${analysis.hasTypeScript ? ' (strict)' : ''}`);
+        console.log(`  CSS:         ${getCssSummary(analysis)}`);
+        console.log(`  Testing:    ${analysis.hasTests ? 'Yes' : 'No'}`);
+        console.log(`  Source:      ${analysis.sourceDirs.join(', ') || 'none'}`);
+        console.log(`  Files (est): ${analysis.totalFiles}`);
+        console.log('');
+      } catch (err) {
+        console.warn(`⚠ Project analysis failed: ${(err as Error).message}`);
+        console.warn('  Falling back to defaults. Use --skip-analysis to suppress this warning.');
+      }
+    }
+
+    // ── Step 2: Create config ──
+    const projectName = options.name || projectRoot.split(/[\\/]/).pop() || 'my-project';
+    const config = getDefaultConfig(projectName);
+    config.project.language = options.language;
+    if (options.framework) config.project.framework = options.framework;
+    if (analysis) {
+      config.project.language = analysis.language;
+      if (analysis.framework !== 'none') {
+        config.project.framework = analysis.framework;
+      }
+    }
+    saveConfig(projectRoot, config);
+
+    // ── Step 3: Create root spec.md (analysis-aware) ──
+    let specContent: string;
+    if (analysis) {
+      specContent = generateInitialSpec(analysis);
+      // Inject Ponytail on top of auto-generated spec if enabled
+      if (config.ponytail.auto_inject_to_root) {
+        const specPath = join(mumuDir, 'spec.md');
+        // Write initial version first, then parse + inject + overwrite
+        writeText(specPath, specContent);
+        const spec = parseSpecFile(specContent, specPath);
+        const injected = injectPonytail(spec);
+        specContent = serializeSpecFile(injected);
+        writeText(specPath, specContent);
+      }
+    } else {
+      specContent = createDefaultSpecContent(0, '.');
+      if (config.ponytail.auto_inject_to_root) {
+        const specPath = join(mumuDir, 'spec.md');
+        const spec = parseSpecFile(specContent, specPath);
+        const injected = injectPonytail(spec);
+        specContent = serializeSpecFile(injected);
+      }
+    }
+    const specPath = join(mumuDir, 'spec.md');
+    writeText(specPath, specContent);
+
+    // ── Step 4: Create root design.md (analysis-aware) ──
+    const designPath = join(mumuDir, 'design.md');
+    const designContent = analysis ? generateInitialDesign(analysis) : `# Design: ${config.project.name}\n\n## Architecture Overview\n[Describe the overall architecture]\n\n## Key Decisions\n[Document key architectural decisions]\n`;
+    writeText(designPath, designContent);
+
+    // ── Step 4.5: Create root prd.md + tech.md (NEW) ──
+    let prdFiles: string[] = [];
+    let techFiles: string[] = [];
+    if (analysis) {
+      try {
+        const { scaffoldDistributedSpecs } = await import('../core/spec-scaffolder.js');
+        const created = scaffoldDistributedSpecs(projectRoot, analysis, {
+          force: options.force === true,
+        });
+        for (const f of created) {
+          if (f.endsWith('prd.md')) prdFiles.push(f);
+          else if (f.endsWith('tech.md')) techFiles.push(f);
+        }
+      } catch {
+        // Non-fatal: scaffolding failure doesn't block initialization
+      }
+    }
+
+    // ── Step 5: Create root prohibitions.md ──
+    const prohibitionsPath = join(mumuDir, 'prohibitions.md');
+    writeText(prohibitionsPath, '# Global Prohibitions\n\n## All Modules\n(Add global SHALL NOT constraints here)\n');
+
+    // ── Step 6: Create index.yaml (with detected modules) ──
+    const indexPath = join(mumuDir, 'index.yaml');
+    const indexChildren = (analysis?.sourceDirs || []).map((dir) => ({
+      name: dir,
+      path: `${dir}`,
+      summary: getDirectorySummary(dir, analysis!.projectType),
+      shallNotCount: 0,
+    }));
+    writeYaml(indexPath, {
+      scope: '.',
+      layer: 0,
+      ...(analysis ? { last_updated: now().split('T')[0] } : {}),
+      children: indexChildren,
+    });
+
+    // ── Step 7: Create standard directories ──
+    ensureDir(join(mumuDir, 'changes'));
+    ensureDir(join(mumuDir, 'changes', 'archive'));
+    ensureDir(join(mumuDir, 'knowledge'));
+    ensureDir(join(mumuDir, 'contracts', 'external'));
+    ensureDir(join(mumuDir, 'contracts', 'outbound'));
+    ensureDir(join(mumuDir, 'contracts', 'schemas'));
+    ensureDir(join(mumuDir, 'skills'));
+
+    // ── Step 8: Initialize knowledge base with auto-generated pages ──
+    let knowledgeFiles: string[] = [];
+    if (analysis) {
+      const result = scaffoldKnowledgeBase(projectRoot, config, analysis);
+      knowledgeFiles = result.created;
+
+      // ── Step 8.5: Environment detection ──
+      const envResult = await generateEnvKnowledgePage(projectRoot, config, analysis);
+      if (envResult) {
+        const envPagePath = join(projectRoot, config.knowledge.wiki.dir, envResult.filePath);
+        writeText(envPagePath, envResult.content);
+        knowledgeFiles.push(envPagePath);
+      }
+    }
+
+    // ── Step 8.5: Import existing documents and third-party specs ──
+    let importedDocFiles: string[] = [];
+    let importedSpecFiles: string[] = [];
+    if (!options.noImport) {
+      const detectedDocs: DetectedDocument[] = detectExistingDocuments(projectRoot);
+      const detectedSpecs: DetectedSpec[] = detectThirdPartySpecs(projectRoot);
+
+      if (detectedDocs.length > 0 || detectedSpecs.length > 0) {
+        console.log('');
+        console.log('╔══════════════════════════════════════════════════════════╗');
+        console.log('║  Document & Spec Import                                 ║');
+        console.log('╚══════════════════════════════════════════════════════════╝');
+
+        if (detectedDocs.length > 0) {
+          console.log(`  Documents detected: ${detectedDocs.length}`);
+          for (const doc of detectedDocs) {
+            console.log(`    - ${doc.path} (${doc.type})`);
+          }
+          importedDocFiles = importExistingDocuments(projectRoot, config, detectedDocs);
+          console.log(`  ✓ Imported ${importedDocFiles.length} document(s) to knowledge/imports/`);
+        }
+
+        if (detectedSpecs.length > 0) {
+          console.log(`  Third-party specs detected: ${detectedSpecs.length}`);
+          for (const spec of detectedSpecs) {
+            console.log(`    - ${spec.path} (${spec.format})`);
+          }
+          importedSpecFiles = importThirdPartySpecs(projectRoot, config, detectedSpecs);
+          console.log(`  ✓ Imported ${importedSpecFiles.length} spec(s) to knowledge/external-specs/`);
+        }
+
+        // Generate import index
+        generateImportIndex(projectRoot, config, detectedDocs, detectedSpecs);
+      }
+    }
+
+    // ── Step 9: Generate root DESIGN.md for frontend projects ──
+    let rootDesignMdPath: string | undefined;
+    if (analysis && isFrontendProject(analysis)) {
+      rootDesignMdPath = join(projectRoot, 'DESIGN.md');
+      const designMdContent = generateFrontendDesignMd(analysis);
+      writeText(rootDesignMdPath, designMdContent);
+    }
+
+    // ── Step 10: Generate Rules files ──
+    if (config.ai.generate_rules) {
+      generateRulesFiles(projectRoot, config);
+    }
+
+    // ── Step 11: Audit log ──
+    appendAuditLog(mumuDir, { actor: 'user', action: 'init', result: 'success' });
+
+    // ── Summary ──
+    console.log('╔══════════════════════════════════════════════════════════╗');
+    console.log('║  MumuSpec Initialized Successfully                      ║');
+    console.log('╚══════════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`  ✓ Config:        ${join(mumuDir, 'config.yaml')}`);
+    console.log(`  ✓ Root Spec:     ${specPath}`);
+    console.log(`  ✓ Root Design:   ${designPath}`);
+    console.log(`  ✓ Prohibitions:  ${prohibitionsPath}`);
+    console.log(`  ✓ Index:         ${indexPath}`);
+    if (prdFiles.length > 0) {
+      console.log(`  ✓ Prd Files:     ${prdFiles.length} files created`);
+      for (const pf of prdFiles.slice(0, 5)) {
+        console.log(`    - ${pf.replace(projectRoot + '/', '')}`);
+      }
+      if (prdFiles.length > 5) {
+        console.log(`    ... and ${prdFiles.length - 5} more`);
+      }
+    }
+    if (techFiles.length > 0) {
+      console.log(`  ✓ Tech Files:    ${techFiles.length} files created`);
+      for (const tf of techFiles.slice(0, 5)) {
+        console.log(`    - ${tf.replace(projectRoot + '/', '')}`);
+      }
+      if (techFiles.length > 5) {
+        console.log(`    ... and ${techFiles.length - 5} more`);
+      }
+    }
+    if (knowledgeFiles.length > 0) {
+      console.log(`  ✓ Knowledge:     ${knowledgeFiles.length} files created`);
+      for (const kf of knowledgeFiles) {
+        console.log(`    - ${kf.replace(projectRoot + '/', '')}`);
+      }
+    }
+    if (rootDesignMdPath) {
+      console.log(`  ✓ Style Guide:   ${rootDesignMdPath}`);
+    }
+    if (importedDocFiles.length > 0 || importedSpecFiles.length > 0) {
+      console.log(`  ✓ Imports:       ${importedDocFiles.length} docs, ${importedSpecFiles.length} specs`);
+    }
+    if (config.ai.generate_rules) {
+      console.log(`  ✓ Rules Files:   ${config.ai.rules_files.join(', ')}`);
+    }
+    console.log('');
+    console.log('Next steps:');
+    console.log('  1. Review and customize .mumuspec/spec.md');
+    console.log('  2. Update .mumuspec/design.md with your architecture decisions');
+    console.log('  3. Run `mumuspec new <name>` to create your first change');
+    console.log('  4. Run `mumuspec doctor` to verify your environment');
+  });
+
+// Register all command modules
+registerSpecCommands(program);
+registerChangeCommands(program);
+registerGuardCommand(program);
+registerStateCommands(program);
+registerKnowledgeCommands(program);
+registerConstraintsCommands(program);
+registerFeedbackCommands(program);
+registerInstallCommands(program);
+registerFinalizeArchiveCommand(program);
+registerHooksCommands(program);
+registerDashboardCommands(program);
+registerEvalCommands(program);
+registerI18nCommands(program);
+registerSkillCommands(program);
+registerBundleCommands(program);
+registerEnvCommands(program);
+registerDoctorCommand(program);
+
+// Handle unknown commands gracefully
+program.on('command:*', () => {
+  console.error(`Invalid command: ${program.args.join(' ')}`);
+  console.error('See --help for a list of available commands.');
+  process.exit(1);
+});
+
+// Parse arguments
+program.parse();

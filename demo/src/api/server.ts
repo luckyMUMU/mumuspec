@@ -4,6 +4,7 @@
  */
 
 import { createServer, type Server } from 'node:http';
+import { pathToFileURL } from 'node:url';
 import { handleRequest } from './routes.js';
 
 const DEFAULT_PORT = 3000;
@@ -22,7 +23,7 @@ export function startServer(port?: number): Server {
   return server;
 }
 
-// 直接运行时启动服务器
-if (import.meta.url === `file://${process.argv[1]}`) {
+// 直接运行时启动服务器（兼容 Windows 路径格式）
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   startServer();
 }

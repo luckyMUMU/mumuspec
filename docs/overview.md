@@ -1,6 +1,6 @@
 # MumuSpec — 全局概览
 
-> **版本**: 0.12.1-draft | **日期**: 2026-07-29 | **状态**: 设计草案
+> **版本**: 0.15.0-draft | **日期**: 2026-08-01 | **状态**: 设计草案
 
 ---
 
@@ -258,6 +258,9 @@ mumuspec install catpaw --list
 | 0.12.0 | 2026-07-27 动态约束强度系统：双维度（技术设计 + 需求目标）+ 三档强度（high/medium/low）+ 持久化 constraints.yaml（独立于代码的正反向约束）+ 工作流限制渐进式放开 |
 | 0.12.1 | 2026-07-27 constraints.yaml 树状层级化：按目录树分层存放与 spec.md 对齐；子层继承父层约束可收紧不可放宽；同 ID 冲突高层级优先；新增 `resolveConstraintTree()` 解析器与冲突审计 |
 | 0.12.2 | 2026-07-29 Skill 驱动工作流编排：grill me 风格一站式入口 (`.mumuspec/skills/`)、阶段 Skill 分发机制、AI 智能推荐；新增 `mumuspec install` 命令支持 CatPaw 技能安装 |
+| 0.13.0-alpha.2 | 2026-07-15 Bundle-based Skill 系统 (14 个内置技能)、Env Detector (OS/shell/环境变量)、Init Generator (项目感知初始化)、Project Analyzer (技术栈探测)、Doc Importer (从现有文档导入)、Knowledge 知识层扩展 (imports/rationales/lessons/risks 四类型 + 28 条存量导入)、14 个 src 模块内嵌 .mumuspec/{prd,spec,tech,design} 文档 |
+| 0.15.0-alpha.2 | 2026-08-01 TypeScript 严格性补全 (`noImplicitReturns` / `noFallthroughCasesInSwitch`)；CLI 子命令参数校验；移除自引用依赖；大文件拆分 — `src/change/manager.ts` 拆为 6 子模块、`src/knowledge/manager.ts` 拆为 5 子模块；修复 change↔feedback 循环依赖 |
+| 0.15.0-beta.0 | 2026-08-01 Mode-aware Guard 层、Spec Scaffolder (分布式 prd/tech.md 生成)、Git 命令封装、Dashboard 实时仪表盘、Spec 搜索命令；初始化/归档/知识持久化三大重构；Design 阶段增强 (Hyperplan 对抗式评审) |
 
 ## 8. 实施路线图概要
 

@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import type { SpecFile, GuardResult, DriftResult, GuardError, GuardWarning } from '../core/types.js';
 import { parseSpecFile } from '../spec/parser.js';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
-import { readText, getMumuSpecDir } from '../core/utils.js';
-import type { MumuSpecConfig, ConstraintStrengthField } from '../core/config.js';
+import { readText } from '../core/utils.js';
+import type { ConstraintStrengthField } from '../core/config.js';
 import { evaluateConstraint, type ConstraintCheck } from '../core/constraint-evaluator.js';
 
 /**
@@ -152,7 +152,7 @@ export function checkCompliance(
 function checkShallNot(
   projectRoot: string,
   errors: { code: string; message: string; detail?: string }[],
-  warnings: { code: string; message: string; detail?: string }[],
+  _warnings: { code: string; message: string; detail?: string }[],
 ): void {
   // Collect all SHALL NOT constraints from all spec files
   const prohibitions = collectAllProhibitions(projectRoot);
@@ -182,7 +182,7 @@ function checkShallNot(
 /** Check SHALL requirements */
 function checkShall(
   projectRoot: string,
-  errors: { code: string; message: string; detail?: string }[],
+  _errors: { code: string; message: string; detail?: string }[],
   warnings: { code: string; message: string; detail?: string }[],
 ): void {
   // For now, check that SHALL requirements have corresponding code
@@ -209,8 +209,8 @@ function checkShall(
 /** Check Ponytail compliance */
 function checkPonytail(
   projectRoot: string,
-  errors: { code: string; message: string; detail?: string }[],
-  warnings: { code: string; message: string; detail?: string }[],
+  _errors: { code: string; message: string; detail?: string }[],
+  _warnings: { code: string; message: string; detail?: string }[],
 ): void {
   // Check for ponytail: markers in code
   const sourceFiles = findSourceFiles(projectRoot);
@@ -222,7 +222,7 @@ function checkPonytail(
     const markers = parsePonytailMarkers(content, filePath);
     // Markers are intentional simplifications, just note them
     for (const marker of markers) {
-      warnings.push({
+      _warnings.push({
         code: 'E-PONYTAIL-001',
         message: `Ponytail marker: ${marker.reason}`,
         detail: `${marker.file}:${marker.line}`,
@@ -234,9 +234,8 @@ function checkPonytail(
   const packageJsonPath = join(projectRoot, 'package.json');
   if (existsSync(packageJsonPath)) {
     try {
-      const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-      // Could compare with design.md declarations
-      // For now, just note the dependency count
+      JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+      // ponytail: dep count comparison deferred
     } catch {
       // Ignore
     }
@@ -265,7 +264,7 @@ function collectAllProhibitions(
 function checkProhibitionViolation(
   content: string,
   prohibition: string,
-  filePath: string,
+  _filePath: string,
 ): { line: number } | null {
   // Very basic heuristic: extract key identifiers from prohibition text
   // and check if they appear in code
@@ -400,7 +399,7 @@ export function detectDrift(projectRoot: string): DriftResult[] {
 /** Check index.yaml freshness */
 function checkIndexDrift(
   projectRoot: string,
-  results: DriftResult[],
+  _results: DriftResult[],
 ): void {
   function scan(dir: string) {
     const mumuDir = join(dir, '.mumuspec');
@@ -409,8 +408,8 @@ function checkIndexDrift(
     if (existsSync(indexPath)) {
       // Check if children in index match actual directories
       try {
-        const indexContent = readFileSync(indexPath, 'utf8');
-        // Simple check: count children in index vs actual
+        // ponytail: index content parsing deferred — only existence checked
+        readFileSync(indexPath, 'utf8');
         const actualChildren = readdirSync(dir, { withFileTypes: true })
           .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules')
           .filter((e) => existsSync(join(dir, e.name, '.mumuspec')));

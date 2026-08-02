@@ -1,0 +1,53 @@
+name: build-frontend
+phase: archive-completed
+workflow: full
+created_at: 2026-08-01T11:17:10.985Z
+updated_at: 2026-08-01T12:34:28.016Z
+scope: .
+affected_scopes:
+  - public
+  - scripts
+  - src/api
+build_layers:
+  - public
+  - scripts
+  - src/api
+test_cases:
+  design_locked: true
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+  design_content_hash: 0180cd9862a4122e
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: worktree
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts: {}
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 7
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 5
+  converged: true
+  rounds_completed: 1
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+knowledge_extraction:
+  completed: true
+  pages_created_count: 7
+  graph_bindings_verified: true
+  conflicts_resolved: true

@@ -15,8 +15,10 @@
     "sourceMap": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "tests", "docs"]

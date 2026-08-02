@@ -48,11 +48,62 @@
 - 可访问性（a11y）
 - 校准与测试
 - 明确请求的功能
+- 契约与边界管理
+- 变更影响分析
+- 变更审计记录
 
 ### ponytail: Comment Marker
 ```typescript
 // ponytail: <reason for intentional simplification>
 ```
+
+## Contract & Boundary Rules
+
+### External Contract Changes (SHALL NOT — hard prohibition)
+对外部契约的改动（包括但不限于：API 契约、数据库映射、消息队列协议、序列化格式、第三方 SDK 接口签名），必须执行以下流程：
+
+| 步骤 | 要求 | 约束 |
+|------|------|------|
+| 1. 影响分析 | 逐一列出所有上游/下游依赖方、兼容性风险、breaking change 风险 | SHALL |
+| 2. 用户征询 | 向用户明确展示影响清单，逐项征询意见，未经用户明确同意不得修改 | SHALL NOT — 禁止私自改动 |
+| 3. 文档同步 | 在 PRD / Tech Spec 中更新契约定义，标注版本与变更原因 | SHALL |
+| 4. 记录持久化 | 将变更记录写入 `.mumuspec/contracts/` 对应目录下，确保可追溯 | SHALL |
+
+### Internal Module Boundary Rules
+模块间契约与边界必须在设计阶段明确文档化：
+
+- **PRD 层面**：模块职责边界、调用关系、数据流向必须显式定义
+- **Tech 层面**：接口签名、数据模型、错误码、前置/后置条件必须锁定
+- **跨模块调用**：禁止隐式契约（如共享全局状态、未声明的依赖），所有交互必须通过明确定义的接口
+- **边界违规**：发现模块间边界模糊时，必须上报用户并等待设计确认，禁止自行推断
+
+### Directory Boundary Documents
+每个目录必须在自身目录下维护本目录的边界文档（`BOUNDARY.md`），记录：
+
+| 内容 | 要求 |
+|------|------|
+| 对外接口 | 本目录暴露给外部的所有 API、类型、导出符号 |
+| 依赖声明 | 本目录依赖的外部模块、外部服务 |
+| 数据契约 | 本目录与外部交换的数据结构、协议格式 |
+| 变更日志 | 本目录边界的历次变更记录 |
+
+目录边界文档是该目录变更的先决条件——未更新 `BOUNDARY.md`，禁止进行任何跨目录契约的修改。
+
+### Top-Down Design with Contract Propagation
+处理跨层级的契约变更时，必须遵循以下流程：
+
+| 阶段 | 方向 | 要求 |
+|------|------|------|
+| Design（自顶向下） | 根 → 叶 | 在对应目录先创建本目录的边界变更（`BOUNDARY.md`），再逐级向下创建子目录的变更 |
+| Build（自底向上） | 叶 → 根 | 必须完成全部子目录的变更后，才能完成当前目录的变更 |
+
+**硬性约束**：
+- 子级变更未完成前，严禁 mark 当前级变更为 done/completed
+- 同级所有兄弟模块的变更必须全部完成后，才能向上归档父级变更
+- 任何试图跳过子级直接完成父级的操作将被系统拒绝
+
+### Contract Drift Detection
+`mumuspec drift` 命令用于检测契约漂移。任何 build 阶段前的 drift 修复必须经过用户确认。
 
 ## Priority System
 1. User explicit instructions (highest)

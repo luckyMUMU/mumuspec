@@ -16,7 +16,7 @@ export interface SkillI18n {
 
 // Default locale storage
 let currentLocale: Locale = 'zh';
-let currentFallback: Locale = 'zh';
+// ponytail: fallback tracked for future locale chaining
 
 /**
  * Initialize locale from config or environment.
@@ -47,7 +47,7 @@ export function initLocale(workspacePath?: string): Locale {
     }
   }
 
-  currentFallback = currentLocale === 'en' ? 'zh' : 'zh';
+  // ponytail: fallback chaining deferred
   return currentLocale;
 }
 

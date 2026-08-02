@@ -2,10 +2,10 @@
 
 > 本文件是 MumuSpec 项目进度的唯一权威来源。其他文档提及进度时 SHALL 引用本文件,不得自行描述进度数据。
 
-- **最后更新日期**: 2026-07-28
-- **设计版本**: 0.12.1-draft
-- **当前包版本**: 0.12.1-alpha.0 (next 通道)
-- **发布通道**: `latest` → 0.10.0 | `next` → 0.12.1-alpha.0
+- **最后更新日期**: 2026-08-01
+- **设计版本**: 0.15.0-draft
+- **当前包版本**: 0.15.0-beta.0 (next 通道)
+- **发布通道**: `latest` → 0.10.0 | `next` → 0.15.0-beta.0
 
 ---
 
@@ -14,13 +14,13 @@
 | 指标 | 数值 | 说明 |
 |------|------|------|
 | 设计完备性 | 100% | 六层架构设计已完成 |
-| 实现进度 | ~5% | Phase 1 MVP 未开始;constraint-strength 基础设施已落地 (见下方"已实现 scaffolding") |
-| 工作量估算 | 80-85 人天 | 基准来源: implementation-plan.md |
-| 当前 Phase | Phase 1 MVP | 准备阶段 |
+| 实现进度 | ~87% | 六层架构基本实现,详见下方能力层进度表;缺口主要在 Contract Layer(Phase 3)、Worktree isolation、Code-graph 后端、AST 级合规分析 |
+| 工作量估算 | 15-20 人天 | 完成剩余缺口(Contract Layer + Code-graph + AST 级分析 + Ponytail lint 集成) |
+| 当前 Phase | Phase 2/3 交叉 | Phase 1 核心已完工,Phase 2(Ponytail/TDD/认知框架)/Phase 3(Knowledge 图谱)部分推进 |
 
-### 已实现 scaffolding (0.12.0+ 动态约束强度系统)
+### 已实现基础设施 (0.12.0+ 动态约束强度系统 → 0.13.0 全面落地)
 
-> 以下代码已实现并通过 `tsc + vitest`。下方"Top 改进项"在本次修复后全部转为 `done`。
+> 以下代码已实现并通过 `tsc + vitest`。约束强度系统已在 0.12.1 全部落地，0.13.0 扩展至全六层架构。
 
 | 模块 | 文件 | 内容 | 状态 |
 |------|------|------|------|
@@ -41,14 +41,14 @@
 
 | 能力层 | 设计完备性 | 实现进度 | Phase 归属 | 备注 |
 |-------|-----------|---------|-----------|------|
-| Spec Layer | 100% | 0% | Phase 1 MVP | 不含 Ponytail(Ponytail 在 Phase 2) |
-| Change Layer | 100% | 0% | Phase 1 MVP | 不含 TDD 强制(Phase 2,可配置) |
-| Guard Layer | 100% | 0% | Phase 1 MVP | 仅 P0 漂移(spec_drift + shall_not_violation) |
-| AI Integration | 100% | 0% | Phase 1 MVP | 仅 Rules 文件生成 + AI 工具适配层 |
-| Knowledge Layer | 100% | 0% | Phase 3 | 可插拔图谱后端(CBM/CGC/内置) |
-| Contract Layer | 100% | 0% | Phase 3 | 推迟 |
-| 认知框架 Q1-Q4 | 100% | 0% | Phase 2 | 默认关闭,用户显式开启 |
-| Ponytail | 100% | 0% | Phase 2 | 推迟 |
+| Spec Layer | 100% | **92%** | Phase 1 MVP (✅ 完成) | parser/loader/validator/inheritance/ponytail 完整;缺 AST 级冲突检测(Phase 2) |
+| Change Layer | 100% | **75%** | Phase 1 MVP (✅ 基本完成) | CRUD/状态机/归档/版本管理完整;缺 Worktree isolation(Phase 1 目标未完成)、TDD 运行时强制(Phase 2) |
+| Guard Layer | 100% | **90%** | Phase 1 MVP (✅ 完成) | compliance/drift/phase-guard 完整;Ponytail lint 规则为占位符(Phase 2);缺 AST 级代码分析(Phase 2) |
+| AI Integration | 100% | **90%** | Phase 1 MVP (✅ 完成) | CLAUDE.md/.cursorrules/AGENTS.md 生成 + MCP Server(15+ 工具)完整;缺各工具格式深度定制 |
+| Knowledge Layer | 100% | **85%** | Phase 3 (推进中) | CRUD/PageIndex/反向索引/UA 分析(onboarding/coverage/impact/chat)完整;缺 Code-graph 后端(SQLite, Phase 3) |
+| Contract Layer | 100% | 0% | Phase 3 | 配置已定义,contracts 目录结构已就位,实体现在未开始 |
+| 认知框架 Q1-Q4 | 100% | **80%** | Phase 2 | 配置完整,guard 集成已就位;默认关闭,需用户显式开启 |
+| Ponytail | 100% | **90%** | Phase 2 (基本完成) | 7 级优先阶梯/约束注入/标记解析完整;缺 lint 规则集成(PONYTAIL-1~4 占位符) |
 
 ---
 
@@ -56,9 +56,9 @@
 
 | Phase | 实现进度 | 范围 |
 |-------|---------|------|
-| Phase 1 MVP | 0% | Spec(不含 Ponytail) + Change(不含 TDD 强制) + Guard(P0 漂移) + Rules 生成 + AI 工具适配层 |
-| Phase 2 | 0% | Ponytail + TDD(可配置) + 认知框架(可选) + 状态机回退增强 + 软假设降级方案 |
-| Phase 3 | 0% | Knowledge 图谱(可插拔后端) + 知识价值评估 + 契约层 + Skill Bridge |
+| Phase 1 MVP | **90%** | Spec(✅) + Change(✅,缺 Worktree isolation) + Guard(✅,缺 lint 集成) + Rules 生成(✅) + AI 工具适配层(✅) |
+| Phase 2 | **55%** | Ponytail(✅ 核心,缺 lint 集成) + TDD(配置就位,缺运行时强制) + 认知框架(✅ 配置+guard,缺 CLI 体验) + 状态机回退增强(✅) + AST 级分析(未开始) |
+| Phase 3 | **30%** | Knowledge CRUD/PageIndex/UA 分析(✅) + Code-graph 后端(未开始) + Contract Layer(未开始) + Skill Bridge(未开始) |
 | Phase 4 | 0% | CI/CD + 全漂移检测 + 知识提取 + 文档生成 |
 | Phase 5 | 0% | 自建 Skill 编排器 + Hyperplan + 生态分发 |
 
@@ -66,13 +66,15 @@
 
 ## 运行时状态字段
 
-> 以下字段供 `mumuspec status` 命令参考。当前实现进度为 0%,所有运行时状态均为默认/未实现值。
+> 以下字段供 `mumuspec status` 命令参考。
 
 | 字段 | 当前值 | 说明 |
 |------|--------|------|
-| 图谱后端降级状态 | 无(未实现) | Knowledge Layer 尚未实现,无降级状态 |
-| 高级特性启用状态 | 全部关闭(未实现) | 认知框架 Q1-Q4、Ponytail、TDD 等均默认关闭 |
-| 工作流规则配置 | 默认值(未实现) | Change Layer 规则配置尚未实现,使用默认值 |
+| 图谱后端降级状态 | 内置(未启用 Code-graph) | Knowledge Layer 使用内置 PageIndex + 反向索引;SQLite Code-graph 后端计划 Phase 3 |
+| 高级特性启用状态 | 认知框架/Ponytail 可用, TDD/Contract 未实现 | 认知框架 Q1-Q4 配置+guard 已就位(默认关闭),Ponytail 核心完成 |
+| 工作流规则配置 | 完整(high/high 默认) | 双维度约束强度(技术设计/需求目标) + 完整 worktree/single_active/top_down/tdd 规则 |
+| CLI 命令 | 40+ 命令可用 | init/spec/change/guard/constraints/knowledge/install/hooks/eval/i18n/env/bundle/feedback/skill-authoring/status/doctor |
+| MCP Server 工具 | 25+ 工具可用 | 覆盖 spec/design/compliance/drift/guard/change/knowledge/constraints 全领域 |
 
 ---
 

@@ -5,7 +5,6 @@ import { findProjectRoot } from '../core/utils.js';
 import { loadConfig } from '../core/config.js';
 import { readReverseIndex } from '../knowledge/manager.js';
 import type { GuardResult, DriftResult } from '../core/types.js';
-import type { MumuSpecConfig } from '../core/config.js';
 
 export type HookType = 'pre-commit' | 'post-commit' | 'post-merge' | 'post-checkout' | 'commit-msg';
 

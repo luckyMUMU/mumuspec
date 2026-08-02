@@ -53,11 +53,78 @@ mumuspec state check <name> design
 
 ### Step 2: 认知框架启动（乔哈里窗变体）— MumuSpec 独有
 
-> **详细规范见 [认知框架参考文档](../reference/cognitive-framework.md)**
+> **详细规范**：模板见 `.mumuspec/templates/cognitive-map-template.yaml`，格式规范见 `.mumuspec/templates/cognitive-map-schema.md`
+
+#### ⚠️ cognitive-map.yaml 格式注意
+
+Guard 校验的是 `.mumuspec.yaml` 中的 `cognitive_framework` 字段，而非直接解析 `cognitive-map.yaml` 文件。
+
+**Guard 接受的唯一格式：**
+
+```yaml
+entries:
+  - quadrant: Q1|Q2|Q3|Q4
+    category: known-known|known-unknown|reasoning|blind-spot|persistent
+    question: "问题描述"
+    answer: "答案"
+    confidence: high|medium|low
+    source: "信息来源"
+    # Q2 附加字段：options: ["A", "B"]
+    # Q3 附加字段：status: confirmed|rejected|modified
+```
+
+**常见 guard 错误与修复：**
+
+| 错误 | 根因 | 修复 |
+|------|------|------|
+| `E-DESIGN-001 cognitive-map.yaml 不存在` | `.mumuspec.yaml` 中 `cognitive_framework.q1_count == 0` | 在 `.mumuspec.yaml` 中更新 `q1_count` 为实际条目数 |
+| `E-DESIGN-002 Q1 已知的已知为空` | 同上 | 确保 `q1_count > 0` |
+| `E-DESIGN-005 Q4 扫描仅 0 个维度` | `q4_scans_completed < 3` | 至少添加 3 个 Q4 blind-spot entries，设置 `q4_scans_completed >= 3` |
+| `E-DESIGN-006 认知地图未收敛` | `converged: false` | 设置 `converged: true` 且 `q2_pending = 0` |
+
+#### Required Skill 降级策略
+
+| Skill | 不可用时的替代方案 |
+|-------|------------------|
+| `gitnexus-exploring` | 使用 `grep`/`find` + 代码阅读手动收集信息（子集 Fallback B） |
+| `brainstorming` | 使用平台 AskQuestion 工具手动追问（同 phase-open Fallback A） |
+| `grill-me` | 使用 AskQuestion 工具对每个设计决策点进行单问题追问（见下方 Fallback E） |
+| `hyperplan` | 使用单 Agent 多角度自我审查替代（见下方 Fallback F） |
+| `subagent-driven-development` | 无需创建对抗团队，直接执行 self-review |
+
+#### Fallback E：grill-me 手动追问协议
+
+```
+1. 从 cognitive-map.yaml 识别未决策的设计分支
+2. 对每个分支使用 AskQuestion 提问：
+   - 问题格式："基于 [Q1 引用]，推荐 [方案] 因为 [理由]。是否同意？"
+   - 提供 2-3 个选项
+   - 等待用户回答
+3. 用户回答后更新 cognitive-map.yaml（Q3 entry）
+4. 上限 10 轮，达到上限后剩余分支标记为 "deferred-limit-reached"
+```
+
+#### Fallback F：hyperplan 自我审查协议
+
+当无法创建 5 成员对抗团队时，从 5 个角度进行自我审查：
+
+| 角色 | 审查角度 | 产出类型 |
+|------|---------|---------|
+| 架构师 | 层间依赖、调用链完整性 | hard_constraints |
+| 安全工程师 | 输入验证、XSS、注入风险 | risks |
+| 性能工程师 | 内存、响应时间、并发瓶颈 | risks |
+| 可维护性工程师 | API 稳定性、向后兼容 | decisions |
+| 测试工程师 | 边界条件、异常路径 | open_questions |
+
+每个角色独立审查 design.md，发现问题写入 `hard_constraints`、`risks`、`decisions` 或 `open_questions`。
+
+---
 
 #### Stage 1: 信息采集 — Q1 锚定
 
 **立即执行**：使用 Skill 工具加载 `gitnexus-exploring` skill。
+
+> **降级说明**：若 `gitnexus-exploring` 不可用，手动读取 `proposal.md`、`impact-analysis.md`、既有 `spec.md` 和 `design.md` 收集 Q1 锚定信息。
 
 读取以下信息源并产出 Q1 锚定声明：
 
@@ -118,6 +185,8 @@ mumuspec state check <name> design
 ### Step 2.5: grill-me 压力测试 — 设计方案共识验证 — BLOCKING POINT (BP-4.5)
 
 > **grill-me 来源**：适配 mattpocock/skills 的 grill-me 模式（决策树 DFS 追问）
+
+> **降级说明**：若 `grill-me` skill 不可用，按 **Fallback E** 使用 AskQuestion 工具手动执行追问。
 
 #### 触发条件
 
@@ -182,14 +251,17 @@ grill-me 发现深度冲突（用户拒绝核心设计）→ 触发认知框架�
 - decisions.md 追加 grill-me 章节
 - `.mumuspec.yaml` 的 `grill_me_result` 字段更新
 
-cognitive-map.yaml 新增 schema：
+cognitive-map.yaml grill-me 条目格式（追加到 entries 列表中）：
 ```yaml
-grill_me:
-  completed: false
-  rounds: 0
-  max_rounds: 10
-  deferred_count: 0
-  consensus_reached: false
+- quadrant: Q3
+  category: reasoning
+  status: confirmed
+  question: "GM-001: <决策问题>"
+  answer: "用户回答"
+  confidence: high
+  source: "grill-me"
+  options: ["选项 A", "选项 B"]    # Q2/grill-me 专用
+```
   entries:
     - id: "GM-001"
       round: 1
@@ -229,6 +301,8 @@ grill_me:
 > **跳过条件**：不满足触发条件（hotfix/tweak 已跳过 Design）。
 
 **立即执行**：通过 `subagent-driven-development` 创建 5 成员对抗团队。
+
+> **降级说明**：若 `subagent-driven-development` 或 `hyperplan` skill 不可用，按 **Fallback F** 使用单 Agent 多角度自我审查替代。
 
 5 个对抗角色交叉攻击设计方案，产出 4 类幸存洞察：
 

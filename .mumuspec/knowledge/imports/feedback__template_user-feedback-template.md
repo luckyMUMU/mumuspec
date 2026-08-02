@@ -1,6 +1,6 @@
 ---
 id: "IMPORT-FEEDBACK__TEMPLATE_USER_FEEDBACK_TEMPLATE"
-title: "关联字段（可选）"
+title: "User Feedback Template"
 type: pattern
 status: confirmed
 scope: "imported"
@@ -30,7 +30,7 @@ submitter: <github-username or "anonymous">
 type: bug          # bug | feature-request | improvement | question | design-review
 severity: minor    # critical | major | minor | info
 status: open       # open | acknowledged | in-progress | resolved | declined
-version: 0.12.1-alpha.0
+version: 0.15.0-beta.0
 environment:
   os: <windows|macos|linux>
   node: <20.x>

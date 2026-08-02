@@ -130,6 +130,51 @@ brainstorming → delta-spec → 认知框架 → 设计 → TDD 实现 → 验�
 
 **知识回流**：归档提取的知识将在下一个变更的 Open 阶段被加载，形成闭环。
 
+### Step 5: 归档目录瘦身 — 仅保留持久化 prd/tech
+
+归档完成后，archive/ 目录中的变更文件夹应**最小化**，仅保留持久化的规范文件。其余所有中间产物均应删除（已在 Step 3 子流程 B/D 中合并或提取到主规范 / 知识库）。
+
+#### 保留清单（KEEP）
+
+每个归档变更目录仅保留：
+
+| 文件 | 理由 |
+|------|------|
+| `.mumuspec.yaml` | 变更状态历史记录（需要时可审计） |
+| `prd.md`（如存在） | 持久化产品规范（分布式架构下各 scope 的核心文件） |
+| `tech.md`（如存在） | 持久化技术规范（分布式架构下各 scope 的核心文件） |
+
+#### 删除清单（REMOVE）
+
+归档产物已在归档流程中消费完毕，不再需要保留：
+
+| 文件/目录 | 已消费于 |
+|-----------|---------|
+| `design.md` | delta-specs 合并到主 tech.md |
+| `proposal.md` | 需求已在代码中实现 |
+| `decisions.md` | 知识页已提取（D2） |
+| `tasks.md` | 实现已完成，任务失去时效 |
+| `verify.md` | 验证已通过，记录无复用价值 |
+| `cognitive-map.yaml` | 知识页已提取（D1-D4） |
+| `delta-specs/` | 已合并到主规范（B1） |
+| `constraints/` | 已合并到主规范 |
+| `code-graph/` | 图谱快照已更新（B4） |
+| `snapshots/` | worktree 镜像已清理 |
+| `test-cases/` | 测试已在主分支保留 |
+| `feedback/` | 已在 Open/Archive 阶段消费 |
+
+#### 执行命令
+
+```bash
+# 列出归档目录中应删除的文件（dry-run）
+mumuspec archive-cleanup <change-name> --dry-run
+
+# 执行清理
+mumuspec archive-cleanup <change-name>
+```
+
+**后验证**：清理后归档目录仅含 `.mumuspec.yaml` + (如存在) `prd.md` / `tech.md`。
+
 ---
 
 ## 退出条件
@@ -147,6 +192,7 @@ brainstorming → delta-spec → 认知框架 → 设计 → TDD 实现 → 验�
 - 变更移动到 archive/
 - worktree 清理
 - 活跃变更槽位释放
+- **归档目录瘦身完成（仅保留 .mumuspec.yaml + prd.md + tech.md）**
 
 > **WARNING**：归档成功后，**不要**对旧的活跃变更名运行 `mumuspec guard <name> archive`；活跃目录已不存在。归档完整性由脚本 exit code 和归档目录状态判断。
 

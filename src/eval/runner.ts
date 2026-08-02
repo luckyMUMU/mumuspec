@@ -1,8 +1,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { checkCompliance, detectDrift } from '../guard/checker.js';
 import { runPhaseGuard } from '../guard/phase-guard.js';
-import { loadConfig } from '../core/config.js';
 import { findProjectRoot } from '../core/utils.js';
 
 // === Types ===
@@ -67,7 +66,7 @@ export function loadScenario(filePath: string): EvalScenario {
   };
 
   let currentSection: string | null = null;
-  let currentSubSection: string | null = null;
+  // ponytail: subsection tracking reserved for future eval schema
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -80,7 +79,7 @@ export function loadScenario(filePath: string): EvalScenario {
       const key = line.slice(0, colonIdx).trim();
       const value = line.slice(colonIdx + 1).trim();
       currentSection = key;
-      currentSubSection = null;
+      // ponytail: sub-section tracking deferred
 
       if (value) {
         scenario[key] = parseScalar(value);

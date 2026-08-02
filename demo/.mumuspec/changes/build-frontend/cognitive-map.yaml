@@ -1,0 +1,122 @@
+entries:
+  - quadrant: Q1
+    category: known-known
+    question: "Task API 使用什么技术栈？"
+    answer: "Node.js 原生 http 模块，监听 port 3000，CRUD 端点 /tasks"
+    confidence: high
+    source: "src/api/server.ts, src/api/routes.ts"
+
+  - quadrant: Q1
+    category: known-known
+    question: "API 响应格式是什么？"
+    answer: "统一为 { success: boolean, data?: T, error?: string }"
+    confidence: high
+    source: "src/api/routes.ts, prd.md"
+
+  - quadrant: Q1
+    category: known-known
+    question: "项目有什么技术约束？"
+    answer: "Ponytail 约束要求零运行时依赖，禁止外部 Web 框架（Express/Fastify/Koa）"
+    confidence: high
+    source: "spec.md, constraints/"
+
+  - quadrant: Q1
+    category: known-known
+    question: "前端技术选型是什么？"
+    answer: "Preact via esm.sh CDN，无需构建步骤"
+    confidence: high
+    source: "proposal.md, decisions.md"
+
+  - quadrant: Q1
+    category: known-known
+    question: "前端需要哪些功能？"
+    answer: "任务列表、创建、编辑、删除、按状态筛选、按时间排序"
+    confidence: high
+    source: "delta-specs/frontend.md"
+
+  - quadrant: Q1
+    category: known-known
+    question: "服务方式如何设计？"
+    answer: "scripts/start.mjs 统一启动 API（port 3000）和静态文件服务（port 3001），CORS 跨域访问"
+    confidence: high
+    source: "proposal.md, decisions.md"
+
+  - quadrant: Q1
+    category: known-known
+    question: "前端视觉风格依据是什么？"
+    answer: "design.md 定义设计令牌（颜色、排版、间距、圆角、阴影），驱动前端实现"
+    confidence: high
+    source: "delta-specs/frontend.md"
+
+  - quadrant: Q2
+    category: known-unknown
+    question: "前端与后端通信方式？"
+    answer: "CORS 跨域，前后端不同端口独立运行"
+    confidence: high
+    source: "decisions.md D2"
+
+  - quadrant: Q2
+    category: known-unknown
+    question: "htm vs h() 函数选择？"
+    answer: "htm tagged template，提供类 JSX 语法糖"
+    confidence: high
+    source: "decisions.md D1"
+
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "为什么需要在 API 中添加 CORS 头？"
+    answer: "Q1 + Q2 → 前后端分离运行在不同端口，API 必须添加 Access-Control-Allow-* 头以支持跨域前端请求"
+    confidence: high
+    source: "design-drill-down"
+
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "为什么选择 htm tagged template 而非原生 h() 函数？"
+    answer: "Q1（Preact via CDN）+ Q2（htm vs h） → htm 提供类 JSX 标签模板语法，降低上手成本，无需编译步骤"
+    confidence: high
+    source: "design-drill-down"
+
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "为什么前端文件服务不引入 serve 等第三方库？"
+    answer: "Ponytail 阶梯第 3 级 → 使用 node:fs + node:http 自行实现静态文件服务，零npm依赖"
+    confidence: high
+    source: "decisions.md D10"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "并发安全有何风险？"
+    answer: "内存存储 Map 非线程安全，但 Node.js 单线程事件循环下无并发问题"
+    confidence: high
+    source: "risk-scan"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "契约兼容性如何？"
+    answer: "前端新增跨域请求不改变现有 API 契约，向后兼容"
+    confidence: high
+    source: "risk-scan"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "错误处理盲区？"
+    answer: "需处理 API 500 错误和网络断开两种场景，前端已做 try/catch 和错误提示"
+    confidence: high
+    source: "risk-scan"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "性能盲区？"
+    answer: "任务列表可能无限增长，当前 demo 项目数据量小不做分页；设计预留接口"
+    confidence: medium
+    source: "risk-scan"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "安全盲区（XSS）？"
+    answer: "任务标题通过 Preact 的 h() 函数自动转义，但用户输入验证依赖后端 validateTask，前端仅做非空检查"
+    confidence: high
+    source: "risk-scan"

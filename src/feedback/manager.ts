@@ -10,11 +10,9 @@
 
 import { existsSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import type { UserFeedback, FeedbackEntry, FeedbackSessionLink, FeedbackLog, ChangeState, FeedbackStatus } from '../core/types.js';
-import type { MumuSpecConfig } from '../core/config.js';
+import type { UserFeedback, FeedbackEntry, FeedbackLog, FeedbackStatus } from '../core/types.js';
 import { readYaml, writeYaml, readText, writeText, ensureDir, computeHash, now, appendAuditLog, getMumuSpecDir, parseFrontmatter } from '../core/utils.js';
-import { MumuSpecError } from '../core/errors.js';
-import { getChangeDir, getChangesDir } from '../change/manager.js';
+import { getChangeDir } from '../change/paths.js';
 
 // ========== 目录路径 ==========
 

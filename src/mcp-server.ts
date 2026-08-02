@@ -5,20 +5,19 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { resolve } from 'node:path';
-import { existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-import { findProjectRoot, getMumuSpecDir } from './core/utils.js';
+import { findProjectRoot } from './core/utils.js';
 import { loadConfig } from './core/config.js';
 
 // Spec
 import { loadSpecContext, searchSpecs, getProhibitions } from './spec/loader.js';
 import { validateAllSpecs } from './spec/validator.js';
-import { parseSpecFile } from './spec/parser.js';
-import { readText } from './core/utils.js';
 
 // Change
-import { loadChangeState, listActiveChanges, getChangeStatusSummary, getActiveChange, appendDecision } from './change/manager.js';
+import { loadChangeState, listActiveChanges, getActiveChange } from './change/manager.js';
 import { getValidTransitions, getNextPhase } from './change/state-machine.js';
 
 // Guard
@@ -26,10 +25,7 @@ import { checkCompliance, detectDrift } from './guard/checker.js';
 import { runPhaseGuard } from './guard/phase-guard.js';
 
 // Knowledge
-import { listKnowledgePages, getKnowledgePage, searchKnowledge, getKnowledgeContext, verifyKnowledge, analyzeImpact, generateOnboardingPath, analyzeCoverage, answerQuery } from './knowledge/manager.js';
-
-// Rules
-import { generateRulesFiles } from './rules/generator.js';
+import { getKnowledgePage, searchKnowledge, getKnowledgeContext, verifyKnowledge, analyzeImpact, generateOnboardingPath, analyzeCoverage, answerQuery } from './knowledge/manager.js';
 
 /** Get the project root from env or cwd */
 function getRoot(): string {
@@ -506,12 +502,20 @@ default:
   }
 }
 
+/** Get version from package.json */
+function getVersion(): string {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const pkgPath = resolve(__dirname, '..', 'package.json');
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+  return pkg.version;
+}
+
 /** Create and start MCP server */
 async function main() {
   const server = new Server(
     {
       name: 'mumuspec',
-      version: '0.10.0',
+      version: getVersion(),
     },
     {
       capabilities: {

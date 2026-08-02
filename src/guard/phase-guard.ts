@@ -329,7 +329,7 @@ function checkDesignToBuild(
  * Verifies alignment between proposal, design, cognitive-map, and delta-specs
  */
 function checkCrossArtifactConsistencySync(
-  state: ChangeState,
+  _state: ChangeState,
   projectRoot: string,
   changeName: string,
 ): Array<{ code: string; message: string; detail?: string }> {
@@ -458,8 +458,8 @@ function extractListItems(sectionContent: string): string[] {
 /** build_to_verify guard */
 function checkBuildToVerify(
   state: ChangeState,
-  projectRoot: string,
-  changeName: string,
+  _projectRoot: string,
+  _changeName: string,
 ): GuardResult {
   const errors: { code: string; message: string; detail?: string }[] = [];
   const warnings: { code: string; message: string; detail?: string }[] = [];

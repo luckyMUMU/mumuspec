@@ -11,7 +11,7 @@
   "mcpServers": {
     "mumuspec": {
       "command": "npx",
-      "args": ["@mumuspec/mcp-server"],
+      "args": ["-y", "mumuspec@next"],
       "env": {
         "MUMUSPEC_ROOT": "${workspaceRoot}"
       }
@@ -20,91 +20,71 @@
 }
 ```
 
+仓库根目录必须有 `.mumuspec/config.yaml`（由 `mumuspec init` 生成）。
+
+---
+
 ## 工具列表
 
-### 规范上下文
+MumuSpec MCP Server 目前提供 **20 个工具**，覆盖规范、校验、变更、知识四大领域。
 
-| 工具 | 描述 |
-|------|------|
-| `get_spec_context` | 获取指定目录的树状规范上下文（渐进式披露） |
-| `search_specs` | 搜索规范（按 scope、type、keyword） |
-| `get_prohibitions` | 获取指定范围的禁止项清单 |
-| `get_design_context` | 获取指定目录的设计文档上下文（design.md） |
-| `get_design_decisions` | 获取指定层级的架构决策记录（ADR） |
+### Spec 与规范（5 个）
 
-### 知识层（代码图谱 + LLM-Wiki）
+| 工具 | 描述 | 关键参数 |
+|------|------|---------|
+| `get_spec_context` | 获取指定目录的树状规范上下文（渐进式披露） | `path` (必填) |
+| `search_specs` | 搜索规范（按 scope / type / keyword） | `keyword`, `scope`, `type` (`shall` / `shall-not`) |
+| `get_prohibitions` | 获取指定范围的 SHALL NOT 禁止项（含继承） | `path` (必填) |
+| `get_design_context` | 获取指定目录的设计文档上下文（design.md） | `path` (必填) |
+| `validate_specs` | 校验所有 spec 文件格式 | —— |
 
-#### 代码图谱工具
+### Guard 与校验（3 个）
 
-| 工具 | 描述 |
-|------|------|
-| `index_repository` | 构建/更新代码知识图谱 |
-| `search_graph` | 搜索代码图谱节点 |
-| `trace_path` | 追踪调用链（inbound/outbound/both） |
-| `detect_changes` | 检测变更影响 |
-| `query_graph` | Cypher 查询 |
-| `get_code_snippet` | 获取代码片段 |
+| 工具 | 描述 | 关键参数 |
+|------|------|---------|
+| `check_compliance` | 代码合规校验（SHALL / SHALL NOT / Ponytail） | `shall`, `shallNot`, `ponytail` |
+| `detect_drift` | 检测规范与代码的漂移 | —— |
+| `guard_check` | 执行阶段门禁检查 | `change` (必填), `phase` (必填) |
 
-### 校验
+### 变更管理（2 个）
 
-| 工具 | 描述 |
-|------|------|
-| `check_compliance` | 检查代码片段是否符合规范 |
-| `detect_drift` | 检测规范与代码的漂移 |
+| 工具 | 描述 | 关键参数 |
+|------|------|---------|
+| `get_change_status` | 获取变更状态与状态机信息 | `name`（省略则查活跃变更） |
+| `list_changes` | 列出所有活跃变更 | —— |
 
-### 变更管理
+### 知识层（10 个，含 UA 风格分析工具）
 
-| 工具 | 描述 |
-|------|------|
-| `get_change_status` | 获取变更状态 |
-| `guard_check` | 执行阶段守卫检查 |
+| 工具 | 描述 | 关键参数 |
+|------|------|---------|
+| `get_knowledge_context` | 获取指定代码路径的知识上下文（渐进式加载） | `path` (必填) |
+| `search_knowledge` | 搜索知识页面（按标签 / 类型 / 关键词） | `keyword`, `tag`, `type` |
+| `get_knowledge_page` | 获取指定 ID 的知识页面全文 | `id` (必填) |
+| `verify_knowledge` | 验证知识页面新鲜度 | `id`, `all` |
+| `analyze_impact` | 分析变更影响（UA 风格，含知识关联警告） | `diff_range`, `scope`, `include_knowledge_warnings` |
+| `generate_onboarding_path` | 生成代码范围的新手引导学习路线 | `scope` (必填), `role` (`junior` / `mid` / `senior` / `pm`) |
+| `get_knowledge_coverage` | 获取知识覆盖率统计 | `scope` |
+| `find_knowledge_gaps` | 发现未覆盖知识的重要代码节点 | `scope`, `min_importance` |
+| `detect_decision_deviation` | 检测代码变更是否偏离已确认决策 | `changed_files` (必填) |
+| `query_knowledge` | 知识库问答 | `query` (必填) |
 
-### 测试用例（0.6.0 新增）
+---
 
-| 工具 | 描述 |
-|------|------|
-| `get_test_cases` | 获取变更的测试用例规格（test-cases/） |
-| `verify_test_immutability` | 校验测试不可变性（test-cases hash + test-suites hash） |
-| `lock_test_cases` | 锁定测试用例（Design 阶段完成时调用） |
-| `lock_test_suites` | 锁定指定层级的测试套件（Build 阶段每层完成时调用） |
+## 调用示例
 
-### 文档生成
+```
+# 获取 src/api 目录的规范上下文
+-> get_spec_context({ path: "src/api" })
 
-| 工具 | 描述 |
-|------|------|
-| `generate_docs` | 生成对外文档（技术/业务/集成/依赖），支持按层级、类型、格式生成 |
-| `list_docs` | 列出所有已生成文档及其状态（fresh/stale） |
-| `check_doc_consistency` | 文档一致性校验，检测文档与 spec/design 的漂移 |
+# 检查合规
+-> check_compliance({ shall: true, shallNot: true, ponytail: true })
 
-### 契约管理（0.8.0 新增）
+# 分析最近 3 次提交的影响
+-> analyze_impact({ diff_range: "HEAD~3..HEAD", include_knowledge_warnings: true })
 
-| 工具 | 描述 |
-|------|------|
-| `get_contract_context` | 获取指定模块的契约上下文（CONSUMES/EXPOSES 契约及派生约束） |
-| `check_contract_compliance` | 检查代码是否符合契约约束（RPC 调用策略、向后兼容性等） |
-| `detect_contract_drift` | 检测契约与代码的漂移（暴露未声明、调用未注册、策略不一致） |
-| `trace_contract_impact` | 追踪契约变更影响范围（契约 → CONSUMES/EXPOSES 节点 → Spec） |
-
-### 认知框架（0.8.0 新增）
-
-| 工具 | 描述 |
-|------|------|
-| `get_cognitive_map` | 获取变更的认知地图（Q1-Q4 四象限状态） |
-| `check_convergence` | 检查认知地图是否已收敛 |
-| `update_cognitive_map` | 更新认知地图条目（Q1 新增/Q2 回答/Q3 确认/Q4 扫描） |
-
-#### 知识管理工具
-
-| 工具 | 描述 |
-|------|------|
-| `get_knowledge_context` | 获取指定代码路径的知识上下文（渐进式加载，按 scope 和新鲜度筛选） |
-| `search_knowledge` | 按标签/类型/关键词搜索知识页面 |
-| `get_knowledge_page` | 获取指定知识页面全文 |
-| `get_code_knowledge` | 获取指定代码符号关联的知识页面（反向索引查询） |
-| `get_knowledge_graph` | 获取知识页面之间的关系图 |
-| `verify_knowledge` | 验证知识页面与当前代码的一致性（新鲜度检查） |
-| `create_knowledge_page` | 创建新知识页面（Archive 阶段自动调用） |
-| `update_knowledge_status` | 更新知识页面状态（confirmed → superseded → deprecated） |
+# 知识库问答
+-> query_knowledge({ query: "为什么选择 node:http 而非 Express?" })
+```
 
 ---
 

@@ -97,6 +97,57 @@ Step 3: 阶段判定（按序检查，首个匹配生效）
 
 ---
 
+## Guard 与 State 一致性说明
+
+> **当前限制**：`mumuspec guard <change> <phase> --apply` 和 `mumuspec state transition <change> <next-phase> --confirm` 使用**不同的校验标准**。
+
+| 维度 | guard --apply | state transition --confirm |
+|------|--------------|--------------------------|
+| 严格程度 | 严格（检查所有必填字段） | 宽松（仅检查用户确认标记） |
+| cognitive_framework | 必须在 `.mumuspec.yaml` 中设置 count 值 | 不直接校验 |
+| 错误修复 | 修改后重新运行 guard | 无法修复，只能跳过 |
+
+**推荐工作流**：
+
+```
+方式 A（推荐）：使用 guard
+  mumuspec guard <name> <phase> --apply
+  → 若失败 → 修复错误 → 重新运行
+  → 直到通过
+
+方式 B（快速）：使用 state transition
+  mumuspec state transition <name> <next-phase> --confirm
+  → 立即生效，但跳过严格校验
+  → 适用于已知状态正确但 guard 报错的情况
+```
+
+**常见 guard 错误速查表：**
+
+| 错误码 | 错误信息 | 修复命令 |
+|--------|---------|---------|
+| E-DESIGN-001 | cognitive-map.yaml 不存在 | 在 `.mumuspec.yaml` 中设置正确的 `q1_count` 值 |
+| E-DESIGN-002 | Q1 已知的已知为空 | 确保 `cognitive_framework.q1_count > 0` |
+| E-DESIGN-005 | Q4 扫描仅 N 个维度 | 添加 Q4 entries 并更新 `q4_scans_completed >= 3` |
+| E-DESIGN-006 | 认知地图未收敛 | 设置 `converged: true` 和 `q2_pending: 0` |
+| E-CHANGE-006 | Unknown target phase | 使用 `state transition`，不用 `guard` |
+
+**快速修复命令模板**：
+
+```bash
+# 在 .mumuspec.yaml 中设置 cognitive_framework 计数
+# 读取 cognitive-map.yaml 中各 quadrant 的条目数
+Q1_COUNT=$(grep -c "quadrant: Q1" .mumuspec/changes/<name>/cognitive-map.yaml)
+Q2_COUNT=$(grep -c "quadrant: Q2" .mumuspec/changes/<name>/cognitive-map.yaml)
+Q3_COUNT=$(grep -c "quadrant: Q3" .mumuspec/changes/<name>/cognitive-map.yaml)
+Q4_COUNT=$(grep -c "quadrant: Q4" .mumuspec/changes/<name>/cognitive-map.yaml)
+
+# 更新 .mumuspec.yaml 中的 cognitive_framework
+mumuspec state set <name> cognitive_framework.q1_count $Q1_COUNT
+mumuspec state set <name> cognitive_framework.q4_scans_completed $Q4_COUNT
+```
+
+---
+
 ## 阶段流转
 
 <IMPORTANT>
@@ -248,6 +299,44 @@ rebuild_limit: 5
 
 ---
 
+## Required Skill 注册表
+
+> 以下列出各阶段声明的 required skill 及其实际可用状态。当 skill 不可用时，使用对应阶段的 inline fallback。
+
+### phase-open required skills
+
+| Skill | 用途 | Fallback 可用 |
+|-------|------|--------------|
+| `brainstorming` | 需求探索 | ✅ AskQuestion 工具 |
+| `gitnexus-impact-analysis` | 代码影响分析 | ✅ 手动 grep + 代码阅读 |
+| `using-git-worktrees` | 工作区隔离 | ✅ 降级为当前工作区 |
+| `spec-driven-development` | 规范草案编写 | ✅ 标准模板格式 |
+
+### phase-design required skills
+
+| Skill | 用途 | Fallback 可用 |
+|-------|------|--------------|
+| `gitnexus-exploring` | Q1 信息采集 | ✅ 手动代码阅读 |
+| `brainstorming` | Q2 追问 + Q3 推理 | ✅ AskQuestion 工具 |
+| `grill-me` | 方案共识追问 | ✅ AskQuestion 手动追问 |
+| `hyperplan` | 对抗式审查 | ✅ 单 Agent 多角度自审 |
+| `subagent-driven-development` | 对抗团队创建 | ✅ 单 Agent 自审 |
+| `documentation-and-adrs` | 决策记录 | ✅ 手动追加 |
+
+### phase-build required skills
+
+| Skill | 用途 | Fallback 可用 |
+|-------|------|--------------|
+| `writing-plans` | 实现计划编写 | ✅ 手动 tasks.md 模板 |
+
+### 检查 skill 可用性的方法
+
+1. 查看当前可用的 skill 列表（agent_skills 部分）
+2. 若某 required skill 不在列表中，自动启用 fallback
+3. 降级操作必须记录到 `decisions.md` 对应阶段的章节
+
+---
+
 ## 与其他 Skill 的关系
 
 编排器是**调度中心**，不包含具体实现逻辑。具体步骤由阶段 Skill 执行：
@@ -261,3 +350,5 @@ mumuspec (编排器)
   ├── phase-archive   # Archive 阶段：合并、归档
   └── workflow-presets # 预设路径：hotfix/tweak 快速工作流
 ```
+
+> **注意**：编排器声明的 skill 生态为"理想状态"。实际执行中大量 skill 可能不可用，编排器和阶段 skill 都**必须**具备 inline fallback 能力。

@@ -1,0 +1,452 @@
+/**
+ * Installer operations — concrete install/query logic for all supported agents.
+ */
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+import type {
+  AgentType,
+  InstallTarget,
+  PackageManifestEntry,
+  McpPresetEntry,
+  CommandPresetEntry,
+  InstallResult,
+  InstallMcpResult,
+  InstallCommandResult,
+} from './installer-registry.js';
+import {
+  AGENT_MANIFEST,
+  MCP_PRESETS,
+  COMMAND_PRESETS,
+} from './installer-registry.js';
+
+export type InstallMode = 'install' | 'update';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+
+// ── Shared helpers ──────────────────────────────────────────
+
+function resolvePawCmd(): string {
+  if (process.platform === 'win32') {
+    const winPath = join(process.env.USERPROFILE || '', '.meituan-catpaw', 'bin', 'paw.cmd');
+    if (existsSync(winPath)) return winPath;
+    const winExe = join(process.env.USERPROFILE || '', '.meituan-catpaw', 'bin', 'paw.exe');
+    if (existsSync(winExe)) return winExe;
+  } else {
+    const unixPath = join(process.env.HOME || '', '.meituan-catpaw', 'bin', 'paw');
+    if (existsSync(unixPath)) return unixPath;
+  }
+  return 'paw';
+}
+
+function resolveCatpawDataDir(): string | undefined {
+  if (process.env.CATPAW_HOME) return process.env.CATPAW_HOME;
+  if (process.env.MEITPAW_HOME) return process.env.MEITPAW_HOME;
+  const home = process.platform === 'win32' ? process.env.USERPROFILE : process.env.HOME;
+  if (home) return join(home, '.meituan-catpaw');
+  return undefined;
+}
+
+function findSkillSource(packageName: string): string | undefined {
+  const candidates = [
+    join(process.cwd(), 'skills', `${packageName}.md`),
+    join(process.cwd(), 'skills', packageName, 'SKILL.md'),
+    join(__dirname, '..', '..', 'skills', `${packageName}.md`),
+    join(__dirname, '..', '..', 'skills', packageName, 'SKILL.md'),
+    join(process.cwd(), 'node_modules', 'mumuspec', 'skills', `${packageName}.md`),
+    join(process.cwd(), 'node_modules', 'mumuspec', 'skills', packageName, 'SKILL.md'),
+  ];
+  return candidates.find((c) => existsSync(c));
+}
+
+function findMumuspecWorkflowSource(): string | undefined {
+  const candidates = [
+    join(process.cwd(), 'skills', 'mumuspec.md'),
+    join(process.cwd(), 'skills', 'mumuspec-workflow', 'SKILL.md'),
+    join(__dirname, '..', '..', 'skills', 'mumuspec.md'),
+    join(__dirname, '..', '..', 'skills', 'mumuspec-workflow', 'SKILL.md'),
+    join(process.cwd(), 'node_modules', 'mumuspec', 'skills', 'mumuspec.md'),
+    join(process.cwd(), '.catpaw', 'skills', 'mumuspec-workflow', 'SKILL.md'),
+    join(
+      process.platform === 'win32' ? process.env.USERPROFILE || '' : process.env.HOME || '',
+      '.meituan-catpaw', 'skills', 'mumuspec-workflow', 'SKILL.md',
+    ),
+  ];
+  return candidates.find((c) => existsSync(c));
+}
+
+function createMinimalWorkflowSkill(): string {
+  return `---
+name: mumuspec-workflow
+description: "MumuSpec AI workflow orchestrator — guides developers through the full change lifecycle."
+metadata:
+  short-description: "MumuSpec workflow"
+---
+
+# MumuSpec Workflow
+
+mumuspec init / mumuspec new <name> / mumuspec status / mumuspec guard <name> <phase>
+`;
+}
+
+function getAgentSkillDir(
+  agent: AgentType,
+  target: InstallTarget,
+  workspacePath?: string,
+): { baseDir: string; skillsSubDir: string; fileExt: string } {
+  const homeDir = process.platform === 'win32' ? (process.env.USERPROFILE || '') : (process.env.HOME || '');
+  const workspace = workspacePath || process.cwd();
+
+  const conventions: Record<string, { subDir: string; ext: string }> = {
+    claude: { subDir: '.claude/commands', ext: '.md' },
+    cursor: { subDir: '.cursor/commands', ext: '.md' },
+    trae: { subDir: '.trae/skills', ext: 'SKILL.md' },
+    workbuddy: { subDir: '.workbuddy/skills', ext: 'SKILL.md' },
+    opencode: { subDir: '.opencode/skills', ext: 'SKILL.md' },
+  };
+
+  const conv = conventions[agent];
+  if (!conv) return { baseDir: workspace, skillsSubDir: '', fileExt: '.md' };
+  return { baseDir: target === 'workspace' ? workspace : homeDir, skillsSubDir: conv.subDir, fileExt: conv.ext };
+}
+
+// ── Manifest queries ────────────────────────────────────────
+
+export function getManifest(agent: AgentType): PackageManifestEntry[] {
+  return AGENT_MANIFEST[agent] ?? [];
+}
+
+export function searchPackages(agent: AgentType, keyword: string): PackageManifestEntry[] {
+  const lower = keyword.toLowerCase();
+  return getManifest(agent).filter(
+    (p) =>
+      p.name.toLowerCase().includes(lower) ||
+      p.description.toLowerCase().includes(lower) ||
+      p.category.toLowerCase().includes(lower),
+  );
+}
+
+export function resolvePackage(agent: AgentType, name: string): PackageManifestEntry | undefined {
+  return getManifest(agent).find((p) => p.name === name);
+}
+
+export function getMcpPresets(): McpPresetEntry[] {
+  return MCP_PRESETS;
+}
+
+export function getCommandPresets(): CommandPresetEntry[] {
+  return COMMAND_PRESETS;
+}
+
+// ── Core install operations ─────────────────────────────────
+
+export function installPackage(
+  agent: AgentType,
+  packageName: string,
+  target: InstallTarget,
+  workspacePath?: string,
+  mode: InstallMode = 'install',
+): InstallResult {
+  switch (agent) {
+    case 'catpaw':
+      return installCatpawPackage(packageName, target, workspacePath, mode);
+    case 'claude':
+    case 'cursor':
+    case 'trae':
+    case 'workbuddy':
+    case 'opencode':
+      return installGenericAgentPackage(agent, packageName, target, workspacePath, mode);
+    default:
+      return { success: false, packageName, agent, target, error: `Unknown agent: ${agent}` };
+  }
+}
+
+function installGenericAgentPackage(
+  agent: AgentType,
+  packageName: string,
+  target: InstallTarget,
+  workspacePath?: string,
+  mode: InstallMode = 'install',
+): InstallResult {
+  const pkg = resolvePackage(agent, packageName);
+  if (!pkg) return { success: false, packageName, agent, target, error: `Package "${packageName}" not found for agent "${agent}".` };
+
+  try {
+    const dirInfo = getAgentSkillDir(agent, target, workspacePath);
+    const sourceSkill = findSkillSource(packageName);
+    if (!sourceSkill) return { success: false, packageName, agent, target, error: `Skill source not found.` };
+
+    let targetPath: string;
+    if (agent === 'claude' || agent === 'cursor') {
+      const cmdName = pkg.command || packageName;
+      targetPath = join(dirInfo.baseDir, dirInfo.skillsSubDir, `${cmdName}${dirInfo.fileExt}`);
+    } else {
+      targetPath = join(dirInfo.baseDir, dirInfo.skillsSubDir, packageName, dirInfo.fileExt);
+    }
+
+    if (existsSync(targetPath) && mode === 'install') {
+      return { success: false, packageName, agent, target, path: targetPath, error: `Already installed at "${targetPath}". Use --force to update.` };
+    }
+
+    mkdirSync(dirname(targetPath), { recursive: true });
+    writeFileSync(targetPath, readFileSync(sourceSkill, 'utf8'), 'utf8');
+    return { success: true, packageName, agent, target, path: targetPath };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, packageName, agent, target, error: `Failed to install "${packageName}" for ${agent}: ${message}` };
+  }
+}
+
+function installCatpawPackage(
+  packageName: string,
+  target: InstallTarget,
+  workspacePath?: string,
+  mode: InstallMode = 'install',
+): InstallResult {
+  if (packageName === 'mumuspec-workflow') return installMumuspecWorkflowSkill(target, workspacePath, mode);
+
+  const pkg = resolvePackage('catpaw', packageName);
+  if (!pkg) return { success: false, packageName, agent: 'catpaw', target, error: `Package "${packageName}" not found.` };
+  if (!pkg.skillId) return { success: false, packageName, agent: 'catpaw', target, error: `No skill ID.` };
+
+  try {
+    const pawCmd = resolvePawCmd();
+    const args: string[] = ['skills', 'install', '--skill-id', String(pkg.skillId)];
+    if (target === 'workspace') {
+      if (!workspacePath) return { success: false, packageName, agent: 'catpaw', target, error: 'Workspace requires --workspace-path' };
+      args.push('--target', 'workspace', '--workspace-path', workspacePath);
+    }
+
+    const output = execSync(`"${pawCmd}" ${args.join(' ')}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+
+    let installPath: string | undefined;
+    let installSuccess = false;
+    try {
+      const result = JSON.parse(output);
+      installSuccess = result.success === true;
+      if (result.skillId) {
+        installPath = target === 'workspace' && workspacePath
+          ? join(workspacePath, '.meituan-catpaw', 'skills', result.skillId)
+          : join(resolveCatpawDataDir() || '', 'skills', result.skillId);
+      }
+    } catch {
+      installSuccess = output.toLowerCase().includes('success') || output.toLowerCase().includes('installed');
+    }
+
+    if (!installSuccess) return { success: false, packageName, agent: 'catpaw', target, error: `Install may not have completed.` };
+    return { success: true, packageName, agent: 'catpaw', target, path: installPath };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      packageName,
+      agent: 'catpaw',
+      target,
+      error: mode === 'update'
+        ? `Marketplace update failed for "${packageName}": ${message}`
+        : `Failed to install "${packageName}": ${message}`,
+    };
+  }
+}
+
+function installMumuspecWorkflowSkill(
+  target: InstallTarget,
+  workspacePath?: string,
+  mode: InstallMode = 'install',
+): InstallResult {
+  try {
+    let targetDir: string;
+    if (target === 'workspace') {
+      if (!workspacePath) return { success: false, packageName: 'mumuspec-workflow', agent: 'catpaw', target, error: 'Workspace requires --workspace-path' };
+      targetDir = join(workspacePath, '.meituan-catpaw', 'skills', 'mumuspec-workflow');
+    } else {
+      const dataDir = resolveCatpawDataDir();
+      if (!dataDir) return { success: false, packageName: 'mumuspec-workflow', agent: 'catpaw', target, error: 'Cannot determine data dir' };
+      targetDir = join(dataDir, 'skills', 'mumuspec-workflow');
+    }
+
+    const targetFile = join(targetDir, 'SKILL.md');
+    if (existsSync(targetFile) && mode === 'install') {
+      return { success: false, packageName: 'mumuspec-workflow', agent: 'catpaw', target, path: targetDir, error: `Already installed at "${targetDir}".` };
+    }
+
+    mkdirSync(targetDir, { recursive: true });
+    const source = findMumuspecWorkflowSource();
+    writeFileSync(targetFile, source ? readFileSync(source, 'utf8') : createMinimalWorkflowSkill());
+    return { success: true, packageName: 'mumuspec-workflow', agent: 'catpaw', target, path: targetDir };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, packageName: 'mumuspec-workflow', agent: 'catpaw', target, error: `Failed: ${message}` };
+  }
+}
+
+// ── MCP server install ──────────────────────────────────────
+
+export function installCatpawMcp(presetName: string, workspacePath: string): InstallMcpResult {
+  const preset = MCP_PRESETS.find((p) => p.name === presetName);
+  if (!preset) return { success: false, serverName: presetName, error: `MCP preset "${presetName}" not found.` };
+
+  try {
+    const mcpConfigPath = join(workspacePath, '.mcp.json');
+    let existingConfig: { mcpServers: Record<string, unknown> } = { mcpServers: {} };
+    if (existsSync(mcpConfigPath)) {
+      try {
+        existingConfig = JSON.parse(readFileSync(mcpConfigPath, 'utf8'));
+      } catch { /* ignore */ }
+      if (!existingConfig.mcpServers) existingConfig.mcpServers = {};
+    }
+
+    const config = { ...preset.config };
+    if (config.env) {
+      config.env = Object.fromEntries(
+        Object.entries(config.env).map(([k, v]) => [k, v.replace('${workspaceRoot}', workspacePath)]),
+      );
+    }
+    existingConfig.mcpServers[presetName] = config;
+    writeFileSync(mcpConfigPath, JSON.stringify(existingConfig, null, 2), 'utf8');
+    return { success: true, serverName: presetName, path: mcpConfigPath };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, serverName: presetName, error: `Failed: ${message}` };
+  }
+}
+
+export function listInstalledMcp(workspacePath: string): {
+  success: boolean;
+  installed: string[];
+  available: string[];
+  error?: string;
+} {
+  try {
+    const mcpConfigPath = join(workspacePath, '.mcp.json');
+    const installed: string[] = [];
+    if (existsSync(mcpConfigPath)) {
+      try {
+        const config = JSON.parse(readFileSync(mcpConfigPath, 'utf8'));
+        if (config.mcpServers) installed.push(...Object.keys(config.mcpServers));
+      } catch { /* ignore */ }
+    }
+    return { success: true, installed, available: MCP_PRESETS.map((p) => p.name) };
+  } catch (err: unknown) {
+    return { success: false, installed: [], available: MCP_PRESETS.map((p) => p.name), error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// ── Custom command install ──────────────────────────────────
+
+export function installCatpawCommand(
+  presetName: string,
+  target: InstallTarget,
+  workspacePath?: string,
+  mode: InstallMode = 'install',
+): InstallCommandResult {
+  const preset = COMMAND_PRESETS.find((p) => p.name === presetName);
+  if (!preset) return { success: false, commandName: presetName, error: `Command preset "${presetName}" not found.` };
+
+  try {
+    let targetDir: string;
+    if (target === 'workspace') {
+      if (!workspacePath) return { success: false, commandName: presetName, error: 'Workspace requires --workspace-path' };
+      targetDir = join(workspacePath, '.catpaw', 'commands');
+    } else {
+      const homeDir = process.platform === 'win32' ? process.env.USERPROFILE : process.env.HOME;
+      if (!homeDir) return { success: false, commandName: presetName, error: 'Cannot determine home' };
+      targetDir = join(homeDir, '.catpaw', 'commands');
+    }
+
+    mkdirSync(targetDir, { recursive: true });
+    const filename = presetName.startsWith('/') ? presetName.slice(1) : presetName;
+    const targetFile = join(targetDir, `${filename}.md`);
+
+    if (existsSync(targetFile) && mode === 'install') {
+      return { success: false, commandName: presetName, path: targetFile, error: `Command already installed at "${targetFile}".` };
+    }
+
+    writeFileSync(targetFile, preset.template, 'utf8');
+    return { success: true, commandName: presetName, path: targetFile };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, commandName: presetName, error: `Failed: ${message}` };
+  }
+}
+
+// ── Listing installed skills ────────────────────────────────
+
+function parseInstalledSkills(output: string): Array<{
+  name: string;
+  alias?: string;
+  installPath?: string;
+  source?: string;
+  enabled?: boolean;
+  scope?: 'user' | 'workspace';
+  workspacePath?: string;
+}> {
+  try {
+    const result = JSON.parse(output);
+    return result.skills || [];
+  } catch {
+    return [];
+  }
+}
+
+export function listInstalledCatpaw(workspacePath?: string): {
+  success: boolean;
+  skills: Array<{
+    name: string;
+    alias?: string;
+    installPath?: string;
+    source?: string;
+    enabled?: boolean;
+    scope?: 'user' | 'workspace';
+    workspacePath?: string;
+  }>;
+  error?: string;
+} {
+  try {
+    const pawCmd = resolvePawCmd();
+    const args = ['skills', 'list'];
+    if (workspacePath) args.push('--workspace-path', workspacePath);
+
+    const output = execSync(`"${pawCmd}" ${args.join(' ')}`, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return { success: true, skills: parseInstalledSkills(output) };
+  } catch (err: unknown) {
+    return { success: false, skills: [], error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export function formatInstalledSkills(
+  skills: Array<{
+    name: string;
+    alias?: string;
+    installPath?: string;
+    source?: string;
+    enabled?: boolean;
+    scope?: 'user' | 'workspace';
+  }>,
+): string {
+  if (skills.length === 0) return 'No skills installed.';
+  const lines: string[] = [`Total: ${skills.length} skill(s) installed`];
+  skills.forEach((skill, index) => {
+    const status = skill.enabled !== false ? '✓ enabled' : '✗ disabled';
+    const scope = skill.scope || (skill.installPath?.includes('.meituan-catpaw') ? 'user' : 'workspace');
+    const src = skill.source || 'user';
+    lines.push(`  ${index + 1}. ${skill.name} (${status}, ${src}, ${scope})`);
+    if (skill.installPath) lines.push(`     ${skill.installPath}`);
+  });
+  return lines.join('\n');
+}
+
+// ── Validation ──────────────────────────────────────────────
+
+export function isAgentSupported(agent: string): agent is AgentType {
+  return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode'].includes(agent);
+}
+
+export function getSupportedAgents(): AgentType[] {
+  return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode'];
+}

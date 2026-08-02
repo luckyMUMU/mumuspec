@@ -413,7 +413,7 @@ npm install --save-dev mumuspec
   "mcpServers": {
     "mumuspec": {
       "command": "npx",
-      "args": ["-y", "mumuspec-mcp"],
+      "args": ["-y", "mumuspec@next"],
       "env": {
         "MUMUSPEC_ROOT": "${workspaceRoot}"
       }

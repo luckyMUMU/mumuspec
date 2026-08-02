@@ -1,6 +1,6 @@
 ---
 id: "IMPORT-FEEDBACK__TEMPLATE_SESSION_SUMMARY_TEMPLATE"
-title: "<会话简短标题,如 \"为 API 层添加分页查询规范\">"
+title: "Session Summary Template"
 type: pattern
 status: confirmed
 scope: "imported"
@@ -28,7 +28,7 @@ date: 2026-07-28
 session_id: <uuid 或简短 hash>
 agent: <claude-code|cursor|codex|opencode|custom>
 agent_version: <1.x.x>
-mumuspec_version: 0.12.1-alpha.0
+mumuspec_version: 0.15.0-beta.0
 project_type: <greenfield|brownfield|legacy|demo>
 change_type: <feature|hotfix|tweak|build|archive>
 duration_minutes: <估算>

@@ -14,9 +14,14 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-/** 发送 JSON 响应 */
+/** 发送 JSON 响应（含 CORS 头支持前端跨域访问） */
 function sendJSON(res: ServerResponse, statusCode: number, body: ApiResponse): void {
-  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  });
   res.end(JSON.stringify(body));
 }
 
@@ -40,6 +45,18 @@ export async function handleRequest(
   const url = new URL(req.url || '/', `http://localhost`);
   const method = req.method || 'GET';
   const pathParts = url.pathname.split('/').filter(Boolean);
+
+  // 处理 CORS 预检请求
+  if (method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400',
+    });
+    res.end();
+    return;
+  }
 
   // 路由: /tasks 和 /tasks/:id
   if (pathParts[0] !== 'tasks') {

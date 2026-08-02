@@ -1,4 +1,15 @@
 pages:
+  - id: KE-build-frontend-hyperplan
+    title: Adversarial design review insights from build-frontend
+    type: decision
+    status: confirmed
+    scope: build-frontend
+    file: .mumuspec\knowledge\decisions\KE-build-frontend-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - build-frontend
   - id: KE-portable-exe-packaging-89786779
     title: "Auto-extracted from portable-exe-packaging: SEA 有什么限制?"
     type: decision
@@ -65,6 +76,17 @@ pages:
       - ponytail
       - http
     verified_at: 2026-07-10
+  - id: KE-build-frontend-patterns
+    title: Architecture patterns from build-frontend
+    type: pattern
+    status: confirmed
+    scope: build-frontend
+    file: .mumuspec\knowledge\patterns\KE-build-frontend-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - build-frontend
   - id: KE-portable-exe-packaging-patterns
     title: Architecture patterns from portable-exe-packaging
     type: pattern
@@ -120,6 +142,17 @@ pages:
       - response-format
       - pattern
     verified_at: 2026-07-10
+  - id: KE-build-frontend-q4-risk
+    title: Residual risks from build-frontend
+    type: risk
+    status: confirmed
+    scope: build-frontend
+    file: .mumuspec\knowledge\risks\KE-build-frontend-q4-risk.md
+    tags:
+      - auto-extracted
+      - q4
+      - risk
+      - build-frontend
   - id: KE-portable-exe-packaging-q4-risk
     title: Residual risks from portable-exe-packaging
     type: risk
@@ -153,6 +186,17 @@ pages:
       - ponytail
       - rationale
     verified_at: 2026-07-10
+  - id: KE-build-frontend-lessons
+    title: Lessons from build-frontend decisions
+    type: lesson
+    status: confirmed
+    scope: build-frontend
+    file: .mumuspec\knowledge\lessons\KE-build-frontend-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - build-frontend
   - id: KE-portable-exe-packaging-lessons
     title: Lessons from portable-exe-packaging decisions
     type: lesson

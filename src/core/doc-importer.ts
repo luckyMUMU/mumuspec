@@ -7,7 +7,7 @@
  *                AsyncAPI, OpenAPI/Swagger, GraphQL schema, C4/Structurizr DSL
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, extname, basename } from 'node:path';
+import { join, basename } from 'node:path';
 import { ensureDir, writeText, writeYaml, now } from './utils.js';
 
 /** Supported third-party spec formats */

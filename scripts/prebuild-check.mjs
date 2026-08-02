@@ -7,9 +7,9 @@
  *
  * Checks:
  *   1. package.json `version` is valid SemVer.
- *   2. CLI version in src/cli.ts matches package.json version.
+ *   2. CLI version in src/cli/index.ts (or src/cli.ts as fallback) matches package.json version.
  *   3. All `files` entries in package.json exist on disk.
- *   4. All `bin` entry source files exist (src/cli.ts, src/mcp-server.ts).
+ *   4. All `bin` entry source files exist (src/cli.ts → src/cli/index.ts, src/mcp-server.ts).
  *
  * Exit codes: 0 = ok, 1 = check failed.
  */
@@ -36,14 +36,25 @@ if (!semverRe.test(pkg.version)) {
   fail(`package.json version "${pkg.version}" is not valid SemVer`);
 }
 
-// 2. CLI version sync. Read src/cli.ts and look for .version('...').
-const cliSrc = readFileSync(join(root, 'src', 'cli.ts'), 'utf8');
-const cliVerMatch = cliSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
+// 2. CLI version sync. Read src/cli.ts and src/cli/index.ts for .version('...').
+const cliFile = join(root, 'src', 'cli.ts');
+const cliIndexFile = join(root, 'src', 'cli', 'index.ts');
+
+let cliVerMatch = null;
+// Try src/cli/index.ts first (new location after modularization), then fall back to src/cli.ts
+const cliIndexSrc = existsSync(cliIndexFile) ? readFileSync(cliIndexFile, 'utf8') : '';
+cliVerMatch = cliIndexSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
 if (!cliVerMatch) {
-  fail(`src/cli.ts: cannot find .version('...') call`);
+  // Fallback: check legacy src/cli.ts
+  const cliSrc = readFileSync(cliFile, 'utf8');
+  cliVerMatch = cliSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
+}
+
+if (!cliVerMatch) {
+  fail(`src/cli.ts and src/cli/index.ts: cannot find .version('...') call`);
 } else if (cliVerMatch[1] !== pkg.version) {
   fail(
-    `version mismatch: package.json=${pkg.version}, src/cli.ts=${cliVerMatch[1]}`,
+    `version mismatch: package.json=${pkg.version}, cli source=${cliVerMatch[1]}`,
   );
 }
 

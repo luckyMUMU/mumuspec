@@ -1,102 +1,80 @@
-# Design: mumuspec
+---
+scope: .
+layer: 0
+last_updated: "2026-08-02"
+---
 
-## Architecture Overview
+# 前端设计风格: MumuSpec
 
-MumuSpec 是一个**树状分布式双向约束规范系统**，用于 AI 辅助开发。整体采用六层架构，从下到上依次为：
+> MumuSpec 主体是 CLI 工具，但 demo 项目（demo/image-share）包含 Web UI。
+> 本文件为项目中任何前端工作提供设计指导。
 
-```
-┌─────────────────────────────────────────────────────┐
-│  Entry Layer   │ cli.ts / mcp-server.ts / index.ts  │
-├─────────────────────────────────────────────────────┤
-│  Change Layer  │ manager.ts / state-machine.ts       │
-├─────────────────────────────────────────────────────┤
-│  Guard Layer   │ checker.ts / phase-guard.ts         │
-├─────────────────────────────────────────────────────┤
-│  Spec Layer    │ parser / loader / validator / ...    │
-├─────────────────────────────────────────────────────┤
-│  Knowledge Layer│ manager.ts (PageIndex + LLM-Wiki)   │
-├─────────────────────────────────────────────────────┤
-│  Core Layer    │ config / utils / errors / types      │
-└─────────────────────────────────────────────────────┘
-```
+## 设计理念
 
-### 设计原则
+- **简洁优先** — UI 是工具的延伸，不是主角；功能清晰胜过视觉炫技
+- **内容驱动** — 布局围绕内容组织，不为了布局而创造内容
+- **渐进增强** — 核心功能不依赖 JavaScript，JS 层仅增强体验
+- **零框架偏好** — 能用原生 HTML/CSS 实现就不引入前端框架（ponytail: 零运行时依赖偏好）
 
-1. **规范驱动** — 规范是行为的唯一真相来源，代码是规范的实现
-2. **Ponytail 优先** — 能不写就不写，能复用就复用，能简单就简单
-3. **渐进式披露** — 规范按需加载，Layer 0 → 1 → 2 逐步深入
-4. **双向约束** — SHALL（正向要求）+ SHALL NOT（反向禁止）
-5. **动态强度** — 约束按 high/medium/low 分级，映射到 block/warn/info
-6. **零运行时依赖偏好** — install、bundle、i18n、skill-authoring 模块零外部依赖
+## 配色方案
 
-### 模块分组
+| 语义 | 色值 | 用途 |
+|------|------|------|
+| Primary | `#2563eb` (blue-600) | 主操作按钮、活跃链接 |
+| Success | `#16a34a` (green-600) | 成功状态、完成提示 |
+| Warning | `#d97706` (amber-600) | 警告信息、待处理项 |
+| Danger | `#dc2626` (red-600) | 错误状态、删除操作 |
+| Background | `#f8fafc` (slate-50) | 页面背景 |
+| Surface | `#ffffff` | 卡片、面板背景 |
+| Text Primary | `#0f172a` (slate-900) | 主文本 |
+| Text Secondary | `#64748b` (slate-500) | 辅助文本 |
 
-| 层 | 模块 | 职责 | 外部依赖 |
-|----|------|------|----------|
-| Entry | cli.ts | CLI 命令编排 | commander |
-| Entry | mcp-server.ts | MCP 工具暴露给 LLM | @modelcontextprotocol/sdk |
-| Change | manager.ts | 变更 CRUD + 构建层管理 | — |
-| Change | state-machine.ts | 5 阶段状态机 + 回滚 | — |
-| Guard | checker.ts | 合规检查 + 漂移检测 + 强度降级 | — |
-| Guard | phase-guard.ts | 5 种阶段转换门禁 | — |
-| Spec | parser.ts | spec.md 解析/序列化 | yaml |
-| Spec | loader.ts | 渐进式上下文加载 | yaml |
-| Spec | validator.ts | 全项目规范校验 | — |
-| Spec | inheritance.ts | 继承冲突检测 | — |
-| Spec | ponytail.ts | Ponytail 约束定义与注入 | — |
-| Knowledge | manager.ts | 知识库 CRUD + PageIndex | — |
-| Core | config.ts | 配置加载 + 约束树解析 + 强度矩阵 | — |
-| Core | utils.ts | FS/YAML/Hash/审计工具 | — |
-| Core | errors.ts | 标准化错误码 | — |
-| Core | constraint-evaluator.ts | 运行时约束求值 | — |
-| Core | constraints-loader.ts | 磁盘 I/O + 树加载 | — |
-| Helper | generator.ts | AI 规则文件生成 | — |
-| Helper | installer.ts | Skills/MCP/Commands 安装 | 零依赖 |
-| Helper | packager.ts | 技能打包/验证 | 零依赖 |
-| Helper | feedback.ts | 用户反馈管理 | — |
-| Helper | hooks.ts | Git Hooks 管理 | — |
-| Helper | eval.ts | 评估场景运行 | — |
-| Helper | locales.ts | 国际化 | 零依赖 |
-| Helper | protocol.ts | 技能创作协议 | 零依赖 |
+## 组件风格
 
-## Key Decisions
+### 按钮
+- 主按钮：Primary 色背景 + 白色文字 + 8px 圆角 + 0.5rem 垂直内边距
+- 次要按钮：透明背景 + 1px Primary 色边框
+- 危险按钮：Danger 色背景 + 白色文字
+- 禁用状态：`opacity: 0.5` + `cursor: not-allowed`
 
-### D-001: 六层架构分离
+### 卡片
+- 白色背景 + 1px slate-200 边框 + 12px 圆角 + 1rem 内边距
+- 阴影仅在有交互意图时出现：`box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1)`
 
-**Context**: 规范系统需要同时处理规范定义（Spec）、规范执行（Guard）、变更管理（Change）和知识沉淀（Knowledge）。
+### 表单
+- 输入框：1px slate-300 边框 + 8px 圆角 + 0.5rem 内边距
+- Focus 状态：2px Primary 色 outline
+- Label 在输入框上方，14px font-size，font-weight: 500
 
-**Decision**: 采用六层架构，每层有清晰的职责边界。Spec 层只管解析，Guard 层只管检查，Change 层只管状态，Knowledge 层只管存储。
+### 列表与表格
+- 行高 48px，斑马纹可选（偶数行 slate-50 背景）
+- 操作列右对齐，状态列居中
 
-**Consequence**: 各层可独立测试和替换；新增功能只需在对应层添加模块。
+## 交互模式
 
-### D-002: 树状约束系统
+### 反馈
+- 操作成功：Toast 通知（绿色，3 秒自动消失）
+- 操作失败：Toast 通知（红色，需手动关闭）
+- 加载中：Skeleton 占位或 spinner（不阻塞 UI）
 
-**Context**: 不同目录可能需要不同的约束强度，子目录应能继承并收紧父目录约束。
+### 导航
+- 顶部导航栏：固定高度 56px，白色背景 + 底部 1px 边框
+- 面包屑：显示当前路径层级，每级可点击
 
-**Decision**: 实现 ConstraintTreeNode，支持继承 + 收紧 + 冲突检测。根层 ConstraintStrength 由 config.yaml 控制，子层可覆盖。
+### 表单提交
+- 提交前客户端校验，错误信息显示在字段下方（Danger 色文字）
+- 提交按钮在请求期间显示 loading 状态并禁用
 
-**Consequence**: 灵活的分层约束；收紧合法；放松非法（产生冲突）。
+## 响应式设计
 
-### D-003: 动态强度映射
+| 断点 | 宽度 | 布局调整 |
+|------|------|---------|
+| Mobile | < 640px | 单列布局，导航折叠为汉堡菜单 |
+| Tablet | 640px - 1024px | 双列布局，导航可见 |
+| Desktop | > 1024px | 多列布局，完整导航 |
 
-**Context**: 不同项目/阶段需要不同的严格程度。一刀切的 block 不适合探索性项目。
-
-**Decision**: high→block, medium→warn, low→info。9 条 always_enforce 异常始终阻断。
-
-**Consequence**: 通过切换 strict/balanced/hotfix 预设适应不同场景。
-
-### D-004: 零运行时依赖偏好
-
-**Context**: 安装器、打包器、国际化、技能创作协议是基础设施，不应引入脆弱依赖链。
-
-**Decision**: 这四个模块仅使用 Node.js 内置模块。
-
-**Consequence**: 更小的安装体积、更快的启动、更少的 breaking changes。
-
-### D-005: 5 阶段变更生命周期
-
-**Context**: AI 开发需要结构化的工作流来管理变更。
-
-**Decision**: open → design → build → verify → archive。支持回滚（build→design, verify→design, verify→build）和热修复跳过设计。
-
-**Consequence**: 清晰的进度追踪；阶段门禁保证质量；回滚机制提供安全感。
+通用规则：
+- 内容区域最大宽度 1280px，居中
+- 间距使用 4px 基准网格（4px / 8px / 12px / 16px / 24px / 32px）
+- 触摸目标最小尺寸 44x44px（移动端）
+- 图片必须设置 `max-width: 100%` + `height: auto`

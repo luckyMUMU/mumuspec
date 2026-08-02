@@ -1,0 +1,85 @@
+---
+# === 标识 ===
+id: "KP-0007"
+title: "认知框架（乔哈里窗变体 Q1-Q4）集成到 Design 阶段"
+type: decision
+status: confirmed
+scope: "global"
+created_at: "2026-07-09T10:30:00Z"
+updated_at: "2026-07-29T00:00:00Z"
+verified_at: "2026-07-29T00:00:00Z"
+
+# === 来源 ===
+source_change: "v0.8.0-cognitive-framework"
+source_phase: "design"
+source_artifact: "docs/reference/cognitive-framework.md"
+
+# === 图谱关联 ===
+graph_bindings:
+  - src/eval/scorer.ts
+  - src/eval/quadrant.ts
+  - src/knowledge/loader.ts
+
+# === 索引 ===
+tags: ["cognitive-framework", "johari-window", "q1-q4", "design-phase", "goal"]
+related_pages:
+  - "KP-0002"
+  - "KP-0006"
+  - "KD-0025"
+backward_refs: []
+
+# === 认知框架溯源 ===
+cognitive_origin:
+  quadrant: "Q1"
+  reasoning_chain: []
+  confidence: high
+---
+
+## 背景
+
+设计认知过程不系统，缺乏对已知信息、未知盲区的结构化梳理，导致设计决策基于不完整或不准确的信息地基。
+
+## 核心决策
+
+引入基于"乔哈里窗"变体的四象限认知框架，作为 AI Agent 辅助技术设计的系统化认知方法：
+
+```
+                   +---------------------+---------------------+
+                   |   用户知道           |   用户不知道          |
+   +---------------+---------------------+---------------------+
+   |  Agent 知道    |  Q1 已知的已知       |  Q3 未知的已知       |
+   |               |  -> 锚定推理地基      |  -> 推理链让用户确认   |
+   +---------------+---------------------+---------------------+
+   |  Agent 不知道  |  Q2 已知的未知       |  Q4 未知的未知       |
+   |               |  -> 提问补全（含选项）|  -> 盲区扫描 + 兜底    |
+   +---------------+---------------------+---------------------+
+```
+
+### 四象限核心规则
+
+| 象限 | 操作策略 | 关键约束 |
+|------|---------|---------|
+| Q1 已知的已知 | 锚定声明、置信度标注、矛盾检测 | 所有推理必须引用 Q1 编号 |
+| Q2 已知的未知 | 提供 2-4 个选项的单选题，不可开放性问题 | 选项基于 Q1 推导，单轮最多 5 题，回答后迁移到 Q1 |
+| Q3 未知的已知 | 推理链格式 `Q1[a]+Q1[b]->Q3:结论`，需用户确认 | 不可基于 Q2（未回答的前提），每轮最多 3 条 |
+| Q4 未知的未知 | 8 维度盲区扫描 + 兜底策略 | 不可跳过（Q4 扫描至少 3 个维度），Stage 2+3 合计不超过 5 轮 |
+
+### 兜底策略
+
+所有无法消除的 Q4 残留项通过四项兜底写入 design.md：监控兜底、测试兜底、回退兜底、降级方案。
+
+## 遗留影响
+
+- Design 阶段产出增加 `cognitive-map.yaml`
+- 认知框架仅在 `workflow == "full"` 时启用
+- hotfix/tweak 工作流跳过 Design，不执行认知框架
+- Phase Guard (design_to_build) 检查认知框架完成状态
+
+## 遗留约束
+
+- SHALL: Q4 盲区扫描是 Design 阶段的必要步骤，不可跳过
+- SHALL NOT: Q3 推导不可基于 Q2（未回答的问题不能作为推导前提）
+
+## 详细文档
+
+四象限操作策略、四阶段递进流程、认知地图格式 (cognitive-map.yaml)、输出格式规范、Phase Guard 检查项、Hyperplan 协作、适用场景、与 decisions.md 衔接完整设计见 [KD-0025 — 认知框架乔哈里窗变体](KD-0025-docs_reference_cognitive-framework.md)
