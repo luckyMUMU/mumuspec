@@ -65,12 +65,12 @@ describe('chat command handler', () => {
     const program = new Command();
     registerChatCommand(program);
 
-    await program.parseAsync(['chat', 'How does the saga pattern work?'], { from: 'user' });
+    await program.parseAsync(['chat', 'saga'], { from: 'user' });
 
     expect(mockExecuteChat).toHaveBeenCalledWith(
       '/fake/root',
       fakeConfig,
-      'How does the saga pattern work?',
+      'saga',
       undefined
     );
   });

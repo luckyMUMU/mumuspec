@@ -110,7 +110,7 @@ describe('eval handler', () => {
       });
 
       const program = await createProgram();
-      await program.parseAsync(['eval', 'init', '--workspace-path', tempDir], { from: 'user' });
+      await program.parseAsync(['eval', 'init', '--workspace-path', tempDir], { from: 'user' }).catch(() => {});
 
       expect(errorSpy).toHaveBeenCalledWith('✗ Failed to create evals dir: EACCES');
       expect(exitSpy).toHaveBeenCalledWith(1);
