@@ -56,7 +56,7 @@ function setupTempDir(): string {
 }
 
 async function createProgram() {
-  const { registerEvalCommands } = await import('../../src/cli/commands/eval.js');
+  const { registerEvalCommands } = await import('../../../src/cli/commands/eval.js');
   const program = new Command();
   registerEvalCommands(program);
   return program;

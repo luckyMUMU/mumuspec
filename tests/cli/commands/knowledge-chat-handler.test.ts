@@ -60,7 +60,7 @@ describe('chat command handler', () => {
   // ── direct query mode ──
 
   it('should call executeChat with query when argument provided', async () => {
-    const { registerChatCommand } = await import('../../src/cli/commands/knowledge-chat.js');
+    const { registerChatCommand } = await import('../../../src/cli/commands/knowledge-chat.js');
     const program = new Command();
     registerChatCommand(program);
 
@@ -75,7 +75,7 @@ describe('chat command handler', () => {
   });
 
   it('should pass jsonMode=true when --json flag provided', async () => {
-    const { registerChatCommand } = await import('../../src/cli/commands/knowledge-chat.js');
+    const { registerChatCommand } = await import('../../../src/cli/commands/knowledge-chat.js');
     const program = new Command();
     registerChatCommand(program);
 
@@ -99,7 +99,7 @@ describe('chat command handler', () => {
       }) as typeof process.stdin.once
     );
 
-    const { registerChatCommand } = await import('../../src/cli/commands/knowledge-chat.js');
+    const { registerChatCommand } = await import('../../../src/cli/commands/knowledge-chat.js');
     const program = new Command();
     registerChatCommand(program);
 
@@ -139,7 +139,7 @@ describe('chat command handler', () => {
       }) as typeof process.stdin.once
     );
 
-    const { registerChatCommand } = await import('../../src/cli/commands/knowledge-chat.js');
+    const { registerChatCommand } = await import('../../../src/cli/commands/knowledge-chat.js');
     const program = new Command();
     registerChatCommand(program);
 
@@ -153,7 +153,7 @@ describe('chat command handler', () => {
   it('should exit(1) when not in a project', async () => {
     mockedFindProjectRoot.mockReturnValue(undefined);
 
-    const { registerChatCommand } = await import('../../src/cli/commands/knowledge-chat.js');
+    const { registerChatCommand } = await import('../../../src/cli/commands/knowledge-chat.js');
     const program = new Command();
     registerChatCommand(program);
 
@@ -178,7 +178,7 @@ describe('chat command handler', () => {
       }) as typeof process.stdin.once
     );
 
-    const { registerChatCommand } = await import('../../src/cli/commands/knowledge-chat.js');
+    const { registerChatCommand } = await import('../../../src/cli/commands/knowledge-chat.js');
     const program = new Command();
     registerChatCommand(program);
 
@@ -217,14 +217,14 @@ describe('executeChat helper output branches', () => {
 
     // Re-import to get the real executeChat
     vi.resetModules();
-    vi.unmock('../../src/cli/helpers.js');
-    vi.unmock('../../src/knowledge/manager.js');
+    vi.unmock('../../../src/cli/helpers.js');
+    vi.unmock('../../../src/knowledge/manager.js');
 
-    vi.mock('../../src/knowledge/manager.js', () => ({
+    vi.mock('../../../src/knowledge/manager.js', () => ({
       answerQuery: () => mockResult,
     }));
 
-    const { executeChat: realExecuteChat } = await import('../../src/cli/helpers.js');
+    const { executeChat: realExecuteChat } = await import('../../../src/cli/helpers.js');
 
     realExecuteChat('/root', {} as any, 'test', true);
 
@@ -245,14 +245,14 @@ describe('executeChat helper output branches', () => {
     };
 
     vi.resetModules();
-    vi.unmock('../../src/cli/helpers.js');
-    vi.unmock('../../src/knowledge/manager.js');
+    vi.unmock('../../../src/cli/helpers.js');
+    vi.unmock('../../../src/knowledge/manager.js');
 
-    vi.mock('../../src/knowledge/manager.js', () => ({
+    vi.mock('../../../src/knowledge/manager.js', () => ({
       answerQuery: () => mockResult,
     }));
 
-    const { executeChat: realExecuteChat } = await import('../../src/cli/helpers.js');
+    const { executeChat: realExecuteChat } = await import('../../../src/cli/helpers.js');
 
     realExecuteChat('/root', {} as any, 'saga', false);
 

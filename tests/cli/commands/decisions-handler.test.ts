@@ -64,7 +64,7 @@ describe('decisions command handler', () => {
   it('should exit(1) when not in a MumuSpec project', async () => {
     mockedFindProjectRoot.mockReturnValue(undefined);
 
-    const { registerDecisionsCommand } = await import('../../src/cli/commands/decisions.js');
+    const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
@@ -79,7 +79,7 @@ describe('decisions command handler', () => {
   it('should exit(1) when no change specified and no active change', async () => {
     mockedGetActiveChange.mockReturnValue(undefined);
 
-    const { registerDecisionsCommand } = await import('../../src/cli/commands/decisions.js');
+    const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
@@ -94,7 +94,7 @@ describe('decisions command handler', () => {
   it('should exit(1) when state cannot be loaded', async () => {
     mockedLoadChangeState.mockReturnValue(undefined);
 
-    const { registerDecisionsCommand } = await import('../../src/cli/commands/decisions.js');
+    const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
@@ -117,7 +117,7 @@ describe('decisions command handler', () => {
     };
     mockedLoadChangeState.mockReturnValue(state as ChangeState);
 
-    const { registerDecisionsCommand } = await import('../../src/cli/commands/decisions.js');
+    const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
@@ -150,7 +150,7 @@ describe('decisions command handler', () => {
     };
     mockedLoadChangeState.mockReturnValue(state as ChangeState);
 
-    const { registerDecisionsCommand } = await import('../../src/cli/commands/decisions.js');
+    const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
@@ -189,7 +189,7 @@ describe('decisions command handler', () => {
     };
     mockedLoadChangeState.mockReturnValue(state as ChangeState);
 
-    const { registerDecisionsCommand } = await import('../../src/cli/commands/decisions.js');
+    const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
@@ -228,7 +228,7 @@ describe('decisions command handler', () => {
     };
     mockedLoadChangeState.mockReturnValue(state as ChangeState);
 
-    const { registerDecisionsCommand } = await import('../../src/cli/commands/decisions.js');
+    const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
@@ -249,7 +249,7 @@ describe('decisions command handler', () => {
     };
     mockedLoadChangeState.mockReturnValue(state as ChangeState);
 
-    const { registerDecisionsCommand } = await import('../../src/cli/commands/decisions.js');
+    const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
@@ -281,7 +281,7 @@ describe('decisions command handler', () => {
     };
     mockedLoadChangeState.mockReturnValue(state as ChangeState);
 
-    const { registerDecisionsCommand } = await import('../../src/cli/commands/decisions.js');
+    const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
