@@ -92,7 +92,7 @@ function hasGitHistory(projectRoot: string): boolean {
 
 /** Get recent commit messages */
 function getRecentCommits(projectRoot: string, limit: number = 50): GitCommit[] {
-  const output = gitExec(projectRoot, `log --max-count=${limit} --format="%h|%aI||%an|%s"`);
+  const output = gitExec(projectRoot, `log --max-count=${limit} --format="%h|%aI|%an|%s"`);
   if (!output) return [];
 
   return output

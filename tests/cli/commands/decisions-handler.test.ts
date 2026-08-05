@@ -2,42 +2,37 @@
  * Handler-level tests for decisions command.
  *
  * Strategy: mock lower-level modules (change/manager, change/state, core/utils),
- * register the decisions command, then invoke its action handler to exercise
- * branch logic for empty decisions, populated decisions, and error paths.
+ * register the decisions command, then invoke its action handler via parseAsync()
+ * with { from: 'user' } to exercise branch logic.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Command } from 'commander';
 import type { ChangeState } from '../../../src/core/types-workflow.js';
 
-// ── Mocks ──
+// ── Mock functions ──
+const mockFindProjectRoot = vi.fn();
+const mockGetActiveChange = vi.fn();
+const mockLoadChangeState = vi.fn();
 
-vi.mock('../../../src/core/utils.js', async () => {
-  const actual = await vi.importActual<typeof import('../../../src/core/utils.js')>('../../../src/core/utils.js');
+vi.mock('../../../src/core/utils.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/core/utils.js')>();
   return {
     ...actual,
-    findProjectRoot: vi.fn(),
+    findProjectRoot: mockFindProjectRoot,
   };
 });
 
-vi.mock('../../../src/change/manager.js', async () => {
-  const actual = await vi.importActual<typeof import('../../../src/change/manager.js')>('../../../src/change/manager.js');
+vi.mock('../../../src/change/manager.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/change/manager.js')>();
   return {
     ...actual,
-    getActiveChange: vi.fn(),
+    getActiveChange: mockGetActiveChange,
   };
 });
 
 vi.mock('../../../src/change/state.js', () => ({
-  loadChangeState: vi.fn(),
+  loadChangeState: mockLoadChangeState,
 }));
-
-const { findProjectRoot } = await import('../../../src/core/utils.js');
-const { getActiveChange } = await import('../../../src/change/manager.js');
-const { loadChangeState } = await import('../../../src/change/state.js');
-
-const mockedFindProjectRoot = vi.mocked(findProjectRoot);
-const mockedGetActiveChange = vi.mocked(getActiveChange);
-const mockedLoadChangeState = vi.mocked(loadChangeState);
 
 // ════════════════════════════════════════════════════════════════════
 // Tests
@@ -51,8 +46,14 @@ describe('decisions command handler', () => {
   beforeEach(() => {
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as () => never);
-    mockedFindProjectRoot.mockReturnValue('/fake/root');
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit called');
+    }) as () => never);
+    // Reset factory mocks (NOT reset by vi.restoreAllMocks)
+    mockFindProjectRoot.mockReset();
+    mockGetActiveChange.mockReset();
+    mockLoadChangeState.mockReset();
+    mockFindProjectRoot.mockReturnValue('/fake/root');
   });
 
   afterEach(() => {
@@ -61,14 +62,14 @@ describe('decisions command handler', () => {
 
   // ── error paths ──
 
-  it('should exit(1) when not in a MumuSpec project', async () => {
-    mockedFindProjectRoot.mockReturnValue(undefined);
+    it('should exit(1) when not in a MumuSpec project', async () => {
+    mockFindProjectRoot.mockReturnValue(undefined);
 
     const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
-    await program.parseAsync(['node', 'test', 'decisions'], { from: 'user' });
+    await program.parseAsync(['decisions'], { from: 'user' }).catch(() => {});
 
     expect(errorSpy).toHaveBeenCalledWith(
       'Error: Not in a MumuSpec project. Run `mumuspec init` first.'
@@ -76,14 +77,14 @@ describe('decisions command handler', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it('should exit(1) when no change specified and no active change', async () => {
-    mockedGetActiveChange.mockReturnValue(undefined);
+    it('should exit(1) when no change specified and no active change', async () => {
+    mockGetActiveChange.mockReturnValue(undefined);
 
     const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
-    await program.parseAsync(['node', 'test', 'decisions'], { from: 'user' });
+    await program.parseAsync(['decisions'], { from: 'user' }).catch(() => {});
 
     expect(errorSpy).toHaveBeenCalledWith(
       'Error: No active change. Specify a change name or run inside a change directory.'
@@ -91,14 +92,14 @@ describe('decisions command handler', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it('should exit(1) when state cannot be loaded', async () => {
-    mockedLoadChangeState.mockReturnValue(undefined);
+    it('should exit(1) when state cannot be loaded', async () => {
+    mockLoadChangeState.mockReturnValue(undefined);
 
     const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
-    await program.parseAsync(['node', 'test', 'decisions', 'my-change'], { from: 'user' });
+    await program.parseAsync(['decisions', 'my-change'], { from: 'user' }).catch(() => {});
 
     expect(errorSpy).toHaveBeenCalledWith(
       'Error: Could not load state for change "my-change".'
@@ -115,13 +116,13 @@ describe('decisions command handler', () => {
       workflow: 'full',
       auto_decisions: [],
     };
-    mockedLoadChangeState.mockReturnValue(state as ChangeState);
+    mockLoadChangeState.mockReturnValue(state as ChangeState);
 
     const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
-    await program.parseAsync(['node', 'test', 'decisions', 'my-change'], { from: 'user' });
+    await program.parseAsync(['decisions', 'my-change'], { from: 'user' });
 
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining('Decision Audit Trail: my-change (open)')
@@ -148,13 +149,13 @@ describe('decisions command handler', () => {
       workflow: 'full',
       // auto_decisions intentionally omitted
     };
-    mockedLoadChangeState.mockReturnValue(state as ChangeState);
+    mockLoadChangeState.mockReturnValue(state as ChangeState);
 
     const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
-    await program.parseAsync(['node', 'test', 'decisions', 'my-change'], { from: 'user' });
+    await program.parseAsync(['decisions', 'my-change'], { from: 'user' });
 
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining('No autonomous decisions recorded')
@@ -180,61 +181,47 @@ describe('decisions command handler', () => {
         {
           timestamp: '2026-01-15T10:31:00Z',
           phase: 'design',
-          decision: 'Compress open→build',
+          decision: 'Compress open to build',
           rationale: 'Doc-only change, no external deps',
           confidence: 0.85,
           approved_by: 'auto_L2_rule',
         },
       ],
     };
-    mockedLoadChangeState.mockReturnValue(state as ChangeState);
+    mockLoadChangeState.mockReturnValue(state as ChangeState);
 
     const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
-    await program.parseAsync(['node', 'test', 'decisions', 'feature-auth'], { from: 'user' });
+    await program.parseAsync(['decisions', 'feature-auth'], { from: 'user' });
 
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Total decisions: 2')
-    );
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Recommend hotfix workflow')
-    );
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Compress open→build')
-    );
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('92%')
-    );
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('85%')
-    );
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Approved by: user')
-    );
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Approved by: auto_L2_rule')
-    );
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Total decisions: 2'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Recommend hotfix workflow'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Compress open to build'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('92%'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('85%'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Approved by: user'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Approved by: auto_L2_rule'));
   });
 
   it('should use active change name when no argument provided', async () => {
-    mockedGetActiveChange.mockReturnValue('active-change');
+    mockGetActiveChange.mockReturnValue('active-change');
     const state: Partial<ChangeState> = {
       name: 'active-change',
       phase: 'build',
       workflow: 'full',
       auto_decisions: [],
     };
-    mockedLoadChangeState.mockReturnValue(state as ChangeState);
+    mockLoadChangeState.mockReturnValue(state as ChangeState);
 
     const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
-    await program.parseAsync(['node', 'test', 'decisions'], { from: 'user' });
+    await program.parseAsync(['decisions'], { from: 'user' });
 
-    expect(mockedGetActiveChange).toHaveBeenCalledWith('/fake/root');
+    expect(mockGetActiveChange).toHaveBeenCalledWith('/fake/root');
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining('Decision Audit Trail: active-change (build)')
     );
@@ -247,20 +234,18 @@ describe('decisions command handler', () => {
       workflow: 'full',
       auto_decisions: [],
     };
-    mockedLoadChangeState.mockReturnValue(state as ChangeState);
+    mockLoadChangeState.mockReturnValue(state as ChangeState);
 
     const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
-    await program.parseAsync(['node', 'test', 'decisions', 'my-change'], { from: 'user' });
+    await program.parseAsync(['decisions', 'my-change'], { from: 'user' });
 
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining('.mumuspec/changes/my-change/.mumuspec.yaml')
     );
-    expect(logSpy).toHaveBeenCalledWith(
-      '  Immutable: Append-only audit log'
-    );
+    expect(logSpy).toHaveBeenCalledWith('  Immutable: Append-only audit log');
   });
 
   it('should handle many decisions (loop coverage)', async () => {
@@ -279,16 +264,15 @@ describe('decisions command handler', () => {
       workflow: 'full',
       auto_decisions: decisions,
     };
-    mockedLoadChangeState.mockReturnValue(state as ChangeState);
+    mockLoadChangeState.mockReturnValue(state as ChangeState);
 
     const { registerDecisionsCommand } = await import('../../../src/cli/commands/decisions.js');
     const program = new Command();
     registerDecisionsCommand(program);
 
-    await program.parseAsync(['node', 'test', 'decisions', 'bulk-change'], { from: 'user' });
+    await program.parseAsync(['decisions', 'bulk-change'], { from: 'user' });
 
-    expect(logSpy).toHaveBeenCalledWith('  Total decisions: 5');
-    // All 5 decisions should be printed
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Total decisions: 5'));
     for (let i = 0; i < 5; i++) {
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining(`Decision ${i}`));
     }

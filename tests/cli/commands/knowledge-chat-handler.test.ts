@@ -3,36 +3,31 @@
  *
  * Strategy: mock core/utils (findProjectRoot), core/config (loadConfig),
  * and cli/helpers (executeChat), then register the chat command and
- * invoke its action handler to exercise branch logic.
+ * invoke its action handler to exercise branch logic (query vs interactive, JSON mode).
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Command } from 'commander';
 
-// ── Mocks ──
+// ── Mock functions ──
+const mockFindProjectRoot = vi.fn();
+const mockLoadConfig = vi.fn();
+const mockExecuteChat = vi.fn();
 
-vi.mock('../../../src/core/utils.js', async () => {
-  const actual = await vi.importActual<typeof import('../../../src/core/utils.js')>('../../../src/core/utils.js');
+vi.mock('../../../src/core/utils.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/core/utils.js')>();
   return {
     ...actual,
-    findProjectRoot: vi.fn(),
+    findProjectRoot: mockFindProjectRoot,
   };
 });
 
 vi.mock('../../../src/core/config.js', () => ({
-  loadConfig: vi.fn(),
+  loadConfig: mockLoadConfig,
 }));
 
 vi.mock('../../../src/cli/helpers.js', () => ({
-  executeChat: vi.fn(),
+  executeChat: mockExecuteChat,
 }));
-
-const { findProjectRoot } = await import('../../../src/core/utils.js');
-const { loadConfig } = await import('../../../src/core/config.js');
-const { executeChat } = await import('../../../src/cli/helpers.js');
-
-const mockedFindProjectRoot = vi.mocked(findProjectRoot);
-const mockedLoadConfig = vi.mocked(loadConfig);
-const mockedExecuteChat = vi.mocked(executeChat);
 
 // ════════════════════════════════════════════════════════════════════
 // Tests
@@ -43,14 +38,20 @@ describe('chat command handler', () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;
   let exitSpy: ReturnType<typeof vi.spyOn>;
 
-  const fakeConfig = { lang: 'en' } as ReturnType<typeof loadConfig>;
+  const fakeConfig = { lang: 'en' } as ReturnType<typeof mockLoadConfig>;
 
   beforeEach(() => {
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as () => never);
-    mockedFindProjectRoot.mockReturnValue('/fake/root');
-    mockedLoadConfig.mockReturnValue(fakeConfig);
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit called');
+    }) as () => never);
+    // Reset factory mocks (NOT reset by vi.restoreAllMocks)
+    mockFindProjectRoot.mockReset();
+    mockLoadConfig.mockReset();
+    mockExecuteChat.mockReset();
+    mockFindProjectRoot.mockReturnValue('/fake/root');
+    mockLoadConfig.mockReturnValue(fakeConfig);
   });
 
   afterEach(() => {
@@ -64,9 +65,9 @@ describe('chat command handler', () => {
     const program = new Command();
     registerChatCommand(program);
 
-    await program.parseAsync(['node', 'test', 'chat', 'How does the saga pattern work?'], { from: 'user' });
+    await program.parseAsync(['chat', 'How does the saga pattern work?'], { from: 'user' });
 
-    expect(mockedExecuteChat).toHaveBeenCalledWith(
+    expect(mockExecuteChat).toHaveBeenCalledWith(
       '/fake/root',
       fakeConfig,
       'How does the saga pattern work?',
@@ -79,9 +80,9 @@ describe('chat command handler', () => {
     const program = new Command();
     registerChatCommand(program);
 
-    await program.parseAsync(['node', 'test', 'chat', 'KP-0007', '--json'], { from: 'user' });
+    await program.parseAsync(['chat', 'KP-0007', '--json'], { from: 'user' });
 
-    expect(mockedExecuteChat).toHaveBeenCalledWith(
+    expect(mockExecuteChat).toHaveBeenCalledWith(
       '/fake/root',
       fakeConfig,
       'KP-0007',
@@ -89,22 +90,20 @@ describe('chat command handler', () => {
     );
   });
 
-  it('should treat empty string query as interactive mode', async () => {
+  it('should enter interactive mode and execute from stdin when no query', async () => {
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     const stdinOnceSpy = vi.spyOn(process.stdin, 'once').mockImplementation(
-      ((_event, handler) => {
-        // Simulate user typing a query
-        (handler as (data: Buffer) => void)(Buffer.from('payment architecture\n'));
+      ((_event: string, handler: (data: Buffer) => void) => {
+        handler(Buffer.from('payment architecture\n'));
         return process.stdin;
-      }) as typeof process.stdin.once
+      })
     );
 
     const { registerChatCommand } = await import('../../../src/cli/commands/knowledge-chat.js');
     const program = new Command();
     registerChatCommand(program);
 
-    // No argument → interactive mode
-    await program.parseAsync(['node', 'test', 'chat'], { from: 'user' });
+    await program.parseAsync(['chat'], { from: 'user' }).catch(() => {});
 
     // Should have printed the banner
     expect(logSpy).toHaveBeenCalledWith(
@@ -118,7 +117,7 @@ describe('chat command handler', () => {
     expect(stdoutSpy).toHaveBeenCalledWith('Query: ');
 
     // Should have called executeChat with stdin input
-    expect(mockedExecuteChat).toHaveBeenCalledWith(
+    expect(mockExecuteChat).toHaveBeenCalledWith(
       '/fake/root',
       fakeConfig,
       'payment architecture',
@@ -132,67 +131,62 @@ describe('chat command handler', () => {
   it('should not call executeChat when interactive input is empty', async () => {
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     vi.spyOn(process.stdin, 'once').mockImplementation(
-      ((_event, handler) => {
-        // Simulate user pressing Enter without typing
-        (handler as (data: Buffer) => void)(Buffer.from('\n'));
+      ((_event: string, handler: (data: Buffer) => void) => {
+        handler(Buffer.from('\n'));
         return process.stdin;
-      }) as typeof process.stdin.once
+      })
     );
 
     const { registerChatCommand } = await import('../../../src/cli/commands/knowledge-chat.js');
     const program = new Command();
     registerChatCommand(program);
 
-    await program.parseAsync(['node', 'test', 'chat'], { from: 'user' });
+    await program.parseAsync(['chat'], { from: 'user' }).catch(() => {});
 
-    expect(mockedExecuteChat).not.toHaveBeenCalled();
+    expect(mockExecuteChat).not.toHaveBeenCalled();
   });
 
-  // ── error handling ──
-
-  it('should exit(1) when not in a project', async () => {
-    mockedFindProjectRoot.mockReturnValue(undefined);
+    it('should exit(1) when not in a project', async () => {
+    mockFindProjectRoot.mockReturnValue(undefined);
 
     const { registerChatCommand } = await import('../../../src/cli/commands/knowledge-chat.js');
     const program = new Command();
     registerChatCommand(program);
 
-    await program.parseAsync(['node', 'test', 'chat', 'some query'], { from: 'user' });
+    await program.parseAsync(['chat', 'some query'], { from: 'user' }).catch(() => {});
 
     expect(errorSpy).toHaveBeenCalledWith('Error: Not in a MumuSpec project.');
     expect(exitSpy).toHaveBeenCalledWith(1);
-    expect(mockedExecuteChat).not.toHaveBeenCalled();
+    expect(mockExecuteChat).not.toHaveBeenCalled();
   });
 
-  // ── whitespace-only argument ──
-
   it('should treat whitespace-only argument as interactive mode', async () => {
-    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-    vi.spyOn(process.stdin, 'once').mockImplementation(
-      ((_event, _handler) => {
-        // Interactive mode triggered: provide fallback input
-        (vi.mocked(process.stdin.once).mock.calls[0][1] as (data: Buffer) => void)(
-          Buffer.from('fallback query\n')
-        );
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const stdinOnceSpy = vi.spyOn(process.stdin, 'once').mockImplementation(
+      ((_event: string, handler: (data: Buffer) => void) => {
+        handler(Buffer.from('fallback query\n'));
         return process.stdin;
-      }) as typeof process.stdin.once
+      })
     );
 
     const { registerChatCommand } = await import('../../../src/cli/commands/knowledge-chat.js');
     const program = new Command();
     registerChatCommand(program);
 
-    await program.parseAsync(['node', 'test', 'chat', '   '], { from: 'user' });
+    await program.parseAsync(['chat', '   '], { from: 'user' }).catch(() => {});
 
-    // Banner prints for interactive mode
     expect(logSpy).toHaveBeenCalledWith(
       '|                   MUMUSPEC CHAT                          |'
     );
+
+    stdoutSpy.mockRestore();
+    stdinOnceSpy.mockRestore();
   });
 });
 
 // ════════════════════════════════════════════════════════════════════
-// executeChat helper tests (direct branch testing)
+// executeChat helper tests (JSON mode vs panel output branches)
+// Uses vi.resetModules() to bypass the vi.mock for helpers.js
 // ════════════════════════════════════════════════════════════════════
 
 describe('executeChat helper output branches', () => {
@@ -203,66 +197,56 @@ describe('executeChat helper output branches', () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    logSpy.mockRestore();
   });
 
   it('should output JSON when jsonMode is true', async () => {
-    const mockResult = {
-      query: 'test',
-      answer: 'Test answer',
-      confidence: 'high' as const,
-      references: [],
-      generated_at: '2026-01-01T00:00:00Z',
-    };
-
-    // Re-import to get the real executeChat
     vi.resetModules();
     vi.unmock('../../../src/cli/helpers.js');
     vi.unmock('../../../src/knowledge/manager.js');
 
     vi.mock('../../../src/knowledge/manager.js', () => ({
-      answerQuery: () => mockResult,
+      answerQuery: () => ({
+        query: 'test',
+        answer: 'Test answer',
+        confidence: 'high',
+        references: [],
+        generated_at: '2026-01-01T00:00:00Z',
+      }),
     }));
 
     const { executeChat: realExecuteChat } = await import('../../../src/cli/helpers.js');
+    realExecuteChat('/root', {} as never, 'test', true);
 
-    realExecuteChat('/root', {} as any, 'test', true);
-
-    // Should have called console.log with JSON
     const calls = logSpy.mock.calls.flat();
     expect(calls.some((c) => c.includes('"query":"test"') || c.includes('"query": "test"'))).toBe(true);
   });
 
   it('should show panel output with references when not JSON mode', async () => {
-    const mockResult = {
-      query: 'saga',
-      answer: 'Saga is a pattern',
-      confidence: 'medium' as const,
-      references: [
-        { id: 'KP-0007', title: 'Saga Pattern', type: 'pattern' as const, relevance: 0.95 },
-      ],
-      generated_at: '2026-01-01T00:00:00Z',
-    };
-
     vi.resetModules();
     vi.unmock('../../../src/cli/helpers.js');
     vi.unmock('../../../src/knowledge/manager.js');
 
     vi.mock('../../../src/knowledge/manager.js', () => ({
-      answerQuery: () => mockResult,
+      answerQuery: () => ({
+        query: 'saga',
+        answer: 'Saga is a pattern',
+        confidence: 'medium',
+        references: [
+          { id: 'KP-0007', title: 'Saga Pattern', type: 'pattern', relevance: 0.95 },
+        ],
+        generated_at: '2026-01-01T00:00:00Z',
+      }),
     }));
 
     const { executeChat: realExecuteChat } = await import('../../../src/cli/helpers.js');
-
-    realExecuteChat('/root', {} as any, 'saga', false);
+    realExecuteChat('/root', {} as never, 'saga', false);
 
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('CHAT ANSWER'));
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('saga'));
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('medium'));
     expect(logSpy).toHaveBeenCalledWith('Saga is a pattern');
     expect(logSpy).toHaveBeenCalledWith('References:');
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('KP-0007')
-    );
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('KP-0007'));
   });
 });

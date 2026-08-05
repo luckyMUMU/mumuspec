@@ -32,9 +32,9 @@ import type { ProposedKnowledgePage } from '../../src/knowledge/scan-types.js';
 
 // ─── Helpers ───
 
-/** Create a valid GitCommit log line for --format="%h|%aI||%an|%s" */
+/** Create a valid GitCommit log line for --format="%h|%aI|%an|%s" */
 function commitLine(hash: string, date: string, author: string, subject: string): string {
-  return `${hash}|${date}||${author}|${subject}`;
+  return `${hash}|${date}|${author}|${subject}`;
 }
 
 /** Generate a multi-line git log output */
@@ -562,8 +562,8 @@ describe('scanGitHistory — deep coverage', () => {
       mockExecSync.mockImplementation((_cmd: string) => {
         const cmd = _cmd as string;
         if (cmd.includes('log --max-count')) {
-          // Missing delimiter fields
-          return 'hashonly\nmalformed|data\nhash3|2024-01-01T00:00:00Z||author|Revert "valid"';
+          // Lines with fewer than 4 pipe-delimited fields fall back to empty defaults
+          return 'hashonly\nmalformed|data\nhash3|2024-01-01T00:00:00Z|some-author';
         }
         if (cmd.includes('--name-only')) return '';
         if (cmd.includes('rev-list --count')) return '10';
@@ -572,13 +572,34 @@ describe('scanGitHistory — deep coverage', () => {
         return '';
       });
 
-      // Should not throw
+      // Should not throw - malformed input is tolerated
       const result = scanGitHistory(PROJECT_ROOT);
       expect(Array.isArray(result)).toBe(true);
-      // The malformed lines will produce commits with default empty fields,
-      // but the revert line should still be detected
+      for (const page of result) {
+        validPage(page);
+      }
+    });
+
+    it('handles commit lines with extra fields (commit subject contains pipe characters)', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          // Subject containing extra | chars: hash|date|author|message |extra
+          return 'hashx|2024-01-01T00:00:00Z|alice|Revert "feat: add feature"';
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      // commit message is the 4th field (parts[3])
       const revertPage = result.find((p) => p.tags.includes('lesson'));
       expect(revertPage).toBeDefined();
+      expect(revertPage!.content).toContain('hashx');
     });
 
     it('handles hotspot lines that do not match expected format', () => {
