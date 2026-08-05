@@ -1,8 +1,8 @@
 name: self-improve-loop
-phase: build
+phase: archive-completed
 workflow: loop
 created_at: 2026-08-04T16:34:29.549Z
-updated_at: 2026-08-04T16:34:29.550Z
+updated_at: 2026-08-05T13:57:28.945Z
 scope: .
 affected_scopes: []
 build_layers:
@@ -22,7 +22,7 @@ build_mode: executing-plans
 tdd_mode: tdd
 isolation: worktree
 single_active_change: true
-user_confirmed: false
+user_confirmed: true
 decisions_log:
   counts: {}
 rollback_history: []
