@@ -37,6 +37,20 @@ import {
 } from '../../core/loop-engine.js';
 import { runLoopGrill, formatGrillReport, type GrillContext } from '../../core/loop-grill.js';
 import type { LoopActionType } from '../../core/types-loop.js';
+import { success, fail, warn, tip } from '../ui-helpers.js';
+
+/** Format phase label with descriptive text. */
+function phaseLabel(phase: string): string {
+  const labels: Record<string, string> = {
+    plan: 'Plan (规划中)',
+    act: 'Act (执行中)',
+    evaluate: 'Evaluate (评估中)',
+    converged: '✓ Converged (已收敛)',
+    exhausted: '⏹ Exhausted (轮次耗尽)',
+    blocked: '⛔ Blocked (阻塞中)',
+  };
+  return labels[phase] || phase;
+}
 
 export function registerLoopCommands(program: Command): void {
   const loopCmd = program.command('loop').description('Dynamic loop workflow (Plan → Act → Evaluate)');
@@ -258,33 +272,50 @@ export function registerLoopCommands(program: Command): void {
           process.exit(1);
         }
 
-        console.log(`\n✓ Round ${status.currentRound} evaluated`);
-        console.log(`  Progress: ${Math.round(progress * 100)}%`);
-        console.log(`  Phase: ${status.phase}`);
+        console.log('');
+        console.log(`  ┌──────────────────────────────────────────────────────────┐`);
+        console.log(`  │  Round ${status.currentRound} Evaluation${' '.repeat(36)}│`);
+        console.log(`  └──────────────────────────────────────────────────────────┘`);
+        
+        // Progress bar
+        const barLen = 30;
+        const filled = Math.round(progress * barLen);
+        const bar = '█'.repeat(filled) + '░'.repeat(barLen - filled);
+        console.log(`  Progress:  ${bar} ${Math.round(progress * 100)}%`);
+        console.log(`  Phase:     ${phaseLabel(status.phase)}`);
 
         if (status.lastEvaluation?.issues.length) {
-          console.log(`  Issues (${status.lastEvaluation.issues.length}):`);
+          console.log('');
           for (const issue of status.lastEvaluation.issues) {
-            console.log(`    - ${issue}`);
+            warn(issue);
           }
         }
 
         if (result.should_commit) {
-          console.log(`  ✓ Auto-committed`);
+          console.log('');
+          success('Auto-committed round state.');
         }
 
+        // Phase-specific guidance with recovery suggestions
+        console.log('');
         if (status.phase === 'converged') {
-          console.log('\n🎉 Goal achieved! Run `mumuspec loop exit` to finalize.');
+          console.log('  ──────────────────────────────────────');
+          success('Goal achieved!');
+          tip('Run: mumuspec loop exit    — finalize the loop');
         } else if (status.phase === 'exhausted') {
-          console.log(`\n⚠ Round limit reached (${status.currentRound}/${status.maxRounds}).`);
-          console.log('  Use `mumuspec loop extend <n>` to add more rounds.');
+          console.log('  ──────────────────────────────────────');
+          warn(`Round limit reached (${status.currentRound}/${status.maxRounds}).`);
+          tip('Run: mumuspec loop extend <n>  — add more rounds');
+          tip('Run: mumuspec loop exit       — finish with current progress');
+          tip('Run: mumuspec loop status     — review full progress');
         } else if (status.phase === 'blocked') {
-          console.log(`\n⛔ Blocked: ${status.blockReason}`);
-          console.log('  Resolve and `mumuspec loop resume` to continue.');
+          console.log('  ──────────────────────────────────────');
+          fail(`Blocked: ${status.blockReason}`, 'Resolve the issue, then run: mumuspec loop resume');
         } else if (result.should_continue) {
-          console.log(`\n▶ Ready for round ${status.currentRound + 1}.`);
-          console.log('  `mumuspec loop round "<plan>"` to continue.');
+          console.log('  ──────────────────────────────────────');
+          tip(`Ready for round ${status.currentRound + 1}: mumuspec loop round "<plan>"`);
         }
+        console.log('');
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
         process.exit(1);
@@ -316,39 +347,50 @@ export function registerLoopCommands(program: Command): void {
         return;
       }
 
-      console.log('');
-      console.log(`Loop Status: ${status.changeName}`);
-      console.log(`  Phase:     ${status.phase}`);
-      console.log(`  Round:     ${status.currentRound} / ${status.maxRounds}`);
-      console.log(`  Goal:      ${status.goal}`);
-      console.log(`  Actions:   ${status.totalActions} total`);
+      const state = loadChangeState(root, changeName);
+      
+      // Enhanced display with visual progress bar
+      const progressBar = (p: number) => {
+        const filled = Math.round(p * 20);
+        return '█'.repeat(filled) + '░'.repeat(20 - filled);
+      };
 
-      if (status.worktreePath) {
-        console.log(`  Worktree:  ${status.worktreePath}`);
-      }
+      console.log('');
+      console.log(`  ╔══════════════════════════════════════════════════════════╗`);
+      console.log(`  ║  Loop: ${changeName.padEnd(48)}║`);
+      console.log(`  ╚══════════════════════════════════════════════════════════╝`);
+      console.log(`  Phase:     ${phaseLabel(status.phase)}`);
+      console.log(`  Round:     ${status.currentRound} / ${status.maxRounds}`);
+      console.log(`  Goal:      ${status.goal.substring(0, 50)}${status.goal.length > 50 ? '...' : ''}`);
+      console.log(`  Actions:   ${status.totalActions}`);
 
       if (status.progressTrend.length > 0) {
-        console.log(`  Progress:  ${status.progressTrend.map((p) => Math.round(p * 100) + '%').join(' → ')}`);
-      }
-
-      if (status.lastEvaluation) {
-        console.log(`  Last eval: ${Math.round(status.lastEvaluation.progress * 100)}%`);
-        if (status.lastEvaluation.next_focus) {
-          console.log(`  Next focus: ${status.lastEvaluation.next_focus}`);
+        console.log('');
+        console.log(`  Progress:`);
+        for (let i = 0; i < status.progressTrend.length; i++) {
+          const p = status.progressTrend[i];
+          console.log(`    Round ${i + 1}: ${progressBar(p)} ${Math.round(p * 100)}%`);
         }
       }
 
-      // Stagnation warning
-      const state = loadChangeState(root, changeName);
+      if (status.lastEvaluation?.next_focus) {
+        console.log('');
+        tip(status.lastEvaluation.next_focus);
+      }
+
+      // Stagnation warning with recovery
       if (state?.loop_state && detectStagnation(state.loop_state)) {
-        console.log('\n  ⚠ Stagnation detected: no progress in recent rounds.');
+        console.log('');
+        warn('Stagnation detected: no progress in recent rounds.');
+        tip('Try changing approach or extend rounds with: mumuspec loop extend <n>');
       }
 
       // Recommendation
       if (state?.loop_state) {
         const rec = getLoopRecommendation(state.loop_state);
         if (rec) {
-          console.log(`\n  💡 ${rec}`);
+          console.log('');
+          tip(rec);
         }
       }
       console.log('');
