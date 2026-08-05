@@ -386,6 +386,8 @@ export function getWorkflowPhases(workflow: Workflow): ChangePhase[] {
       return ['open', 'build', 'verify', 'archive-in-progress', 'archive-completed'];
     case 'tweak':
       return ['open', 'build', 'verify', 'archive-in-progress', 'archive-completed'];
+    case 'loop':
+      return ['build', 'verify', 'archive-in-progress', 'archive-completed'];
     case 'full':
       return ['open', 'design', 'build', 'verify', 'archive-in-progress', 'archive-completed'];
   }

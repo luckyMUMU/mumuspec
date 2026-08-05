@@ -1,7 +1,20 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
-import type { SpecContext, SpecLayerContext, SpecIndex, IndexChildEntry, PrdFile, TechFile } from '../core/types.js';
-import { parseSpecFile } from './parser.js';
+import { join, relative, resolve, dirname, sep } from 'node:path';
+import type {
+  SpecContext,
+  SpecLayerContext,
+  SpecIndex,
+  IndexChildEntry,
+  PrdFile,
+  TechFile,
+  Requirement,
+  InheritanceConflictRef,
+} from '../core/types.js';
+import {
+  parseSpecFile,
+  parsePrdFile,
+  parseTechFile,
+} from './parser.js';
 import { parseFrontmatter } from '../core/utils.js';
 import { parse as parseYaml } from 'yaml';
 import type { MumuSpecConfig } from '../core/config.js';
@@ -38,18 +51,10 @@ export function loadSpecContext(
     if (existsSync(techPath)) {
       try {
         const content = readFileSync(techPath, 'utf8');
-        const { frontmatter, body } = parseFrontmatter<{ scope: string; layer: number }>(content);
-        const spec = parseSpecFile(content, techPath);
-        layer.tech = {
-          path: techPath,
-          scope: frontmatter?.scope || scope,
-          layer: frontmatter?.layer || level,
-          content: body,
-          requirements: spec.requirements,
-          architectureDecisions: [],
-        };
+        const tech = parseTechFile(content, techPath);
+        layer.tech = tech;
         // Collect prohibitions from tech.md
-        for (const req of spec.requirements) {
+        for (const req of tech.requirements) {
           prohibitions.push(...req.shallNot);
         }
       } catch {
@@ -77,15 +82,7 @@ export function loadSpecContext(
     if (existsSync(prdPath)) {
       try {
         const content = readFileSync(prdPath, 'utf8');
-        const { frontmatter, body } = parseFrontmatter<{ scope: string; layer: number }>(content);
-        layer.prd = {
-          path: prdPath,
-          scope: frontmatter?.scope || scope,
-          layer: frontmatter?.layer || level,
-          content: body,
-          userScenarios: [],
-          acceptanceCriteria: [],
-        };
+        layer.prd = parsePrdFile(content, prdPath);
       } catch {
         // Skip invalid prd.md
       }
@@ -123,12 +120,149 @@ export function loadSpecContext(
     }
   }
 
+  // Process inheritance if parent_prd / parent_tech references exist
+  const conflicts = processInheritance(layers, projectRoot);
+
   return {
     targetPath,
     layers,
     prohibitions: [...new Set(prohibitions)],
     index,
+    inheritance_conflicts: conflicts.length > 0 ? conflicts : undefined,
   };
+}
+
+/**
+ * Process parent inheritance for layers with parent_prd / parent_tech references.
+ * Merges parent requirements into child and detects conflicts.
+ */
+function processInheritance(
+  layers: SpecLayerContext[],
+  _projectRoot: string,
+): InheritanceConflictRef[] {
+  const conflicts: InheritanceConflictRef[] = [];
+
+  for (const layer of layers) {
+    if (layer.tech?.path) {
+      // Read parent_tech from frontmatter
+      try {
+        const content = readFileSync(layer.tech.path, 'utf8');
+        const { frontmatter } = parseFrontmatter<{ parent_tech?: string }>(content);
+        if (frontmatter?.parent_tech) {
+          const parentPath = resolve(dirname(layer.tech.path), frontmatter.parent_tech);
+          if (existsSync(parentPath)) {
+            try {
+              const parentContent = readFileSync(parentPath, 'utf8');
+              const parentTech = parseTechFile(parentContent, parentPath);
+              // Merge parent requirements into child
+              const mergedReqs = mergeRequirements(layer.tech.requirements, parentTech.requirements);
+              layer.tech.inherited_requirements = parentTech.requirements;
+              layer.tech.requirements = mergedReqs;
+              layer.merged = true;
+              layer.inherited_from = [parentPath];
+
+              // Check for conflicts
+              const layerConflicts = detectRequirementConflicts(
+                parentTech.requirements,
+                layer.tech.requirements,
+                layer.tech.path,
+                parentPath,
+              );
+              conflicts.push(...layerConflicts);
+            } catch {
+              // Skip invalid parent
+            }
+          }
+        }
+      } catch {
+        // Skip
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+/**
+ * Detect SHALL NOT vs SHALL conflicts between parent and child requirements.
+ */
+function detectRequirementConflicts(
+  parentReqs: Requirement[],
+  childReqs: Requirement[],
+  childPath: string,
+  parentPath: string,
+): InheritanceConflictRef[] {
+  const conflicts: InheritanceConflictRef[] = [];
+
+  // Collect all parent SHALLs
+  for (const pReq of parentReqs) {
+    for (const shall of pReq.shall) {
+      // Check if any child SHALL NOT conflicts
+      for (const cReq of childReqs) {
+        for (const shallNot of cReq.shallNot) {
+          if (isPotentiallyConflicting(shall, shallNot)) {
+            conflicts.push({
+              type: 'shall-not-vs-parent-shall',
+              child_path: childPath,
+              parent_path: parentPath,
+              child_requirement: `${cReq.name}: ${shallNot}`,
+              parent_requirement: `${pReq.name}: ${shall}`,
+              message: `"${shallNot}" conflicts with parent "${shall}"`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+/**
+ * Simple heuristic to detect potential parent-child constraint conflicts.
+ */
+function isPotentiallyConflicting(shall: string, shallNot: string): boolean {
+  const shallLower = shall.toLowerCase();
+  const shallNotLower = shallNot.toLowerCase();
+
+  // Must have conflicting polarities
+  const hasPositive = /must|必须|shall|应该/.test(shallLower);
+  const hasNegative = /not|禁止|不得|不可/.test(shallNotLower);
+  if (!(hasPositive && hasNegative)) return false;
+
+  // Check for significant term overlap
+  const shallTerms = shallLower.split(/[\s,，。.]+/).filter(w => w.length > 2);
+  const shallNotTerms = shallNotLower.split(/[\s,，。.]+/).filter(w => w.length > 2);
+  const sharedTerms = shallTerms.filter(t => shallNotTerms.includes(t));
+
+  return sharedTerms.length >= 2;
+}
+
+/**
+ * Merge parent requirements into child, avoiding duplicates.
+ */
+function mergeRequirements(child: Requirement[], parent: Requirement[]): Requirement[] {
+  const merged = child.map(r => ({ ...r, shall: [...r.shall], shallNot: [...r.shallNot], enforcement: [...r.enforcement] }));
+
+  for (const pReq of parent) {
+    const existing = merged.find(r => r.name === pReq.name);
+    if (existing) {
+      // Add parent items not already present
+      for (const shall of pReq.shall) {
+        if (!existing.shall.includes(shall)) existing.shall.push(shall);
+      }
+      for (const shallNot of pReq.shallNot) {
+        if (!existing.shallNot.includes(shallNot)) existing.shallNot.push(shallNot);
+      }
+      for (const enf of pReq.enforcement) {
+        if (!existing.enforcement.some(e => e.id === enf.id)) existing.enforcement.push(enf);
+      }
+    } else {
+      merged.push({ ...pReq, shall: [...pReq.shall], shallNot: [...pReq.shallNot], enforcement: [...pReq.enforcement] });
+    }
+  }
+
+  return merged;
 }
 
 /** Build the path chain from project root to target directory */
@@ -251,10 +385,10 @@ export function buildIndex(
       if (existsSync(childTechPath)) {
         try {
           const content = readFileSync(childTechPath, 'utf8');
-          const spec = parseSpecFile(content, childTechPath);
-          const firstReq = spec.requirements[0];
+          const tech = parseTechFile(content, childTechPath);
+          const firstReq = tech.requirements[0];
           techSummary = firstReq?.name || entry.name;
-          constraintCount = spec.requirements.reduce((sum: number, r) => sum + r.shallNot.length + r.shall.length, 0);
+          constraintCount = tech.requirements.reduce((sum: number, r) => sum + r.shallNot.length + r.shall.length, 0);
         } catch {
           techSummary = entry.name;
         }
@@ -312,15 +446,7 @@ export function loadPrd(targetPath: string, _projectRoot: string): PrdFile | und
   }
   try {
     const content = readFileSync(prdPath, 'utf8');
-    const { frontmatter, body } = parseFrontmatter<{ scope: string; layer: number }>(content);
-    return {
-      path: prdPath,
-      scope: frontmatter?.scope || '.',
-      layer: frontmatter?.layer || 0,
-      content: body,
-      userScenarios: [],
-      acceptanceCriteria: [],
-    };
+    return parsePrdFile(content, prdPath);
   } catch {
     return undefined;
   }
@@ -351,16 +477,7 @@ export function loadTech(targetPath: string, _projectRoot: string): TechFile | u
   }
   try {
     const content = readFileSync(techPath, 'utf8');
-    const { frontmatter, body } = parseFrontmatter<{ scope: string; layer: number }>(content);
-    const spec = parseSpecFile(content, techPath);
-    return {
-      path: techPath,
-      scope: frontmatter?.scope || '.',
-      layer: frontmatter?.layer || 0,
-      content: body,
-      requirements: spec.requirements,
-      architectureDecisions: [],
-    };
+    return parseTechFile(content, techPath);
   } catch {
     return undefined;
   }
@@ -466,4 +583,88 @@ export function getProhibitions(
   }
 
   return results;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Distributed Spec V2 — Utility Exports
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * Find all directories containing .mumuspec/ with spec.md, prd.md, or tech.md.
+ * Returns entries sorted bottom-up (deepest first).
+ */
+export function findAllDistributedSpecDirs(
+  root: string,
+): { dir: string; files: string[] }[] {
+  const result: { dir: string; files: string[]; depth: number }[] = [];
+
+  function walk(dir: string, depth: number): void {
+    try {
+      const mumuDir = join(dir, '.mumuspec');
+      if (existsSync(mumuDir)) {
+        const specFiles = ['spec.md', 'prd.md', 'tech.md'].filter(f =>
+          existsSync(join(mumuDir, f))
+        );
+        if (specFiles.length > 0) {
+          result.push({ dir, files: specFiles, depth });
+        }
+      }
+
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (
+          entry.isDirectory() &&
+          !entry.name.startsWith('.') &&
+          entry.name !== 'node_modules'
+        ) {
+          walk(join(dir, entry.name), depth + 1);
+        }
+      }
+    } catch {
+      // Skip
+    }
+  }
+
+  walk(root, 0);
+  // Sort deepest first
+  result.sort((a, b) => b.depth - a.depth);
+  return result.map(({ dir, files }) => ({ dir, files }));
+}
+
+/**
+ * Merge parent and child TechFiles.
+ * Child inherits parent's requirements and architectureDecisions.
+ */
+export function mergeTechFiles(parent: TechFile, child: TechFile): TechFile {
+  const mergedReqs = mergeRequirements(child.requirements, parent.requirements);
+  const mergedArch = [...child.architectureDecisions];
+  for (const d of parent.architectureDecisions) {
+    if (!mergedArch.includes(d)) mergedArch.push(d);
+  }
+  return {
+    ...child,
+    requirements: mergedReqs,
+    architectureDecisions: mergedArch,
+    inherited_requirements: parent.requirements,
+  };
+}
+
+/**
+ * Merge parent and child PrdFiles.
+ * Child inherits parent's userScenarios and acceptanceCriteria.
+ */
+export function mergePrdFiles(parent: PrdFile, child: PrdFile): PrdFile {
+  const mergedScenarios = [...child.userScenarios];
+  for (const s of parent.userScenarios) {
+    if (!mergedScenarios.includes(s)) mergedScenarios.push(s);
+  }
+  const mergedCriteria = [...child.acceptanceCriteria];
+  for (const c of parent.acceptanceCriteria) {
+    if (!mergedCriteria.includes(c)) mergedCriteria.push(c);
+  }
+  return {
+    ...child,
+    userScenarios: mergedScenarios,
+    acceptanceCriteria: mergedCriteria,
+  };
 }

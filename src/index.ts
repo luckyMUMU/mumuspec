@@ -29,6 +29,9 @@ export * from './guard/phase-guard.js';
 // Knowledge Layer
 export * from './knowledge/manager.js';
 
+// Contract Layer
+export * from './contract/index.js';
+
 // Rules
 export * from './rules/generator.js';
 

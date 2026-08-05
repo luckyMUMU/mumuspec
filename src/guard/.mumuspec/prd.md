@@ -1,6 +1,7 @@
 ---
 scope: src/guard
 layer: 2
+last_updated: '2026-08-04'
 ---
 
 # Product Requirements: guard

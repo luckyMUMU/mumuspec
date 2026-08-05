@@ -1,6 +1,6 @@
 {
   "name": "mumuspec",
-  "version": "0.15.0-beta.2",
+  "version": "0.16.0",
   "description": "MumuSpec — Tree-distributed dual-constraint specification system for AI-assisted development",
   "type": "module",
   "main": "dist/index.js",
@@ -77,7 +77,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "commander": "^13.1.0",
     "yaml": "^2.8.0"
   },

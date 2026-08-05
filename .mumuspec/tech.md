@@ -1,7 +1,7 @@
 ---
 scope: .
 layer: 0
-last_updated: "2026-08-02"
+last_updated: '2026-08-04'
 ---
 
 # 技术概览: MumuSpec

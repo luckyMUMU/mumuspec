@@ -1,4 +1,13 @@
-import type { SpecFile, SpecFrontmatter, Requirement, EnforcementRule } from '../core/types.js';
+import type {
+  SpecFile,
+  SpecFrontmatter,
+  PrdFile,
+  TechFile,
+  PrdFrontmatter,
+  TechFrontmatter,
+  Requirement,
+  EnforcementRule,
+} from '../core/types.js';
 import { parseFrontmatter } from '../core/utils.js';
 import { MumuSpecError } from '../core/errors.js';
 
@@ -199,4 +208,281 @@ export function createDefaultSpecContent(layer: number, scope: string): string {
   };
 
   return serializeSpecFile(spec);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PRD / Tech document parsing (Distributed Spec V2)
+// ════════════════════════════════════════════════════════════════════
+
+/** Parse a prd.md file into structured PrdFile */
+export function parsePrdFile(content: string, filePath: string): PrdFile {
+  const { frontmatter, body } = parseFrontmatter<PrdFrontmatter>(content);
+
+  if (!frontmatter) {
+    throw new MumuSpecError('E-SPEC-008', { file: filePath, detail: 'Missing YAML frontmatter' });
+  }
+
+  if (typeof frontmatter.layer !== 'number' || typeof frontmatter.scope !== 'string') {
+    throw new MumuSpecError('E-SPEC-008', {
+      file: filePath,
+      detail: 'prd.md frontmatter must have numeric "layer" and string "scope" fields',
+    });
+  }
+
+  if (!frontmatter.last_updated) {
+    frontmatter.last_updated = new Date().toISOString().split('T')[0];
+  }
+
+  // PRD documents use standard ## Requirement: format for structured constraints
+  const requirements = parseRequirements(body);
+
+  // Extract user scenarios and acceptance criteria from requirements
+  const userScenarios: string[] = [];
+  const acceptanceCriteria: string[] = [];
+
+  for (const req of requirements) {
+    if (/scenario|场景|用户/.test(req.name)) {
+      userScenarios.push(...req.shall);
+    }
+    if (/criteria|验收|acceptance/.test(req.name)) {
+      acceptanceCriteria.push(...req.shall);
+    }
+  }
+
+  return {
+    path: filePath,
+    scope: frontmatter.scope,
+    layer: frontmatter.layer,
+    content: body,
+    userScenarios,
+    acceptanceCriteria,
+  };
+}
+
+/** Parse a tech.md file into structured TechFile */
+export function parseTechFile(content: string, filePath: string): TechFile {
+  const { frontmatter, body } = parseFrontmatter<TechFrontmatter>(content);
+
+  if (!frontmatter) {
+    throw new MumuSpecError('E-SPEC-009', { file: filePath, detail: 'Missing YAML frontmatter' });
+  }
+
+  if (typeof frontmatter.layer !== 'number' || typeof frontmatter.scope !== 'string') {
+    throw new MumuSpecError('E-SPEC-009', {
+      file: filePath,
+      detail: 'tech.md frontmatter must have numeric "layer" and string "scope" fields',
+    });
+  }
+
+  if (!frontmatter.last_updated) {
+    frontmatter.last_updated = new Date().toISOString().split('T')[0];
+  }
+
+  // Tech documents use standard ## Requirement: format for structured constraints
+  const requirements = parseRequirements(body);
+
+  // Extract architecture decisions from architecture-related requirements
+  const architectureDecisions: string[] = [];
+  for (const req of requirements) {
+    if (/architecture|架构|design/.test(req.name)) {
+      architectureDecisions.push(...req.shall);
+    }
+  }
+
+  return {
+    path: filePath,
+    scope: frontmatter.scope,
+    layer: frontmatter.layer,
+    content: body,
+    requirements,
+    architectureDecisions,
+  };
+}
+
+/** Serialize a PrdFile back to markdown */
+export function serializePrdFile(prd: PrdFile): string {
+  const lines: string[] = [];
+
+  lines.push('---');
+  lines.push(`layer: ${prd.layer}`);
+  lines.push(`scope: "${prd.scope}"`);
+  lines.push(`last_updated: "${new Date().toISOString().split('T')[0]}"`);
+  lines.push('doc_type: prd');
+  lines.push('---');
+  lines.push('');
+
+  // Reconstruct requirements as standard blocks
+  if (prd.userScenarios.length > 0) {
+    lines.push('## Requirement: User Scenarios');
+    lines.push('');
+    lines.push('### SHALL');
+    for (const s of prd.userScenarios) {
+      lines.push(`- ${s}`);
+    }
+    lines.push('');
+  }
+
+  if (prd.acceptanceCriteria.length > 0) {
+    lines.push('## Requirement: Acceptance Criteria');
+    lines.push('');
+    lines.push('### SHALL');
+    for (const c of prd.acceptanceCriteria) {
+      lines.push(`- ${c}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/** Serialize a TechFile back to markdown */
+export function serializeTechFile(tech: TechFile): string {
+  const lines: string[] = [];
+
+  lines.push('---');
+  lines.push(`layer: ${tech.layer}`);
+  lines.push(`scope: "${tech.scope}"`);
+  lines.push(`last_updated: "${new Date().toISOString().split('T')[0]}"`);
+  lines.push('doc_type: tech');
+  lines.push('---');
+  lines.push('');
+
+  for (const req of tech.requirements) {
+    lines.push(`## Requirement: ${req.name}`);
+    lines.push('');
+
+    if (req.shall.length > 0) {
+      lines.push('### SHALL');
+      for (const s of req.shall) {
+        lines.push(`- ${s}`);
+      }
+      lines.push('');
+    }
+
+    if (req.shallNot.length > 0) {
+      lines.push('### SHALL NOT');
+      for (const s of req.shallNot) {
+        lines.push(`- ${s}`);
+      }
+      lines.push('');
+    }
+
+    if (req.should && req.should.length > 0) {
+      lines.push('### SHOULD');
+      for (const s of req.should) {
+        lines.push(`- ${s}`);
+      }
+      lines.push('');
+    }
+
+    if (req.enforcement.length > 0) {
+      lines.push('### Enforcement');
+      for (const e of req.enforcement) {
+        lines.push(`- ${e.id}: ${e.description}`);
+      }
+      lines.push('');
+    }
+  }
+
+  // Append inherited requirements
+  if (tech.inherited_requirements && tech.inherited_requirements.length > 0) {
+    lines.push('## Requirement: Inherited from Parent');
+    lines.push('');
+    for (const req of tech.inherited_requirements) {
+      lines.push(`### From: ${req.name}`);
+      if (req.shall.length > 0) {
+        lines.push('#### SHALL');
+        for (const s of req.shall) {
+          lines.push(`- ${s}`);
+        }
+      }
+      if (req.shallNot.length > 0) {
+        lines.push('#### SHALL NOT');
+        for (const s of req.shallNot) {
+          lines.push(`- ${s}`);
+        }
+      }
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/** Create a default prd.md content with standard Requirement blocks */
+export function createDefaultPrdContent(layer: number, scope: string, change?: string): string {
+  const lines: string[] = [];
+
+  lines.push('---');
+  lines.push(`layer: ${layer}`);
+  lines.push(`scope: "${scope}"`);
+  lines.push(`last_updated: "${new Date().toISOString().split('T')[0]}"`);
+  lines.push('doc_type: prd');
+  if (change) {
+    lines.push(`change: ${change}`);
+  }
+  lines.push('---');
+  lines.push('');
+
+  lines.push('## Requirement: Feature Goals');
+  lines.push('');
+  lines.push('### SHALL');
+  lines.push('- <Describe product/feature goals>');
+  lines.push('');
+  lines.push('### SHALL NOT');
+  lines.push('- <Describe forbidden behaviors or out-of-scope items>');
+  lines.push('');
+  lines.push('## Requirement: User Scenarios');
+  lines.push('');
+  lines.push('### SHALL');
+  lines.push('- <Describe user-facing scenarios this feature addresses>');
+  lines.push('');
+  lines.push('## Requirement: Acceptance Criteria');
+  lines.push('');
+  lines.push('### SHALL');
+  lines.push('- <Describe measurable acceptance criteria>');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/** Create a default tech.md content with standard Requirement blocks */
+export function createDefaultTechContent(
+  layer: number,
+  scope: string,
+  change?: string,
+  phase?: 'design' | 'build' | 'verify',
+): string {
+  const lines: string[] = [];
+
+  lines.push('---');
+  lines.push(`layer: ${layer}`);
+  lines.push(`scope: "${scope}"`);
+  lines.push(`last_updated: "${new Date().toISOString().split('T')[0]}"`);
+  lines.push('doc_type: tech');
+  if (change) {
+    lines.push(`change: ${change}`);
+  }
+  if (phase) {
+    lines.push(`phase: ${phase}`);
+  }
+  lines.push('---');
+  lines.push('');
+
+  lines.push('## Requirement: <Domain Name> Constraints');
+  lines.push('');
+  lines.push('### SHALL');
+  lines.push('- <Describe mandatory technical constraints>');
+  lines.push('');
+  lines.push('### SHALL NOT');
+  lines.push('- <Describe forbidden technical practices>');
+  lines.push('');
+  lines.push('### SHOULD');
+  lines.push('- <Describe recommended practices>');
+  lines.push('');
+  lines.push('### Enforcement');
+  lines.push('- <ID>: <Enforcement description>');
+  lines.push('');
+
+  return lines.join('\n');
 }

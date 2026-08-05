@@ -7,6 +7,7 @@
  * - types-knowledge: knowledge pages, cognitive maps, page indices, feedback
  * - types-analysis: impact analysis, coverage, chat, dashboard, MCP, audit
  * - types-env: environment detection and tool spec
+ * - types-contract: contract registry, boundary docs, drift detection
  *
  * All imports from this file remain fully backward compatible.
  */
@@ -17,3 +18,4 @@ export * from './types-workflow.js';
 export * from './types-knowledge.js';
 export * from './types-analysis.js';
 export * from './types-env.js';
+export * from './types-contract.js';

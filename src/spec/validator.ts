@@ -1,10 +1,15 @@
 import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import type { SpecFile, GuardResult } from '../core/types.js';
-import { parseSpecFile } from './parser.js';
+import { parseSpecFile, parsePrdFile, parseTechFile } from './parser.js';
 import { checkInheritanceConflicts } from './inheritance.js';
 import type { MumuSpecConfig } from '../core/config.js';
 import { readText } from '../core/utils.js';
+
+/** Distributed spec file types for validation */
+const DISTRIBUTED_SPEC_FILES = ['spec.md', 'prd.md', 'tech.md'] as const;
+
+type DistSpecFile = typeof DISTRIBUTED_SPEC_FILES[number];
 
 /** Validate all spec files in the project */
 export function validateAllSpecs(
@@ -16,61 +21,33 @@ export function validateAllSpecs(
 
   const specDirs = findAllSpecDirs(projectRoot);
 
-  // Check max layer depth
+  // Collect all distributed spec file paths
+  const allSpecFiles: { dir: string; file: DistSpecFile; path: string }[] = [];
   for (const dirPath of specDirs) {
-    const specPath = join(dirPath, '.mumuspec', 'spec.md');
-    if (!existsSync(specPath)) continue;
-
-    try {
-      const content = readText(specPath);
-      if (!content) continue;
-
-      const spec = parseSpecFile(content, specPath);
-
-      // Check layer depth
-      if (spec.frontmatter.layer > config.specs.max_layer_depth) {
-        errors.push({
-          code: 'E-SPEC-002',
-          message: `Directory ${dirPath} exceeds max_layer_depth (${spec.frontmatter.layer} > ${config.specs.max_layer_depth})`,
-          detail: specPath,
-        });
+    for (const fileName of DISTRIBUTED_SPEC_FILES) {
+      const filePath = join(dirPath, '.mumuspec', fileName);
+      if (existsSync(filePath)) {
+        allSpecFiles.push({ dir: dirPath, file: fileName, path: filePath });
       }
+    }
+  }
 
-      // Check for design.md if required
-      if (config.specs.require_design_doc) {
-        const designPath = join(dirPath, '.mumuspec', 'design.md');
-        if (!existsSync(designPath)) {
-          errors.push({
-            code: 'E-SPEC-006',
-            message: `Missing design.md in ${dirPath}`,
-            detail: designPath,
-          });
-        }
-      }
-
-      // Check for enforcement on SHALL/SHALL NOT
-      for (const req of spec.requirements) {
-        const hasConstraints = req.shall.length > 0 || req.shallNot.length > 0;
-        const hasEnforcement = req.enforcement.length > 0;
-        if (hasConstraints && !hasEnforcement) {
-          warnings.push({
-            code: 'E-SPEC-004',
-            message: `Requirement "${req.name}" has constraints but no Enforcement`,
-            detail: specPath,
-          });
-        }
-      }
-    } catch (err) {
-      errors.push({
-        code: 'E-SPEC-001',
-        message: `Invalid spec.md: ${(err as Error).message}`,
-        detail: specPath,
-      });
+  // Validate each spec file based on its type
+  for (const { dir, file, path: specPath } of allSpecFiles) {
+    if (file === 'spec.md') {
+      validateSpecMd(specPath, dir, config, errors, warnings);
+    } else if (file === 'prd.md') {
+      validatePrdFile(specPath, dir, errors, warnings);
+    } else if (file === 'tech.md') {
+      validateTechFile(specPath, dir, errors, warnings);
     }
   }
 
   // Check inheritance conflicts
   checkAllInheritance(specDirs, errors);
+
+  // Check parent_prd/parent_tech references
+  checkParentReferences(allSpecFiles, errors);
 
   // Check index.yaml freshness
   for (const dirPath of specDirs) {
@@ -89,6 +66,62 @@ export function validateAllSpecs(
     errors,
     warnings,
   };
+}
+
+/** Validate a spec.md file (original format) */
+function validateSpecMd(
+  specPath: string,
+  dirPath: string,
+  config: MumuSpecConfig,
+  errors: { code: string; message: string; detail?: string }[],
+  warnings: { code: string; message: string; detail?: string }[],
+): void {
+  try {
+    const content = readText(specPath);
+    if (!content) return;
+
+    const spec = parseSpecFile(content, specPath);
+
+    // Check layer depth
+    if (spec.frontmatter.layer > config.specs.max_layer_depth) {
+      errors.push({
+        code: 'E-SPEC-002',
+        message: `Directory ${dirPath} exceeds max_layer_depth (${spec.frontmatter.layer} > ${config.specs.max_layer_depth})`,
+        detail: specPath,
+      });
+    }
+
+    // Check for design.md if required
+    if (config.specs.require_design_doc) {
+      const designPath = join(dirPath, '.mumuspec', 'design.md');
+      if (!existsSync(designPath)) {
+        errors.push({
+          code: 'E-SPEC-006',
+          message: `Missing design.md in ${dirPath}`,
+          detail: designPath,
+        });
+      }
+    }
+
+    // Check for enforcement on SHALL/SHALL NOT
+    for (const req of spec.requirements) {
+      const hasConstraints = req.shall.length > 0 || req.shallNot.length > 0;
+      const hasEnforcement = req.enforcement.length > 0;
+      if (hasConstraints && !hasEnforcement) {
+        warnings.push({
+          code: 'E-SPEC-004',
+          message: `Requirement "${req.name}" has constraints but no Enforcement`,
+          detail: specPath,
+        });
+      }
+    }
+  } catch (err) {
+    errors.push({
+      code: 'E-SPEC-001',
+      message: `Invalid spec.md: ${(err as Error).message}`,
+      detail: specPath,
+    });
+  }
 }
 
 /** Validate a single spec file */
@@ -260,4 +293,163 @@ function getActualChildSpecDirs(dirPath: string): string[] {
     // Ignore
   }
   return results;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Distributed Spec V2 Validation
+// ════════════════════════════════════════════════════════════════════
+
+/** Check if a prd.md uses V2 format (has doc_type: prd in frontmatter) */
+function isV2Prd(content: string): boolean {
+  const match = content.match(/^doc_type:\s*prd/m);
+  return !!match;
+}
+
+/** Validate a prd.md file (only strict-checks V2-format files) */
+function validatePrdFile(
+  prdPath: string,
+  _dirPath: string,
+  errors: { code: string; message: string; detail?: string }[],
+  warnings: { code: string; message: string; detail?: string }[],
+): void {
+  try {
+    const content = readText(prdPath);
+    if (!content) {
+      warnings.push({ code: 'E-SPEC-008', message: 'prd.md is empty', detail: prdPath });
+      return;
+    }
+
+    // Only strict-validate V2-format prd.md (with doc_type: prd in frontmatter)
+    // Old format (without doc_type) is grandfathered in for backward compatibility
+    if (!isV2Prd(content)) {
+      return;
+    }
+
+    const prd = parsePrdFile(content, prdPath);
+
+    // Check for requirements (warn if none)
+    const reqBlockCount = (content.match(/^##\s+Requirement:/gm) || []).length;
+    if (reqBlockCount === 0) {
+      warnings.push({
+        code: 'E-SPEC-011',
+        message: 'prd.md has no ## Requirement: blocks — constraints may not be machine-checkable',
+        detail: prdPath,
+      });
+    }
+
+    // Check frontmatter currency
+    if (prd.layer == null || prd.layer < 0) {
+      errors.push({
+        code: 'E-SPEC-008',
+        message: 'prd.md has invalid layer in frontmatter',
+        detail: prdPath,
+      });
+    }
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    errors.push({
+      code: 'E-SPEC-008',
+      message: `Invalid prd.md: ${errMsg}`,
+      detail: prdPath,
+    });
+  }
+}
+
+/** Validate a tech.md file (only strict-checks V2-format files) */
+function validateTechFile(
+  techPath: string,
+  _dirPath: string,
+  errors: { code: string; message: string; detail?: string }[],
+  warnings: { code: string; message: string; detail?: string }[],
+): void {
+  try {
+    const content = readText(techPath);
+    if (!content) {
+      warnings.push({ code: 'E-SPEC-009', message: 'tech.md is empty', detail: techPath });
+      return;
+    }
+
+    // Only strict-validate V2-format tech.md (with doc_type: tech in frontmatter)
+    const isV2Tech = /^doc_type:\s*tech/m.test(content);
+    if (!isV2Tech) {
+      return;
+    }
+
+    const tech = parseTechFile(content, techPath);
+
+    // Check enforcement on SHALL/SHALL NOT (similar to spec.md)
+    for (const req of tech.requirements) {
+      const hasConstraints = req.shall.length > 0 || req.shallNot.length > 0;
+      const hasEnforcement = req.enforcement.length > 0;
+      if (hasConstraints && !hasEnforcement) {
+        warnings.push({
+          code: 'E-SPEC-004',
+          message: `Requirement "${req.name}" has constraints but no Enforcement`,
+          detail: techPath,
+        });
+      }
+    }
+
+    // Warn if no Requirement blocks at all
+    const reqBlockCount = (content.match(/^##\s+Requirement:/gm) || []).length;
+    if (reqBlockCount === 0) {
+      warnings.push({
+        code: 'E-SPEC-011',
+        message: 'tech.md has no ## Requirement: blocks — constraints may not be machine-checkable',
+        detail: techPath,
+      });
+    }
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    errors.push({
+      code: 'E-SPEC-009',
+      message: `Invalid tech.md: ${errMsg}`,
+      detail: techPath,
+    });
+  }
+}
+
+/**
+ * Check that parent_prd / parent_tech references in tech.md / prd.md
+ * point to existing files. Reports E-SPEC-010 if not.
+ */
+function checkParentReferences(
+  allSpecFiles: { dir: string; file: DistSpecFile; path: string }[],
+  errors: { code: string; message: string; detail?: string }[],
+): void {
+  for (const { file, path: specPath } of allSpecFiles) {
+    if (file !== 'prd.md' && file !== 'tech.md') continue;
+
+    try {
+      const content = readText(specPath);
+      if (!content) continue;
+
+      const parentPrdMatch = content.match(/^parent_prd:\s*["']?([^"'\n]+)["']?$/m);
+      const parentTechMatch = content.match(/^parent_tech:\s*["']?([^"'\n]+)["']?$/m);
+
+      if (parentPrdMatch) {
+        const parentPath = resolve(dirname(specPath), parentPrdMatch[1].trim());
+        if (!existsSync(parentPath)) {
+          errors.push({
+            code: 'E-SPEC-010',
+            message: `parent_prd "${parentPrdMatch[1].trim()}" not found (resolved: ${parentPath})`,
+            detail: specPath,
+          });
+        }
+      }
+
+      if (parentTechMatch) {
+        const parentPath = resolve(dirname(specPath), parentTechMatch[1].trim());
+        if (!existsSync(parentPath)) {
+          errors.push({
+            code: 'E-SPEC-010',
+            message: `parent_tech "${parentTechMatch[1].trim()}" not found (resolved: ${parentPath})`,
+            detail: specPath,
+          });
+        }
+      }
+    } catch {
+      // Skip unreadable files
+    }
+  }
 }

@@ -1,7 +1,8 @@
 ---
 scope: .
 layer: 0
-last_updated: "2026-08-02"
+type: environment
+last_updated: "2026-08-04"
 ---
 
 # 环境规范: MumuSpec

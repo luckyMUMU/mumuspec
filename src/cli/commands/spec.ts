@@ -1,5 +1,5 @@
 /**
- * spec commands — context, add-spec, validate, check, drift, search.
+ * spec commands — context, add-spec, validate, check, drift, search, sync-specs.
  */
 import type { Command } from 'commander';
 import { existsSync } from 'node:fs';
@@ -8,10 +8,18 @@ import type { SpecFile, Requirement } from '../../core/types.js';
 import { findProjectRoot, ensureDir, writeText, readText, now } from '../../core/utils.js';
 import { loadConfig } from '../../core/config.js';
 import { formatError } from '../../core/errors.js';
-import { createDefaultSpecContent, parseSpecFile, serializeSpecFile } from '../../spec/parser.js';
-import { loadSpecContext, searchSpecs } from '../../spec/loader.js';
+import {
+  createDefaultSpecContent,
+  createDefaultPrdContent,
+  createDefaultTechContent,
+  parseSpecFile,
+  serializeSpecFile,
+  parsePrdFile,
+  parseTechFile,
+} from '../../spec/parser.js';
+import { loadSpecContext, searchSpecs, findAllDistributedSpecDirs } from '../../spec/loader.js';
 import { validateAllSpecs } from '../../spec/validator.js';
-import { checkCompliance, detectDrift } from '../../guard/checker.js';
+import { checkCompliance, detectDrift, autoFixDrift } from '../../guard/checker.js';
 
 export function registerSpecCommands(program: Command): void {
   // === context ===
@@ -242,6 +250,8 @@ export function registerSpecCommands(program: Command): void {
     .command('drift')
     .description('Detect drift between specs and code')
     .option('--json', 'output as JSON')
+    .option('--fix', 'auto-fix safe drift issues')
+    .option('--dry-run', 'preview fixes without applying (use with --fix)')
     .action((options) => {
       const root = findProjectRoot();
       if (!root) {
@@ -249,9 +259,24 @@ export function registerSpecCommands(program: Command): void {
         process.exit(1);
       }
 
-      const results = detectDrift(root);
+      let results = detectDrift(root);
 
-      if (options.json) {
+      if (options.fix) {
+        const fixResult = autoFixDrift(root, results, options.dryRun);
+        results = fixResult.remaining;
+
+        if (options.json) {
+          console.log(JSON.stringify({ fixed: fixResult.fixed, remaining: fixResult.remaining }, null, 2));
+          return;
+        }
+
+        if (fixResult.fixed.length > 0) {
+          console.log(`${options.dryRun ? '[DRY-RUN] Would fix' : 'Fixed'} ${fixResult.fixed.length} drift(s):`);
+          for (const f of fixResult.fixed) {
+            console.log(`  ✓ [${f.type}] ${f.message}${f.file ? ' → ' + f.file : ''}`);
+          }
+        }
+      } else if (options.json) {
         console.log(JSON.stringify(results, null, 2));
         return;
       }
@@ -264,7 +289,10 @@ export function registerSpecCommands(program: Command): void {
           const icon = drift.severity === 'ERROR' ? '✗' : '⚠';
           console.log(`  ${icon} [${drift.type}] ${drift.message}`);
           if (drift.file) console.log(`    File: ${drift.file}`);
+          if (drift.fixHint) console.log(`    Hint: ${drift.fixHint}`);
         }
+        console.log('\nRun `mumuspec drift --fix` to auto-fix safe issues.');
+        console.log('Run `mumuspec drift --fix --dry-run` to preview fixes.');
       }
     });
 
@@ -292,5 +320,85 @@ export function registerSpecCommands(program: Command): void {
         console.log(`  [${r.type}] ${r.requirement}: ${r.text}`);
         console.log(`    File: ${r.file}`);
       }
+    });
+
+  // === sync-specs ===
+  program
+    .command('sync-specs')
+    .description('Synchronize distributed spec files (validate formats, generate missing files)')
+    .option('--change <name>', 'only sync specs for a specific change')
+    .option('--fix', 'auto-fix missing frontmatter or format issues')
+    .option('--strict', 'treat warnings as errors')
+    .action((options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+
+      const dirs = findAllDistributedSpecDirs(root);
+      let fixed = 0;
+      let errors = 0;
+
+      for (const { dir, files } of dirs) {
+        const mumuDir = join(dir, '.mumuspec');
+
+        for (const file of files) {
+          const filePath = join(mumuDir, file);
+
+          // Try to parse each file with its appropriate parser
+          try {
+            const content = readText(filePath);
+            if (!content) continue;
+
+            if (file === 'prd.md') {
+              parsePrdFile(content, filePath);
+            } else if (file === 'tech.md') {
+              parseTechFile(content, filePath);
+            } else if (file === 'spec.md') {
+              parseSpecFile(content, filePath);
+            }
+
+            // Check for missing scope field
+            if (options.fix) {
+              if (/^---\n(?:.*\n)*?layer:\s*\d+\n(?!.*scope).*---/s.test(content)) {
+                // Frontmatter missing scope — auto-fix by inserting
+                const fixedContent = content.replace(
+                  /^(---\nlayer:\s*\d+\n)(last_updated:\s*["'][^"']*["']\n)?(---)/m,
+                  (_match, prefix, existingLastUpdated) => {
+                    const lastUpdated = existingLastUpdated || `last_updated: "${now().split('T')[0]}"\n`;
+                    return `${prefix}scope: "."\n${lastUpdated}---`;
+                  }
+                );
+                if (fixedContent !== content) {
+                  writeText(filePath, fixedContent);
+                  fixed++;
+                  console.log(`  Fixed: ${filePath} (added missing scope)`);
+                }
+              }
+            }
+          } catch (err) {
+            errors++;
+            console.error(`  ✗ ${filePath}: ${(err as Error).message}`);
+          }
+        }
+
+        // Optionally generate missing distributed spec files
+        if (options.fix && !files.includes('prd.md') && files.includes('tech.md')) {
+          const prdPath = join(mumuDir, 'prd.md');
+          writeText(prdPath, createDefaultPrdContent(1, dir === root ? '.' : dir));
+          fixed++;
+          console.log(`  Created: ${prdPath}`);
+        }
+        if (options.fix && !files.includes('tech.md') && files.includes('prd.md')) {
+          const techPath = join(mumuDir, 'tech.md');
+          writeText(techPath, createDefaultTechContent(1, dir === root ? '.' : dir));
+          fixed++;
+          console.log(`  Created: ${techPath}`);
+        }
+      }
+
+      console.log(`\n✓ Sync complete: ${fixed} fixed, ${errors} errors`);
+      if (errors > 0) process.exit(1);
     });
 }

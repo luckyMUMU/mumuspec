@@ -5,6 +5,19 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0-beta.0] - Unreleased
+
+### Added
+- 测试覆盖为 guard/checker.ts、spec/validator.ts 新增单元测试（checker.test.ts、validator.test.ts），覆盖 applyStrengthToGuardResult、checkCompliance、detectDrift、validateAllSpecs 等核心守卫逻辑。
+
+### Changed
+- 规范层一致性修复：34 个分布式 prd.md/tech.md 补充 last_updated 字段。
+- 契约层完整性修正：hooks/BOUNDARY.md、i18n/BOUNDARY.md 接口名与代码完全对齐；移除 core/BOUNDARY.md 中不存在的 migrateConfig 声明及虚假 contract/constants 依赖。
+- 架构层补全：新增 src/change/index.ts barrel re-export，符合 spec.md 结构规范。
+
+### Documentation
+- CHANGELOG 补录 DCG 状态机重构、Dashboard 子项目、monolithic 拆分归档三项遗漏变更。
+
 ## [0.15.0-beta.0] - 2026-08-01
 
 ### Added

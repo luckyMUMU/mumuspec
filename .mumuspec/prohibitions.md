@@ -1,5 +1,7 @@
 # Global Prohibitions
 
+> Last updated: 2026-08-04
+
 ## All Modules
 
 ### 运行时依赖

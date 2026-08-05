@@ -1,7 +1,7 @@
 ---
 layer: 0
 scope: "."
-last_updated: "2026-08-02"
+last_updated: "2026-08-04"
 ---
 
 ## Requirement: Ponytail 基础编码约束

@@ -1,6 +1,7 @@
 ---
 scope: src/skill-authoring
 layer: 2
+last_updated: '2026-08-04'
 ---
 
 # Technical Design: skill-authoring

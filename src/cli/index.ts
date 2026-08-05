@@ -4,7 +4,8 @@
  * Command modules are split across src/cli/commands/ for maintainability.
  */
 import { Command } from 'commander';
-import { resolve, join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { resolve, join, basename } from 'node:path';
 import { saveConfig, getDefaultConfig, isInitialized } from '../core/config.js';
 import { getMumuSpecDir, ensureDir, writeText, writeYaml, now, appendAuditLog } from '../core/utils.js';
 
@@ -15,6 +16,7 @@ import { injectPonytail } from '../spec/ponytail.js';
 // Project Analysis & Init Generation (0.13.0+)
 import { analyzeProject, type ProjectAnalysis } from '../core/project-analyzer.js';
 import { generateInitialSpec, generateInitialDesign, scaffoldKnowledgeBase, generateFrontendDesignMd, isFrontendProject, generateEnvKnowledgePage } from '../core/init-generator.js';
+import { generateGoalSpec, generateEnvSpec } from '../core/spec-scaffolder.js';
 // Document & Spec Importer (0.13.0+)
 import { detectExistingDocuments, detectThirdPartySpecs, importExistingDocuments, importThirdPartySpecs, generateImportIndex, type DetectedDocument, type DetectedSpec } from '../core/doc-importer.js';
 
@@ -45,6 +47,13 @@ import { registerSkillCommands } from './commands/skill.js';
 import { registerBundleCommands } from './commands/bundle.js';
 import { registerEnvCommands } from './commands/env.js';
 import { registerDoctorCommand } from './commands/doctor.js';
+import { registerRecommendCommand } from './commands/recommend.js';
+import { registerDecisionsCommand } from './commands/decisions.js';
+import { registerAdviseCommand } from './commands/advise.js';
+import { registerContractCommands } from './commands/contract.js';
+import { registerLoopCommands } from './commands/loop.js';
+import { registerSyncCommand } from './commands/sync.js';
+import { registerReviewCommand } from './commands/review.js';
 
 const program = new Command();
 
@@ -54,7 +63,7 @@ initLocale();
 program
   .name('mumuspec')
   .description('MumuSpec — Tree-distributed dual-constraint specification system')
-  .version('0.15.0-beta.2');
+  .version('0.16.0');
 
 // === init ===
 program
@@ -67,6 +76,7 @@ program
   .option('--skip-analysis', 'skip project analysis and use defaults')
   .option('--no-import', 'skip importing existing documents and third-party specs')
   .option('--force', 'overwrite existing prd.md and tech.md files')
+  .option('--distributed', 'use Distributed Spec V2 format (prd.md + tech.md with Requirement blocks)')
   .action(async (path, options) => {
     const projectRoot = resolve(path);
 
@@ -137,13 +147,22 @@ program
         specContent = serializeSpecFile(injected);
       }
     }
+    // ── Step 3: Create root spec.md (analysis-aware) — with overwrite protection ──
     const specPath = join(mumuDir, 'spec.md');
-    writeText(specPath, specContent);
+    if (options.force !== true && existsSync(specPath)) {
+      console.log(`⚠ Skipped spec.md (already exists, use --force to overwrite)`);
+    } else {
+      writeText(specPath, specContent);
+    }
 
-    // ── Step 4: Create root design.md (analysis-aware) ──
+    // ── Step 4: Create root design.md (analysis-aware) — with overwrite protection ──
     const designPath = join(mumuDir, 'design.md');
     const designContent = analysis ? generateInitialDesign(analysis) : `# Design: ${config.project.name}\n\n## Architecture Overview\n[Describe the overall architecture]\n\n## Key Decisions\n[Document key architectural decisions]\n`;
-    writeText(designPath, designContent);
+    if (options.force !== true && existsSync(designPath)) {
+      console.log(`⚠ Skipped design.md (already exists, use --force to overwrite)`);
+    } else {
+      writeText(designPath, designContent);
+    }
 
     // ── Step 4.5: Create root prd.md + tech.md (NEW) ──
     let prdFiles: string[] = [];
@@ -258,6 +277,21 @@ program
     // ── Step 11: Audit log ──
     appendAuditLog(mumuDir, { actor: 'user', action: 'init', result: 'success' });
 
+    // ── Step 12: Auto-sync (code → persistence) ──
+    // Sync ensures BOUNDARY.md and index.yaml match the actual codebase,
+    // serving as the entry point for both fresh init and old-version migration.
+    console.log('');
+    console.log('  ⟳ Syncing code state → persistent spec...');
+    const { executeSync } = await import('./commands/sync.js');
+    const syncResult = executeSync(projectRoot, { check: false, migrate: false });
+    console.log(`    ✓ Sync complete: ${syncResult.modulesScanned} modules, ${syncResult.indexAligned} aligned`);
+    if (syncResult.issues.length > 0) {
+      const warns = syncResult.issues.filter((i) => i.severity === 'warning');
+      if (warns.length > 0) {
+        console.log(`    ⚠ ${warns.length} sync warning(s) — run 'mumuspec sync --check' for details`);
+      }
+    }
+
     // ── Summary ──
     console.log('╔══════════════════════════════════════════════════════════╗');
     console.log('║  MumuSpec Initialized Successfully                      ║');
@@ -301,6 +335,44 @@ program
     if (config.ai.generate_rules) {
       console.log(`  ✓ Rules Files:   ${config.ai.rules_files.join(', ')}`);
     }
+
+    // Generate goal.md and env-spec.md if --distributed flag is set
+    // or if they don't already exist (for backward compatibility)
+    if (options.distributed) {
+      // goal.md
+      const goalPath = join(mumuDir, 'goal.md');
+      let goalCreated = false;
+      try {
+        if (!existsSync(goalPath)) {
+          writeText(goalPath, generateGoalSpec({
+            projectName: options.name || basename(projectRoot),
+          }));
+          goalCreated = true;
+        }
+      } catch {
+        // Best-effort
+      }
+
+      // env-spec.md
+      const envPath = join(mumuDir, 'env-spec.md');
+      let envCreated = false;
+      try {
+        if (!existsSync(envPath)) {
+          writeText(envPath, generateEnvSpec({
+            projectName: options.name || basename(projectRoot),
+          }));
+          envCreated = true;
+        }
+      } catch {
+        // Best-effort
+      }
+
+      if (goalCreated || envCreated) {
+        if (goalCreated) console.log(`  ✓ Goal Spec:    goal.md`);
+        if (envCreated) console.log(`  ✓ Env Spec:     env-spec.md`);
+      }
+    }
+
     console.log('');
     console.log('Next steps:');
     console.log('  1. Review and customize .mumuspec/spec.md');
@@ -327,6 +399,13 @@ registerSkillCommands(program);
 registerBundleCommands(program);
 registerEnvCommands(program);
 registerDoctorCommand(program);
+registerRecommendCommand(program);
+registerDecisionsCommand(program);
+registerAdviseCommand(program);
+registerContractCommands(program);
+registerLoopCommands(program);
+registerSyncCommand(program);
+registerReviewCommand(program);
 
 // Handle unknown commands gracefully
 program.on('command:*', () => {

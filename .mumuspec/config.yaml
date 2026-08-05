@@ -1,4 +1,4 @@
-version: 0.1.0
+version: 0.16.0-beta.0
 project:
   name: mumuspec
   language: typescript
@@ -8,6 +8,7 @@ specs:
   max_layer_depth: 5
   auto_index: true
   require_design_doc: true
+  scope_aware_prohibitions: true
 knowledge:
   enabled: true
   code_graph:

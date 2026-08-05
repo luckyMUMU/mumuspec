@@ -1,6 +1,17 @@
 #!/usr/bin/env node
+/**
+ * MumuSpec MCP Server — SDK v1.30.0 with stateless transport support.
+ *
+ * Supports both:
+ * - Stdio transport (default, local CLI integration)
+ * - Streamable HTTP transport (stateless mode for web/serverless deployment)
+ *
+ * Stateless mode: each request carries full context; server maintains no session state.
+ */
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -8,6 +19,7 @@ import {
 import { resolve, dirname } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import http from 'node:http';
 
 import { findProjectRoot } from './core/utils.js';
 import { loadConfig } from './core/config.js';
@@ -27,6 +39,14 @@ import { runPhaseGuard } from './guard/phase-guard.js';
 // Knowledge
 import { getKnowledgePage, searchKnowledge, getKnowledgeContext, verifyKnowledge, analyzeImpact, generateOnboardingPath, analyzeCoverage, answerQuery } from './knowledge/manager.js';
 
+// Contract Layer
+import { loadAllContracts, findAllBoundaryDocuments } from './contract/loader.js';
+import { detectContractDrift, validateBoundaries } from './contract/validator.js';
+import { analyzeContractImpact, formatImpactReport } from './contract/impact-analyzer.js';
+import { persistContract, deprecateContract, removeContract, readAuditLog, scaffoldBoundary, writeBoundary } from './contract/manager.js';
+import { formatError } from './core/errors.js';
+import type { Contract, BoundaryDocument } from './core/types-contract.js';
+
 /** Get the project root from env or cwd */
 function getRoot(): string {
   const envRoot = process.env.MUMUSPEC_ROOT;
@@ -42,7 +62,9 @@ function getRoot(): string {
 
 /** Tool definitions */
 const TOOLS = [
+  // ═══════════════════════════════════════════════════════════════
   // Spec Context
+  // ═══════════════════════════════════════════════════════════════
   {
     name: 'get_spec_context',
     description: 'Get tree-distributed spec context for a directory (progressive disclosure)',
@@ -89,7 +111,9 @@ const TOOLS = [
     },
   },
 
+  // ═══════════════════════════════════════════════════════════════
   // Guard
+  // ═══════════════════════════════════════════════════════════════
   {
     name: 'check_compliance',
     description: 'Check code compliance against specs (SHALL/SHALL NOT/Ponytail)',
@@ -123,7 +147,9 @@ const TOOLS = [
     },
   },
 
+  // ═══════════════════════════════════════════════════════════════
   // Change
+  // ═══════════════════════════════════════════════════════════════
   {
     name: 'get_change_status',
     description: 'Get change status and state machine info',
@@ -143,7 +169,9 @@ const TOOLS = [
     },
   },
 
+  // ═══════════════════════════════════════════════════════════════
   // Knowledge
+  // ═══════════════════════════════════════════════════════════════
   {
     name: 'get_knowledge_context',
     description: 'Get knowledge context for a code path (progressive loading)',
@@ -190,7 +218,7 @@ const TOOLS = [
     },
   },
 
-  // Understand-A Style Knowledge Tools (0.13.0+)
+  // Understand-A Style Knowledge Tools
   {
     name: 'analyze_impact',
     description: 'Analyze change impact with knowledge correlation (UA-style)',
@@ -259,7 +287,155 @@ const TOOLS = [
     },
   },
 
+  // ═══════════════════════════════════════════════════════════════
+  // Contract Layer (NEW — SDK v1.30 upgrade)
+  // ═══════════════════════════════════════════════════════════════
+  {
+    name: 'list_contracts',
+    description: 'List all registered external contracts',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        category: { type: 'string', description: 'Filter by category (api, database, sdk, cli, messaging, serialization, filesystem, config)' },
+        status: { type: 'string', description: 'Filter by status (draft, active, deprecated, retired)' },
+        direction: { type: 'string', enum: ['all', 'outbound', 'inbound'], description: 'Filter by direction' },
+      },
+    },
+  },
+  {
+    name: 'get_contract',
+    description: 'Get detailed contract information by ID',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Contract ID (e.g., "API-001")' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'detect_contract_drift',
+    description: 'Run contract drift detection — validates contracts against actual code',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contract_id: { type: 'string', description: 'Limit drift check to specific contract ID (omit for all)' },
+      },
+    },
+  },
+  {
+    name: 'list_boundaries',
+    description: 'List all BOUNDARY.md documents in the project',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: { type: 'string', description: 'Limit to specific directory' },
+      },
+    },
+  },
+  {
+    name: 'check_boundaries',
+    description: 'Validate boundary documents against actual code implementation',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: { type: 'string', description: 'Limit to specific directory (omit for all)' },
+      },
+    },
+  },
+  {
+    name: 'full_drift_report',
+    description: 'Run comprehensive drift detection: spec drift + contract drift + boundary validation',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'analyze_contract_impact',
+    description: 'Analyze the impact of a proposed contract change (upstream/downstream)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contract_id: { type: 'string', description: 'Contract ID to analyze' },
+        change_type: { type: 'string', enum: ['modify', 'remove', 'deprecate'], description: 'Type of proposed change' },
+      },
+      required: ['contract_id', 'change_type'],
+    },
+  },
+  {
+    name: 'get_contract_audit',
+    description: 'Get contract audit log (history of contract changes)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contract_id: { type: 'string', description: 'Filter by contract ID (omit for all)' },
+        limit: { type: 'number', description: 'Max entries to return', default: 20 },
+      },
+    },
+  },
+  {
+    name: 'scaffold_boundary',
+    description: 'Auto-generate BOUNDARY.md from code analysis for a directory',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: { type: 'string', description: 'Directory path (absolute or relative to project root)' },
+        dry_run: { type: 'boolean', description: 'Preview without writing', default: false },
+      },
+      required: ['dir'],
+    },
+  },
+  {
+    name: 'persist_contract',
+    description: 'Create or update a contract in the registry (writes to contracts.yaml)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contract: {
+          type: 'object',
+          description: 'Full contract object (id, name, category, criticality, status, version, owner, description, upstream, downstream, schema, examples)',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+            category: { type: 'string', enum: ['api', 'database', 'messaging', 'serialization', 'sdk', 'cli', 'filesystem', 'config'] },
+            criticality: { type: 'string', enum: ['critical', 'standard', 'low'] },
+            status: { type: 'string', enum: ['draft', 'active', 'deprecated', 'retired'] },
+            version: { type: 'string' },
+          },
+          required: ['id', 'name', 'category', 'criticality', 'status', 'version'],
+        },
+      },
+      required: ['contract'],
+    },
+  },
+  {
+    name: 'deprecate_contract',
+    description: 'Deprecate a contract with impact analysis',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contract_id: { type: 'string', description: 'Contract ID to deprecate' },
+        migration_path: { type: 'string', description: 'Optional migration guidance for consumers' },
+      },
+      required: ['contract_id'],
+    },
+  },
+  {
+    name: 'remove_contract',
+    description: 'Remove a contract (blocked if upstream consumers exist)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contract_id: { type: 'string', description: 'Contract ID to remove' },
+      },
+      required: ['contract_id'],
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════
   // Validate
+  // ═══════════════════════════════════════════════════════════════
   {
     name: 'validate_specs',
     description: 'Validate all spec file formats',
@@ -276,6 +452,7 @@ async function handleToolCall(name: string, args: Record<string, unknown>): Prom
   const config = loadConfig(root);
 
   switch (name) {
+    // ── Spec Context ──
     case 'get_spec_context': {
       const targetPath = resolve(root, args.path as string);
       const context = loadSpecContext(targetPath, root, config);
@@ -326,6 +503,7 @@ async function handleToolCall(name: string, args: Record<string, unknown>): Prom
       return { designs };
     }
 
+    // ── Guard ──
     case 'check_compliance': {
       const result = checkCompliance(root, {
         shall: args.shall as boolean,
@@ -345,6 +523,7 @@ async function handleToolCall(name: string, args: Record<string, unknown>): Prom
       return result;
     }
 
+    // ── Change ──
     case 'get_change_status': {
       const changeName = (args.name as string) || getActiveChange(root);
       if (!changeName) {
@@ -380,6 +559,7 @@ async function handleToolCall(name: string, args: Record<string, unknown>): Prom
       return { changes: result };
     }
 
+    // ── Knowledge ──
     case 'get_knowledge_context': {
       const targetPath = resolve(root, args.path as string);
       const pages = getKnowledgeContext(root, config, targetPath);
@@ -428,77 +608,291 @@ async function handleToolCall(name: string, args: Record<string, unknown>): Prom
       };
     }
 
-case 'verify_knowledge': {
-  const results = verifyKnowledge(root, config, {
-    id: args.id as string,
-    all: args.all as boolean,
-  });
-  return { results };
-}
+    case 'verify_knowledge': {
+      const results = verifyKnowledge(root, config, {
+        id: args.id as string,
+        all: args.all as boolean,
+      });
+      return { results };
+    }
 
-// Understand-A Style Tool Handlers (0.13.0+)
-case 'analyze_impact': {
-  const result = analyzeImpact(root, config, {
-    diffRange: args.diff_range as string,
-    scope: args.scope as string,
-    withKnowledge: args.include_knowledge_warnings as boolean,
-  });
-  return result;
-}
+    // Understand-A Style Tool Handlers
+    case 'analyze_impact': {
+      const result = analyzeImpact(root, config, {
+        diffRange: args.diff_range as string,
+        scope: args.scope as string,
+        withKnowledge: args.include_knowledge_warnings as boolean,
+      });
+      return result;
+    }
 
-case 'generate_onboarding_path': {
-  const result = generateOnboardingPath(root, config, args.scope as string, args.role as 'junior' | 'mid' | 'senior' | 'pm');
-  return result;
-}
+    case 'generate_onboarding_path': {
+      const result = generateOnboardingPath(root, config, args.scope as string, args.role as 'junior' | 'mid' | 'senior' | 'pm');
+      return result;
+    }
 
-case 'get_knowledge_coverage': {
-  const result = analyzeCoverage(root, config, args.scope as string);
-  return result;
-}
+    case 'get_knowledge_coverage': {
+      const result = analyzeCoverage(root, config, args.scope as string);
+      return result;
+    }
 
-case 'find_knowledge_gaps': {
-  const report = analyzeCoverage(root, config, args.scope as string);
-  const minImp = (args.min_importance as number) ?? 5;
-  return {
-    gaps: report.gaps.filter((g) => g.importance >= minImp),
-    total_gaps: report.gaps.length,
-  };
-}
+    case 'find_knowledge_gaps': {
+      const report = analyzeCoverage(root, config, args.scope as string);
+      const minImp = (args.min_importance as number) ?? 5;
+      return {
+        gaps: report.gaps.filter((g) => g.importance >= minImp),
+        total_gaps: report.gaps.length,
+      };
+    }
 
-case 'detect_decision_deviation': {
-  // Run impact analysis and extract deviations
-  const result = analyzeImpact(root, config, {
-    withKnowledge: true,
-    mockChangedFiles: (args.changed_files as string[]).map((path) => ({
-      path,
-      change_type: 'modified' as const,
-      lines_changed: 0,
-    })),
-  });
-  return {
-    warnings: result.knowledge_warnings,
-    direct_impact: result.direct_impact,
-    recommendations: result.recommendations,
-  };
-}
+    case 'detect_decision_deviation': {
+      const result = analyzeImpact(root, config, {
+        withKnowledge: true,
+        mockChangedFiles: (args.changed_files as string[]).map((path) => ({
+          path,
+          change_type: 'modified' as const,
+          lines_changed: 0,
+        })),
+      });
+      return {
+        warnings: result.knowledge_warnings,
+        direct_impact: result.direct_impact,
+        recommendations: result.recommendations,
+      };
+    }
 
-case 'query_knowledge': {
-  const result = answerQuery(root, config, args.query as string);
-  return {
-    query: result.query,
-    answer: result.answer,
-    confidence: result.confidence,
-    references: result.references,
-  };
-}
+    case 'query_knowledge': {
+      const result = answerQuery(root, config, args.query as string);
+      return {
+        query: result.query,
+        answer: result.answer,
+        confidence: result.confidence,
+        references: result.references,
+      };
+    }
 
-case 'validate_specs': {
-  const result = validateAllSpecs(root, config);
-  return result;
-}
+    // ═══════════════════════════════════════════════════════════════
+    // Contract Layer Handlers (NEW)
+    // ═══════════════════════════════════════════════════════════════
+    case 'list_contracts': {
+      const registry = loadAllContracts(root);
+      let contracts = registry.contracts;
+      const direction = args.direction as string;
 
-default:
-  return { error: `Unknown tool: ${name}` };
+      if (args.category) {
+        contracts = contracts.filter((c) => c.category === args.category);
+      }
+      if (args.status) {
+        contracts = contracts.filter((c) => c.status === args.status);
+      }
+      if (direction === 'outbound') {
+        contracts = contracts.filter((c) => registry.outbound_ids.includes(c.id));
+      } else if (direction === 'inbound') {
+        contracts = contracts.filter((c) => registry.inbound_ids.includes(c.id));
+      }
+
+      return {
+        contracts: contracts.map((c: Contract) => ({
+          id: c.id,
+          name: c.name,
+          category: c.category,
+          status: c.status,
+          criticality: c.criticality,
+          version: c.version,
+          direction: registry.outbound_ids.includes(c.id) ? 'outbound' : 'inbound',
+          upstream_count: c.upstream.length,
+          downstream_count: c.downstream.length,
+        })),
+        total: contracts.length,
+        registry_version: registry.version,
+        last_updated: registry.last_updated,
+      };
+    }
+
+    case 'get_contract': {
+      const registry = loadAllContracts(root);
+      const contract = registry.contracts.find((c) => c.id === args.id);
+
+      if (!contract) {
+        return {
+          error: `Contract not found: ${args.id}`,
+          available: registry.contracts.map((c) => c.id),
+        };
+      }
+
+      return {
+        ...contract,
+        direction: registry.outbound_ids.includes(contract.id) ? 'outbound' : 'inbound',
+      };
+    }
+
+    case 'detect_contract_drift': {
+      const contractId = args.contract_id as string | undefined;
+
+      if (contractId) {
+        // Single contract drift check
+        const registry = loadAllContracts(root);
+        const contract = registry.contracts.find((c) => c.id === contractId);
+        if (!contract) {
+          return { error: `Contract not found: ${contractId}` };
+        }
+        const fullReport = detectContractDrift(root);
+        return {
+          ...fullReport,
+          drifts: fullReport.drifts.filter((d: { contract_id: string }) => d.contract_id === contractId),
+        };
+      }
+
+      // Full drift detection
+      return detectContractDrift(root);
+    }
+
+    case 'list_boundaries': {
+      const boundaries = findAllBoundaryDocuments(root);
+      const dir = args.dir as string | undefined;
+
+      const filtered = dir
+        ? boundaries.filter((b: BoundaryDocument) => b.dir_path.startsWith(resolve(root, dir)))
+        : boundaries;
+
+      return {
+        boundaries: filtered.map((b: BoundaryDocument) => ({
+          dir_path: b.dir_path,
+          file_path: b.file_path,
+          exports_count: b.exports.length,
+          dependencies_count: b.dependencies.length,
+          data_contracts_count: b.data_contracts.length,
+          change_log_entries: b.change_log.length,
+          exports: b.exports.map((e) => ({ name: e.name, kind: e.kind })),
+        })),
+        total: filtered.length,
+      };
+    }
+
+    case 'check_boundaries': {
+      const results = validateBoundaries(root);
+      const dir = args.dir as string | undefined;
+
+      const filtered = dir
+        ? results.filter((r) => r.dir_path.startsWith(resolve(root, dir)))
+        : results;
+
+      const totalErrors = filtered.reduce((sum, r) => sum + r.errors.length, 0);
+      const totalWarnings = filtered.reduce((sum, r) => sum + r.warnings.length, 0);
+
+      return {
+        results: filtered,
+        summary: {
+          total_directories: filtered.length,
+          with_boundary_doc: filtered.filter((r) => r.has_boundary_doc).length,
+          missing_boundary_doc: filtered.filter((r) => !r.has_boundary_doc).length,
+          total_errors: totalErrors,
+          total_warnings: totalWarnings,
+        },
+      };
+    }
+
+    case 'full_drift_report': {
+      const specDrift = detectDrift(root);
+      const contractReport = detectContractDrift(root);
+      const boundaryResults = validateBoundaries(root);
+
+      const boundaryErrors = boundaryResults.reduce((sum, r) => sum + r.errors.length, 0);
+      const boundaryWarnings = boundaryResults.reduce((sum, r) => sum + r.warnings.length, 0);
+
+      return {
+        timestamp: new Date().toISOString(),
+        spec_drift: {
+          count: specDrift.length,
+          drifts: specDrift,
+        },
+        contract_drift: {
+          count: contractReport.drift_count,
+          critical: contractReport.has_critical_drifts,
+          drifts: contractReport.drifts,
+        },
+        boundary_validation: {
+          errors: boundaryErrors,
+          warnings: boundaryWarnings,
+          results: boundaryResults,
+        },
+        overall_status: (
+          specDrift.length === 0 &&
+          contractReport.drift_count === 0 &&
+          boundaryErrors === 0
+        ) ? 'clean' : 'issues_detected',
+      };
+    }
+
+    // ── Contract Persistence ──
+    case 'persist_contract': {
+      const contract = args.contract as Contract;
+      const result = persistContract(root, contract, { actor: 'mcp-tool' });
+      return { persisted: true, id: contract.id, message: result.message };
+    }
+
+    case 'deprecate_contract': {
+      const result = deprecateContract(root, args.contract_id as string, {
+        migrationPath: args.migration_path as string | undefined,
+        actor: 'mcp-tool',
+      });
+      return { deprecated: true, message: result.message, impact: result.impact };
+    }
+
+    case 'remove_contract': {
+      const result = removeContract(root, args.contract_id as string, { actor: 'mcp-tool' });
+      if (result.success) {
+        return { removed: true, message: result.message, impact: result.impact };
+      }
+      return { error: result.message, impact: result.impact };
+    }
+
+    // ── Contract Impact Analysis ──
+    case 'analyze_contract_impact': {
+      const analysis = analyzeContractImpact(
+        root,
+        args.contract_id as string,
+        args.change_type as 'modify' | 'remove' | 'deprecate',
+      );
+      return {
+        analysis,
+        report: formatImpactReport(analysis),
+      };
+    }
+
+    // ── Contract Audit Log ──
+    case 'get_contract_audit': {
+      const contractId = args.contract_id as string | undefined;
+      const limit = (args.limit as number) ?? 20;
+      let entries = readAuditLog(root);
+      if (contractId) {
+        entries = entries.filter((e: { contract_id: string }) => e.contract_id === contractId);
+      }
+      entries = entries.slice(-limit);
+      return { entries, total: entries.length };
+    }
+
+    // ── Boundary Scaffold ──
+    case 'scaffold_boundary': {
+      const dirPath = resolve(root, args.dir as string);
+      const dryRun = (args.dry_run as boolean) ?? false;
+      const content = scaffoldBoundary(dirPath);
+
+      if (dryRun) {
+        return { content, directory: dirPath };
+      }
+
+      const filePath = writeBoundary(dirPath, content);
+      return { filePath, directory: dirPath };
+    }
+
+    case 'validate_specs': {
+      const result = validateAllSpecs(root, config);
+      return result;
+    }
+
+    default:
+      return { error: formatError('E-GUARD-001', { tool: name }) };
   }
 }
 
@@ -510,8 +904,8 @@ function getVersion(): string {
   return pkg.version;
 }
 
-/** Create and start MCP server */
-async function main() {
+/** Create MCP server instance */
+function createMcpServer(): Server {
   const server = new Server(
     {
       name: 'mumuspec',
@@ -558,12 +952,115 @@ async function main() {
     }
   });
 
-  // Start server
+  return server;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Transport selection based on environment
+// ════════════════════════════════════════════════════════════════════
+
+/** Start with stdio transport (default) */
+async function startStdio(): Promise<void> {
+  const server = createMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  console.error('MumuSpec MCP Server started (stdio)');
+}
 
-  // Log to stderr (stdout is used for MCP protocol)
-  console.error('MumuSpec MCP Server started');
+/** Start with Streamable HTTP transport (stateless mode) */
+async function startHttp(port: number = 3000): Promise<void> {
+  const server = createMcpServer();
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined, // Stateless: no session management
+  });
+
+  // Create HTTP server for Streamable HTTP transport
+  const httpServer = http.createServer(async (req, res) => {
+    // Handle CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+
+    // Only accept POST for MCP requests
+    if (req.method !== 'POST') {
+      res.writeHead(405);
+      res.end(JSON.stringify({ error: 'Method not allowed' }));
+      return;
+    }
+
+    // Read request body — ponytail: simple streaming without external body-parser
+    const chunks: Buffer[] = [];
+    let totalSize = 0;
+    const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB limit — prevents DoS via memory exhaustion
+
+    // Handle socket-level errors (client disconnect, network failure, etc.)
+    req.on('error', (err) => {
+      console.error(`[http] Request error: ${err.message}`);
+
+      chunks.length = 0; // Free accumulated buffer
+
+      if (!res.headersSent && !res.writableEnded) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Request stream error' }));
+      }
+    });
+
+    req.on('data', (chunk) => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_BODY_SIZE) {
+        // Body too large — abort and respond
+        chunks.length = 0;
+        req.destroy(); // Stop receiving data
+        res.writeHead(413);
+        res.end(JSON.stringify({ error: 'Request body exceeds 10MB limit' }));
+        return;
+      }
+      chunks.push(chunk);
+    });
+
+    req.on('end', async () => {
+      if (chunks.length === 0) return; // Already handled (413 or error)
+      const body = Buffer.concat(chunks).toString('utf-8');
+
+      try {
+        await transport.handleRequest(
+          req,
+          res,
+          body ? JSON.parse(body) : undefined,
+        );
+      } catch (error) {
+        if (!res.headersSent && !res.writableEnded) {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: (error as Error).message }));
+        }
+      }
+    });
+  });
+
+  // Connect transport to server
+  await server.connect(transport);
+
+  httpServer.listen(port, () => {
+    console.error(`MumuSpec MCP Server started (Streamable HTTP, port ${port})`);
+  });
+}
+
+/** Main entry point */
+async function main(): Promise<void> {
+  const transportType = process.env.MUMUSPEC_MCP_TRANSPORT || 'stdio';
+
+  if (transportType === 'http') {
+    const port = parseInt(process.env.MUMUSPEC_MCP_PORT || '3000', 10);
+    await startHttp(port);
+  } else {
+    await startStdio();
+  }
 }
 
 main().catch((error) => {

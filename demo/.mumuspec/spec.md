@@ -91,6 +91,10 @@ delta: ADDED
 - SHALL NOT 依赖外部打包工具（仅使用 Node.js 内置能力）
 - SHALL NOT 修改源代码结构（仅打包，不改写源码）
 
+### Enforcement
+- DS-BLD-1: 检查 build-exe.mjs 仅使用 node:sea
+- DS-BLD-2: 检查输出路径可配置
+
 
 
 <!-- delta-merged from portable-exe-packaging/scripts-startup.md -->
@@ -110,6 +114,10 @@ delta: ADDED
 ## SHALL NOT
 - SHALL NOT 修改现有服务代码（通过配置适配）
 - SHALL NOT 写入系统目录（仅当前目录和子目录）
+
+### Enforcement
+- DS-START-1: 检查 start.mjs 同时启动前后端服务
+- DS-START-2: 检查端口可通过环境变量配置
 
 
 
@@ -135,6 +143,11 @@ delta: ADDED
 - SHALL NOT 使用 JSX 语法（CDN 模式下使用 `htm` tagged template 或 `h()` 函数）
 - SHALL NOT 引入 CSS 框架（Tailwind/Bootstrap 等）
 
+### Enforcement
+- FE-ARCH-1: 检查 package.json 无前端构建依赖
+- FE-ARCH-2: 检查 public/ 目录下无 .jsx/.tsx 文件
+- FE-ARCH-3: 检查使用 htm 或 h() 函数
+
 ## Requirement: 前端功能
 
 ### SHALL
@@ -152,6 +165,11 @@ delta: ADDED
 - SHALL NOT 在前端进行数据验证逻辑复制（依赖后端校验，前端仅做基本非空检查）
 - SHALL NOT 使用 localStorage 缓存任务数据（数据源为 API）
 
+### Enforcement
+- FE-FUNC-1: 检查 UI 交互流程覆盖任务 CRUD
+- FE-FUNC-2: 检查 API 调用使用 fetch
+- FE-FUNC-3: 不存在 localStorage 缓存逻辑
+
 ## Requirement: 前端服务
 
 ### SHALL
@@ -164,6 +182,11 @@ delta: ADDED
 - SHALL NOT 修改现有 API 路由逻辑（仅添加 CORS 头或静态文件服务）
 - SHALL NOT 引入 Express 或其他 Web 框架来提供静态文件
 
+### Enforcement
+- FE-SRV-1: 检查 start.mjs 同时启动 API + 静态服务
+- FE-SRV-2: 检查 CORS 头或同源配置
+- FE-SRV-3: 检查无外部 Web 框架引入
+
 ## Requirement: design.md 前端风格规范
 
 ### SHALL
@@ -175,4 +198,8 @@ delta: ADDED
 
 ### SHALL NOT
 - SHALL NOT 在 design.md 中定义具体代码实现
+
+### Enforcement
+- FE-STYLE-1: 检查 design.md 包含颜色/排版/间距令牌
+- FE-STYLE-2: 检查设计规范遵循极简风格
 

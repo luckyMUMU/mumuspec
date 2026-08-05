@@ -6,7 +6,7 @@
 
 MumuSpec 通过 SHALL（必须做）与 MUST NOT（绝不能做）两套规范树，让 AI 编程工具（Claude Code / Cursor / Codex 等）在项目架构与需求的边界内工作，减少人工审查成本，提升 AI 生成代码的合规性。
 
-当前版本：**0.15.0-beta.0**（`next` 通道），稳定版 **0.10.0**（`latest`）。设计进度 100%，实现进度约 87%。详细路线图见 [STATUS.md](docs/STATUS.md)。
+当前版本：**0.16.0-beta.0**（`next` 通道），稳定版 **0.10.0**（`latest`）。设计进度 100%，实现进度约 90%。详细路线图见 [STATUS.md](docs/STATUS.md)。
 
 ---
 
@@ -350,8 +350,8 @@ my-project/
 | 通道 | dist-tag | 当前版本 | 安装命令 |
 |------|---------|---------|---------|
 | 稳定版 | `latest` | 0.10.0 | `npm install -g mumuspec` |
-| 预发布版 | `next` | 0.15.0-beta.0 | `npm install -g mumuspec@next` |
-| 指定版本 | —— | —— | `npm install -g mumuspec@0.15.0-beta.0` |
+| 预发布版 | `next` | 0.16.0-beta.0 | `npm install -g mumuspec@next` |
+| 指定版本 | —— | —— | `npm install -g mumuspec@0.16.0-beta.0` |
 
 灰度策略（Canary → Beta → RC → Stable）见 [docs/reference/release-strategy.md](docs/reference/release-strategy.md)。
 

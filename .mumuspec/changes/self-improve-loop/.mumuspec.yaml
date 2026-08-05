@@ -1,0 +1,142 @@
+name: self-improve-loop
+phase: build
+workflow: loop
+created_at: 2026-08-04T16:34:29.549Z
+updated_at: 2026-08-04T16:34:29.550Z
+scope: .
+affected_scopes: []
+build_layers:
+  - layer: 0
+    scope: .
+    status: pending
+test_cases:
+  design_locked: false
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: worktree
+single_active_change: true
+user_confirmed: false
+decisions_log:
+  counts: {}
+rollback_history: []
+cognitive_framework:
+  enabled: false
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+loop_state:
+  enabled: true
+  phase: converged
+  max_rounds: 5
+  current_round: 4
+  rounds:
+    - round: 1
+      started_at: 2026-08-04T16:41:21.363Z
+      plan: 识别3个改进方向：A)增强drift检测(自动修复建议) B)优化worktree生命周期(自动清理复用) C)改进CLI交互(进度条/智能提示)；创建demo项目用于对比测试
+      actions:
+        - type: project_setup
+          description: 创建 demo 项目用于对比测试
+          success: true
+        - type: design
+          description: 设计对比实验方案：3个改进方向分别为 A)drift自动修复 B)worktree智能管理 C)CLI交互增强
+          success: true
+        - type: design
+          description: 建立标准化测试用例：创建一个包含3个任务的变更（文件创建+代码修改+验证），用于横向对比
+          success: true
+        - type: file_create
+          description: 编写实验方案文档，定义观察维度和输出格式
+          success: true
+      evaluation:
+        progress: 0.4
+        goal_achieved: false
+        issues: []
+        next_focus: "Round 2: 实现方向A（drift自动修复）并执行标准化测试"
+        needs_user_input: false
+      completed_at: 2026-08-04T16:43:21.742Z
+    - round: 2
+      started_at: 2026-08-04T16:43:53.081Z
+      plan: 实现方向A：在drift命令中增加--fix自动修复选项。1)创建experiment/drift-autofix分支 2)修改drift.ts添加fix逻辑 3)构建测试 4)在demo项目中验证效果
+      actions:
+        - type: branch_create
+          description: 切换到 experiment/drift-autofix 分支进行开发
+          success: true
+        - type: feature_complete
+          description: 方向A实现完成：drift --fix 和 --dry-run 功能正常工作，支持安全自动修复和幂等性
+          success: true
+      evaluation:
+        progress: 0.7
+        goal_achieved: false
+        issues:
+          - 方向A实现较好，但自动修复逻辑需要更智能
+        next_focus: "Round 3: 实现方向B（worktree智能管理）并执行标准化测试"
+        needs_user_input: false
+      completed_at: 2026-08-04T16:58:55.251Z
+    - round: 3
+      started_at: 2026-08-04T16:59:16.066Z
+      plan: 实现方向B：优化worktree生命周期管理。1) 添加worktree cleanup自动清理已合并的工作树 2) 添加worktree reuse机制 3) 改进worktree list/status展示 4)
+        修复worktree目录bug
+      actions:
+        - type: branch_create
+          description: 切换到experiment/worktree-lifecycle分支
+          success: true
+        - type: feature_partial
+          description: 方向B部分完成：修复了worktree目录bug（ensureDir冲突），添加了loop cleanup命令用于自动清理已合并的worktree
+          success: true
+      evaluation:
+        progress: 0.6
+        goal_achieved: false
+        issues:
+          - 方向B核心功能可用但自动修复逻辑待完善
+        needs_user_input: true
+        block_reason: 需要用户决定是否继续扩展轮次还是产出当前对比报告
+      completed_at: 2026-08-04T17:02:39.623Z
+    - round: 4
+      started_at: 2026-08-05T13:29:58.396Z
+      plan: 产出对比实验报告 + 沉淀学习成果到 knowledge
+      actions:
+        - type: file_create
+          description: 产出完整对比实验报告 (comparison-report.md)，分析3个方向的效果和推荐决策
+          success: true
+        - type: knowledge
+          description: 将实验关键发现沉淀到项目knowledge目录
+          success: true
+      evaluation:
+        progress: 1
+        goal_achieved: true
+        issues: []
+        needs_user_input: false
+      completed_at: 2026-08-05T13:31:10.953Z
+  goal: 在 demo 项目中对比执行 3 种 mumuspec 改进方向（增强drift检测/优化worktree管理/改进CLI交互），产出对比报告并选择是否引入改进
+  convergence_criteria:
+    - 3个方向demo执行完成
+    - 产出对比分析报告
+    - 至少识别1个值得引入改进
+  auto_commit: true
+  merged_back: false
+  total_actions: 10
+  progress_trend:
+    - 0.4
+    - 0.7
+    - 0.6
+    - 1

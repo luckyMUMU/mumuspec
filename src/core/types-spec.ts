@@ -9,6 +9,12 @@ export interface SpecFrontmatter {
   layer: number;
   scope: string;
   last_updated: string;
+  /** Points to parent PRD (relative path) for inheritance */
+  parent_prd?: string;
+  /** Points to parent Tech (relative path) for inheritance */
+  parent_tech?: string;
+  /** Document type discriminator */
+  doc_type?: 'spec' | 'prd' | 'tech' | 'design' | 'prohibitions';
 }
 
 /** A single requirement block in spec.md */
@@ -55,6 +61,30 @@ export interface PrdFile {
   acceptanceCriteria: string[];
 }
 
+/** Frontmatter specific to prd.md */
+export interface PrdFrontmatter {
+  layer: number;
+  scope: string;
+  last_updated: string;
+  parent_prd?: string;
+  doc_type?: 'prd';
+  /** Change name for change-level distributed PRD */
+  change?: string;
+}
+
+/** Frontmatter specific to tech.md */
+export interface TechFrontmatter {
+  layer: number;
+  scope: string;
+  last_updated: string;
+  parent_tech?: string;
+  doc_type?: 'tech';
+  /** Change name for change-level distributed tech */
+  change?: string;
+  /** Phase: design/build/verify */
+  phase?: 'design' | 'build' | 'verify';
+}
+
 /** Parsed tech.md content (technical perspective: HOW, constraints + architecture) */
 export interface TechFile {
   path: string;
@@ -63,6 +93,8 @@ export interface TechFile {
   content: string;
   requirements: Requirement[];
   architectureDecisions: string[];
+  /** Inherited requirements from parent */
+  inherited_requirements?: Requirement[];
 }
 
 /** Architecture decision in design.md */
@@ -105,6 +137,18 @@ export interface SpecContext {
   layers: SpecLayerContext[];
   prohibitions: string[];
   index?: SpecIndex;
+  /** Inheritance conflicts detected during loading */
+  inheritance_conflicts?: InheritanceConflictRef[];
+}
+
+/** Reference to an inheritance conflict between parent and child */
+export interface InheritanceConflictRef {
+  type: string;
+  child_path: string;
+  parent_path: string;
+  child_requirement: string;
+  parent_requirement: string;
+  message: string;
 }
 
 /** A single layer in the progressive disclosure */
@@ -118,4 +162,8 @@ export interface SpecLayerContext {
   design?: DesignFile;
   prd?: PrdFile;
   tech?: TechFile;
+  /** Whether this layer was merged from parent */
+  merged?: boolean;
+  /** Source paths inherited from (for debugging) */
+  inherited_from?: string[];
 }

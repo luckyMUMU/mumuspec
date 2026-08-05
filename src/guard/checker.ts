@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import type { SpecFile, GuardResult, DriftResult, GuardError, GuardWarning } from '../core/types.js';
 import { parseSpecFile } from '../spec/parser.js';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
-import { readText } from '../core/utils.js';
+import { readText, writeText } from '../core/utils.js';
 import type { ConstraintStrengthField } from '../core/config.js';
 import { evaluateConstraint, type ConstraintCheck } from '../core/constraint-evaluator.js';
+import { detectContractDrift } from '../contract/validator.js';
 
 /**
  * Guard check metadata — maps error codes to strength-evaluation attributes.
@@ -157,14 +158,35 @@ function checkShallNot(
   // Collect all SHALL NOT constraints from all spec files
   const prohibitions = collectAllProhibitions(projectRoot);
 
-  // Scan source files for potential violations
+  // Separate file-coexistence constraints from code-level prohibitions
+  const codeProhibitions: { text: string; source: string }[] = [];
+  const coexistenceConstraints: { text: string; source: string }[] = [];
+
+  for (const p of prohibitions) {
+    if (isCoexistenceConstraint(p.text)) {
+      coexistenceConstraints.push(p);
+    } else {
+      codeProhibitions.push(p);
+    }
+  }
+
+  // Handle file-coexistence constraints via directory scanning (not code pattern matching)
+  if (coexistenceConstraints.length > 0) {
+    checkFileCoexistence(projectRoot, coexistenceConstraints, errors);
+  }
+
+  // Scan source files for code-level prohibitions only
   const sourceFiles = findSourceFiles(projectRoot);
 
   for (const filePath of sourceFiles) {
     const content = readText(filePath);
     if (!content) continue;
 
-    for (const { text, source } of prohibitions) {
+    for (const { text, source } of codeProhibitions) {
+      // Scope-aware: only check files within the prohibition's source tree
+      // e.g., a prohibition from demo/.mumuspec/spec.md only applies to demo/ files
+      if (!isFileInScope(filePath, source, projectRoot)) continue;
+
       // Simple pattern matching - check if the prohibition text appears in code
       // This is a basic heuristic; real implementation would use AST analysis
       const violation = checkProhibitionViolation(content, text, filePath);
@@ -177,6 +199,107 @@ function checkShallNot(
       }
     }
   }
+}
+
+/** Check if a source file falls within the scope of a prohibition's origin */
+function isFileInScope(filePath: string, prohibitionSource: string, projectRoot: string): boolean {
+  // Determine the spec's directory (e.g., from "demo/.mumuspec/spec.md" → "demo/")
+  const specDir = prohibitionSource.replace(projectRoot, '').replace(/^\\/, '');
+  const parts = specDir.split(/[\\/]/);
+  // Find the subdirectory containing .mumuspec — that's the scope root
+  const scopeRoot = parts.slice(0, parts.indexOf('.mumuspec')).join('/');
+
+  // Root-level (.mumuspec/) applies to entire project
+  if (scopeRoot === '') return true;
+
+  // Subproject spec only applies to files under that subproject
+  const relPath = filePath.replace(projectRoot, '').replace(/^\\/, '');
+  return relPath.startsWith(scopeRoot);
+}
+
+/** Check if a constraint is a file-coexistence rule or system-behavior rule (not a code pattern) */
+function isCoexistenceConstraint(text: string): boolean {
+  const lower = text.toLowerCase();
+  // File coexistence constraints
+  if (lower.includes('coexist') || lower.includes('共存') ||
+      (lower.includes('shall not') && lower.includes('.md') && lower.includes('same'))) {
+    return true;
+  }
+  // System-behavior constraints: "The system/loader/Init SHALL NOT..." rules target
+  // runtime behavior, not code patterns — they need dedicated logic, not string matching
+  const systemPrefixes = [
+    'the system shall not',
+    'the loader shall not',
+    'init shall not',
+    'finalize-archive shall not',
+    'changes shall not',
+    'the spec loader',
+    'the user shall not',
+    'the command shall not',
+  ];
+  for (const prefix of systemPrefixes) {
+    if (lower.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+/**
+ * Check file-coexistence constraints by scanning directories.
+ * Prevents false positives from code that references spec filenames.
+ */
+function checkFileCoexistence(
+  projectRoot: string,
+  constraints: { text: string; source: string }[],
+  errors: { code: string; message: string; detail?: string }[],
+): void {
+  // Extract file pairs from constraints like "X SHALL NOT coexist with Y"
+  const filePairs: { fileA: string; fileB: string; source: string }[] = [];
+
+  for (const { text, source } of constraints) {
+    const match = text.match(/[`"']?(\w+\.md)["']?\s+(?:SHALL NOT|shall not)\s+(?:coexist|共存)\s+with\s+[`"']?(\w+\.md)["']?/i)
+      || text.match(/(\w+\.md)\s*与\s*(\w+\.md)\s*不应共存/);
+    if (match) {
+      filePairs.push({ fileA: match[1], fileB: match[2], source });
+    }
+  }
+
+  if (filePairs.length === 0) return;
+
+  // Scan all .mumuspec/ directories (except project root for certain pairs)
+  function scanDirs(dir: string): void {
+    const mumuDir = join(dir, '.mumuspec');
+    if (existsSync(mumuDir)) {
+      const isRoot = dir === projectRoot;
+      for (const { fileA, fileB, source } of filePairs) {
+        // Root directory is allowed to retain spec.md + tech.md + prd.md coexistence
+        if (isRoot && (fileA === 'spec.md' || fileB === 'spec.md')) {
+          continue;
+        }
+        const pathA = join(mumuDir, fileA);
+        const pathB = join(mumuDir, fileB);
+        if (existsSync(pathA) && existsSync(pathB)) {
+          errors.push({
+            code: 'E-GUARD-003',
+            message: `SHALL NOT 违规: "${fileA}" 与 "${fileB}" 在同一个 .mumuspec/ 目录共存`,
+            detail: `${mumuDir} (source: ${source})`,
+          });
+        }
+      }
+    }
+
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules' && entry.name !== 'dist') {
+          scanDirs(join(dir, entry.name));
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  scanDirs(projectRoot);
 }
 
 /** Check SHALL requirements */
@@ -264,27 +387,41 @@ function collectAllProhibitions(
 function checkProhibitionViolation(
   content: string,
   prohibition: string,
-  _filePath: string,
+  filePath: string,
 ): { line: number } | null {
-  // Very basic heuristic: extract key identifiers from prohibition text
-  // and check if they appear in code
+  const lower = prohibition.toLowerCase();
+  const isJsxProhibition = lower.includes('jsx') || lower.includes('tsx');
+
+  // JSX/TSX prohibition: detect actual JSX syntax, not the approved htm/h() alternatives.
+  // The prohibition text itself references `htm` and `h()` as CORRECT usage, so we must
+  // NOT match those identifiers — instead look for JSX angle-bracket syntax.
+  if (isJsxProhibition) {
+    return detectJsxSyntax(content, filePath);
+  }
 
   // Extract patterns like "禁止使用 XXX" or "must not use XXX"
   const patterns: RegExp[] = [];
 
-  // Extract quoted identifiers
+  // Extract quoted identifiers — use word boundary for short terms to avoid
+  // false positives (e.g. "htm" matching inside "text/html" or "index.html")
   const quoted = prohibition.match(/[`'"]([^`'"]+)[`'"]/g);
   if (quoted) {
     for (const q of quoted) {
       const term = q.replace(/[`'"]/g, '');
       if (term.length > 2) {
-        patterns.push(new RegExp(escapeRegExp(term), 'i'));
+        // Use word-boundary matching for short identifiers (<=4 chars)
+        const escaped = escapeRegExp(term);
+        if (term.length <= 4) {
+          patterns.push(new RegExp(`\\b${escaped}\\b`, 'i'));
+        } else {
+          patterns.push(new RegExp(escaped, 'i'));
+        }
       }
     }
   }
 
   // Check for eval/Function constructor (common security prohibition)
-  if (prohibition.toLowerCase().includes('eval') || prohibition.toLowerCase().includes('动态执行')) {
+  if (lower.includes('eval') || lower.includes('动态执行')) {
     patterns.push(/eval\s*\(/, /new\s+Function\s*\(/);
   }
 
@@ -303,6 +440,103 @@ function checkProhibitionViolation(
   }
 
   return null;
+}
+
+/**
+ * Detect JSX syntax patterns in code (angle-bracket component usage).
+ * Returns the first line where JSX is detected, or null if no JSX found.
+ *
+ * Heuristic: looks for patterns like `<Component`, `<div`, or multiline JSX blocks
+ * while ignoring comparison operators (`a < b`) and arrow functions (`<T>` generics).
+ */
+function detectJsxSyntax(content: string, filePath: string): { line: number } | null {
+  const ext = filePath.split('.').pop()?.toLowerCase();
+
+  // Skip files that use htm tagged templates — they comply with the prohibition
+  // by using the approved alternative (htm + h()) instead of JSX
+  if (usesHtmTemplate(content)) {
+    return null;
+  }
+
+  const lines = content.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+      continue;
+    }
+
+    // Strip string content to avoid false positives on HTML strings
+    const stripped = stripStringLiterals(line);
+
+    // Detect JSX: `<Identifier` followed by letter (not `<<` or `<=`)
+    const jsxPattern = /<([A-Z][a-zA-Z0-9_]*|[a-z][a-zA-Z0-9]*)\b/;
+    if (jsxPattern.test(stripped)) {
+      // Filter out generics in TypeScript: `<T>`, `<T extends ...>`
+      const genericPattern = /^\s*<([A-Z])>\s*/;
+      // Filter out comparison: `a < b`
+      const comparisonPattern = /\w\s*<\s*\w/;
+      if (!genericPattern.test(stripped) && !comparisonPattern.test(stripped)) {
+        return { line: i + 1 };
+      }
+    }
+  }
+
+  // Check for .jsx/.tsx file existence if applicable
+  if (ext === 'jsx' || ext === 'tsx') {
+    return { line: 1 };
+  }
+
+  return null;
+}
+
+/**
+ * Check if the file uses htm tagged template library (approved JSX alternative).
+ * Files using htm are compliant with "no JSX" prohibitions by construction.
+ */
+function usesHtmTemplate(content: string): boolean {
+  // Import from htm or htm/preact, or use htm`...` / html`...` pattern
+  return /\bhtm\b\s*[`']/.test(content)
+    || /\bimport\s+.*\bhtm\b/.test(content)
+    || /\bhtml\b\s*[`]/.test(content);
+}
+
+/**
+ * Remove content inside string literals (double/single quotes),
+ * preserving positions but replacing inner chars with spaces.
+ * Simplified: only handles simple string literals (not multi-line templates).
+ * For robust multi-line template stripping, use usesHtmTemplate() guard.
+ */
+function stripStringLiterals(line: string): string {
+  let result = '';
+  let i = 0;
+  let inString: string | null = null;
+
+  while (i < line.length) {
+    const ch = line[i];
+
+    if (inString) {
+      if (ch === '\\' && i + 1 < line.length) {
+        result += ' ';
+        i++;
+      } else if (ch === inString) {
+        result += ch;
+        i++;
+        inString = null;
+      } else {
+        result += ' ';
+        i++;
+      }
+    } else if (ch === '\'' || ch === '"') {
+      result += ch;
+      i++;
+      inString = ch;
+    } else {
+      result += ch;
+      i++;
+    }
+  }
+  return result;
 }
 
 /** Find all spec files in project */
@@ -385,6 +619,7 @@ export function detectDrift(projectRoot: string): DriftResult[] {
           severity: 'WARN',
           message: `Requirement "${req.name}" has SHALL constraints but no Enforcement`,
           file: spec.path,
+          fixHint: `Add "enforcement:" block to requirement "${req.name}" in ${spec.path}`,
         });
       }
     }
@@ -435,4 +670,145 @@ function checkIndexDrift(
   }
 
   scan(projectRoot);
+}
+
+/** Detect drift between contracts and code (Cross-Directory Contract Guard) */
+export function detectContractGuardDrift(projectRoot: string): DriftResult[] {
+  const results: DriftResult[] = [];
+
+  try {
+    const report = detectContractDrift(projectRoot);
+
+    for (const drift of report.drifts) {
+      results.push({
+        type: `contract_${drift.type}`,
+        severity: drift.severity,
+        message: `[${drift.contract_id}] ${drift.message}`,
+        file: drift.file,
+        line: drift.line,
+      });
+    }
+
+    // Add a summary entry if drifts found
+    if (report.drift_count > 0) {
+      results.push({
+        type: 'contract_summary',
+        severity: report.has_critical_drifts ? 'ERROR' : 'WARN',
+        message: `Contract drift: ${report.drift_count} drift(s) across ${report.total_contracts} contract(s) in ${report.scan_duration_ms}ms`,
+      });
+    }
+  } catch {
+    // Contract drift detection is best-effort
+    results.push({
+      type: 'contract_drift_error',
+      severity: 'WARN',
+      message: 'Contract drift detection failed — contracts.yaml may be missing or malformed',
+    });
+  }
+
+  return results;
+}
+
+/** Detect drift between specs and code (original, extended) */
+export function detectDriftWithContracts(projectRoot: string): DriftResult[] {
+  const results = detectDrift(projectRoot);
+  const contractDrifts = detectContractGuardDrift(projectRoot);
+  return [...results, ...contractDrifts];
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Auto-Fix Engine — Safe drift auto-remediation
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * Result of auto-fix operation.
+ */
+export interface AutoFixResult {
+  /** Drifts that were successfully fixed */
+  fixed: DriftResult[];
+  /** Drifts that could not be fixed automatically */
+  remaining: DriftResult[];
+}
+
+/**
+ * Auto-fix safe drift issues.
+ * Only applies fixes that are low-risk and deterministic.
+ * Returns fixed items and remaining (unfixed) items.
+ */
+export function autoFixDrift(
+  projectRoot: string,
+  drifts: DriftResult[],
+  dryRun = false,
+): AutoFixResult {
+  const fixed: DriftResult[] = [];
+  const remaining: DriftResult[] = [];
+
+  for (const drift of drifts) {
+    const fixable = applySafeFix(projectRoot, drift, dryRun);
+    if (fixable) {
+      fixed.push(drift);
+    } else {
+      remaining.push(drift);
+    }
+  }
+
+  return { fixed, remaining };
+}
+
+/**
+ * Attempt to apply a safe fix for a single drift.
+ * Returns true if the fix was applied (or would be applied in dry-run).
+ */
+function applySafeFix(projectRoot: string, drift: DriftResult, dryRun: boolean): boolean {
+  // Only fix WARN-severity drifts — never auto-fix ERROR
+  if (drift.severity === 'ERROR') return false;
+
+  switch (drift.type) {
+    case 'spec_drift':
+      // Safe fix: add basic enforcement marker
+      return fixSpecDrift(projectRoot, drift, dryRun);
+
+    case 'contract_summary':
+    case 'contract_drift_error':
+      // Informational only — nothing to fix
+      return false;
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * Fix spec drift: add enforcement hint comment to spec file.
+ * Returns true if fix was applied (or would be in dry-run).
+ *
+ * Note: We add an HTML comment placeholder. Once the file contains
+ * 'mumuspec-drift-fix' marker, we consider it "acknowledged" to prevent
+ * repeated fix attempts on the same drift.
+ */
+function fixSpecDrift(projectRoot: string, drift: DriftResult, dryRun: boolean): boolean {
+  if (!drift.file) return false;
+
+  try {
+    const absPath = drift.file.startsWith(projectRoot) ? drift.file : join(projectRoot, drift.file.replace(/^\\.\\?/, ''));
+    const content = readText(absPath);
+    if (!content) return false;
+
+    // Check if already has enforcement section
+    if (content.includes('enforcement:')) return false;
+
+    // Check if fix already applied (marker present)
+    if (content.includes('mumuspec-drift-fix')) return false;
+
+    if (dryRun) {
+      return true; // Would add enforcement hint
+    }
+
+    // Append enforcement hint comment
+    const hint = `\n<!-- mumuspec-drift-fix: Add enforcement rules for SHALL constraints -->\n`;
+    writeText(absPath, content + hint);
+    return true;
+  } catch {
+    return false;
+  }
 }

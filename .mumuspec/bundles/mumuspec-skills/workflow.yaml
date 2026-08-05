@@ -372,3 +372,93 @@ workflow:
       - knowledge_extraction_completed: true
       - change moved to archive/
       - worktree cleaned up
+
+# ════════════════════════════════════════════════════════════════════
+# LLM Freedom Enhancement — Dynamic Workflow Extension (v0.16.0+)
+# ════════════════════════════════════════════════════════════════════
+
+  # Step 0: Path suggestion rules (L1 — confidence-based)
+  suggestion:
+    rules:
+      - condition: "estimated_files <= 2 AND no_api_change AND no_new_dep"
+        suggest: tweak
+        confidence: high
+        rationale: "变更范围小（≤2 文件）、无接口变更、无新依赖，适合 tweak 快速通道"
+      - condition: "is_doc_only == true"
+        suggest: tweak
+        confidence: high
+        rationale: "纯文档/注释变更，无需走完整流程"
+      - condition: "is_pure_bugfix == true AND risk_level == low"
+        suggest: hotfix
+        confidence: medium
+        rationale: "纯 bugfix + 根因已确认，可走 hotfix 跳过 Design"
+      - condition: "cross_module == true OR new_public_api == true"
+        suggest: full
+        confidence: high
+        rationale: "跨模块或新公共接口变更，必须完整设计"
+      - condition: "risk_level == high"
+        suggest: full
+        confidence: high
+        rationale: "高风险变更，需完整流程管控"
+      - condition: "risk_level == medium"
+        suggest: tweak
+        confidence: medium
+        rationale: "中等风险，建议 tweak 减少流程开销"
+    safety_fence:
+      never_compress_if:
+        - cross_module == true
+        - new_public_api == true
+        - new_external_dep == true
+        - data_migration == true
+
+  # Phase compression rules (L2 — auto-apply within safety fence)
+  compression_rules:
+    allowed:
+      - condition: "estimated_files <= 2 AND no_api_change AND no_new_dep AND no_cross_module"
+        action: auto_tweak
+      - condition: "is_doc_only == true"
+        action: skip_tdd_loops
+      - condition: "is_pure_bugfix == true AND root_cause_confirmed == true"
+        action: start_from_red
+    audit:
+      log_to: decisions.md
+      record_in: .mumuspec.yaml auto_decisions[]
+
+  # Skill auto-loading rules (L2 — dynamic skill assembly)
+  skill_rules:
+    - when: "involves_concurrency"
+      load:
+        - concurrency-patterns
+    - when: "involves_new_dependency"
+      load:
+        - dependency-management
+    - when: "involves_api_change"
+      load:
+        - api-design
+    - when: "involves_database_schema"
+      load:
+        - migration-patterns
+    - when: "involves_ui"
+      load:
+        - component-patterns
+    # Required skills are always loaded regardless of rules
+    required_always:
+      - brainstorming
+      - gitnexus-exploring
+      - gitnexus-impact-analysis
+
+  # Decision audit configuration
+  decision_audit:
+    enabled: true
+    storage: .mumuspec.yaml auto_decisions[]
+    fields:
+      - timestamp
+      - phase
+      - decision
+      - rationale
+      - confidence
+      - approved_by
+    # Append-only: LLM cannot modify/delete past entries
+    immutable: true
+    # On archive: transfer to audit.log
+    archive_target: audit.log

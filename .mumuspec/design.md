@@ -1,7 +1,8 @@
 ---
 scope: .
 layer: 0
-last_updated: "2026-08-02"
+title: MumuSpec 架构设计
+last_updated: '2026-08-04'
 ---
 
 # 前端设计风格: MumuSpec

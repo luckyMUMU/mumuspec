@@ -11,6 +11,7 @@ import { ensureFeedbackStructure, getChangeFeedbackDir } from '../feedback/manag
 import { getChangeDir, getArchiveDir } from './paths.js';
 import { loadChangeState, saveChangeState } from './state.js';
 import { getActiveChange } from './listing.js';
+import { scaffoldChangeSpecs } from '../core/spec-scaffolder.js';
 
 /** Create a new change */
 export function createChange(
@@ -89,10 +90,15 @@ export function createChange(
     feedback_log: { entries: [], session_links: [] },
   };
 
-  if (workflow === 'hotfix' || workflow === 'tweak') {
+  if (workflow === 'hotfix' || workflow === 'tweak' || workflow === 'loop') {
     state.build_layers = [
       { layer: 0, scope: affectedScopes[0] || '.', status: 'pending' as const },
     ];
+  }
+
+  // Loop mode: start directly at build phase (skip open/design)
+  if (workflow === 'loop') {
+    state.phase = 'build';
   }
 
   saveChangeState(projectRoot, changeName, state, scope);
@@ -144,6 +150,16 @@ ${workflow}
   ensureDir(join(changeDir, 'code-graph'));
   writeText(join(changeDir, 'decisions.md'), `# Decision Log: ${changeName}\n\n`);
   ensureDir(join(changeDir, 'snapshots'));
+
+  // Create distributed spec files (prd.md + tech.md) with standard format
+  try {
+    scaffoldChangeSpecs(changeDir, changeName, {
+      parentRoot: projectRoot,
+      phase: workflow === 'hotfix' ? 'build' : 'design',
+    });
+  } catch {
+    // Scaffolding is best-effort; don't fail change creation
+  }
 }
 
 /** Discard a change */

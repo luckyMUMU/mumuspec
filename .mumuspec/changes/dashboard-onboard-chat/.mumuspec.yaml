@@ -1,0 +1,67 @@
+name: dashboard-onboard-chat
+phase: archive-completed
+workflow: full
+created_at: 2026-08-02T09:40:30.427Z
+updated_at: 2026-08-02T11:01:27.594Z
+scope: .
+affected_scopes: []
+build_layers:
+  - layer: 3
+    status: done
+  - layer: 2
+    status: done
+  - layer: 1
+    status: done
+  - layer: 0
+    status: done
+test_cases:
+  design_locked: true
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+  design_content_hash: cd9a8fbb647d33ac
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: direct
+tdd_mode: tdd
+isolation: worktree
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts: {}
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 8
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 6
+  converged: true
+  rounds_completed: 1
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+grill_me_result:
+  completed: true
+  rounds: 2
+design_layers_covered: "[0,1,2,3]"
+ponytail_constraints_defined: true
+build_layers_completed_in_bottom_up_order: true
+ponytail_compliance_checked: true
+cognitive_map: cognitive-map.yaml
+verify_mode: full
+verify_result: pass
+verification_report: verify.md
+branch_status: handled
+knowledge_extraction:
+  completed: true
+  pages_created_count: 3
+  graph_bindings_verified: true
+  conflicts_resolved: true

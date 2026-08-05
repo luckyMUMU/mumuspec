@@ -1,400 +1,26 @@
 pages:
-  - id: KD-0015
-    title: AI Coding Agent 生态深度调研报告
+  - id: KE-dashboard-onboard-chat-hyperplan
+    title: Adversarial design review insights from dashboard-onboard-chat
     type: decision
     status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0015-docs_appendix_ai-agent-ecosystem-research.md
+    scope: dashboard-onboard-chat
+    file: .mumuspec\knowledge\decisions\KE-dashboard-onboard-chat-hyperplan.md
     tags:
-      - imported
-      - docs
-      - research
-      - ecosystem
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KD-0016
-    title: MumuSpec 项目现状与 AI Agent 生态调研对比分析
-    type: decision
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0016-docs_appendix_mumuspec-ecosystem-comparison.md
-    tags:
-      - imported
-      - docs
-      - ecosystem
-      - architecture
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KD-0017
-    title: AI Integration Layer — AI 编程工具集成
-    type: decision
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0017-docs_design_ai-integration.md
-    tags:
-      - imported
-      - docs
-      - architecture
-      - design-decision
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KD-0018
-    title: Change Layer — 变更驱动的规范生命周期
-    type: decision
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0018-docs_design_change-layer.md
-    tags:
-      - imported
-      - docs
-      - architecture
-      - design-decision
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KD-0019
-    title: Constraint Strength — 动态约束强度系统
-    type: decision
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0019-docs_design_constraint-strength.md
-    tags:
-      - imported
-      - docs
-      - architecture
-      - design-decision
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KD-0020
-    title: Contract Layer — 外部服务契约与自身对外契约
-    type: decision
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0020-docs_design_contract-layer.md
-    tags:
-      - imported
-      - docs
-      - architecture
-      - design-decision
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KD-0021
-    title: Guard Layer — 自动化校验
-    type: decision
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0021-docs_design_guard-layer.md
-    tags:
-      - imported
-      - docs
-      - architecture
-      - design-decision
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KD-0022
-    title: Knowledge Layer — 持久化知识来源（代码图谱 + LLM-Wiki + PageIndex）
-    type: decision
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0022-docs_design_knowledge-layer.md
-    tags:
-      - imported
-      - docs
-      - architecture
-      - design-decision
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KD-0023
-    title: Spec Layer — 树状分布的双向约束规范
-    type: decision
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0023-docs_design_spec-layer.md
-    tags:
-      - imported
-      - docs
-      - architecture
-      - design-decision
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KD-0024
-    title: MumuSpec 实现计划
-    type: decision
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0024-docs_implementation-plan.md
-    tags:
-      - imported
-      - docs
-      - implementation
-      - planning
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KD-0025
-    title: 认知框架 — 乔哈里窗变体
-    type: decision
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\decisions\imported\KD-0025-docs_reference_cognitive-framework.md
-    tags:
-      - imported
-      - docs
-      - cognitive-framework
-      - design
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KE-enhance-design-phase-qa-summary
-    title: Knowledge extracted from enhance-design-phase
-    type: decision
-    status: confirmed
-    scope: enhance-design-phase
-    file: .mumuspec\knowledge\decisions\changes\KE-enhance-design-phase-qa-summary.md
-    tags:
-      - merged
-      - decision
-      - pattern
-      - lesson
-      - risk
-      - enhance-design-phase
-  - id: KE-refactor-init-and-archive-qa-summary
-    title: Knowledge extracted from refactor-init-and-archive
-    type: decision
-    status: confirmed
-    scope: refactor-init-and-archive
-    file: .mumuspec\knowledge\decisions\changes\KE-refactor-init-and-archive-qa-summary.md
-    tags:
-      - merged
-      - decision
-      - pattern
-      - lesson
-      - risk
-      - refactor-init-and-archive
-  - id: KE-refactor-persistent-spec-qa-summary
-    title: Knowledge extracted from refactor-persistent-spec
-    type: decision
-    status: confirmed
-    scope: refactor-persistent-spec
-    file: .mumuspec\knowledge\decisions\changes\KE-refactor-persistent-spec-qa-summary.md
-    tags:
-      - merged
-      - decision
-      - pattern
-      - lesson
-      - risk
-      - refactor-persistent-spec
-  - id: KE-introduce-ua-design-decisions
-    title: Knowledge extracted from introduce-ua-design
-    type: decision
-    status: confirmed
-    scope: introduce-ua-design
-    file: .mumuspec\knowledge\decisions\changes\KE-introduce-ua-design-decisions.md
-    tags:
-      - merged
-      - decision
-      - pattern
-      - architecture
-      - knowledge-layer
-      - chat
-      - dashboard
-      - introduce-ua-design
-  - id: KE-add-env-spec-decisions
-    title: Knowledge extracted from add-env-spec
-    type: decision
-    status: confirmed
-    scope: add-env-spec
-    file: .mumuspec\knowledge\decisions\changes\KE-add-env-spec-decisions.md
-    tags:
-      - merged
-      - decision
-      - pattern
-      - env-detector
-      - security
-      - cli
-      - add-env-spec
-  - id: KE-introduce-grill-me-skill-decisions
-    title: Knowledge extracted from introduce-grill-me-skill
-    type: decision
-    status: confirmed
-    scope: introduce-grill-me-skill
-    file: .mumuspec\knowledge\decisions\changes\KE-introduce-grill-me-skill-decisions.md
-    tags:
-      - merged
-      - decision
-      - pattern
-      - grill-me
-      - design-phase
-      - orchestrator
-      - consensus
-      - introduce-grill-me-skill
-  - id: KP-0001
-    title: MumuSpec 核心设计决策：双约束 + 树状分层 + 渐进式披露 + 动态强度
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0001-dual-constraint-tree-progressive.md
-    tags:
-      - dual-constraint
-      - tree-progressive
-      - core-design
-      - architecture
-      - goal
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0002
-    title: MumuSpec 六层架构决策
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0002-six-layer-architecture.md
-    tags:
-      - architecture
-      - six-layers
-      - design
-      - vision
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0003
-    title: MumuSpec 四大工作流规则决策
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0003-workflow-rules.md
-    tags:
-      - workflow
-      - tdd
-      - worktree
-      - design-order
-      - single-change
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0004
-    title: Ponytail 编码约束作为 MumuSpec 基础编码约束
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0004-ponytail-coding-constraints.md
-    tags:
-      - ponytail
-      - yagni
-      - abstraction
-      - coding-constraints
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0005
-    title: Contract Layer 契约层设计决策
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0005-contract-layer.md
-    tags:
-      - contract
-      - external
-      - outbound
-      - service-mesh
-      - goal
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0006
-    title: Knowledge Layer 知识层设计决策：可插拔图谱后端 + LLM-Wiki + PageIndex
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0006-knowledge-layer.md
-    tags:
-      - knowledge
-      - code-graph
-      - llm-wiki
-      - page-index
-      - graph-backend
-      - vision
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0007
-    title: 认知框架（乔哈里窗变体 Q1-Q4）集成到 Design 阶段
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0007-cognitive-framework.md
-    tags:
-      - cognitive-framework
-      - johari-window
-      - q1-q4
-      - design-phase
-      - goal
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0008
-    title: 动态约束强度系统设计决策
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0008-dynamic-constraint-strength.md
-    tags:
-      - constraint-strength
-      - dynamic
-      - dual-dimension
-      - progressive
-      - vision
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0009
-    title: Phase 1 MVP 范围收敛决策
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0009-mvp-scope.md
-    tags:
-      - mvp
-      - scope
-      - phase1
-      - prioritization
-      - vision
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0017
-    title: 双层约束体系：业务约束层（spec.md）+ 行为约束层（constraints.yaml）
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0017-dual-constraint-layer.md
-    tags:
-      - dual-constraint
-      - spec
-      - constraints
-      - behavior
-      - architecture
-      - goal
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0018
-    title: Hyperplan 对抗式规划 Skill 设计决策
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0018-hyperplan-adversarial.md
-    tags:
+      - auto-extracted
       - hyperplan
-      - adversarial
-      - design-review
-      - multi-role
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0019
-    title: AI 工具适配层（AIToolAdapter）设计决策
-    type: decision
+      - decision
+      - dashboard-onboard-chat
+  - id: KE-dashboard-onboard-chat-patterns
+    title: Architecture patterns from dashboard-onboard-chat
+    type: pattern
     status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0019-ai-tool-adapter.md
+    scope: dashboard-onboard-chat
+    file: .mumuspec\knowledge\patterns\KE-dashboard-onboard-chat-patterns.md
     tags:
-      - ai-adapter
-      - claude
-      - cursor
-      - codex
-      - aitooladapter
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0025
-    title: 错误码标准化体系：E-<DOMAIN>-<NUMBER>
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0025-error-code-standard.md
-    tags:
-      - error-code
-      - standard
-      - domain
-      - troubleshooting
-      - roadmap
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0028
-    title: Archive 阶段知识提取流程设计
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\decisions\global\KP-0028-knowledge-extract.md
-    tags:
-      - knowledge-extraction
-      - archive
-      - design-knowledge
-      - auto-extract
-      - goal
-    verified_at: 2026-07-29T00:00:00Z
+      - auto-extracted
+      - pattern
+      - architecture
+      - dashboard-onboard-chat
   - id: KP-0035
     title: 完整目录结构示例
     type: pattern
@@ -889,56 +515,17 @@ pages:
       - project-status
       - risk
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: KP-0012
-    title: 为什么规范独立于代码：约束应描述行为而非实现
-    type: rationale
+  - id: KE-dashboard-onboard-chat-lessons
+    title: Lessons from dashboard-onboard-chat decisions
+    type: lesson
     status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\rationale\KP-0012-why-spec-not-code.md
+    scope: dashboard-onboard-chat
+    file: .mumuspec\knowledge\lessons\KE-dashboard-onboard-chat-lessons.md
     tags:
-      - rationale
-      - spec-design
-      - abstraction
-      - independent
-      - vision
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KP-0024
-    title: 设计哲学：内部强制、外部兼容
-    type: rationale
-    status: confirmed
-    scope: global
-    file: .mumuspec\knowledge\rationale\KP-0024-design-philosophy.md
-    tags:
-      - philosophy
-      - boundary
-      - internal
-      - external
-      - compatible
-    verified_at: 2026-07-29T00:00:00Z
-  - id: KRA-0003
-    title: MumuSpec — 全局概览
-    type: rationale
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\rationale\KRA-0003-docs_overview.md
-    tags:
-      - imported
-      - docs
-      - overview
-      - philosophy
-    verified_at: 2026-07-31T16:19:01.701Z
-  - id: KRA-0004
-    title: MumuSpec
-    type: rationale
-    status: confirmed
-    scope: imported
-    file: .mumuspec\knowledge\rationale\KRA-0004-readme.md
-    tags:
-      - imported
-      - readme
-      - overview
-      - introduction
-    verified_at: 2026-07-31T16:19:01.701Z
+      - auto-extracted
+      - lesson
+      - decisions
+      - dashboard-onboard-chat
   - id: KL-0006
     title: 开放问题
     type: lesson
@@ -1050,7 +637,7 @@ pages:
       - spec-creation
       - reverse-engineering
       - bootstrap
-    verified_at: 2026-07-30T00:00:00Z
+    verified_at: 2026-07-30T00:0000Z
   - id: IMPORT-AGENTS
     title: Agent Rules
     type: pattern
@@ -1152,7 +739,7 @@ pages:
       - feedback
     verified_at: 2026-07-31T16:19:01.701Z
   - id: IMPORT-FEEDBACK__TEMPLATE_SESSION_SUMMARY_TEMPLATE
-    title: <会话简短标题,如 "为 API 层添加分页查询规范">
+    title: Session Summary Template
     type: pattern
     status: confirmed
     scope: imported
@@ -1162,7 +749,7 @@ pages:
       - feedback-template
     verified_at: 2026-07-31T16:19:01.701Z
   - id: IMPORT-FEEDBACK__TEMPLATE_USER_FEEDBACK_TEMPLATE
-    title: 关联字段（可选）
+    title: User Feedback Template
     type: pattern
     status: confirmed
     scope: imported
