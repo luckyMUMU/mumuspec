@@ -10,6 +10,8 @@ import {
   searchPackages,
   resolvePackage,
   installPackage,
+  listInstalledAgentSkills,
+  formatAgentInstalledSkills,
 } from '../install/installer.js';
 
 /** Helper: get CSS summary string */
@@ -83,6 +85,7 @@ export function createAgentInstallSubcommand(
     .description(description)
     .argument('[packages...]', 'skill package names to install (e.g., mumuspec-workflow)')
     .option('--list', 'list available packages for this agent')
+    .option('--installed', 'list currently installed skills for this agent')
     .option('--force', 'force update if already installed')
     .option('--target <scope>', 'installation target: user (global) or workspace (project)', 'user')
     .option('--workspace-path <path>', 'workspace path (required when --target workspace)')
@@ -94,17 +97,49 @@ export function createAgentInstallSubcommand(
       // --list: show available packages
       if (options.list) {
         const manifest = getManifest(agentType as AgentType);
-        console.log(`\nAvailable packages for ${agentName}:`);
-        manifest.forEach((p) => {
-          console.log(`  ${p.name} — ${p.description}`);
-        });
+        if (manifest.length === 0) {
+          console.log(`No packages available for ${agentName} in the manifest.`);
+          return;
+        }
+        console.log(`\nAvailable ${agentName} skill packages:\n`);
+        const categories = new Map<string, typeof manifest>();
+        for (const pkg of manifest) {
+          const list = categories.get(pkg.category) || [];
+          list.push(pkg);
+          categories.set(pkg.category, list);
+        }
+        for (const [category, pkgs] of categories) {
+          console.log(`  [${category}]`);
+          for (const pkg of pkgs) {
+            console.log(`    ${pkg.name}`);
+            console.log(`      ${pkg.description}`);
+          }
+        }
+        console.log(`\nUsage: mumuspec install ${agentName} <package1> [package2 ...]`);
+        return;
+      }
+
+      // --installed: show currently installed skills
+      if (options.installed) {
+        const result = listInstalledAgentSkills(agentType as AgentType, target, workspacePath);
+        if (result.success) {
+          console.log(`\nInstalled ${agentName} Skills:`);
+          console.log(formatAgentInstalledSkills(result.skills, agentName));
+        } else {
+          console.error(`Error listing installed skills: ${result.error}`);
+          process.exit(1);
+        }
         return;
       }
 
       // --search
       if (options.search) {
         const results = searchPackages(agentType as AgentType, options.search as string);
-        console.log(`\nSearch results for "${options.search}" (${agentName}):`);
+        if (results.length === 0) {
+          console.log(`No packages match "${options.search}".`);
+          return;
+        }
+        console.log(`\n${results.length} package(s) matching "${options.search}":`);
         results.forEach((p) => {
           console.log(`  ${p.name} — ${p.description}`);
         });

@@ -47,6 +47,11 @@ export {
   listInstalledMcp,
   listInstalledCatpaw,
   formatInstalledSkills,
+  listInstalledAgentSkills,
+  formatAgentInstalledSkills,
   isAgentSupported,
   getSupportedAgents,
 } from './installer-ops.js';
+
+// Re-export new types
+export type { AgentInstalledSkill } from './installer-ops.js';

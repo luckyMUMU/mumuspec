@@ -1,7 +1,7 @@
 /**
  * Installer operations — concrete install/query logic for all supported agents.
  */
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -163,6 +163,20 @@ export function installPackage(
   }
 }
 
+function createMinimalAgentSkill(pkg: PackageManifestEntry): string {
+  return `---
+name: ${pkg.name}
+description: "${pkg.description}"
+---
+
+# ${pkg.name}
+
+${pkg.description}
+
+mumuspec init / mumuspec new <name> / mumuspec status / mumuspec guard <name> <phase>
+`;
+}
+
 function installGenericAgentPackage(
   agent: AgentType,
   packageName: string,
@@ -176,7 +190,6 @@ function installGenericAgentPackage(
   try {
     const dirInfo = getAgentSkillDir(agent, target, workspacePath);
     const sourceSkill = findSkillSource(packageName);
-    if (!sourceSkill) return { success: false, packageName, agent, target, error: `Skill source not found.` };
 
     let targetPath: string;
     if (agent === 'claude' || agent === 'cursor') {
@@ -191,7 +204,9 @@ function installGenericAgentPackage(
     }
 
     mkdirSync(dirname(targetPath), { recursive: true });
-    writeFileSync(targetPath, readFileSync(sourceSkill, 'utf8'), 'utf8');
+    // ponytail: fallback to minimal skill content if source not found (aligned with CatPaw's createMinimalWorkflowSkill)
+    const content = sourceSkill ? readFileSync(sourceSkill, 'utf8') : createMinimalAgentSkill(pkg);
+    writeFileSync(targetPath, content, 'utf8');
     return { success: true, packageName, agent, target, path: targetPath };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -437,6 +452,85 @@ export function formatInstalledSkills(
     const src = skill.source || 'user';
     lines.push(`  ${index + 1}. ${skill.name} (${status}, ${src}, ${scope})`);
     if (skill.installPath) lines.push(`     ${skill.installPath}`);
+  });
+  return lines.join('\n');
+}
+
+// ── Generic agent installed skills listing (aligned with CatPaw) ──
+
+export interface AgentInstalledSkill {
+  name: string;
+  path: string;
+  scope: 'user' | 'workspace';
+}
+
+/**
+ * Scan the agent's skill directory for installed skills.
+ * Works by reading the filesystem directly (no CLI dependency).
+ */
+export function listInstalledAgentSkills(
+  agent: AgentType,
+  target: InstallTarget,
+  workspacePath?: string,
+): { success: boolean; skills: AgentInstalledSkill[]; error?: string } {
+  try {
+    const dirInfo = getAgentSkillDir(agent, target, workspacePath);
+    const skillsDir = join(dirInfo.baseDir, dirInfo.skillsSubDir);
+
+    if (!existsSync(skillsDir)) {
+      return { success: true, skills: [] };
+    }
+
+    const skills: AgentInstalledSkill[] = [];
+    const entries = readdirSync(skillsDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = join(skillsDir, entry.name);
+
+      if (agent === 'claude' || agent === 'cursor') {
+        // These agents use flat .md files in commands dir
+        if (entry.isFile() && entry.name.endsWith(dirInfo.fileExt)) {
+          skills.push({
+            name: entry.name.replace(/\.md$/, ''),
+            path: fullPath,
+            scope: target,
+          });
+        }
+      } else if (entry.isDirectory()) {
+        // trae, workbuddy, opencode use subdirectories with SKILL.md
+        const skillFile = join(fullPath, dirInfo.fileExt);
+        if (existsSync(skillFile)) {
+          skills.push({
+            name: entry.name,
+            path: skillFile,
+            scope: target,
+          });
+        }
+      }
+    }
+
+    return { success: true, skills };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      skills: [],
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+/**
+ * Format installed skills for display — matches CatPaw's formatInstalledSkills style.
+ */
+export function formatAgentInstalledSkills(
+  skills: AgentInstalledSkill[],
+  agentName: string,
+): string {
+  if (skills.length === 0) return `No skills installed for ${agentName}.`;
+  const lines: string[] = [`Total: ${skills.length} skill(s) installed`];
+  skills.forEach((skill, index) => {
+    lines.push(`  ${index + 1}. ${skill.name} (${skill.scope})`);
+    lines.push(`     ${skill.path}`);
   });
   return lines.join('\n');
 }
