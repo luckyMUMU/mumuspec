@@ -5,7 +5,7 @@ import type { Command } from 'commander';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { SpecFile, Requirement } from '../../core/types.js';
-import { findProjectRoot, ensureDir, writeText, readText, now } from '../../core/utils.js';
+import { findProjectRoot, ensureDir, writeText, readText, now, normalizePath } from '../../core/utils.js';
 import { loadConfig } from '../../core/config.js';
 import { formatError } from '../../core/errors.js';
 import {
@@ -20,6 +20,7 @@ import {
 import { loadSpecContext, searchSpecs, findAllDistributedSpecDirs } from '../../spec/loader.js';
 import { validateAllSpecs } from '../../spec/validator.js';
 import { checkCompliance, detectDrift, autoFixDrift } from '../../guard/checker.js';
+import { loadChangeState } from '../../change/state.js';
 
 export function registerSpecCommands(program: Command): void {
   // === context ===
@@ -246,55 +247,85 @@ export function registerSpecCommands(program: Command): void {
     });
 
   // === drift ===
-  program
+  const driftCmd = program
     .command('drift')
     .description('Detect drift between specs and code')
     .option('--json', 'output as JSON')
     .option('--fix', 'auto-fix safe drift issues')
-    .option('--dry-run', 'preview fixes without applying (use with --fix)')
-    .action((options) => {
-      const root = findProjectRoot();
-      if (!root) {
-        console.error('Error: Not in a MumuSpec project.');
+    .option('--dry-run', 'preview fixes without applying (use with --fix)');
+
+  function runDriftDetection(options: {
+    json?: boolean;
+    fix?: boolean;
+    dryRun?: boolean;
+    change?: string;
+  }): void {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+
+    let results = detectDrift(root);
+
+    if (options.change) {
+      const state = loadChangeState(root, options.change);
+      if (!state) {
+        console.error(`Error: Could not load state for change "${options.change}".`);
         process.exit(1);
       }
+      const changePrefix = normalizePath(`.mumuspec/changes/${options.change}/`);
+      const scoped = results.filter(
+        (d) => d.file && normalizePath(d.file).includes(changePrefix),
+      );
+      results = scoped;
+    }
 
-      let results = detectDrift(root);
+    if (options.fix) {
+      const fixResult = autoFixDrift(root, results, options.dryRun);
+      results = fixResult.remaining;
 
-      if (options.fix) {
-        const fixResult = autoFixDrift(root, results, options.dryRun);
-        results = fixResult.remaining;
-
-        if (options.json) {
-          console.log(JSON.stringify({ fixed: fixResult.fixed, remaining: fixResult.remaining }, null, 2));
-          return;
-        }
-
-        if (fixResult.fixed.length > 0) {
-          console.log(`${options.dryRun ? '[DRY-RUN] Would fix' : 'Fixed'} ${fixResult.fixed.length} drift(s):`);
-          for (const f of fixResult.fixed) {
-            console.log(`  ✓ [${f.type}] ${f.message}${f.file ? ' → ' + f.file : ''}`);
-          }
-        }
-      } else if (options.json) {
-        console.log(JSON.stringify(results, null, 2));
+      if (options.json) {
+        console.log(JSON.stringify({ fixed: fixResult.fixed, remaining: fixResult.remaining }, null, 2));
         return;
       }
 
-      if (results.length === 0) {
-        console.log('✓ No drift detected');
-      } else {
-        console.log(`\n${results.length} drift(s) detected:`);
-        for (const drift of results) {
-          const icon = drift.severity === 'ERROR' ? '✗' : '⚠';
-          console.log(`  ${icon} [${drift.type}] ${drift.message}`);
-          if (drift.file) console.log(`    File: ${drift.file}`);
-          if (drift.fixHint) console.log(`    Hint: ${drift.fixHint}`);
+      if (fixResult.fixed.length > 0) {
+        console.log(`${options.dryRun ? '[DRY-RUN] Would fix' : 'Fixed'} ${fixResult.fixed.length} drift(s):`);
+        for (const f of fixResult.fixed) {
+          console.log(`  ✓ [${f.type}] ${f.message}${f.file ? ' → ' + f.file : ''}`);
         }
-        console.log('\nRun `mumuspec drift --fix` to auto-fix safe issues.');
-        console.log('Run `mumuspec drift --fix --dry-run` to preview fixes.');
       }
-    });
+    } else if (options.json) {
+      console.log(JSON.stringify(results, null, 2));
+      return;
+    }
+
+    if (results.length === 0) {
+      console.log('✓ No drift detected');
+    } else {
+      console.log(`\n${results.length} drift(s) detected:`);
+      for (const drift of results) {
+        const icon = drift.severity === 'ERROR' ? '✗' : '⚠';
+        console.log(`  ${icon} [${drift.type}] ${drift.message}`);
+        if (drift.file) console.log(`    File: ${drift.file}`);
+        if (drift.fixHint) console.log(`    Hint: ${drift.fixHint}`);
+      }
+      console.log('\nRun `mumuspec drift --fix` to auto-fix safe issues.');
+      console.log('Run `mumuspec drift --fix --dry-run` to preview fixes.');
+    }
+  }
+
+  driftCmd.action((options) => runDriftDetection(options));
+
+  driftCmd
+    .command('detect')
+    .description('Detect drift (optionally scoped to a change)')
+    .option('--change <name>', 'scope drift detection to a change')
+    .option('--json', 'output as JSON')
+    .option('--fix', 'auto-fix safe drift issues')
+    .option('--dry-run', 'preview fixes without applying (use with --fix)')
+    .action((options) => runDriftDetection(options));
 
   // === search ===
   program

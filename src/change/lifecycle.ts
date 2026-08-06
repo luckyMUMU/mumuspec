@@ -326,8 +326,8 @@ export function initTestCases(
   }
 }
 
-/** Lock test cases (compute hash, set design_locked) */
-export function lockTestCases(
+/** Compute the current test-cases content hash (read-only, no lock state change) */
+export function computeTestCasesHash(
   projectRoot: string,
   changeName: string,
 ): string {
@@ -347,7 +347,15 @@ export function lockTestCases(
     }
   }
 
-  const hash = computeHash(combinedContent);
+  return computeHash(combinedContent);
+}
+
+/** Lock test cases (compute hash, set design_locked) */
+export function lockTestCases(
+  projectRoot: string,
+  changeName: string,
+): string {
+  const hash = computeTestCasesHash(projectRoot, changeName);
 
   const state = loadChangeState(projectRoot, changeName);
   if (!state) throw new Error(`Change not found: ${changeName}`);
@@ -370,23 +378,7 @@ export function verifyTestCases(
 
   if (!state.test_cases.design_locked) return { valid: true };
 
-  const changeDir = getChangeDir(projectRoot, changeName);
-  const testCasesDir = join(changeDir, 'test-cases');
-
-  let combinedContent = '';
-  if (existsSync(testCasesDir)) {
-    const files = readdirSync(testCasesDir).sort();
-    for (const file of files) {
-      if (file.endsWith('.md')) {
-        const content = readText(join(testCasesDir, file));
-        if (content) {
-          combinedContent += file + '\n' + content + '\n';
-        }
-      }
-    }
-  }
-
-  const actualHash = computeHash(combinedContent);
+  const actualHash = computeTestCasesHash(projectRoot, changeName);
   const expectedHash = state.test_cases.design_content_hash;
 
   return {

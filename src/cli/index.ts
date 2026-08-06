@@ -54,6 +54,9 @@ import { registerContractCommands } from './commands/contract.js';
 import { registerLoopCommands } from './commands/loop.js';
 import { registerSyncCommand } from './commands/sync.js';
 import { registerReviewCommand } from './commands/review.js';
+import { registerAuditLogCommand } from './commands/audit-log.js';
+import { registerTraceCommand } from './commands/trace.js';
+import { registerGraphCommand } from './commands/graph.js';
 
 const program = new Command();
 
@@ -406,6 +409,9 @@ registerContractCommands(program);
 registerLoopCommands(program);
 registerSyncCommand(program);
 registerReviewCommand(program);
+registerAuditLogCommand(program);
+registerTraceCommand(program);
+registerGraphCommand(program);
 
 // Handle unknown commands gracefully
 program.on('command:*', () => {

@@ -275,47 +275,52 @@ function checkDesignToBuild(
   }
 
   // DS-004: Cross-artifact consistency check (E-DESIGN-010)
-  const consistencyErrors = checkCrossArtifactConsistencySync(state, projectRoot, changeName);
-  errors.push(...consistencyErrors);
+  // 过程 BP（BP-10 设计工件一致性）→ 降级为 warning，不阻塞转换
+  const consistencyWarnings = checkCrossArtifactConsistencySync(state, projectRoot, changeName).map(
+    (e) => ({ ...e, code: 'W-DESIGN-010' }),
+  );
+  warnings.push(...consistencyWarnings);
 
-  // Check cognitive framework (only for full workflow)
+  // Cognitive framework (full workflow only) — 过程 BP（BP-9/11/12/13 认知框架）
+  // 推荐执行：未完成仅产生 warning，不阻塞阶段转换
   if (state.workflow === 'full' && state.cognitive_framework?.enabled) {
     const cf = state.cognitive_framework;
     if (!cf.cognitive_map_ref) {
-      errors.push({ code: 'E-DESIGN-001', message: 'cognitive-map.yaml 不存在' });
+      warnings.push({ code: 'W-DESIGN-001', message: 'cognitive-map.yaml 不存在' });
     }
     if (cf.q1_count === 0) {
-      errors.push({ code: 'E-DESIGN-002', message: 'Q1 已知的已知为空' });
+      warnings.push({ code: 'W-DESIGN-002', message: 'Q1 已知的已知为空' });
     }
     if (cf.q2_pending > 0 && cf.rounds_completed < 5) {
-      errors.push({ code: 'E-DESIGN-003', message: `Q2 存在 ${cf.q2_pending} 个待回答问题` });
+      warnings.push({ code: 'W-DESIGN-003', message: `Q2 存在 ${cf.q2_pending} 个待回答问题` });
     }
     if (cf.q3_pending > 0 && cf.rounds_completed < 5) {
-      errors.push({ code: 'E-DESIGN-004', message: `Q3 存在 ${cf.q3_pending} 个待确认推导` });
+      warnings.push({ code: 'W-DESIGN-004', message: `Q3 存在 ${cf.q3_pending} 个待确认推导` });
     }
     if (cf.q4_scans_completed < 3) {
-      errors.push({ code: 'E-DESIGN-005', message: `Q4 扫描仅 ${cf.q4_scans_completed} 个维度（需至少3个）` });
+      warnings.push({ code: 'W-DESIGN-005', message: `Q4 扫描仅 ${cf.q4_scans_completed} 个维度（需至少3个）` });
     }
     if (!cf.converged) {
-      errors.push({ code: 'E-DESIGN-006', message: '认知地图未收敛' });
+      warnings.push({ code: 'W-DESIGN-006', message: '认知地图未收敛' });
     }
   }
 
-  // Check grill-me result (full workflow only)
+  // Grill-me result (full workflow only) — 过程 BP（BP-15 压力测试）推荐执行，
+  // 未完成仅产生 warning，不阻塞阶段转换
   if (state.workflow === 'full' && state.grill_me_result) {
     const gm = state.grill_me_result;
     if (!gm.completed) {
-      errors.push({ code: 'E-DESIGN-007', message: 'grill-me 压力测试未完成' });
+      warnings.push({ code: 'W-DESIGN-007', message: 'grill-me 压力测试未完成' });
     }
     if (gm.rounds > gm.max_rounds) {
-      errors.push({
-        code: 'E-DESIGN-008',
+      warnings.push({
+        code: 'W-DESIGN-008',
         message: `grill-me 追问轮次超出上限 (${gm.rounds}/${gm.max_rounds})`,
       });
     }
     if (!gm.consensus_reached && gm.deferred_count > 0) {
       warnings.push({
-        code: 'W-DESIGN-001',
+        code: 'W-DESIGN-011',
         message: `grill-me 有 ${gm.deferred_count} 个 deferred 分支未达成共识`,
       });
     }

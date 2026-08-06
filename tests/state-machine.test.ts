@@ -42,8 +42,8 @@ describe('state-machine', () => {
     expect(canTransition('open', 'build')).toBe(true);
   });
 
-  it('should not allow open -> verify directly', () => {
-    expect(canTransition('open', 'verify')).toBe(false);
+  it('should allow open -> verify via flexible forward edge', () => {
+    expect(canTransition('open', 'verify')).toBe(true);
   });
 
   it('should not allow terminal state transitions', () => {
@@ -58,9 +58,9 @@ describe('state-machine', () => {
     expect(result.state.phase).toBe('design');
   });
 
-  it('should reject invalid forward transition', () => {
+  it('should reject transition into terminal target', () => {
     const state = createTestState({ phase: 'open' });
-    const result = executeTransition(state, 'verify');
+    const result = executeTransition(state, 'archive-completed');
     expect(result.success).toBe(false);
     expect(result.error).toContain('E-CHANGE-006');
   });
@@ -100,6 +100,19 @@ describe('state-machine', () => {
     expect(getValidTransitions('open')).toContain('design');
     expect(getValidTransitions('open')).toContain('build');
     expect(getValidTransitions('archive-completed')).toHaveLength(0);
+  });
+
+  it('should allow flexible rollback build -> open (counted)', () => {
+    const state = createTestState({ phase: 'build' });
+    const result = executeTransition(state, 'open');
+    expect(result.success).toBe(true);
+    expect(result.state.phase).toBe('open');
+    expect(result.state.rollback_count).toBe(1);
+  });
+
+  it('should include flexible targets in getValidTransitions', () => {
+    expect(getValidTransitions('open')).toContain('verify');
+    expect(getValidTransitions('open')).not.toContain('archive-completed');
   });
 
   it('should suggest next phase for full workflow', () => {

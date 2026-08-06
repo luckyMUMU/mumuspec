@@ -80,9 +80,13 @@ describe('phase state machine', () => {
     expect(canTransition('design', 'build')).toBe(true);
   });
 
-  it('blocks backward transitions (direct backward invalid without edge)', () => {
-    expect(canTransition('build', 'open')).toBe(false);
+  it('allows flexible backward transitions between non-terminal states', () => {
+    expect(canTransition('build', 'open')).toBe(true);
+  });
+
+  it('blocks all transitions from terminal states', () => {
     expect(canTransition('archive-completed', 'build')).toBe(false);
+    expect(canTransition('discarded', 'open')).toBe(false);
   });
 
   it('getValidTransitions returns allowed next phases', () => {
@@ -144,12 +148,12 @@ describe('invalid transitions', () => {
     expect(canTransitionWithContext('open', 'build', state)).toBe(false);
   });
 
-  it('blocks open to verify', () => {
-    expect(canTransition('open', 'verify')).toBe(false);
+  it('allows open to verify via flexible forward edge', () => {
+    expect(canTransition('open', 'verify')).toBe(true);
   });
 
-  it('blocks design to verify', () => {
-    expect(canTransition('design', 'verify')).toBe(false);
+  it('allows design to verify via flexible forward edge', () => {
+    expect(canTransition('design', 'verify')).toBe(true);
   });
 
   it('blocks self-loop: open to open', () => {
@@ -351,9 +355,9 @@ describe('executeTransition — error paths', () => {
     expect(result.error).toContain('terminal');
   });
 
-  it('fails for non-existent edge', () => {
+  it('fails for non-existent edge (terminal target is not flexible)', () => {
     const state = makeTestState({ phase: 'open' });
-    const result = executeTransition(state, 'verify');
+    const result = executeTransition(state, 'archive-completed');
     expect(result.success).toBe(false);
     expect(result.error).toContain('E-CHANGE-006');
     expect(result.error).toContain('Invalid transition');
@@ -361,7 +365,7 @@ describe('executeTransition — error paths', () => {
 
   it('error message includes valid targets hint', () => {
     const state = makeTestState({ phase: 'open' });
-    const result = executeTransition(state, 'verify');
+    const result = executeTransition(state, 'archive-completed');
     expect(result.error).toContain('valid targets from open');
   });
 
@@ -552,6 +556,79 @@ describe('executeRollbackByEdge', () => {
     const result = executeRollbackByEdge(state, 'verify', 'reason');
     expect(result.success).toBe(false);
     expect(result.error).toContain('No backward edge');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// SUITE K2: Flexible transitions (non-terminal free jumps)
+// ═══════════════════════════════════════════════════════════════════
+
+describe('flexible transitions (non-terminal free jumps)', () => {
+  it('getValidTransitions includes flexible targets', () => {
+    expect(getValidTransitions('open')).toContain('verify');
+    expect(getValidTransitions('open')).toContain('archive-in-progress');
+    expect(getValidTransitions('build')).toContain('open');
+  });
+
+  it('getValidTransitions never synthesizes into terminal states', () => {
+    expect(getValidTransitions('open')).not.toContain('archive-completed');
+    expect(getValidTransitions('design')).not.toContain('archive-completed');
+    expect(getValidTransitions('archive-completed')).toHaveLength(0);
+  });
+
+  it('does not synthesize flexible edges from terminal states', () => {
+    expect(canTransition('archive-completed', 'verify')).toBe(false);
+    expect(canTransition('discarded', 'build')).toBe(false);
+  });
+
+  it('does not synthesize flexible edges into terminal states', () => {
+    expect(canTransition('open', 'archive-completed')).toBe(false);
+    expect(canTransition('design', 'archive-completed')).toBe(false);
+  });
+
+  it('executeTransition flexible forward jump succeeds without counters', () => {
+    const state = makeTestState({ phase: 'open', rollback_count: 1 });
+    const result = executeTransition(state, 'verify');
+    expect(result.success).toBe(true);
+    expect(result.state.phase).toBe('verify');
+    expect(result.state.rollback_count).toBe(1);
+    expect(result.state.rollback_history).toHaveLength(0);
+  });
+
+  it('executeTransition flexible backward jump counts as rollback', () => {
+    const state = makeTestState({ phase: 'build', rollback_count: 0 });
+    const result = executeTransition(state, 'open');
+    expect(result.success).toBe(true);
+    expect(result.state.phase).toBe('open');
+    expect(result.state.rollback_count).toBe(1);
+    expect(result.state.rollback_history[0]!.counted).toBe(true);
+  });
+
+  it('blocks flexible backward jump when rollback limit reached', () => {
+    const state = makeTestState({ phase: 'build', rollback_count: 3, rollback_limit: 3 });
+    const result = executeTransition(state, 'open');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('E-CHANGE-002');
+  });
+
+  it('executeRollbackByEdge accepts flexible backward edges', () => {
+    const state = makeTestState({ phase: 'build' });
+    const result = executeRollbackByEdge(state, 'open', 'flexible rollback');
+    expect(result.success).toBe(true);
+    expect(result.state.phase).toBe('open');
+    expect(result.state.rollback_count).toBe(1);
+  });
+
+  it('requiresUserConfirmation is false for flexible edges', () => {
+    expect(requiresUserConfirmation('open', 'verify').required).toBe(false);
+    expect(requiresUserConfirmation('build', 'open').required).toBe(false);
+  });
+
+  it('conditional skip edge pair stays occupied for full workflow', () => {
+    const fullState = makeTestState({ workflow: 'full' });
+    expect(canTransitionWithContext('open', 'build', fullState)).toBe(false);
+    expect(getValidTransitionsWithContext('open', fullState)).not.toContain('build');
+    expect(getValidTransitionsWithContext('open', fullState)).toContain('verify');
   });
 });
 
@@ -971,5 +1048,162 @@ describe('boundary conditions and state preservation', () => {
     const result = executeTransition(state, 'design');
     expect(result.success).toBe(true);
     expect(result.state.rollback_history[0]!.reason).toContain('transition');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// SUITE T: findTransitionPath — boundary conditions
+// ═══════════════════════════════════════════════════════════════════
+
+describe('findTransitionPath — boundary conditions', () => {
+  it('finds path from open to archive-in-progress (skipping terminal)', () => {
+    const path = findTransitionPath('open', 'archive-in-progress');
+    expect(path[0]).toBe('open');
+    expect(path[path.length - 1]).toBe('archive-in-progress');
+    expect(path).not.toContain('archive-completed');
+  });
+
+  it('finds path from design to archive-in-progress', () => {
+    const path = findTransitionPath('design', 'archive-in-progress');
+    expect(path[0]).toBe('design');
+    expect(path[path.length - 1]).toBe('archive-in-progress');
+  });
+
+  it('respects hotfix context to find shorter path via skip edges', () => {
+    const state = makeTestState({ phase: 'open', workflow: 'hotfix' });
+    const path = findTransitionPath('open', 'verify', state);
+    // hotfix: open → build (skip) → verify
+    expect(path).toEqual(['open', 'build', 'verify']);
+  });
+
+  it('respects tweak context for skip edges', () => {
+    const state = makeTestState({ phase: 'open', workflow: 'tweak' });
+    const path = findTransitionPath('open', 'verify', state);
+    expect(path).toEqual(['open', 'build', 'verify']);
+  });
+
+  it('returns empty array for path from terminal state', () => {
+    const path = findTransitionPath('discarded', 'build');
+    expect(path).toEqual([]);
+  });
+
+  it('finds path from verify to archive-completed via forward edge', () => {
+    // Even though flexible edges don't synthesize into terminal states,
+    // the explicit forward edge from archive-in-progress → archive-completed
+    // allows a path: verify → archive-in-progress → archive-completed
+    const path = findTransitionPath('verify', 'archive-completed');
+    expect(path[path.length - 1]).toBe('archive-completed');
+    expect(path).toContain('archive-in-progress');
+  });
+
+  it('finds same-phase path for every non-terminal phase', () => {
+    const phases: ChangePhase[] = ['open', 'design', 'build', 'verify', 'archive-in-progress'];
+    for (const phase of phases) {
+      const path = findTransitionPath(phase, phase);
+      expect(path).toEqual([phase]);
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// SUITE U: executeTransition — additional error paths
+// ═══════════════════════════════════════════════════════════════════
+
+describe('executeTransition — additional error paths', () => {
+  it('fails when transitioning from full workflow open to build (not a valid edge)', () => {
+    const state = makeTestState({ phase: 'open', workflow: 'full' });
+    const result = executeTransition(state, 'build');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('E-CHANGE-006');
+  });
+
+  it('fails when rebuild limit exceeded on verify-to-build', () => {
+    const state = makeTestState({
+      phase: 'verify',
+      rebuild_count: 2,
+      rebuild_limit: 2,
+    });
+    const result = executeTransition(state, 'build');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('E-CHANGE-003');
+  });
+
+  it('fails when rollback limit exceeded on verify-to-design', () => {
+    const state = makeTestState({
+      phase: 'verify',
+      rollback_count: 3,
+      rollback_limit: 3,
+    });
+    const result = executeTransition(state, 'design');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('E-CHANGE-002');
+  });
+
+  it('succeeds flexible forward transition open → verify without counters', () => {
+    const state = makeTestState({ phase: 'open', rollback_count: 1 });
+    const result = executeTransition(state, 'verify');
+    expect(result.success).toBe(true);
+    expect(result.state.phase).toBe('verify');
+    // flexible forward does not increment rollback_count
+    expect(result.state.rollback_count).toBe(1);
+    expect(result.state.rollback_history).toHaveLength(0);
+  });
+
+  it('succeeds flexible backward transition verify → design with counter increment', () => {
+    const state = makeTestState({ phase: 'verify', rollback_count: 0 });
+    const result = executeTransition(state, 'design');
+    expect(result.success).toBe(true);
+    expect(result.state.rollback_count).toBe(1);
+    expect(result.state.rollback_history[0]!.counted).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// SUITE V: executeTransition with rebuild limit edge (boundary)
+// ═══════════════════════════════════════════════════════════════════
+
+describe('executeTransition — rebuild limit boundary', () => {
+  it('succeeds verify-to-build rebuild when count equals limit minus one', () => {
+    const state = makeTestState({
+      phase: 'verify',
+      rebuild_count: 1,
+      rebuild_limit: 2,
+    });
+    const result = executeTransition(state, 'build');
+    expect(result.success).toBe(true);
+    expect(result.state.rebuild_count).toBe(2);
+  });
+
+  it('fails verify-to-build rebuild when count exactly at limit', () => {
+    const state = makeTestState({
+      phase: 'verify',
+      rebuild_count: 2,
+      rebuild_limit: 2,
+    });
+    const result = executeTransition(state, 'build');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('E-CHANGE-003');
+  });
+
+  it('succeeds archive-to-build rollback when rollback below limit', () => {
+    const state = makeTestState({
+      phase: 'archive-in-progress',
+      rollback_count: 0,
+      rollback_limit: 3,
+    });
+    const result = executeTransition(state, 'build');
+    expect(result.success).toBe(true);
+    expect(result.state.rollback_count).toBe(1);
+  });
+
+  it('fails archive-to-build rollback when rollback at limit', () => {
+    const state = makeTestState({
+      phase: 'archive-in-progress',
+      rollback_count: 3,
+      rollback_limit: 3,
+    });
+    const result = executeTransition(state, 'build');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('E-CHANGE-002');
   });
 });

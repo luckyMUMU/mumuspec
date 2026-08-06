@@ -61,54 +61,60 @@ export function getPhaseGraph(): PhaseGraph {
 // ─── Backward-compatible API ──────────────────────────────────────────────
 
 /**
- * Check if a transition is valid (edge exists in the DCG).
+ * Check if a transition is valid (explicit edge in the DCG, or a
+ * synthesized flexible edge between non-terminal states).
  * For backward compatibility, this does not check runtime conditions.
  * Use `canTransitionWithContext` for context-aware checks.
  */
 export function canTransition(from: ChangePhase, to: ChangePhase): boolean {
-  return getGraph().hasEdge(from, to);
+  return getGraph().resolveEdge(from, to) !== undefined;
 }
 
 /**
  * Context-aware transition check.
- * Returns true only if the edge exists AND any runtime conditions are satisfied.
+ * Returns true only if an edge exists AND any runtime conditions are satisfied.
+ * Flexible edges (non-terminal to non-terminal) are always available.
  */
 export function canTransitionWithContext(
   from: ChangePhase,
   to: ChangePhase,
   state: ChangeState,
 ): boolean {
-  return getGraph().hasEdge(from, to, {
+  return getGraph().resolveEdge(from, to, {
     workflow: state.workflow,
     ...stateToContext(state),
-  });
+  }) !== undefined;
 }
 
 /**
- * Get all valid transitions from a phase (all outgoing edges).
+ * Get all valid transitions from a phase: explicit outgoing edges plus
+ * synthesized flexible targets between non-terminal states.
  */
 export function getValidTransitions(from: ChangePhase): ChangePhase[] {
-  return getGraph().getOutgoingEdges(from).map((e) => e.to);
+  const graph = getGraph();
+  return [...graph.getOutgoingEdges(from), ...graph.getFlexibleTargets(from)].map((e) => e.to);
 }
 
 /**
- * Get valid transitions with context awareness (filters conditional edges).
+ * Get valid transitions with context awareness (filters conditional edges,
+ * keeps flexible targets).
  */
 export function getValidTransitionsWithContext(from: ChangePhase, state: ChangeState): ChangePhase[] {
-  return getGraph()
-    .getOutgoingEdges(from, { workflow: state.workflow, ...stateToContext(state) })
-    .map((e) => e.to);
+  const graph = getGraph();
+  const context = { workflow: state.workflow, ...stateToContext(state) };
+  return [...graph.getOutgoingEdges(from, context), ...graph.getFlexibleTargets(from)].map((e) => e.to);
 }
 
 /**
  * Check if a transition requires user confirmation (has a blocking point).
+ * Flexible edges carry no blocking point, so they never require confirmation.
  */
 export function requiresUserConfirmation(from: ChangePhase, to: ChangePhase): {
   required: boolean;
   bp: string;
   description: string;
 } {
-  const edge = getGraph().getEdge(from, to);
+  const edge = getGraph().resolveEdge(from, to);
   if (edge?.blockingPoint) {
     return {
       required: edge.blockingPoint.required,
@@ -149,9 +155,14 @@ export function executeTransition(
     };
   }
 
-  // Check edge existence
-  if (!graph.hasEdge(from, to)) {
-    const validTargets = graph.getOutgoingEdges(from).map((e) => e.to);
+  // Resolve the edge (explicit or flexible), context-aware
+  const edge = graph.resolveEdge(from, to, {
+    workflow: state.workflow,
+    ...stateToContext(state),
+  });
+
+  if (!edge) {
+    const validTargets = getValidTransitionsWithContext(from, state);
     const hint = validTargets.length > 0
       ? `valid targets from ${from}: [${validTargets.join(', ')}]`
       : `${from} is terminal`;
@@ -162,7 +173,24 @@ export function executeTransition(
     };
   }
 
-  const edge = graph.getEdge(from, to)!;
+  // Enforce rollback/rebuild limits on all backward edges before side effects
+  if (edge.direction === 'backward' && edge.countAs === 'rollback') {
+    if (state.rollback_count >= state.rollback_limit) {
+      return {
+        state,
+        success: false,
+        error: `E-CHANGE-002: rollback_count已达上限 (${state.rollback_count}/${state.rollback_limit})`,
+      };
+    }
+  } else if (edge.direction === 'backward' && edge.countAs === 'rebuild') {
+    if (state.rebuild_count >= state.rebuild_limit) {
+      return {
+        state,
+        success: false,
+        error: `E-CHANGE-003: rebuild_count已达上限 (${state.rebuild_count}/${state.rebuild_limit}), 强制升级为Design回退`,
+      };
+    }
+  }
 
   // Execute side effects based on edge type
   const newState: ChangeState = {
@@ -268,7 +296,7 @@ export function executeRollbackByEdge(
   to: ChangePhase,
   reason: string,
 ): { state: ChangeState; success: boolean; error?: string } {
-  const edge = getGraph().getEdge(state.phase, to);
+  const edge = getGraph().resolveEdge(state.phase, to);
   if (!edge || edge.direction !== 'backward') {
     return {
       state,

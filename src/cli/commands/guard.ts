@@ -16,6 +16,7 @@ export function registerGuardCommand(program: Command): void {
     .argument('<change>', 'change name')
     .argument('<phase>', 'target phase')
     .option('--apply', 'apply transition if guard passes')
+    .option('--force', 'proceed despite guard errors (flexible guard)')
     .option('--confirm', 'user confirmed (required for blocking transitions)')
     .option('--json', 'output as JSON')
     .action((change, phase, options) => {
@@ -37,6 +38,8 @@ export function registerGuardCommand(program: Command): void {
 
       if (result.passed) {
         console.log(`✓ Phase guard passed: ${change} → ${phase}`);
+      } else if (options.force) {
+        console.warn(`⚠ Phase guard failed but --force specified, continuing: ${change} → ${phase}`);
       } else {
         console.error(`✗ Phase guard failed: ${change} → ${phase}`);
         for (const err of result.errors) {
@@ -51,8 +54,8 @@ export function registerGuardCommand(program: Command): void {
         }
       }
 
-      // Apply transition if requested and guard passed
-      if (options.apply && result.passed) {
+      // Apply transition if requested and guard passed (or forced)
+      if (options.apply && (result.passed || options.force)) {
         const state = loadChangeState(root, change);
         if (!state) {
           console.error(`Error: Change not found: ${change}`);
@@ -97,6 +100,6 @@ export function registerGuardCommand(program: Command): void {
         }
       }
 
-      if (!result.passed) process.exit(1);
+      if (!result.passed && !options.force) process.exit(1);
     });
 }

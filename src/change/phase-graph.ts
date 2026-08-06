@@ -17,6 +17,15 @@ export type EdgeDirection = 'forward' | 'backward' | 'skip';
 export type EdgeCounter = 'rollback' | 'rebuild' | 'none';
 
 /**
+ * Canonical phase order — used to derive edge direction for flexible edges.
+ * A flexible edge is backward when its target appears earlier in this list.
+ */
+export const PHASE_ORDER: ChangePhase[] = [
+  'open', 'design', 'build', 'verify',
+  'archive-in-progress', 'archive-completed', 'discarded',
+];
+
+/**
  * A directed edge in the phase graph.
  */
 export interface PhaseEdge {
@@ -384,6 +393,78 @@ export class PhaseGraph {
     const edges = (this.adjacencyList.get(from) || []).filter((e) => e.direction === 'skip');
     if (!context) return edges;
     return edges.filter((e) => !e.condition || e.condition(context as { workflow: string; [key: string]: unknown }));
+  }
+
+  /**
+   * Resolve an edge from→to, synthesizing a flexible edge when no explicit
+   * edge exists. Explicit edges always take priority (filtered by context
+   * when provided — a condition-gated explicit edge still owns its pair).
+   *
+   * Flexible edges connect any two distinct non-terminal states:
+   * - forward (target later in PHASE_ORDER): countAs 'none'
+   * - backward (target earlier in PHASE_ORDER): countAs 'rollback'
+   * They carry no blocking point and no runtime condition.
+   *
+   * Returns undefined when: the explicit edge fails its condition, either
+   * endpoint is terminal, or from === to.
+   */
+  resolveEdge(from: ChangePhase, to: ChangePhase, context?: Record<string, unknown>): PhaseEdge | undefined {
+    const explicit = this.getEdge(from, to);
+    if (explicit) {
+      if (!context || !explicit.condition || explicit.condition(context as { workflow: string; [key: string]: unknown })) {
+        return explicit;
+      }
+      return undefined;
+    }
+
+    if (from === to) return undefined;
+    if (this.isTerminalState(from) || this.isTerminalState(to)) return undefined;
+
+    const fromIndex = PHASE_ORDER.indexOf(from);
+    const toIndex = PHASE_ORDER.indexOf(to);
+    if (fromIndex < 0 || toIndex < 0) return undefined;
+
+    const backward = toIndex < fromIndex;
+    return {
+      from,
+      to,
+      direction: backward ? 'backward' : 'forward',
+      countAs: backward ? 'rollback' : 'none',
+      label: `${from}→${to}（柔性${backward ? '回退' : '前跳'}）`,
+    };
+  }
+
+  /**
+   * Get synthesized flexible edges from a phase. Terminal states return [].
+   * Pairs already covered by an explicit edge (even a condition-gated one)
+   * are excluded — the explicit edge owns that transition.
+   */
+  getFlexibleTargets(from: ChangePhase): PhaseEdge[] {
+    if (this.isTerminalState(from)) return [];
+
+    const explicitTargets = new Set<ChangePhase>();
+    for (const edge of this.adjacencyList.get(from) || []) {
+      explicitTargets.add(edge.to);
+    }
+
+    const fromIndex = PHASE_ORDER.indexOf(from);
+    if (fromIndex < 0) return [];
+
+    const flexible: PhaseEdge[] = [];
+    for (const phase of PHASE_ORDER) {
+      if (phase === from) continue;
+      if (this.isTerminalState(phase)) continue;
+      if (explicitTargets.has(phase)) continue;
+      const backward = PHASE_ORDER.indexOf(phase) < fromIndex;
+      flexible.push({
+        from,
+        to: phase,
+        direction: backward ? 'backward' : 'forward',
+        countAs: backward ? 'rollback' : 'none',
+        label: `${from}→${phase}（柔性${backward ? '回退' : '前跳'}）`,
+      });
+    }
+    return flexible;
   }
 }
 

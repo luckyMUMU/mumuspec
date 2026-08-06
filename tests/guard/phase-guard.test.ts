@@ -202,6 +202,133 @@ describe('runPhaseGuard', () => {
       expect(result.errors.some((e) => e.code === 'E-CHANGE-007')).toBe(true);
     });
 
+    it('should warn when decisions.md file does not exist while content_hash is set', () => {
+      const state = makeChangeState({
+        phase: 'open',
+        decisions_log: { counts: { open: 1 }, content_hash: 'stale-hash' },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockExistsSync.mockImplementation((p: string) => !p.includes('decisions.md'));
+      mockReadText.mockReturnValue('# Proposal\n\nThis is a detailed enough proposal.');
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'design');
+
+      // No hash error when file doesn't exist (hash check only runs when file exists)
+      expect(result.errors.some((e) => e.code === 'E-CHANGE-007')).toBe(false);
+    });
+
+    it('should pass design guard with decisions.md matching hash', () => {
+      const state = makeChangeState({
+        phase: 'open',
+        decisions_log: { counts: { open: 2 }, content_hash: 'matching-hash' },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockComputeHash.mockReturnValue('matching-hash');
+      mockExistsSync.mockReturnValue(true);
+      mockReadText.mockReturnValue('# Proposal\n\nThis is a detailed enough proposal with sufficient length.');
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'design');
+
+      expect(result.passed).toBe(true);
+    });
+
+    it('should handle proposal.md exactly at minimum length boundary', () => {
+      const state = makeChangeState({ phase: 'open' });
+      mockLoadChangeState.mockReturnValue(state);
+      mockExistsSync.mockReturnValue(true);
+      // Exactly 10 chars — should pass (< 10 fails)
+      mockReadText.mockReturnValue('1234567890');
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'design');
+
+      expect(result.passed).toBe(true);
+    });
+
+    it('should warn when verify-result is fail during archive guard', () => {
+      const state = makeChangeState({
+        phase: 'verify',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'done' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        verify_result: 'fail',
+        branch_status: 'handled',
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'archive-in-progress');
+
+      expect(result.passed).toBe(false);
+      expect(result.errors.some((e) => e.code === 'E-VERIFY-001')).toBe(true);
+    });
+
+    it('should verify build guard cognitive framework with Q4 exactly at threshold (3 scans)', () => {
+      const state = makeChangeState({
+        phase: 'design',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        cognitive_framework: {
+          enabled: true,
+          cognitive_map_ref: '.mumuspec/cognitive-map.yaml',
+          q1_count: 3,
+          q2_pending: 0,
+          q3_pending: 0,
+          q4_scans_completed: 3,
+          converged: true,
+          rounds_completed: 5,
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockReadText.mockReturnValue('# Design\n\nDetailed design with layers and more content. Implementation Layers: Setup.');
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+
+      // q4_scans_completed = 3 meets threshold, no W-DESIGN-005
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-005')).toBe(false);
+    });
+
+    it('should warn W-DESIGN-004 when Q3 has pending and rounds < 5', () => {
+      const state = makeChangeState({
+        phase: 'design',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        cognitive_framework: {
+          enabled: true,
+          cognitive_map_ref: '.mumuspec/cognitive-map.yaml',
+          q1_count: 3,
+          q2_pending: 0,
+          q3_pending: 2,
+          q4_scans_completed: 4,
+          converged: true,
+          rounds_completed: 3,
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockReadText.mockReturnValue('# Design\n\nDetailed design with layers and more content. Implementation Layers: Setup.');
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-004')).toBe(true);
+    });
+
     it('should warn when no decisions recorded in open phase', () => {
       const state = makeChangeState({
         phase: 'open',
@@ -855,12 +982,87 @@ describe('runPhaseGuard', () => {
         strength,
       );
     });
+
+    it('should pass high strength for strict enforcement', () => {
+      mockLoadChangeState.mockReturnValue(null);
+
+      const highStrength: ConstraintStrengthField = {
+        technical_design: 'high',
+        requirement_goals: 'high',
+      };
+
+      runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'design', { strength: highStrength });
+
+      expect(mockApplyStrengthToGuardResult).toHaveBeenCalledWith(
+        expect.any(Object),
+        highStrength,
+      );
+    });
+
+    it('should pass medium strength for moderate enforcement', () => {
+      mockLoadChangeState.mockReturnValue(null);
+
+      const mediumStrength: ConstraintStrengthField = {
+        technical_design: 'medium',
+        requirement_goals: 'medium',
+      };
+
+      runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build', { strength: mediumStrength });
+
+      expect(mockApplyStrengthToGuardResult).toHaveBeenCalledWith(
+        expect.any(Object),
+        mediumStrength,
+      );
+    });
+
+    it('should pass low strength for relaxed enforcement', () => {
+      mockLoadChangeState.mockReturnValue(null);
+
+      const lowStrength: ConstraintStrengthField = {
+        technical_design: 'low',
+        requirement_goals: 'low',
+      };
+
+      runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'verify', { strength: lowStrength });
+
+      expect(mockApplyStrengthToGuardResult).toHaveBeenCalledWith(
+        expect.any(Object),
+        lowStrength,
+      );
+    });
+
+    it('should pass mixed strength values across phases', () => {
+      mockLoadChangeState.mockReturnValue(null);
+
+      const mixedStrength: ConstraintStrengthField = {
+        technical_design: 'high',
+        requirement_goals: 'low',
+      };
+
+      runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'archive-in-progress', { strength: mixedStrength });
+
+      expect(mockApplyStrengthToGuardResult).toHaveBeenCalledWith(
+        expect.any(Object),
+        mixedStrength,
+      );
+    });
+
+    it('should pass undefined strength (no strength option)', () => {
+      mockLoadChangeState.mockReturnValue(null);
+
+      runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'design');
+
+      expect(mockApplyStrengthToGuardResult).toHaveBeenCalledWith(
+        expect.any(Object),
+        undefined,
+      );
+    });
   });
 
   // ── Cognitive framework (full workflow) ──
 
   describe('cognitive framework checks (full workflow)', () => {
-    it('should fail when cognitive_map_ref is missing', () => {
+    it('should warn when cognitive_map_ref is missing', () => {
       const state = makeChangeState({
         phase: 'design',
         workflow: 'full',
@@ -887,10 +1089,11 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.errors.some((e) => e.code === 'E-DESIGN-001')).toBe(true);
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-001')).toBe(true);
     });
 
-    it('should fail when Q1 is empty', () => {
+    it('should warn when Q1 is empty', () => {
       const state = makeChangeState({
         phase: 'design',
         workflow: 'full',
@@ -917,10 +1120,11 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.errors.some((e) => e.code === 'E-DESIGN-002')).toBe(true);
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-002')).toBe(true);
     });
 
-    it('should fail when Q2 has pending and rounds < 5', () => {
+    it('should warn when Q2 has pending and rounds < 5', () => {
       const state = makeChangeState({
         phase: 'design',
         workflow: 'full',
@@ -947,10 +1151,11 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.errors.some((e) => e.code === 'E-DESIGN-003')).toBe(true);
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-003')).toBe(true);
     });
 
-    it('should fail when Q4 scans < 3', () => {
+    it('should warn when Q4 scans < 3', () => {
       const state = makeChangeState({
         phase: 'design',
         workflow: 'full',
@@ -977,10 +1182,11 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.errors.some((e) => e.code === 'E-DESIGN-005')).toBe(true);
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-005')).toBe(true);
     });
 
-    it('should fail when cognitive map not converged', () => {
+    it('should warn when cognitive map not converged', () => {
       const state = makeChangeState({
         phase: 'design',
         workflow: 'full',
@@ -1007,7 +1213,8 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.errors.some((e) => e.code === 'E-DESIGN-006')).toBe(true);
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-006')).toBe(true);
     });
 
     it('should pass when cognitive framework fully complete', () => {
@@ -1037,17 +1244,17 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      const cognitiveErrors = result.errors.filter((e) =>
-        e.code.startsWith('E-DESIGN-00') && e.code !== 'E-DESIGN-009' && e.code !== 'E-DESIGN-010',
+      const cognitiveWarnings = result.warnings.filter((w) =>
+        w.code.startsWith('W-DESIGN-'),
       );
-      expect(cognitiveErrors.length).toBe(0);
+      expect(cognitiveWarnings.length).toBe(0);
     });
   });
 
   // ── Grill-me checks ──
 
   describe('grill-me result checks', () => {
-    it('should fail when grill-me is not completed', () => {
+    it('should warn when grill-me is not completed', () => {
       const state = makeChangeState({
         phase: 'design',
         workflow: 'full',
@@ -1071,10 +1278,11 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.errors.some((e) => e.code === 'E-DESIGN-007')).toBe(true);
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-007')).toBe(true);
     });
 
-    it('should fail when grill-me exceeds max rounds', () => {
+    it('should warn when grill-me exceeds max rounds', () => {
       const state = makeChangeState({
         phase: 'design',
         workflow: 'full',
@@ -1098,7 +1306,8 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.errors.some((e) => e.code === 'E-DESIGN-008')).toBe(true);
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-008')).toBe(true);
     });
 
     it('should warn when grill-me has deferred without consensus', () => {
@@ -1125,14 +1334,285 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.warnings.some((w) => w.code === 'W-DESIGN-001')).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-011')).toBe(true);
     });
   });
 
   // ── Cross-artifact consistency ──
 
+  // ── Workflow preset combinations ──
+
+  describe('workflow preset combinations', () => {
+    it('should pass hotfix workflow build guard with all conditions met', () => {
+      const state = makeChangeState({
+        phase: 'open',
+        workflow: 'hotfix',
+        build_layers: [
+          { layer: 1, scope: 'src/core', status: 'pending' },
+          { layer: 2, scope: 'src/cli', status: 'pending' },
+        ],
+        tdd_mode: 'tdd',
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+
+      expect(result.passed).toBe(true);
+    });
+
+    it('should fail tweak workflow when tdd_mode is not tdd', () => {
+      const state = makeChangeState({
+        phase: 'open',
+        workflow: 'tweak',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+        tdd_mode: 'optional',
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+
+      expect(result.passed).toBe(false);
+      expect(result.errors.some((e) => e.message.includes('tdd_mode'))).toBe(true);
+    });
+
+    it('should verify all layers must be done for verify phase', () => {
+      const state = makeChangeState({
+        phase: 'build',
+        workflow: 'full',
+        build_layers: [
+          { layer: 1, scope: 'src/core', status: 'done' },
+          { layer: 2, scope: 'src/cli', status: 'done' },
+          { layer: 3, scope: 'src/guard', status: 'done' },
+        ],
+        test_cases: {
+          design_locked: true,
+          suites_locked: true,
+          suites_locked_layers: [1, 2, 3],
+          suites_hash: { 1: 'h1', 2: 'h2', 3: 'h3' },
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'verify');
+
+      expect(result.passed).toBe(true);
+    });
+
+    it('should fail build-to-verify with only one pending layer among many', () => {
+      const state = makeChangeState({
+        phase: 'build',
+        workflow: 'full',
+        build_layers: [
+          { layer: 1, scope: 'src/core', status: 'done' },
+          { layer: 2, scope: 'src/cli', status: 'done' },
+          { layer: 3, scope: 'src/guard', status: 'pending' },
+        ],
+        test_cases: {
+          design_locked: true,
+          suites_locked: true,
+          suites_locked_layers: [1, 2],
+          suites_hash: { 1: 'h1', 2: 'h2' },
+        },
+      } as ChangeState);
+      mockLoadChangeState.mockReturnValue(state);
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'verify');
+
+      expect(result.passed).toBe(false);
+      const buildError = result.errors.find((e) => e.code === 'E-GUARD-002');
+      expect(buildError).toBeDefined();
+      expect(buildError!.message).toContain('1');
+    });
+
+    it('should handle cognitive framework disabled without warnings', () => {
+      const state = makeChangeState({
+        phase: 'design',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        cognitive_framework: {
+          enabled: false,
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockReadText.mockReturnValue('# Design\n\nDetailed design with enough content for build verification. Implementation Layers: Setup and Configure.');
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+
+      const cognitiveWarnings = result.warnings.filter((w) =>
+        w.code.startsWith('W-DESIGN-00') && w.code !== 'W-DESIGN-010',
+      );
+      expect(cognitiveWarnings.length).toBe(0);
+    });
+  });
+
+  // ── Design-to-build: all cognitive warnings combined ──
+
+  describe('design-to-build: combined cognitive and grill-me warnings', () => {
+    it('should produce multiple cognitive warnings at once', () => {
+      const state = makeChangeState({
+        phase: 'design',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        cognitive_framework: {
+          enabled: true,
+          cognitive_map_ref: undefined,
+          q1_count: 0,
+          q2_pending: 3,
+          q3_pending: 1,
+          q4_scans_completed: 0,
+          converged: false,
+          rounds_completed: 2,
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockReadText.mockReturnValue('# Design\n\nDetailed design with layers and more content. Implementation Layers: Setup and Configure.');
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-001')).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-002')).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-003')).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-004')).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-005')).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-006')).toBe(true);
+    });
+
+    it('should produce warnings when grill-me has both exceeded max rounds and deferred', () => {
+      const state = makeChangeState({
+        phase: 'design',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        grill_me_result: {
+          completed: true,
+          rounds: 8,
+          max_rounds: 5,
+          deferred_count: 3,
+          consensus_reached: false,
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockReadText.mockReturnValue('# Design\n\nDetailed design with layers and more content. Implementation Layers: Setup and Configure.');
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-008')).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-011')).toBe(true);
+    });
+  });
+
+  // ── Verify-to-archive: extended error combinations ──
+
+  describe('verify-to-archive: error combinations', () => {
+    it('should fail with both verify_result fail and branch_status not handled', () => {
+      const state = makeChangeState({
+        phase: 'verify',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'done' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        verify_result: 'fail',
+        branch_status: 'pending',
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'archive-in-progress');
+
+      expect(result.passed).toBe(false);
+      expect(result.errors.some((e) => e.code === 'E-VERIFY-001')).toBe(true);
+      expect(result.errors.some((e) => e.code === 'E-VERIFY-002')).toBe(true);
+    });
+
+    it('should fail when build layers not done during archive guard', () => {
+      const state = makeChangeState({
+        phase: 'verify',
+        workflow: 'full',
+        build_layers: [
+          { layer: 1, scope: 'src/core', status: 'done' },
+          { layer: 2, scope: 'src/cli', status: 'in-progress' },
+        ],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        verify_result: 'pass',
+        branch_status: 'handled',
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'archive-in-progress');
+
+      expect(result.passed).toBe(false);
+      expect(result.errors.some((e) => e.code === 'E-GUARD-002')).toBe(true);
+    });
+
+    it('should pass archive-in-progress when only some layers not done but verify_result is fail', () => {
+      const state = makeChangeState({
+        phase: 'verify',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'done' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        verify_result: undefined,
+        branch_status: 'handled',
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'archive-in-progress');
+
+      expect(result.passed).toBe(false);
+      expect(result.errors.some((e) => e.code === 'E-VERIFY-001')).toBe(true);
+    });
+  });
+
   describe('cross-artifact consistency checks', () => {
-    it('should detect E-DESIGN-010 when proposal Plan steps missing from design', () => {
+    it('should warn with W-DESIGN-010 when proposal Plan steps missing from design', () => {
       const state = makeChangeState({
         phase: 'design',
         workflow: 'full',
@@ -1161,7 +1641,8 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.errors.some((e) => e.code === 'E-DESIGN-010')).toBe(true);
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-010')).toBe(true);
     });
   });
 });

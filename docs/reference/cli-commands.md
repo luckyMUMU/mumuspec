@@ -21,6 +21,8 @@ mumuspec status [name]                  # 查看变更状态
 mumuspec list                           # 列出活跃变更
 mumuspec archive <name>                 # 归档变更（git 提交 + MR + 合并规范 + 清理）
 mumuspec discard <name>                 # 废弃变更（清理 worktree + 释放变更槽位）
+mumuspec decisions [change]             # 查看变更的决策审计轨迹
+mumuspec decisions append --phase <phase> --change <name> --text "..."  # 追加决策记录到 decisions.md
 ```
 
 ## 特性配置管理
@@ -150,7 +152,7 @@ mumuspec install cursor                                # Cursor 命令（coming 
 ```bash
 mumuspec index                          # 构建/更新代码图谱
 mumuspec impact [name]                  # 影响分析
-mumuspec trace <symbol>                 # 追踪调用链
+mumuspec trace <symbol> [--depth <n>] [--limit <n>] [--scope <path>]  # 深度优先符号追踪
 mumuspec search <pattern>               # 搜索代码节点
 ```
 
@@ -162,6 +164,9 @@ mumuspec check --shall                  # 只检查正向要求
 mumuspec check --shall-not              # 只检查反向禁止
 mumuspec check --test-immutability      # 测试不可变性校验
 mumuspec drift                          # 漂移检测
+mumuspec drift detect [--change <name>] # 漂移检测（可限定变更范围）
+mumuspec graph verify [--change <name>] # 校验变更状态机图一致性
+mumuspec audit-log [--limit <n>]        # 审计日志（JSONL 追加式，可按 --actor/--action/--result 过滤）
 mumuspec guard <change> <phase>         # 阶段守卫检查
 ```
 
@@ -234,15 +239,14 @@ mumuspec test-immutability <name>       # 综合校验测试不可变性
 mumuspec contract init                          # 初始化 contracts/ 目录结构
 mumuspec contract add-external <name> [--category rpc|rest|mq|middleware|database]
 mumuspec contract add-outbound <name> [--category rpc|rest|event|sdk]
-mumuspec contract list [--type external|outbound]
+mumuspec contract list [--category <cat>] [--status <st>] [--outbound|--inbound] [--scopes]  # 列出契约或来源 scope
 mumuspec contract show <name>
-mumuspec contract verify <name>                 # 校验契约与代码一致性
-mumuspec contract verify --all
+mumuspec contract verify [--change <name>]      # 校验契约漂移（可限定变更）
 mumuspec contract derive <name>                 # 手动触发约束派生注入
-mumuspec contract drift                         # 契约漂移检测
+mumuspec contract drift [--change <name>]       # 契约漂移检测（可限定变更）
 mumuspec contract impact <name>                 # 追踪契约变更影响范围
 mumuspec contract registry update               # 更新 _registry.yaml
-mumuspec contract compat-check <name>           # 向后兼容性检查
+mumuspec contract compat-check [--change <name>] # 向后兼容性检查（对照注册表）
 mumuspec contract doc generate [--name <name>]  # 从契约生成文档
 ```
 
@@ -261,7 +265,7 @@ mumuspec cognitive-map converge <name>          # 强制收敛认知地图（达
 mumuspec knowledge list [--type decision|pattern|risk|rationale|lesson] [--scope <path>]
 mumuspec knowledge show <id>                    # 查看知识页面全文
 mumuspec knowledge search <keyword> [--tag <tag>]  # 搜索知识
-mumuspec knowledge context <path>               # 获取指定路径的知识上下文（渐进式）
+mumuspec knowledge context <path> [--scopes <s>]  # 获取指定路径的知识上下文（渐进式，按 scope 过滤）
 mumuspec knowledge verify [--id <id> | --all]   # 验证知识新鲜度
 mumuspec knowledge graph [--scope <path>]        # 可视化知识关系图
 mumuspec knowledge extract <change>             # 从已归档变更中提取知识

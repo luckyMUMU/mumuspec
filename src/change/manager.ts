@@ -44,6 +44,7 @@ export {
   initTestCases,
   lockTestCases,
   verifyTestCases,
+  computeTestCasesHash,
   initBuildLayers,
   updateBuildLayerStatus,
 } from './lifecycle.js';

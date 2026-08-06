@@ -4,7 +4,7 @@
 import type { Command } from 'commander';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { findProjectRoot, readText } from '../../core/utils.js';
+import { findProjectRoot, readText, computeHash } from '../../core/utils.js';
 import { loadConfig } from '../../core/config.js';
 import {
   createChange,
@@ -13,6 +13,7 @@ import {
   initTestCases,
   lockTestCases,
   verifyTestCases,
+  computeTestCasesHash,
   getChangeDir,
 } from '../../change/manager.js';
 import type { ChangePhase } from '../../core/types.js';
@@ -289,6 +290,107 @@ export function registerStateCommands(program: Command): void {
     });
 
   stateCmd
+    .command('check')
+    .description('Check change state integrity (--recover to auto-fix drift)')
+    .argument('<name>', 'change name')
+    .option('--recover', 'auto-recover detectable drift')
+    .action((name, options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+
+      const state = loadChangeState(root, name);
+      if (!state) {
+        console.error(`Error: Change not found: ${name}`);
+        process.exit(1);
+      }
+
+      const issues: string[] = [];
+      const fixes: string[] = [];
+      const changeDir = getChangeDir(root, name);
+
+      // 1. decisions.md content_hash integrity
+      const decisionsPath = join(changeDir, 'decisions.md');
+      if (existsSync(decisionsPath)) {
+        const actualHash = computeHash(readText(decisionsPath) || '');
+        if (state.decisions_log.content_hash && state.decisions_log.content_hash !== actualHash) {
+          issues.push(
+            `decisions.md content_hash 不匹配 (locked: ${state.decisions_log.content_hash}, actual: ${actualHash})`,
+          );
+          if (options.recover) {
+            state.decisions_log.content_hash = actualHash;
+            fixes.push('decisions.md content_hash 已重新计算');
+          }
+        }
+      }
+
+      // 2. test-cases hash integrity
+      const testVerify = verifyTestCases(root, name);
+      if (!testVerify.valid) {
+        issues.push(
+          `test-cases hash 不匹配 (locked: ${testVerify.expectedHash}, actual: ${testVerify.actualHash})`,
+        );
+        if (options.recover) {
+          const newHash = lockTestCases(root, name);
+          fixes.push(`test-cases 已重新锁定 (hash: ${newHash})`);
+        }
+      }
+
+      // 3. rollback / rebuild limits
+      if (state.rollback_count > state.rollback_limit) {
+        issues.push(`rollback_count ${state.rollback_count} 超过上限 ${state.rollback_limit}`);
+        if (options.recover) {
+          state.rollback_count = state.rollback_limit;
+          fixes.push(`rollback_count 已重置为 ${state.rollback_limit}`);
+        }
+      }
+      if (state.rebuild_count > state.rebuild_limit) {
+        issues.push(`rebuild_count ${state.rebuild_count} 超过上限 ${state.rebuild_limit}`);
+        if (options.recover) {
+          state.rebuild_count = state.rebuild_limit;
+          fixes.push(`rebuild_count 已重置为 ${state.rebuild_limit}`);
+        }
+      }
+
+      // 4. build_layers status validity
+      const validStatuses = ['pending', 'in-progress', 'done'];
+      const badLayers = state.build_layers.filter((l) => !validStatuses.includes(l.status));
+      if (badLayers.length > 0) {
+        issues.push(
+          `build_layers 含非法 status: ${badLayers.map((l) => `${l.layer}=${l.status}`).join(', ')}`,
+        );
+        if (options.recover) {
+          for (const layer of state.build_layers) {
+            if (!validStatuses.includes(layer.status)) layer.status = 'pending';
+          }
+          fixes.push('非法 layer status 已重置为 pending');
+        }
+      }
+
+      // Persist recover results
+      if (fixes.length > 0) {
+        state.updated_at = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        saveChangeState(root, name, state);
+      }
+
+      // Report
+      if (issues.length === 0) {
+        console.log(`✓ State integrity OK: ${name} (phase: ${state.phase})`);
+      } else {
+        console.error(`✗ State integrity issues (${issues.length}):`);
+        for (const issue of issues) console.error(`  - ${issue}`);
+      }
+      for (const fix of fixes) console.log(`  ✓ ${fix}`);
+
+      if (issues.length > 0 && !options.recover) {
+        console.log('\n提示: 使用 --recover 自动修复上述可检测问题');
+        process.exit(1);
+      }
+    });
+
+  stateCmd
     .command('scale')
     .description('Evaluate change scale and recommend verify mode')
     .argument('<name>', 'change name')
@@ -375,6 +477,33 @@ export function registerStateCommands(program: Command): void {
       const hash = lockTestCases(root, name);
       console.log(`✓ Test cases locked for ${name}`);
       console.log(`  Hash: ${hash}`);
+    });
+
+  testCmd
+    .command('hash')
+    .description('Compute current test-cases hash (read-only)')
+    .argument('<name>', 'change name')
+    .action((name) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+
+      const hash = computeTestCasesHash(root, name);
+      const state = loadChangeState(root, name);
+      const locked = state?.test_cases.design_content_hash;
+
+      console.log(hash);
+      if (locked && locked !== hash) {
+        console.warn(`  (locked: ${locked} — 内容已漂移，运行 'mumuspec test-cases verify ${name}' 确认)`);
+        process.exit(1);
+      }
+      if (locked) {
+        console.log('  ✓ matches locked hash');
+      } else {
+        console.log('  (test-cases 未锁定)');
+      }
     });
 
   testCmd

@@ -10,16 +10,38 @@
  */
 
 import { Command } from 'commander';
+import { join } from 'node:path';
 import {
   loadAllContracts,
   findAllBoundaryDocuments,
 } from '../../contract/loader.js';
 import {
   validateBoundaries,
+  detectContractDrift,
 } from '../../contract/validator.js';
 import { persistContract } from '../../contract/manager.js';
-import { findProjectRoot } from '../../core/utils.js';
+import { findProjectRoot, readText, readdirSync } from '../../core/utils.js';
+import { getActiveChange } from '../../change/manager.js';
+import { loadChangeState } from '../../change/state.js';
 import type { Contract } from '../../core/types-contract.js';
+
+/** Recursively collect .md files under a directory */
+function collectMarkdownFiles(dir: string, files: string[]): void {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      collectMarkdownFiles(full, files);
+    } else if (entry.name.endsWith('.md')) {
+      files.push(full);
+    }
+  }
+}
 
 export function registerContractCommands(program: Command): void {
   const contract = program
@@ -34,6 +56,7 @@ export function registerContractCommands(program: Command): void {
     .option('--status <status>', 'Filter by status (draft, active, deprecated, retired)')
     .option('--outbound', 'Show only outbound contracts')
     .option('--inbound', 'Show only inbound contracts')
+    .option('--scopes', 'List distinct source scopes instead of contracts')
     .option('--json', 'Output as JSON')
     .action((options) => {
       const root = findProjectRoot();
@@ -58,6 +81,18 @@ export function registerContractCommands(program: Command): void {
         contracts = contracts.filter((c: Contract) => registry.inbound_ids.includes(c.id));
       }
 
+      if (options.scopes) {
+        const scopes = [...new Set(contracts.map((c: Contract) => c.source).filter(Boolean))].sort();
+        if (options.json) {
+          console.log(JSON.stringify({ scopes }, null, 2));
+          return;
+        }
+        console.log(`\nContract source scopes (${scopes.length}):\n`);
+        for (const s of scopes) console.log(`  ${s}`);
+        console.log();
+        return;
+      }
+
       if (options.json) {
         console.log(JSON.stringify({ contracts, total: contracts.length }, null, 2));
         return;
@@ -77,6 +112,170 @@ export function registerContractCommands(program: Command): void {
         if (c.downstream.length > 0) console.log(`         downstream: ${c.downstream.join(', ')}`);
       }
       console.log();
+    });
+
+  // ─── contract verify ─────────────────────────────────────────
+  contract
+    .command('verify')
+    .description('Verify contract drift (optionally scoped to a change)')
+    .option('--change <name>', 'change name (verifies the change exists first)')
+    .option('--json', 'Output as JSON')
+    .action((options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('MumuSpec not initialized. Run `mumuspec init` first.');
+        process.exit(1);
+      }
+
+      if (options.change) {
+        const state = loadChangeState(root, options.change);
+        if (!state) {
+          console.error(`Error: Change "${options.change}" not found.`);
+          process.exit(1);
+        }
+      }
+
+      const report = detectContractDrift(root);
+
+      if (options.json) {
+        console.log(JSON.stringify(report, null, 2));
+        if (report.has_critical_drifts) process.exit(1);
+        return;
+      }
+
+      console.log(`\nContract Drift Report (${report.timestamp}):`);
+      console.log(`  Contracts scanned: ${report.total_contracts}`);
+      console.log(`  Drifts detected:   ${report.drift_count}`);
+      console.log(`  Clean contracts:   ${report.clean_contracts.length}`);
+      console.log(`  Scan duration:     ${report.scan_duration_ms}ms`);
+      console.log(`  Critical drifts:   ${report.has_critical_drifts ? 'YES' : 'no'}`);
+
+      for (const drift of report.drifts) {
+        const icon = drift.severity === 'ERROR' ? '✗' : '⚠';
+        console.log(`  ${icon} [${drift.type}] ${drift.contract_id}: ${drift.message}`);
+        if (drift.file) console.log(`         File: ${drift.file}${drift.line ? `:${drift.line}` : ''}`);
+        if (drift.suggestion) console.log(`         Fix:  ${drift.suggestion}`);
+      }
+
+      if (report.has_critical_drifts) {
+        console.log('\n✗ Critical contract drift found — run `mumuspec contract drift --json` for details.');
+        process.exit(1);
+      }
+      console.log('\n✓ No critical contract drift.');
+    });
+
+  // ─── contract compat-check ───────────────────────────────────
+  contract
+    .command('compat-check')
+    .description('Check change references against the contract registry (missing/deprecated/retired)')
+    .option('--change <name>', 'change name (uses active change if omitted)')
+    .option('--json', 'Output as JSON')
+    .action((options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('MumuSpec not initialized. Run `mumuspec init` first.');
+        process.exit(1);
+      }
+
+      const changeName = options.change || getActiveChange(root);
+      if (!changeName) {
+        console.error('Error: No active change. Specify --change or run inside a change directory.');
+        process.exit(1);
+      }
+
+      const state = loadChangeState(root, changeName);
+      if (!state) {
+        console.error(`Error: Change "${changeName}" not found.`);
+        process.exit(1);
+      }
+
+      const registry = loadAllContracts(root);
+      const registered = new Map(registry.contracts.map((c: Contract) => [c.id, c.status]));
+
+      // Collect contract IDs referenced by the change's markdown files
+      const changeDir = join(root, '.mumuspec', 'changes', changeName);
+      const files: string[] = [];
+      collectMarkdownFiles(changeDir, files);
+
+      const referenced = new Set<string>();
+      const idPattern = /\b[A-Z]{2,8}-\d{1,4}\b/g;
+      for (const file of files) {
+        const content = readText(file);
+        if (!content) continue;
+        let match: RegExpExecArray | null;
+        while ((match = idPattern.exec(content)) !== null) {
+          referenced.add(match[0]);
+        }
+      }
+
+      const problems: Array<{ id: string; status?: string; file?: string }> = [];
+      const ok: string[] = [];
+      for (const id of [...referenced].sort()) {
+        const status = registered.get(id);
+        if (!status) {
+          problems.push({ id });
+        } else if (status === 'deprecated' || status === 'retired') {
+          problems.push({ id, status });
+        } else {
+          ok.push(id);
+        }
+      }
+
+      if (options.json) {
+        console.log(JSON.stringify({ change: changeName, referenced: [...referenced].sort(), problems, ok }, null, 2));
+        if (problems.length > 0) process.exit(1);
+        return;
+      }
+
+      console.log(`\nContract Compat Check: ${changeName}`);
+      console.log(`  Referenced contract IDs: ${referenced.size}`);
+      if (ok.length > 0) console.log(`  ✓ Compatible: ${ok.join(', ')}`);
+      if (problems.length === 0) {
+        console.log('\n✓ All referenced contracts are compatible.');
+        return;
+      }
+      console.log(`  ✗ Problems (${problems.length}):`);
+      for (const p of problems) {
+        const reason = p.status ? `is ${p.status}` : 'not found in registry';
+        console.log(`    - ${p.id} ${reason}`);
+      }
+      console.log('\n✗ Compat check failed — update the change or register the contracts.');
+      process.exit(1);
+    });
+
+  // ─── contract drift ──────────────────────────────────────────
+  contract
+    .command('drift')
+    .description('Detect contract drift (full report)')
+    .option('--change <name>', 'change name (verifies the change exists first)')
+    .option('--json', 'Output as JSON')
+    .action((options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('MumuSpec not initialized. Run `mumuspec init` first.');
+        process.exit(1);
+      }
+
+      const report = detectContractDrift(root);
+
+      if (options.json) {
+        console.log(JSON.stringify(report, null, 2));
+        if (report.has_critical_drifts) process.exit(1);
+        return;
+      }
+
+      console.log(`\nContract Drift (${report.timestamp}):`);
+      console.log(`  Total contracts: ${report.total_contracts}`);
+      console.log(`  Drift count:     ${report.drift_count}`);
+      for (const drift of report.drifts) {
+        const icon = drift.severity === 'ERROR' ? '✗' : '⚠';
+        console.log(`  ${icon} [${drift.type}] ${drift.contract_id}: ${drift.message}`);
+        if (drift.file) console.log(`         File: ${drift.file}${drift.line ? `:${drift.line}` : ''}`);
+      }
+      if (report.clean_contracts.length > 0) {
+        console.log(`  Clean: ${report.clean_contracts.join(', ')}`);
+      }
+      if (report.has_critical_drifts) process.exit(1);
     });
 
   // ─── contract show ───────────────────────────────────────────

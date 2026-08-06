@@ -38,6 +38,7 @@ import {
 import { runLoopGrill, formatGrillReport, type GrillContext } from '../../core/loop-grill.js';
 import type { LoopActionType } from '../../core/types-loop.js';
 import { success, fail, warn, tip } from '../ui-helpers.js';
+import { registerExperimentCommands } from './loop-experiment.js';
 
 /** Format phase label with descriptive text. */
 function phaseLabel(phase: string): string {
@@ -598,4 +599,7 @@ export function registerLoopCommands(program: Command): void {
       console.log('  mumuspec loop extend <n>  — Add more rounds');
       console.log('');
     });
+
+  // Delegate experiment subcommands to dedicated module
+  registerExperimentCommands(loopCmd);
 }

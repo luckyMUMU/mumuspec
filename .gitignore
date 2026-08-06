@@ -36,3 +36,13 @@ mumuspec-ecosystem-comparison/
 # CatPaw/IDE local tooling
 .meituan-catpaw/
 .workbuddy/
+
+# Coverage output (temporary)
+cov*.txt
+coverage-result.json
+
+# Git status output (temporary)
+git-status.txt
+
+# OMO run continuation (session state, not source)
+.omo/run-continuation/

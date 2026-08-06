@@ -95,10 +95,17 @@ export function registerKnowledgeCrud(knowledgeCmd: Command): void {
     .command('context')
     .description('Get knowledge context for a path')
     .argument('<path>', 'directory path')
-    .action((path) => {
+    .option('--scopes <scopes>', 'filter by scope (comma-separated)')
+    .action((path, options) => {
       const root = requireRoot();
       const config = loadConfig(root);
-      const pages = getKnowledgeContext(root, config, resolve(path));
+      let pages = getKnowledgeContext(root, config, resolve(path));
+
+      if (options.scopes) {
+        const scopes = String(options.scopes).split(',').map((s: string) => s.trim()).filter(Boolean);
+        pages = pages.filter((p) => scopes.includes(p.frontmatter.scope));
+      }
+
       console.log(`\n${pages.length} knowledge page(s) for ${path}:`);
       for (const page of pages) {
         console.log(`  [${page.frontmatter.type}] ${page.frontmatter.id}: ${page.frontmatter.title}`);

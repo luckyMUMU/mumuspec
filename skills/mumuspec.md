@@ -209,6 +209,27 @@ workflow-presets (tweak)
 
 ---
 
+## CLI 工具速查
+
+编排过程中按需调用，全部命令在项目根目录执行：
+
+```bash
+mumuspec list / status <name>          # 变更发现与状态
+mumuspec decisions [change]            # 决策审计轨迹
+mumuspec decisions append --phase <p> --change <n> --text "..."  # 追加决策
+mumuspec audit-log [--limit <n>] [--actor <a>] [--action <act>]  # 审计日志（JSONL）
+mumuspec trace <symbol> [--depth <n>] [--scope <path>]           # 符号深度遍历
+mumuspec graph verify [--change <n>]   # 状态机图一致性校验
+mumuspec drift detect [--change <n>]   # 漂移检测（可限定变更）
+mumuspec contract verify [--change <n>]  # 契约漂移校验
+mumuspec contract compat-check [--change <n>]  # 契约引用兼容性检查
+mumuspec contract drift [--change <n>] # 契约漂移检测
+mumuspec contract list --scopes        # 列出契约来源 scope
+mumuspec knowledge context <path> --scopes <s>  # 按 scope 过滤的知识上下文
+```
+
+---
+
 ## 交互模式
 
 ### 结构化菜单（推荐）

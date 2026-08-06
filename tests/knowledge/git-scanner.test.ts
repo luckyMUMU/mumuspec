@@ -845,4 +845,572 @@ describe('scanGitHistory — deep coverage', () => {
       expect(logCall).toBeDefined();
     });
   });
+
+  // ─── M. Very long commit message boundary ───
+
+  describe('very long commit message', () => {
+    it('handles extremely long commit messages without truncation or crash', () => {
+      mockExistsSync.mockReturnValue(true);
+      const longMsg = 'Revert "' + 'a'.repeat(5000) + '"';
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('long001', '2024-01-01T00:00:00Z', 'dev', longMsg);
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'dev\nother';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      const revertPage = result.find((p) => p.tags.includes('lesson'));
+      expect(revertPage).toBeDefined();
+      expect(revertPage!.content.length).toBeGreaterThan(5000);
+      expect(revertPage!.evidence).toContain('long001');
+      validPage(revertPage!);
+    });
+  });
+
+  // ─── N. Multiple patterns in a single commit ───
+
+  describe('multiple patterns in one commit message', () => {
+    it('matches revert pattern before migration when both words present', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('mp00001', '2024-01-01T00:00:00Z', 'a', 'Revert "broken migration script"');
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      const allMatched = result.map((p) => p.type);
+      expect(allMatched).toContain('lesson');
+    });
+
+    it('matches breaking change in same message as migration', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('mp00002', '2024-01-01T00:00:00Z', 'a', 'migration: BREAKING CHANGE rename endpoints');
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      const titles = result.map((p) => p.title);
+      expect(titles.some((t) => t.includes('迁移'))).toBe(true);
+      expect(titles.some((t) => t.includes('破坏性变更'))).toBe(true);
+    });
+  });
+
+  // ─── O. ID uniqueness across many pages ───
+
+  describe('ID uniqueness across many pages', () => {
+    it('generates unique IDs when many different pattern matches occur', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return gitLog(
+            { hash: 'uniq001', date: '2024-01-01T00:00:00Z', author: 'a', subject: 'Revert "x"' },
+            { hash: 'uniq002', date: '2024-01-02T00:00:00Z', author: 'b', subject: 'migration: new schema' },
+            { hash: 'uniq003', date: '2024-01-03T00:00:00Z', author: 'c', subject: 'hotfix: patch bug' },
+            { hash: 'uniq004', date: '2024-01-04T00:00:00Z', author: 'd', subject: 'deprecate old api' },
+            { hash: 'uniq005', date: '2024-01-05T00:00:00Z', author: 'e', subject: 'BREAKING CHANGE remove field' },
+          );
+        }
+        if (cmd.includes('--name-only')) {
+          return '     10\tsrc/core/config.ts\n      7\tsrc/utils/helper.ts\n';
+        }
+        if (cmd.includes('rev-list --count')) return '20';
+        if (cmd.includes('log --format="%an"')) return 'a\nb\nc\nd\ne';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      expect(result.length).toBe(6);
+      const ids = result.map((p) => p.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const id of ids) {
+        expect(id).toMatch(/^KS-GIT-\d{4}$/);
+      }
+    });
+  });
+
+  // ─── P. Empty/whitespace-only commit message ───
+
+  describe('whitespace and edge-case commit subjects', () => {
+    it('does not match with empty commit subject', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('ws00001', '2024-01-01T00:00:00Z', 'a', '');
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      expect(result.length).toBe(0);
+    });
+
+    it('does not match with whitespace-only subject', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('ws00002', '2024-01-01T00:00:00Z', 'a', '   ');
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      expect(result.length).toBe(0);
+    });
+  });
+
+  // ─── Q. Author name with special characters ───
+
+  describe('author name edge cases', () => {
+    it('handles unicode author names correctly', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('au00001', '2024-01-01T00:00:00Z', '张三', 'Revert "测试"');
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return '张三\n李四';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      const revertPage = result.find((p) => p.tags.includes('lesson'));
+      expect(revertPage).toBeDefined();
+      validPage(revertPage!);
+    });
+
+    it('handles email-format author names', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('au00002', '2024-01-01T00:00:00Z', 'John <john@example.com>', 'feat: normal change');
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'John <john@example.com>';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      expect(Array.isArray(result)).toBe(true);
+    });
+  });
+
+  // ─── R. Hotspot boundary at exactly 5 changes ───
+
+  describe('hotspot boundary at exactly 5 changes', () => {
+    it('includes file with exactly 5 changes', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('hb00001', '2024-01-01T00:00:00Z', 'a', 'feat: x');
+        }
+        if (cmd.includes('--name-only')) {
+          return '      5\tsrc/boundary.ts\n      4\tsrc/below.ts\n';
+        }
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      const hotspotPage = result.find((p) => p.tags.includes('hotspot'));
+      expect(hotspotPage).toBeDefined();
+      expect(hotspotPage!.graph_bindings).toContain('src/boundary.ts');
+      expect(hotspotPage!.graph_bindings).not.toContain('src/below.ts');
+    });
+  });
+
+  // ─── S. Single author at exactly 101 commits (boundary) ───
+
+  describe('single author at boundary of 101 commits', () => {
+    it('flags single author risk when commits = 101', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('sb00001', '2024-01-01T00:00:00Z', 'solo', 'feat: x');
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '101';
+        if (cmd.includes('log --format="%an"')) return 'solo';
+        if (cmd.includes('--reverse')) return '2023-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      const singleAuthorPage = result.find((p) => p.title.includes('单一维护者'));
+      expect(singleAuthorPage).toBeDefined();
+      expect(singleAuthorPage!.content).toContain('101');
+    });
+
+    it('does NOT flag when commits = 100 (exactly at threshold)', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('sb00002', '2024-01-01T00:00:00Z', 'solo', 'feat: x');
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '100';
+        if (cmd.includes('log --format="%an"')) return 'solo';
+        if (cmd.includes('--reverse')) return '2023-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      const singleAuthorPage = result.find((p) => p.title.includes('单一维护者'));
+      expect(singleAuthorPage).toBeUndefined();
+    });
+  });
+
+  // ─── T. Specific git command failures ───
+
+  describe('specific git command failures', () => {
+    it('handles rev-list returning empty string', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('ec00001', '2024-01-01T00:00:00Z', 'solo', 'feat: x');
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '';
+        if (cmd.includes('log --format="%an"')) return 'solo';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      const singleAuthorPage = result.find((p) => p.title.includes('单一维护者'));
+      expect(singleAuthorPage).toBeUndefined();
+    });
+
+    it('handles authors log returning empty (no authors found)', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return commitLine('ec00002', '2024-01-01T00:00:00Z', 'solo', 'feat: x');
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '200';
+        if (cmd.includes('log --format="%an"')) return '';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+
+      const result = scanGitHistory(PROJECT_ROOT);
+      const singleAuthorPage = result.find((p) => p.title.includes('单一维护者'));
+      expect(singleAuthorPage).toBeUndefined();
+    });
+  });
+
+  // ─── U. Empty repo edge cases ───
+
+  describe('empty repo and degenerate input', () => {
+    it('returns empty array when git log returns empty but .git exists', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockReturnValue('');
+      const result = scanGitHistory(PROJECT_ROOT);
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when only whitespace lines in log output', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) return '\n\n   \n';
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '0';
+        if (cmd.includes('log --format="%an"')) return '';
+        if (cmd.includes('--reverse')) return '';
+        return '';
+      });
+      const result = scanGitHistory(PROJECT_ROOT);
+      // Whitespace lines get filtered by filter(Boolean), no pages expected
+      expect(Array.isArray(result)).toBe(true);
+      // No pattern should match empty/whitespace-only subjects
+      expect(result.length).toBe(0);
+    });
+
+    it('handles first commit date far in the future without NaN', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) return commitLine('fd00002', '2099-01-01T00:00:00Z', 'a', 'feat: x');
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2099-06-01T00:00:00Z';
+        return '';
+      });
+      // ageInDays will be negative, but no crash
+      const result = scanGitHistory(PROJECT_ROOT);
+      expect(Array.isArray(result)).toBe(true);
+    });
+  });
+
+  // ─── V. Commit message exact pattern boundaries ───
+
+  describe('commit message pattern boundaries', () => {
+    it('matches "revert" exactly at start of message (case-insensitive via /^revert/i)', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) return commitLine('pb00001', '2024-01-01T00:00:00Z', 'a', 'revert: undo feature');
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+      const result = scanGitHistory(PROJECT_ROOT);
+      const page = result.find((p) => p.tags.includes('lesson'));
+      expect(page).toBeDefined();
+    });
+
+    it('matches all 5 pattern types across 5 separate commits', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return gitLog(
+            { hash: 'all0001', date: '2024-01-01T00:00:00Z', author: 'a', subject: 'Revert "bad change"' },
+            { hash: 'all0002', date: '2024-01-02T00:00:00Z', author: 'b', subject: 'migration: update schema' },
+            { hash: 'all0003', date: '2024-01-03T00:00:00Z', author: 'c', subject: 'hotfix: fix null pointer' },
+            { hash: 'all0004', date: '2024-01-04T00:00:00Z', author: 'd', subject: 'deprecate: old endpoint' },
+            { hash: 'all0005', date: '2024-01-05T00:00:00Z', author: 'e', subject: 'breaking-change: remove v1' },
+          );
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '20';
+        if (cmd.includes('log --format="%an"')) return 'a\nb\nc\nd\ne';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+      const result = scanGitHistory(PROJECT_ROOT);
+      const types = result.map((p) => p.type);
+      expect(types).toContain('lesson');
+      expect(types).toContain('decision');
+      expect(types).toContain('risk');
+      expect(result.length).toBe(5);
+    });
+
+    it('detects revert with mixed case like REVERT', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) return commitLine('mc00001', '2024-01-01T00:00:00Z', 'a', 'REVERT: undo last');
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '50';
+        if (cmd.includes('log --format="%an"')) return 'a\nb\nc\nd\ne';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+      const result = scanGitHistory(PROJECT_ROOT);
+      const lessonPage = result.find((p) => p.tags.includes('lesson'));
+      expect(lessonPage).toBeDefined();
+      expect(lessonPage!.content).toContain('mc00001');
+    });
+
+    it('matches migration as substring within "remigrate" word', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) return commitLine('ms00001', '2024-01-01T00:00:00Z', 'a', 'fix: remigrate data');
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+      const result = scanGitHistory(PROJECT_ROOT);
+      const migrationPage = result.find((p) => p.type === 'decision' && p.title.includes('迁移'));
+      expect(migrationPage).toBeDefined();
+    });
+  });
+
+  // ─── W. Pipe character in commit message ───
+
+  describe('pipe character edge cases in commit messages', () => {
+    it('handles multiple pipe characters in commit subject correctly', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          // 5 pipe-separated segments: hash|date|author|subject with | inside
+          return 'pipe123|2024-01-01T00:00:00Z|alice|Revert "change | with pipe"';
+        }
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'alice\nbob';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+      const result = scanGitHistory(PROJECT_ROOT);
+      // parts[3] is the 4th field: 'Revert "change | with pipe"' — should match /^revert/i
+      const lessonPage = result.find((p) => p.tags.includes('lesson'));
+      expect(lessonPage).toBeDefined();
+      expect(lessonPage!.evidence).toContain('pipe123');
+    });
+
+    it('handles commit line with missing author field (only 3 fields)', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) return 'hashonly|2024-01-01T00:00:00Z|alice';
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '10';
+        if (cmd.includes('log --format="%an"')) return 'alice\nbob';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+      // parts[3] is undefined → defaults to '', should not crash
+      const result = scanGitHistory(PROJECT_ROOT);
+      expect(Array.isArray(result)).toBe(true);
+    });
+  });
+
+  // ─── X. Hotspot at exactly head -10 boundary ───
+
+  describe('hotspot file count boundary (head -10)', () => {
+    it('detects hotspot with exactly 10 files all above threshold', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) return commitLine('hs00010', '2024-01-01T00:00:00Z', 'a', 'feat: x');
+        if (cmd.includes('--name-only')) {
+          const lines = [];
+          for (let i = 1; i <= 10; i++) {
+            lines.push(`      6\tsrc/file${i}.ts`);
+          }
+          return lines.join('\n');
+        }
+        if (cmd.includes('rev-list --count')) return '50';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+      const result = scanGitHistory(PROJECT_ROOT);
+      const hotspotPage = result.find((p) => p.tags.includes('hotspot'));
+      expect(hotspotPage).toBeDefined();
+      expect(hotspotPage!.title).toContain('10');
+      expect(hotspotPage!.graph_bindings.length).toBe(10);
+    });
+
+    it('handles hotspot output where count has leading zeros', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) return commitLine('lz00001', '2024-01-01T00:00:00Z', 'a', 'feat: x');
+        if (cmd.includes('--name-only')) return '      7\tsrc/zeroes.ts';
+        if (cmd.includes('rev-list --count')) return '15';
+        if (cmd.includes('log --format="%an"')) return 'a\nb';
+        if (cmd.includes('--reverse')) return '2024-01-01T00:00:00Z';
+        return '';
+      });
+      const result = scanGitHistory(PROJECT_ROOT);
+      const hotspotPage = result.find((p) => p.tags.includes('hotspot'));
+      expect(hotspotPage).toBeDefined();
+      expect(hotspotPage!.graph_bindings).toContain('src/zeroes.ts');
+    });
+  });
+
+  // ─── Y. Author with spaces or special characters ───
+
+  describe('author name with spaces', () => {
+    it('handles author names containing spaces in --format output', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) return commitLine('sp00001', '2024-01-01T00:00:00Z', 'John Doe', 'Revert "x"');
+        if (cmd.includes('--name-only')) return '';
+        if (cmd.includes('rev-list --count')) return '150';
+        if (cmd.includes('log --format="%an"')) return 'John Doe';
+        if (cmd.includes('--reverse')) return '2023-01-01T00:00:00Z';
+        return '';
+      });
+      const result = scanGitHistory(PROJECT_ROOT);
+      const singleAuthorPage = result.find((p) => p.title.includes('单一维护者'));
+      expect(singleAuthorPage).toBeDefined();
+      expect(singleAuthorPage!.evidence).toContain('150');
+    });
+  });
+
+  // ─── Z. Maximum result boundary with all patterns + hotspot + maturity ───
+
+  describe('maximum result boundary (all signal types combined)', () => {
+    it('produces at most 7 pages when all signals fire', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockImplementation((_cmd: string) => {
+        const cmd = _cmd as string;
+        if (cmd.includes('log --max-count')) {
+          return gitLog(
+            { hash: 'mx00001', date: '2024-01-01T00:00:00Z', author: 'solo', subject: 'Revert "bad"' },
+            { hash: 'mx00002', date: '2024-01-02T00:00:00Z', author: 'solo', subject: 'migration: new schema' },
+            { hash: 'mx00003', date: '2024-01-03T00:00:00Z', author: 'solo', subject: 'hotfix: patch' },
+            { hash: 'mx00004', date: '2024-01-04T00:00:00Z', author: 'solo', subject: 'deprecate: old' },
+            { hash: 'mx00005', date: '2024-01-05T00:00:00Z', author: 'solo', subject: 'BREAKING CHANGE remove field' },
+          );
+        }
+        if (cmd.includes('--name-only')) {
+          return '     20\tsrc/core/main.ts\n     15\tsrc/cli/index.ts\n';
+        }
+        if (cmd.includes('rev-list --count')) return '200';
+        if (cmd.includes('log --format="%an"')) return 'solo';
+        if (cmd.includes('--reverse')) return '2020-01-01T00:00:00Z';
+        return '';
+      });
+      const result = scanGitHistory(PROJECT_ROOT);
+      // 5 patterns + 1 hotspot (2 files >= 5) + 1 single-author = 8 pages
+      // Actually 2 hotspot files >= 5: yes -> +1 hotspot page
+      // Single-author: 200 commits, 1 author -> +1
+      // Total: 5 + 1 + 1 = 7? Let's verify: deposit files = main.ts(20), index.ts(15) -> both >= 5 = 1 hotspot page
+      expect(result.length).toBe(7);
+      const types = result.map((p) => p.type);
+      expect(types.filter((t) => t === 'lesson').length).toBe(1);
+      expect(types.filter((t) => t === 'decision').length).toBe(2); // migration + deprecation
+      expect(types.filter((t) => t === 'risk').length).toBe(4); // hotfix + breaking + hotspot + single-author
+    });
+  });
 });
