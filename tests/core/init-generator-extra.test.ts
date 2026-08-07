@@ -63,6 +63,8 @@ describe('scaffoldKnowledgeBase', () => {
     mockEnsureDir.mockReset();
   });
 
+  const baseConfig = { knowledge: { wiki: { dir: '.mumuspec/knowledge' } } };
+
   it('should write index.yaml and base files', () => {
     const analysis: ProjectAnalysis = {
       projectType: 'frontend', framework: 'vue', language: 'typescript',
@@ -71,7 +73,7 @@ describe('scaffoldKnowledgeBase', () => {
       hasUiLibrary: false, packageName: 'vue-proj', sourceDirs: ['src'],
       entryPoints: [], totalFiles: 0, frontendIndicators: [], backendIndicators: [],
     };
-    scaffoldKnowledgeBase('/root', analysis);
+    scaffoldKnowledgeBase('/root', baseConfig as any, analysis);
     expect(mockEnsureDir).toHaveBeenCalled();
     expect(mockWriteYaml).toHaveBeenCalled();
   });
@@ -84,7 +86,7 @@ describe('scaffoldKnowledgeBase', () => {
       hasUiLibrary: false, packageName: 'cli-tool', sourceDirs: ['src'],
       entryPoints: ['cli.ts'], totalFiles: 3, frontendIndicators: [], backendIndicators: [],
     };
-    scaffoldKnowledgeBase('/root', analysis);
+    scaffoldKnowledgeBase('/root', baseConfig as any, analysis);
     expect(mockWriteText).toHaveBeenCalled();
   });
 });

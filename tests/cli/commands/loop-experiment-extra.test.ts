@@ -50,7 +50,7 @@ describe('loop-experiment command handler', () => {
     const { registerExperimentCommands } = await import('../../../src/cli/commands/loop-experiment.js');
     const loopCmd = new Command();
     registerExperimentCommands(loopCmd);
-    await loopCmd.parseAsync(['loop', 'experiment', 'init', 'exp1', '--goal', 'test goal'], { from: 'user' }).catch(() => {});
+    await loopCmd.parseAsync([ 'experiment', 'init', 'exp1', '--goal', 'test goal'], { from: 'user' }).catch(() => {});
     expect(errorSpy).toHaveBeenCalledWith('Error: Not in a MumuSpec project.');
   });
 
@@ -68,7 +68,7 @@ describe('loop-experiment command handler', () => {
     const { registerExperimentCommands } = await import('../../../src/cli/commands/loop-experiment.js');
     const loopCmd = new Command();
     registerExperimentCommands(loopCmd);
-    await loopCmd.parseAsync(['loop', 'experiment', 'init', 'exp1', '--goal', 'test goal'], { from: 'user' });
+    await loopCmd.parseAsync([ 'experiment', 'init', 'exp1', '--goal', 'test goal'], { from: 'user' });
     expect(mockInitExperiment).toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Experiment Initialized'));
   });
@@ -80,7 +80,7 @@ describe('loop-experiment command handler', () => {
     const { registerExperimentCommands } = await import('../../../src/cli/commands/loop-experiment.js');
     const loopCmd = new Command();
     registerExperimentCommands(loopCmd);
-    await loopCmd.parseAsync(['loop', 'experiment', 'spawn', 'exp1'], { from: 'user' });
+    await loopCmd.parseAsync([ 'experiment', 'spawn', 'exp1'], { from: 'user' });
     expect(mockSpawnArms).toHaveBeenCalledWith('/fake/root', 'exp1');
   });
 
@@ -89,7 +89,7 @@ describe('loop-experiment command handler', () => {
     const { registerExperimentCommands } = await import('../../../src/cli/commands/loop-experiment.js');
     const loopCmd = new Command();
     registerExperimentCommands(loopCmd);
-    await loopCmd.parseAsync(['loop', 'experiment', 'spawn', 'exp1'], { from: 'user' }).catch(() => {});
+    await loopCmd.parseAsync([ 'experiment', 'spawn', 'exp1'], { from: 'user' }).catch(() => {});
     expect(errorSpy).toHaveBeenCalledWith('Error: spawn failed');
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
@@ -99,7 +99,7 @@ describe('loop-experiment command handler', () => {
     const { registerExperimentCommands } = await import('../../../src/cli/commands/loop-experiment.js');
     const loopCmd = new Command();
     registerExperimentCommands(loopCmd);
-    await loopCmd.parseAsync(['loop', 'experiment', 'run', 'exp1'], { from: 'user' }).catch(() => {});
+    await loopCmd.parseAsync([ 'experiment', 'run', 'exp1'], { from: 'user' }).catch(() => {});
     expect(errorSpy).toHaveBeenCalledWith('Error: Experiment not found: exp1');
   });
 });

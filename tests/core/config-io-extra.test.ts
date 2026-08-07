@@ -69,10 +69,11 @@ describe('loadConfig', () => {
     mockGetMumuSpecDir.mockReturnValue('/root/.mumuspec');
   });
 
-  it('should return undefined when config does not exist', () => {
+  it('should return default config when config does not exist', () => {
     mockExistsSync.mockReturnValue(false);
     const result = loadConfig('/root');
-    expect(result).toBeUndefined();
+    expect(result).toBeDefined();
+    expect(result!.project).toBeDefined();
   });
 
   it('should load config from YAML file', () => {
@@ -80,7 +81,7 @@ describe('loadConfig', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadYaml.mockReturnValue(expectedConfig);
     const result = loadConfig('/root');
-    expect(result).toEqual(expectedConfig);
+    expect(result!.project.name).toBe('loaded-project');
   });
 
   it('should return config with correct project name', () => {

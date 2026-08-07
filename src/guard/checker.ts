@@ -256,8 +256,8 @@ function checkFileCoexistence(
   const filePairs: { fileA: string; fileB: string; source: string }[] = [];
 
   for (const { text, source } of constraints) {
-    const match = text.match(/[`"']?(\w+\.md)["']?\s+(?:SHALL NOT|shall not)\s+(?:coexist|共存)\s+with\s+[`"']?(\w+\.md)["']?/i)
-      || text.match(/(\w+\.md)\s*与\s*(\w+\.md)\s*不应共存/);
+    const match = text.match(/[`"']?(\w+\.md)[`"']?\s+(?:SHALL NOT|shall not)\s+(?:coexist|共存)\s+with\s+[`"']?(\w+\.md)[`"']?/i)
+      || text.match(/[`"']?(\w+\.md)[`"']?\s*与\s*[`"']?(\w+\.md)[`"']?\s*不应共存/);
     if (match) {
       filePairs.push({ fileA: match[1], fileB: match[2], source });
     }

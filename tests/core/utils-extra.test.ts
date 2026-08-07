@@ -19,8 +19,16 @@ vi.mock('node:fs', () => ({
 
 vi.mock('node:path', () => ({
   join: (...p: string[]) => p.join('/'),
-  resolve: (p: string) => p,
-  relative: (from: string, to: string) => to.replace(from + '/', ''),
+  resolve: (base: string, rel?: string) => {
+    if (rel === undefined) return base;
+    if (rel.startsWith('/')) return rel;
+    const b = base.endsWith('/') ? base : base + '/';
+    return b + rel;
+  },
+  relative: (from: string, to: string) => {
+    const prefix = from.endsWith('/') ? from : from + '/';
+    return to.startsWith(prefix) ? to.slice(prefix.length) : to;
+  },
   isAbsolute: (p: string) => p.startsWith('/'),
   dirname: (p: string) => p.split('/').slice(0, -1).join('/') || '/',
   sep: '/',

@@ -69,7 +69,7 @@ describe('knowledge-analysis command handler', () => {
     const knowledgeCmd = new Command();
     const program = new Command();
     registerKnowledgeAnalysis(program, knowledgeCmd);
-    await program.parseAsync(['knowledge', 'coverage'], { from: 'user' });
+    await knowledgeCmd.parseAsync([ 'coverage'], { from: 'user' });
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('COVERAGE REPORT'));
   });
 
@@ -78,7 +78,7 @@ describe('knowledge-analysis command handler', () => {
     const knowledgeCmd = new Command();
     const program = new Command();
     registerKnowledgeAnalysis(program, knowledgeCmd);
-    await program.parseAsync(['knowledge', 'coverage', '--json'], { from: 'user' });
+    await knowledgeCmd.parseAsync([ 'coverage', '--json'], { from: 'user' });
     const jsonCall = logSpy.mock.calls.find(c => String(c[0]).includes('coverage'));
     expect(jsonCall).toBeDefined();
   });
@@ -96,7 +96,7 @@ describe('knowledge-analysis command handler', () => {
     const knowledgeCmd = new Command();
     const program = new Command();
     registerKnowledgeAnalysis(program, knowledgeCmd);
-    await program.parseAsync(['knowledge', 'gaps', '--scope', 'src', '--min-importance', '5'], { from: 'user' });
+    await knowledgeCmd.parseAsync(['gaps', '--scope', 'src', '--min-importance', '5'], { from: 'user' });
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('foo.ts'));
   });
 });
