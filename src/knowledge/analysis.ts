@@ -19,7 +19,7 @@ import type {
   RoadmapItem,
 } from '../core/types.js';
 import type { MumuSpecConfig } from '../core/config.js';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { listKnowledgePages } from './pages.js';
 import { readReverseIndex } from './index.js';
 import { listStalePages } from './freshness.js';
@@ -35,9 +35,17 @@ function getChangedFiles(
 
   try {
     const range = options?.diffRange ?? '';
-    const cmd = range ? `git diff --name-only ${range}` : `git diff --name-only`;
-    const output = execSync(cmd, { cwd: projectRoot, encoding: 'utf8' }) as string;
-    return output
+    // ponytail: spawnSync with arg array — range validated by caller (MCP isPathSafe regex)
+    const args = ['diff', '--name-only'];
+    if (range) {
+      // Validate diffRange to prevent command injection
+      if (!/^[a-zA-Z0-9^~:.\-/]+$/.test(range)) {
+        return [];
+      }
+      args.push(range);
+    }
+    const result = spawnSync('git', args, { cwd: projectRoot, encoding: 'utf8' });
+    return (result.stdout ?? '')
       .split('\n')
       .filter(Boolean)
       .map((path) => ({

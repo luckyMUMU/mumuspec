@@ -683,7 +683,7 @@ describe('writeBoundary', () => {
     const result = writeBoundary('C:\\src', content);
 
     expect(result).toContain('BOUNDARY.md');
-    expect(mockMkdirSync).toHaveBeenCalledWith('C:\\src', { recursive: true });
+    expect(mockMkdirSync).toHaveBeenCalledWith('C:\\src\\.mumuspec', { recursive: true });
     expect(mockWriteFileSync).toHaveBeenCalledWith(
       expect.stringContaining('BOUNDARY.md'),
       content,

@@ -31,12 +31,12 @@ export function registerGitCommand(program: Command): void {
     .action((subcommand, args, options) => {
       const root = requireRoot();
 
-      const exec = (cmd: string): string => {
+      const exec = (cmd: string, args: string[] = []): string => {
         if (options.dryRun) {
-          console.log(`[dry-run] ${cmd}`);
+          console.log(`[dry-run] ${cmd} ${args.join(' ')}`);
           return '';
         }
-        const result = spawnSync(cmd, { shell: true, cwd: root, encoding: 'utf8' });
+        const result = spawnSync(cmd, args, { cwd: root, encoding: 'utf8' });
         if (result.status !== 0 && result.stderr) {
           console.error(result.stderr);
         }
@@ -47,9 +47,9 @@ export function registerGitCommand(program: Command): void {
         case 'status':
         case 'st': {
           console.log('Git status:\n');
-          const status = exec('git status --short --branch');
+          const status = exec('git', ['status', '--short', '--branch']);
           console.log(status || 'No changes');
-          const recent = exec('git log --oneline -5');
+          const recent = exec('git', ['log', '--oneline', '-5']);
           if (recent) {
             console.log('\nRecent commits:');
             console.log(recent);
@@ -77,16 +77,16 @@ export function registerGitCommand(program: Command): void {
           }
           const fullMsg = scope ? `feat(${scope}): ${msg}` : `feat: ${msg}`;
           console.log(`Committing: ${fullMsg}`);
-          exec('git add -A');
-          exec(`git commit -m "${fullMsg.replace(/"/g, '\\"')}"`);
+          exec('git', ['add', '-A']);
+          exec('git', ['commit', '-m', fullMsg]);
           console.log('Committed');
           break;
         }
 
         case 'push': {
-          const branch = exec('git branch --show-current');
+          const branch = exec('git', ['branch', '--show-current']);
           console.log(`Pushing to origin/${branch}...`);
-          exec(`git push -u origin ${branch}`);
+          exec('git', ['push', '-u', 'origin', branch]);
           console.log('Pushed');
           break;
         }
@@ -95,8 +95,8 @@ export function registerGitCommand(program: Command): void {
           const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
           const tag = `v${pkg.version}`;
           console.log(`Creating tag ${tag}...`);
-          exec(`git tag -a ${tag} -m "Release ${tag}"`);
-          exec(`git push origin ${tag}`);
+          exec('git', ['tag', '-a', tag, '-m', `Release ${tag}`]);
+          exec('git', ['push', 'origin', tag]);
           console.log(`Tagged and pushed: ${tag}`);
           break;
         }
@@ -116,21 +116,28 @@ export function registerGitCommand(program: Command): void {
           }
           if (sub === 'start') {
             console.log(`Starting flow: ${name}`);
-            exec('git checkout main 2>/dev/null || git checkout master');
-            exec('git pull');
-            exec(`git checkout -b ${name}`);
+            // Try main first, fallback to master (no shell operators)
+            const mainResult = exec('git', ['checkout', 'main']);
+            if (mainResult === undefined || mainResult === '') {
+              const checkoutMain = spawnSync('git', ['checkout', 'main'], { cwd: root });
+              if (checkoutMain.status !== 0) {
+                exec('git', ['checkout', 'master']);
+              }
+            }
+            exec('git', ['pull']);
+            exec('git', ['checkout', '-b', name]);
             console.log(`Created branch: ${name}`);
           } else {
             console.log(`Finishing flow: ${name}`);
-            const branches = exec('git branch --list main master --format="%(refname:short)"');
+            const branches = exec('git', ['branch', '--list', 'main', 'master', '--format=%(refname:short)']);
             const base = branches
               .split('\n')
               .map((b: string) => b.trim())
               .filter(Boolean)[0] || 'main';
-            exec(`git checkout ${base}`);
-            exec('git pull');
-            exec(`git merge --no-ff ${name} -m "Merge branch '${name}'"`);
-            exec(`git branch -d ${name}`);
+            exec('git', ['checkout', base]);
+            exec('git', ['pull']);
+            exec('git', ['merge', '--no-ff', name, '-m', `Merge branch '${name}'`]);
+            exec('git', ['branch', '-d', name]);
             console.log(`Merged and removed: ${name}`);
           }
           break;

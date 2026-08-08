@@ -22,6 +22,7 @@ const {
   mockReaddirSync,
   mockReadFileSync,
   mockWriteFileSync,
+  mockMkdirSync,
   mockEnsureDir,
   mockNow,
 } = vi.hoisted(() => ({
@@ -30,6 +31,7 @@ const {
   mockReaddirSync: vi.fn(),
   mockReadFileSync: vi.fn(),
   mockWriteFileSync: vi.fn(),
+  mockMkdirSync: vi.fn(),
   mockEnsureDir: vi.fn(),
   mockNow: vi.fn(),
 }));
@@ -39,6 +41,7 @@ vi.mock('node:fs', () => ({
   readdirSync: mockReaddirSync,
   readFileSync: mockReadFileSync,
   writeFileSync: mockWriteFileSync,
+  mkdirSync: mockMkdirSync,
 }));
 
 vi.mock('../../../src/core/utils.js', async (importOriginal) => {

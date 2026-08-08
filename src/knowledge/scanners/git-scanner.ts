@@ -7,7 +7,7 @@
  * - Commit message patterns (decisions, fixes)
  * - Author distribution (ownership patterns)
  */
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ProposedKnowledgePage, GitKnowledgePattern } from '../scan-types.js';
@@ -71,15 +71,22 @@ const GIT_PATTERNS: GitKnowledgePattern[] = [
   },
 ];
 
-/** Execute git command safely */
-function gitExec(projectRoot: string, args: string): string {
+/** Clamp limit parameter to safe range */
+function clampLimit(limit: number, fallback: number = 10): number {
+  if (!Number.isInteger(limit) || limit <= 0 || limit > 1000) return fallback;
+  return limit;
+}
+
+/** Execute git command safely without shell (spawnSync with args array) */
+function gitExec(projectRoot: string, args: string[]): string {
   try {
-    return execSync(`git ${args}`, {
+    const result = spawnSync('git', args, {
       cwd: projectRoot,
       encoding: 'utf8',
       timeout: 10_000,
       stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim();
+    });
+    return (result.stdout ?? '').trim();
   } catch {
     return '';
   }
@@ -92,7 +99,8 @@ function hasGitHistory(projectRoot: string): boolean {
 
 /** Get recent commit messages */
 function getRecentCommits(projectRoot: string, limit: number = 50): GitCommit[] {
-  const output = gitExec(projectRoot, `log --max-count=${limit} --format="%h|%aI|%an|%s"`);
+  const safeLimit = clampLimit(limit, 50);
+  const output = gitExec(projectRoot, ['log', `--max-count=${safeLimit}`, '--format=%h|%aI|%an|%s']);
   if (!output) return [];
 
   return output
@@ -109,20 +117,24 @@ function getRecentCommits(projectRoot: string, limit: number = 50): GitCommit[] 
     });
 }
 
-/** Get frequently changed files (hotspots) */
+/** Get frequently changed files (hotspots) — pipe logic moved to JS */
 function getHotspotFiles(projectRoot: string, limit: number = 10): FileChangeFrequency[] {
-  const output = gitExec(projectRoot, `log --name-only --pretty=format: | sort | uniq -c | sort -rn | head -${limit}`);
+  const safeLimit = clampLimit(limit, 10);
+  const output = gitExec(projectRoot, ['log', '--name-only', '--pretty=format:']);
   if (!output) return [];
 
-  return output
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => {
-      const match = line.trim().match(/^(\d+)\s+(.+)$/);
-      if (!match) return null;
-      return { file: match[2]!, count: parseInt(match[1]!, 10) };
-    })
-    .filter((x): x is FileChangeFrequency => x !== null && x.file !== '');
+  // Count file occurrences in JS (replaces `| sort | uniq -c | sort -rn | head`)
+  const counts = new Map<string, number>();
+  for (const line of output.split('\n')) {
+    const file = line.trim();
+    if (!file) continue;
+    counts.set(file, (counts.get(file) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, safeLimit)
+    .map(([file, count]) => ({ file, count }));
 }
 
 /** Get overall git stats */
@@ -131,18 +143,26 @@ function getGitStats(projectRoot: string): {
   totalAuthors: number;
   ageInDays: number;
 } {
-  const totalOutput = gitExec(projectRoot, 'rev-list --count HEAD');
+  const totalOutput = gitExec(projectRoot, ['rev-list', '--count', 'HEAD']);
   const totalCommits = parseInt(totalOutput, 10) || 0;
 
-  const authorsOutput = gitExec(projectRoot, 'log --format="%an" | sort -u');
-  const totalAuthors = authorsOutput ? authorsOutput.split('\n').filter(Boolean).length : 0;
+  // sort -u replaced by JS Set
+  const authorsOutput = gitExec(projectRoot, ['log', '--format=%an']);
+  const totalAuthors = authorsOutput
+    ? new Set(authorsOutput.split('\n').filter(Boolean)).size
+    : 0;
 
-  const firstCommitOutput = gitExec(projectRoot, 'log --reverse --format="%aI" | head -1');
+  // head -1 replaced by array index
+  const firstCommitOutput = gitExec(projectRoot, ['log', '--reverse', '--format=%aI']);
   let ageInDays = 0;
   if (firstCommitOutput) {
-    const firstDate = new Date(firstCommitOutput);
-    const now = new Date();
-    ageInDays = Math.floor((now.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+    const lines = firstCommitOutput.split('\n').filter(Boolean);
+    const firstDateStr = lines[0];
+    if (firstDateStr) {
+      const firstDate = new Date(firstDateStr);
+      const now = new Date();
+      ageInDays = Math.floor((now.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
   }
 
   return { totalCommits, totalAuthors, ageInDays };

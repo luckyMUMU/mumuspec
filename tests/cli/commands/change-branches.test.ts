@@ -191,7 +191,7 @@ describe('change command — MumuSpecError handling', () => {
     });
 
     const program = createProgram();
-    await expect(program.parseAsync(['node', 'mumuspec', 'archive', 'bad-phase']))
+    await expect(program.parseAsync(['node', 'mumuspec', 'archive', '--confirm', 'bad-phase']))
       .rejects.toThrow('process.exit called with code 1');
 
     expect(mockFormatError).toHaveBeenCalledWith('E-CHANGE-006', { '当前phase': 'build', '需要': 'archive-in-progress' });
@@ -205,7 +205,7 @@ describe('change command — MumuSpecError handling', () => {
     });
 
     const program = createProgram();
-    await expect(program.parseAsync(['node', 'mumuspec', 'discard', 'locked-change']))
+    await expect(program.parseAsync(['node', 'mumuspec', 'discard', '--confirm', 'locked-change']))
       .rejects.toThrow('process.exit called with code 1');
 
     expect(mockFormatError).toHaveBeenCalledWith('E-CHANGE-004', { reason: 'test cases locked' });
@@ -497,7 +497,7 @@ describe('change command — discard handler not-in-project', () => {
     mockFormatError.mockReturnValue('[E-CHANGE-004] CHANGE_TEST_CASES_LOCKED');
 
     const program = createProgram();
-    await expect(program.parseAsync(['node', 'mumuspec', 'discard', 'locked']))
+    await expect(program.parseAsync(['node', 'mumuspec', 'discard', '--confirm', 'locked']))
       .rejects.toThrow('process.exit called with code 1');
 
     expect(mockFormatError).toHaveBeenCalledWith('E-CHANGE-004', { reason: 'locked' });

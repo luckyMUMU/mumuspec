@@ -340,7 +340,7 @@ describe('change command handlers', () => {
       mockArchiveChange.mockReturnValue(undefined);
 
       const program = createProgram();
-      await program.parseAsync(['node', 'mumuspec', 'archive', 'test-change']);
+      await program.parseAsync(['node', 'mumuspec', 'archive', '--confirm', 'test-change']);
 
       expect(mockArchiveChange).toHaveBeenCalledWith(FAKE_ROOT, 'test-change');
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('✓ Change "test-change" archived'));
@@ -352,7 +352,7 @@ describe('change command handlers', () => {
       });
 
       const program = createProgram();
-      await expect(program.parseAsync(['node', 'mumuspec', 'archive', 'bad-change']))
+      await expect(program.parseAsync(['node', 'mumuspec', 'archive', '--confirm', 'bad-change']))
         .rejects.toThrow('process.exit called with code 1');
 
       expect(errorSpy).toHaveBeenCalledWith('Error: Change not found');
@@ -362,7 +362,7 @@ describe('change command handlers', () => {
       mockFindProjectRoot.mockReturnValue(null);
 
       const program = createProgram();
-      await expect(program.parseAsync(['node', 'mumuspec', 'archive', 'test-change']))
+      await expect(program.parseAsync(['node', 'mumuspec', 'archive', '--confirm', 'test-change']))
         .rejects.toThrow('process.exit called with code 1');
 
       expect(errorSpy).toHaveBeenCalledWith('Error: Not in a MumuSpec project.');
@@ -376,7 +376,7 @@ describe('change command handlers', () => {
       mockDiscardChange.mockReturnValue(undefined);
 
       const program = createProgram();
-      await program.parseAsync(['node', 'mumuspec', 'discard', 'test-change']);
+      await program.parseAsync(['node', 'mumuspec', 'discard', '--confirm', 'test-change']);
 
       expect(mockDiscardChange).toHaveBeenCalledWith(FAKE_ROOT, 'test-change', 'No reason provided');
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('✓ Change "test-change" discarded'));
@@ -386,7 +386,7 @@ describe('change command handlers', () => {
       mockDiscardChange.mockReturnValue(undefined);
 
       const program = createProgram();
-      await program.parseAsync(['node', 'mumuspec', 'discard', 'test-change', '--reason', 'superseded']);
+      await program.parseAsync(['node', 'mumuspec', 'discard', '--confirm', 'test-change', '--reason', 'superseded']);
 
       expect(mockDiscardChange).toHaveBeenCalledWith(FAKE_ROOT, 'test-change', 'superseded');
     });
@@ -397,7 +397,7 @@ describe('change command handlers', () => {
       });
 
       const program = createProgram();
-      await expect(program.parseAsync(['node', 'mumuspec', 'discard', 'old-change']))
+      await expect(program.parseAsync(['node', 'mumuspec', 'discard', '--confirm', 'old-change']))
         .rejects.toThrow('process.exit called with code 1');
 
       expect(errorSpy).toHaveBeenCalledWith('Error: Cannot discard archived change');

@@ -18,6 +18,7 @@ import {
 import { parseFrontmatter } from '../core/utils.js';
 import { parse as parseYaml } from 'yaml';
 import type { MumuSpecConfig } from '../core/config.js';
+import { Logger } from '../core/logger.js';
 
 /**
  * Load spec context for a directory using progressive disclosure.
@@ -57,8 +58,9 @@ export function loadSpecContext(
         for (const req of tech.requirements) {
           prohibitions.push(...req.shallNot);
         }
-      } catch {
+      } catch (e) {
         // Skip invalid tech.md
+        Logger.error('spec.loader', 'Failed to parse tech.md', { path: techPath, error: (e as Error).message });
       }
     } else {
       // Backward compatibility: load spec.md if tech.md doesn't exist
@@ -71,8 +73,9 @@ export function loadSpecContext(
           for (const req of layer.spec.requirements) {
             prohibitions.push(...req.shallNot);
           }
-        } catch {
+        } catch (e) {
           // Skip invalid specs
+          Logger.error('spec.loader', 'Failed to parse spec.md', { path: specPath, error: (e as Error).message });
         }
       }
     }
@@ -83,8 +86,9 @@ export function loadSpecContext(
       try {
         const content = readFileSync(prdPath, 'utf8');
         layer.prd = parsePrdFile(content, prdPath);
-      } catch {
+      } catch (e) {
         // Skip invalid prd.md
+        Logger.warn('spec.loader', 'Failed to parse prd.md', { path: prdPath, error: (e as Error).message });
       }
     } else {
       // Backward compatibility: load design.md if prd.md doesn't exist
@@ -114,8 +118,9 @@ export function loadSpecContext(
       try {
         const content = readFileSync(indexPath, 'utf8');
         index = parseYaml(content) as SpecIndex;
-      } catch {
+      } catch (e) {
         // Skip invalid index
+        Logger.warn('spec.loader', 'Failed to parse index.yaml', { path: indexPath, error: (e as Error).message });
       }
     }
   }
@@ -169,13 +174,15 @@ function processInheritance(
                 parentPath,
               );
               conflicts.push(...layerConflicts);
-            } catch {
+            } catch (e) {
               // Skip invalid parent
+              Logger.warn('spec.loader', 'Failed to parse parent tech file', { path: parentPath, error: (e as Error).message });
             }
           }
         }
-      } catch {
+      } catch (e) {
         // Skip
+        Logger.warn('spec.loader', 'Failed to read tech file for inheritance processing', { path: layer.tech?.path, error: (e as Error).message });
       }
     }
   }
@@ -333,8 +340,9 @@ export function buildIndex(
         layer = frontmatter.layer;
         scope = frontmatter.scope;
       }
-    } catch {
+    } catch (e) {
       // Use defaults
+      Logger.debug('spec.loader', 'Could not read frontmatter for layer info, using defaults', { path: layerFilePath, error: (e as Error).message });
     }
   }
 
@@ -407,15 +415,14 @@ export function buildIndex(
       children.push({
         name: entry.name,
         path: relative(projectRoot, childDir).split(sep).join('/'),
-        summary: techSummary,
-        shallNotCount: 0,
         prd_summary: prdSummary,
         tech_summary: techSummary,
         constraint_count: constraintCount,
       });
     }
-  } catch {
+  } catch (e) {
     // Ignore errors
+    Logger.warn('spec.loader', 'Could not read directory entries for index building', { path: dirPath, error: (e as Error).message });
   }
 
   return {
@@ -447,7 +454,8 @@ export function loadPrd(targetPath: string, _projectRoot: string): PrdFile | und
   try {
     const content = readFileSync(prdPath, 'utf8');
     return parsePrdFile(content, prdPath);
-  } catch {
+  } catch (e) {
+    Logger.warn('spec.loader', 'Failed to load prd.md', { path: prdPath, error: (e as Error).message });
     return undefined;
   }
 }
@@ -471,14 +479,16 @@ export function loadTech(targetPath: string, _projectRoot: string): TechFile | u
         requirements: spec.requirements,
         architectureDecisions: [],
       };
-    } catch {
+    } catch (e) {
+      Logger.warn('spec.loader', 'Failed to parse spec.md in loadTech fallback', { path: specPath, error: (e as Error).message });
       return undefined;
     }
   }
   try {
     const content = readFileSync(techPath, 'utf8');
     return parseTechFile(content, techPath);
-  } catch {
+  } catch (e) {
+    Logger.error('spec.loader', 'Failed to parse tech.md', { path: techPath, error: (e as Error).message });
     return undefined;
   }
 }
@@ -531,8 +541,9 @@ export function searchSpecs(
             }
           }
         }
-      } catch {
+      } catch (e) {
         // Skip invalid
+        Logger.debug('spec.loader', 'Could not parse spec file during search', { file: filePath, error: (e as Error).message });
       }
     }
 
@@ -544,8 +555,9 @@ export function searchSpecs(
           scanDir(join(dirPath, entry.name));
         }
       }
-    } catch {
+    } catch (e) {
       // Ignore
+      Logger.debug('spec.loader', 'Could not read directory during search', { path: dirPath, error: (e as Error).message });
     }
   }
 
@@ -576,8 +588,9 @@ export function getProhibitions(
             results.push({ scope, text: shallNot, source: filePath });
           }
         }
-      } catch {
+      } catch (e) {
         // Skip
+        Logger.warn('spec.loader', 'Failed to read spec file for prohibitions', { path: filePath, error: (e as Error).message });
       }
     }
   }
@@ -620,8 +633,9 @@ export function findAllDistributedSpecDirs(
           walk(join(dir, entry.name), depth + 1);
         }
       }
-    } catch {
+    } catch (e) {
       // Skip
+      Logger.debug('spec.loader', 'Could not walk directory during spec discovery', { path: dir, error: (e as Error).message });
     }
   }
 

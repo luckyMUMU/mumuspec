@@ -6,7 +6,7 @@
 
 import { resolve } from 'node:path';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   ensureDir,
   now,
@@ -311,15 +311,17 @@ export function initExperiment(
   ensureDir(experimentDir);
 
   // Detect current branch and commit
-  const originalBranch = execSync('git branch --show-current', {
+  const branchResult = spawnSync('git', ['branch', '--show-current'], {
     cwd: projectRoot,
     encoding: 'utf-8',
-  }).trim();
+  });
+  const originalBranch = (branchResult.stdout ?? '').trim();
 
-  const baseCommit = execSync('git rev-parse HEAD', {
+  const commitResult = spawnSync('git', ['rev-parse', 'HEAD'], {
     cwd: projectRoot,
     encoding: 'utf-8',
-  }).trim();
+  });
+  const baseCommit = (commitResult.stdout ?? '').trim();
 
   // Generate directions
   const directions = generateDirections(projectRoot, input.config);
@@ -386,10 +388,13 @@ export function spawnArms(
     cleanupExistingWorktree(projectRoot, worktreePath, branch);
 
     // Create worktree
-    execSync(
-      `git worktree add -b ${branch} "${worktreePath}" ${state.baseCommit}`,
+    const wtResult = spawnSync(
+      'git', ['worktree', 'add', '-b', branch, worktreePath, state.baseCommit!],
       { cwd: projectRoot, stdio: 'ignore' }
     );
+    if (wtResult.status !== 0) {
+      throw new Error(`Failed to create worktree for ${direction.id}: ${String(wtResult.stderr ?? '')}`);
+    }
 
     // Apply direction-specific code modifications
     applyDirectionPatch(projectRoot, worktreePath, direction);
@@ -447,22 +452,15 @@ function cleanupExistingWorktree(
   worktreePath: string,
   branch: string,
 ): void {
-  try {
-    execSync(`git worktree remove "${worktreePath}" --force`, {
-      cwd: projectRoot,
-      stdio: 'ignore',
-    });
-  } catch {
-    // Ignore - worktree may not exist
-  }
-  try {
-    execSync(`git branch -D ${branch}`, {
-      cwd: projectRoot,
-      stdio: 'ignore',
-    });
-  } catch {
-    // Ignore - branch may not exist
-  }
+  // Remove worktree and branch (ignore failures — they may not exist)
+  spawnSync('git', ['worktree', 'remove', worktreePath, '--force'], {
+    cwd: projectRoot,
+    stdio: 'ignore',
+  });
+  spawnSync('git', ['branch', '-D', branch], {
+    cwd: projectRoot,
+    stdio: 'ignore',
+  });
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -886,27 +884,29 @@ export function adoptImprovements(
       continue;
     }
 
-    try {
-      // Cherry-pick the commit from the experiment branch
-      const output = execSync(
-        `git log ${arm.branch} --oneline -1`,
-        { cwd: projectRoot, encoding: 'utf-8' }
-      ).trim();
+    // Cherry-pick the commit from the experiment branch
+    const logResult = spawnSync(
+      'git', ['log', arm.branch, '--oneline', '-1'],
+      { cwd: projectRoot, encoding: 'utf-8' }
+    );
 
-      if (output) {
-        const commitSha = output.split(' ')[0];
-        try {
-          execSync(`git cherry-pick ${commitSha}`, {
-            cwd: projectRoot,
-            stdio: 'ignore',
-          });
-          adopted.push(directionId);
-        } catch {
-          errors.push(`Cherry-pick failed for ${directionId} (${commitSha})`);
-        }
+    if (logResult.status !== 0) {
+      errors.push(`Failed to adopt ${directionId}: git log failed (status ${logResult.status})`);
+      continue;
+    }
+
+    const output = (logResult.stdout ?? '').trim();
+    if (output) {
+      const commitSha = output.split(' ')[0];
+      const pickResult = spawnSync('git', ['cherry-pick', commitSha], {
+        cwd: projectRoot,
+        stdio: 'ignore',
+      });
+      if (pickResult.status === 0) {
+        adopted.push(directionId);
+      } else {
+        errors.push(`Cherry-pick failed for ${directionId} (${commitSha})`);
       }
-    } catch (err) {
-      errors.push(`Failed to adopt ${directionId}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -1013,14 +1013,14 @@ export function cleanupExperiment(
       if (options.dryRun) {
         cleaned.push(arm.worktreePath);
       } else {
-        try {
-          execSync(`git worktree remove "${arm.worktreePath}" --force`, {
-            cwd: projectRoot,
-            stdio: 'ignore',
-          });
+        const rmResult = spawnSync('git', ['worktree', 'remove', arm.worktreePath, '--force'], {
+          cwd: projectRoot,
+          stdio: 'ignore',
+        });
+        if (rmResult.status === 0) {
           cleaned.push(arm.worktreePath);
-        } catch (err) {
-          errors.push(`Failed to remove ${arm.worktreePath}: ${err instanceof Error ? err.message : String(err)}`);
+        } else {
+          errors.push(`Failed to remove ${arm.worktreePath}: git worktree remove failed (status ${rmResult.status})`);
         }
       }
     }

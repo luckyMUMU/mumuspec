@@ -126,7 +126,7 @@ describe('Contract Loader', () => {
       SAMPLE_CONTRACTS_YAML,
     );
     writeFileSync(join(projectDir, 'src', 'core', 'models.ts'), 'export interface User { id: string; name: string; }');
-    writeFileSync(join(projectDir, 'BOUNDARY.md'), SAMPLE_BOUNDARY_MD);
+    writeFileSync(join(projectDir, '.mumuspec', 'BOUNDARY.md'), SAMPLE_BOUNDARY_MD);
   });
 
   afterAll(() => {
@@ -184,7 +184,7 @@ describe('Boundary Document Loader', () => {
 
   beforeAll(() => {
     projectDir = setupTestDir();
-    writeFileSync(join(projectDir, 'BOUNDARY.md'), SAMPLE_BOUNDARY_MD);
+    writeFileSync(join(projectDir, '.mumuspec', 'BOUNDARY.md'), SAMPLE_BOUNDARY_MD);
   });
 
   afterAll(() => {
@@ -298,7 +298,8 @@ describe('validateBoundaries', () => {
     const dir = join(TEST_DIR, 'export-mismatch-' + Math.random().toString(36).slice(2));
     mkdirSync(join(dir, 'src'), { recursive: true });
     writeFileSync(join(dir, 'src', 'index.ts'), '\n', 'utf-8');
-    writeFileSync(join(dir, 'src', 'BOUNDARY.md'),
+    mkdirSync(join(dir, 'src', '.mumuspec'), { recursive: true });
+    writeFileSync(join(dir, 'src', '.mumuspec', 'BOUNDARY.md'),
       '# BOUNDARY.md\n## 对外接口\n- `doesNotExist(): void`\n', 'utf-8');
     mkdirSync(join(dir, '.mumuspec', 'contracts'), { recursive: true });
 
@@ -313,7 +314,8 @@ describe('validateBoundaries', () => {
     const dir = join(TEST_DIR, 'clean-' + Math.random().toString(36).slice(2));
     mkdirSync(join(dir, 'src'), { recursive: true });
     writeFileSync(join(dir, 'src', 'index.ts'), 'export function validFn(): void {}\n', 'utf-8');
-    writeFileSync(join(dir, 'src', 'BOUNDARY.md'),
+    mkdirSync(join(dir, 'src', '.mumuspec'), { recursive: true });
+    writeFileSync(join(dir, 'src', '.mumuspec', 'BOUNDARY.md'),
       '# BOUNDARY.md\n## 对外接口\n- `validFn(): void`: A valid function\n## 依赖声明\n## 数据契约\n## 变更日志\n- 2026-01-01: Initial\n', 'utf-8');
     mkdirSync(join(dir, '.mumuspec', 'contracts'), { recursive: true });
 

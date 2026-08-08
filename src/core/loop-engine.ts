@@ -8,7 +8,7 @@
  */
 
 import { resolve } from 'node:path';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { now, appendAuditLog, getMumuSpecDir } from './utils.js';
 import {
   loadChangeState,
@@ -247,22 +247,23 @@ function commitRound(
 
   try {
     // Stage all changes
-    execSync('git add -A', { cwd, stdio: 'ignore' });
+    spawnSync('git', ['add', '-A'], { cwd, stdio: 'ignore' });
 
     // Build commit message
     const message = buildCommitMessage(round, evaluation);
 
     // Commit
-    execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
+    spawnSync('git', ['commit', '-m', message], {
       cwd,
       stdio: 'ignore',
     });
 
     // Get SHA
-    const sha = execSync('git rev-parse HEAD', {
+    const shaOut = spawnSync('git', ['rev-parse', 'HEAD'], {
       cwd,
       encoding: 'utf-8',
-    }).trim();
+    });
+    const sha = (shaOut.stdout ?? '').trim();
 
     return { sha, message };
   } catch (err) {
@@ -317,21 +318,28 @@ export function mergeWorktreeBack(
   try {
     // Push worktree changes to a branch
     const worktreeBranch = `loop/${changeName}`;
-    execSync(`git checkout -b ${worktreeBranch} || git checkout ${worktreeBranch}`, {
+    // Avoid shell operators; try -b first, then plain checkout as fallback
+    const branchRes = spawnSync('git', ['checkout', '-b', worktreeBranch], {
       cwd: loop.worktree_path,
       stdio: 'ignore',
     });
-    execSync(`git push origin ${worktreeBranch}`, {
+    if (branchRes.status !== 0) {
+      spawnSync('git', ['checkout', worktreeBranch], {
+        cwd: loop.worktree_path,
+        stdio: 'ignore',
+      });
+    }
+    spawnSync('git', ['push', 'origin', worktreeBranch], {
       cwd: loop.worktree_path,
       stdio: 'ignore',
     });
 
     // Switch back to original branch and merge
-    execSync(`git checkout ${loop.original_branch}`, {
+    spawnSync('git', ['checkout', loop.original_branch], {
       cwd: projectRoot,
       stdio: 'ignore',
     });
-    execSync(`git merge ${worktreeBranch}`, {
+    spawnSync('git', ['merge', worktreeBranch], {
       cwd: projectRoot,
       stdio: 'ignore',
     });
@@ -479,17 +487,18 @@ function createWorktree(
   changeName: string,
 ): { worktreePath: string; originalBranch: string } {
   // Get current branch
-  const originalBranch = execSync('git branch --show-current', {
+  const branchRes = spawnSync('git', ['branch', '--show-current'], {
     cwd: projectRoot,
     encoding: 'utf-8',
-  }).trim();
+  });
+  const originalBranch = (branchRes.stdout ?? '').trim();
 
   const worktreeBranch = `loop/${changeName}`;
   const worktreePath = resolve(projectRoot, '.mumuspec', '.loop-worktrees', changeName);
 
   // Clean up existing worktree/branch if they exist (from previous failed attempt)
   try {
-    execSync(`git worktree remove "${worktreePath}" --force`, {
+    spawnSync('git', ['worktree', 'remove', worktreePath, '--force'], {
       cwd: projectRoot,
       stdio: 'ignore',
     });
@@ -497,7 +506,7 @@ function createWorktree(
     // Ignore - worktree may not exist
   }
   try {
-    execSync(`git branch -D ${worktreeBranch}`, {
+    spawnSync('git', ['branch', '-D', worktreeBranch], {
       cwd: projectRoot,
       stdio: 'ignore',
     });
@@ -507,8 +516,9 @@ function createWorktree(
 
   // Create worktree on a new branch
   // Note: ensureDir is intentionally NOT called here - git worktree add creates the directory
-  execSync(
-    `git worktree add -b ${worktreeBranch} "${worktreePath}" ${originalBranch}`,
+  spawnSync(
+    'git',
+    ['worktree', 'add', '-b', worktreeBranch, worktreePath, originalBranch],
     { cwd: projectRoot, stdio: 'ignore' }
   );
 
@@ -526,10 +536,11 @@ export function cleanupWorktrees(
   const remaining: string[] = [];
 
   // List all worktrees
-  const output = execSync('git worktree list --porcelain', {
+  const listRes = spawnSync('git', ['worktree', 'list', '--porcelain'], {
     cwd: projectRoot,
     encoding: 'utf-8',
   });
+  const output = listRes.stdout ?? '';
 
   const worktrees = parseWorktreeList(output);
 
@@ -552,7 +563,7 @@ export function cleanupWorktrees(
     if (isMerged) {
       if (!options.dryRun) {
         try {
-          execSync(`git worktree remove "${wt.path}" --force`, {
+          spawnSync('git', ['worktree', 'remove', wt.path, '--force'], {
             cwd: projectRoot,
             stdio: 'ignore',
           });
@@ -603,11 +614,11 @@ function parseWorktreeList(output: string): Array<{ path: string; branch: string
 function checkBranchMerged(projectRoot: string, branch: string): boolean {
   if (!branch) return false;
   try {
-    const mergedBranches = execSync('git branch --merged HEAD', {
+    const mergedRes = spawnSync('git', ['branch', '--merged', 'HEAD'], {
       cwd: projectRoot,
       encoding: 'utf-8',
     });
-    return mergedBranches.split('\n').some((b) => b.trim().replace('* ', '') === branch);
+    return (mergedRes.stdout ?? '').split('\n').some((b) => b.trim().replace('* ', '') === branch);
   } catch {
     return false;
   }

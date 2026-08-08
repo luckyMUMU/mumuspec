@@ -224,7 +224,7 @@ describe('CLI end-to-end', () => {
       cwd: projectDir,
     });
 
-    const output = execSync(`node "${cliPath}" discard feature-1 --reason "testing"`, {
+    const output = execSync(`node "${cliPath}" discard --confirm feature-1 --reason "testing"`, {
       encoding: 'utf8',
       cwd: projectDir,
     });

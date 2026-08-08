@@ -29,6 +29,8 @@ layer: 2
 | `appendDecision` | `(root, change, decision) => void` | decisions.ts | 追加决策记录 |
 | `mergeDeltaSpecsToMain` | `(root, name, archivedDir, state) => void` | archive.ts | 合并增量规范到主规范 |
 | `extractKnowledgeToGlobal` | `(root, name, archivedDir, state) => void` | archive.ts | 提取知识到全局库 |
+| `getChangeDir` | `(root, changeName, scope?) => string` | paths.ts | 获取变更目录（含 validateChangeName 校验） |
+| `getDiscardedDir` | `(root, changeName, scope?) => string` | paths.ts | 获取已丢弃目录（含 validateChangeName 校验） |
 
 ### 导出类型
 
@@ -76,6 +78,7 @@ layer: 2
 
 | 日期 | 变更 | 原因/影响 |
 |------|------|-----------|
+| 2026-08-08 | `getChangeDir`/`getDiscardedDir` 增加 validateChangeName 校验，拒绝路径穿越 | 安全加固 |
 | 2026-08-04 | 依赖项添加 ADR-0001 引用 | 明确 change → feedback/knowledge 单向依赖的决策依据 |
 | 2026-08-04 | 新增 barrel index.ts（统一 re-export） | 符合 spec.md 结构规范 |
 | 2026-08-04 | 修正接口名：listChanges→listActiveChanges/listArchivedChanges, getChangeStatus→getChangeStatusSummary, transitionState→executeTransition | BOUNDARY.md 与代码对齐 |

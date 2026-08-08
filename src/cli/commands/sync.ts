@@ -14,9 +14,11 @@
  */
 
 import type { Command } from 'commander';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { findProjectRoot, ensureDir, now } from '../../core/utils.js';
+import { resolveBoundaryPath } from '../../contract/loader.js';
+import { MUMUSPEC_DIR, BOUNDARY_FILE } from '../../contract/constants.js';
 
 interface SyncResult {
   modulesScanned: number;
@@ -141,7 +143,7 @@ function scanModules(srcDir: string, filterModule?: string): ScannedModule[] {
     if (filterModule && moduleName !== filterModule) continue;
 
     const files = listTsFiles(modPath);
-    const hasBoundary = existsSync(join(modPath, 'BOUNDARY.md'));
+    const hasBoundary = resolveBoundaryPath(modPath) !== null;
     const hasIndex = existsSync(join(modPath, 'index.ts'));
     const exports = extractExports(modPath, files);
 
@@ -198,9 +200,9 @@ function extractExports(modulePath: string, files: string[]): string[] {
 
 function syncModuleBoundary(_projectRoot: string, mod: ScannedModule, dryRun: boolean): ModuleSyncResult {
   const result: ModuleSyncResult = { updated: false, issues: [] };
-  const boundaryPath = join(mod.path, 'BOUNDARY.md');
+  const boundaryPath = resolveBoundaryPath(mod.path);
 
-  if (!mod.hasBoundary) {
+  if (!boundaryPath) {
     result.issues.push({
       severity: 'warning',
       module: mod.name,
@@ -208,7 +210,9 @@ function syncModuleBoundary(_projectRoot: string, mod: ScannedModule, dryRun: bo
     });
     if (!dryRun) {
       const content = generateBoundarySection(mod);
-      writeFileSync(boundaryPath, content);
+      const mumuspecDir = join(mod.path, MUMUSPEC_DIR);
+      mkdirSync(mumuspecDir, { recursive: true });
+      writeFileSync(join(mumuspecDir, BOUNDARY_FILE), content, 'utf-8');
       result.updated = true;
     }
     return result;

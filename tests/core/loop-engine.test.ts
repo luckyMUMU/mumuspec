@@ -9,7 +9,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ─── Mock child_process (git worktree operations) ───
 
 vi.mock('node:child_process', () => ({
-  execSync: vi.fn((): string => 'mock-sha'),
+  spawnSync: vi.fn((): { stdout: string; status: number; stderr?: string } => ({
+    stdout: 'mock-sha',
+    status: 0,
+  })),
 }));
 
 // ─── Mock change/manager ───

@@ -16,8 +16,9 @@ import type {
   ContractRegistry,
 } from '../core/types-contract.js';
 import { loadAllContracts, invalidateContractCache } from './loader.js';
-import { MUMUSPEC_DIR, CONTRACTS_SUBDIR, AUDIT_LOG_FILE, REGISTRY_FILE } from './constants.js';
+import { MUMUSPEC_DIR, CONTRACTS_SUBDIR, AUDIT_LOG_FILE, REGISTRY_FILE, BOUNDARY_FILE } from './constants.js';
 import { readText } from '../core/utils.js';
+import { Logger } from '../core/logger.js';
 import { analyzeContractImpact } from './impact-analyzer.js';
 
 /** Write registry to YAML file — ponytail: centralizes serialization logic */
@@ -63,8 +64,9 @@ function acquireLock(contractsDir: string): () => void {
       return () => {
         try {
           rmdirSync(lockDir);
-        } catch {
+        } catch (e) {
           // Ignore cleanup failure
+          Logger.warn('contract.manager', 'Failed to release lock', { error: (e as Error).message });
         }
       };
     } catch {
@@ -335,8 +337,9 @@ export function readAuditLog(projectRoot: string): ContractAuditEntry[] {
     if (!trimmed) continue;
     try {
       entries.push(JSON.parse(trimmed));
-    } catch {
+    } catch (e) {
       // Skip corrupted lines
+      Logger.warn('contract.manager', 'Failed to parse audit log line', { error: (e as Error).message });
     }
   }
 
@@ -410,13 +413,16 @@ export function scaffoldBoundary(dirPath: string): string {
 }
 
 /**
- * Write BOUNDARY.md to a directory.
- */
+* Write BOUNDARY.md to a directory's .mumuspec/ subdirectory.
+*
+* Creates dir/.mumuspec/ if needed, writes BOUNDARY.md there.
+*/
 export function writeBoundary(dirPath: string, content: string): string {
-  mkdirSync(dirPath, { recursive: true });
-  const filePath = join(dirPath, 'BOUNDARY.md');
-  writeFileSync(filePath, content, 'utf-8');
-  return filePath;
+const mumuspecDir = join(dirPath, MUMUSPEC_DIR);
+mkdirSync(mumuspecDir, { recursive: true });
+const filePath = join(mumuspecDir, BOUNDARY_FILE);
+writeFileSync(filePath, content, 'utf-8');
+return filePath;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -443,8 +449,9 @@ function detectExports(dirPath: string): BoundaryExport[] {
         detectNamedReExports(content, entry.name, exports);
       }
     }
-  } catch {
-    // Ignore
+  } catch (e) {
+    // Ignore — directory may not exist or be unreadable
+    Logger.warn('contract.manager', 'Failed to read directory for export detection', { error: (e as Error).message });
   }
 
   // Deduplicate by name
@@ -573,8 +580,9 @@ function detectImports(dirPath: string): Set<string> {
         }
       }
     }
-  } catch {
-    // Ignore
+  } catch (e) {
+    // Ignore — directory may not exist or be unreadable
+    Logger.warn('contract.manager', 'Failed to read directory for import detection', { error: (e as Error).message });
   }
 
   return imports;

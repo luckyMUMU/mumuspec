@@ -122,10 +122,6 @@ export interface SpecIndex {
 export interface IndexChildEntry {
   name: string;
   path: string;
-  /** @deprecated Use prd_summary + tech_summary instead */
-  summary?: string;
-  /** @deprecated Use constraint_count instead */
-  shallNotCount?: number;
   prd_summary?: string;
   tech_summary?: string;
   constraint_count?: number;

@@ -16,5 +16,8 @@ export const AUDIT_LOG_FILE = 'audit.log';
 /** contracts registry filename */
 export const REGISTRY_FILE = 'contracts.yaml';
 
+/** Boundary document filename */
+export const BOUNDARY_FILE = 'BOUNDARY.md';
+
 /** Maximum recursion depth for directory scanning */
 export const MAX_SCAN_DEPTH = 8;

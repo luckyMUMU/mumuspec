@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { Logger } from '../core/logger.js';
 import type { SpecFile, GuardResult, DriftResult, GuardError, GuardWarning } from '../core/types.js';
 import { parseSpecFile } from '../spec/parser.js';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
@@ -125,9 +126,14 @@ export function checkCompliance(
   const errors: { code: string; message: string; detail?: string }[] = [];
   const warnings: { code: string; message: string; detail?: string }[] = [];
 
+  // Merge source file scans: compute once, share across checks (IO optimization)
+  const needsSourceFiles = options.shallNot || options.ponytail ||
+    (!options.shall && !options.shallNot && !options.ponytail && !options.testImmutability);
+  const sourceFiles = needsSourceFiles ? findSourceFiles(projectRoot) : [];
+
   // SHALL NOT check
   if (options.shallNot || (!options.shall && !options.shallNot && !options.ponytail && !options.testImmutability)) {
-    checkShallNot(projectRoot, errors, warnings);
+    checkShallNot(projectRoot, sourceFiles, errors, warnings);
   }
 
   // SHALL check
@@ -137,7 +143,7 @@ export function checkCompliance(
 
   // Ponytail check
   if (options.ponytail) {
-    checkPonytail(projectRoot, errors, warnings);
+    checkPonytail(projectRoot, sourceFiles, errors, warnings);
   }
 
   const rawResult: GuardResult = {
@@ -152,6 +158,7 @@ export function checkCompliance(
 /** Check SHALL NOT violations */
 function checkShallNot(
   projectRoot: string,
+  sourceFiles: string[],
   errors: { code: string; message: string; detail?: string }[],
   _warnings: { code: string; message: string; detail?: string }[],
 ): void {
@@ -176,8 +183,6 @@ function checkShallNot(
   }
 
   // Scan source files for code-level prohibitions only
-  const sourceFiles = findSourceFiles(projectRoot);
-
   for (const filePath of sourceFiles) {
     const content = readText(filePath);
     if (!content) continue;
@@ -294,8 +299,9 @@ function checkFileCoexistence(
           scanDirs(join(dir, entry.name));
         }
       }
-    } catch {
-      // Ignore
+    } catch (e) {
+      // Ignore — directory may not be readable
+      Logger.debug('guard.checker', 'Failed to scan directories during coexistence check', { error: (e as Error).message });
     }
   }
 
@@ -332,12 +338,11 @@ function checkShall(
 /** Check Ponytail compliance */
 function checkPonytail(
   projectRoot: string,
+  sourceFiles: string[],
   _errors: { code: string; message: string; detail?: string }[],
   _warnings: { code: string; message: string; detail?: string }[],
 ): void {
   // Check for ponytail: markers in code
-  const sourceFiles = findSourceFiles(projectRoot);
-
   for (const filePath of sourceFiles) {
     const content = readText(filePath);
     if (!content) continue;
@@ -359,8 +364,9 @@ function checkPonytail(
     try {
       JSON.parse(readFileSync(packageJsonPath, 'utf8'));
       // ponytail: dep count comparison deferred
-    } catch {
-      // Ignore
+    } catch (e) {
+      // Ignore — package.json may not be valid JSON
+      Logger.debug('guard.checker', 'Failed to parse package.json during ponytail check', { error: (e as Error).message });
     }
   }
 }
@@ -549,8 +555,9 @@ function findAllSpecs(projectRoot: string): SpecFile[] {
       try {
         const content = readFileSync(specPath, 'utf8');
         results.push(parseSpecFile(content, specPath));
-      } catch {
-        // Skip
+      } catch (e) {
+        // Skip — spec file may be malformed
+        Logger.debug('guard.checker', 'Failed to read/parse spec file', { error: (e as Error).message });
       }
     }
 
@@ -561,8 +568,9 @@ function findAllSpecs(projectRoot: string): SpecFile[] {
           scan(join(dir, entry.name));
         }
       }
-    } catch {
-      // Ignore
+    } catch (e) {
+      // Ignore — directory may not be readable
+      Logger.debug('guard.checker', 'Failed to scan directories during spec search', { error: (e as Error).message });
     }
   }
 
@@ -591,8 +599,9 @@ function findSourceFiles(projectRoot: string): string[] {
           }
         }
       }
-    } catch {
-      // Ignore
+    } catch (e) {
+      // Ignore — directory may not be readable
+      Logger.debug('guard.checker', 'Failed to scan directories during source file search', { error: (e as Error).message });
     }
   }
 
@@ -652,8 +661,9 @@ function checkIndexDrift(
         if (actualChildren.length > 0) {
           // Could do more detailed comparison
         }
-      } catch {
-        // Ignore
+      } catch (e) {
+        // Ignore — index.yaml may not be readable
+        Logger.debug('guard.checker', 'Failed to read index.yaml during drift check', { error: (e as Error).message });
       }
     }
 
@@ -664,8 +674,9 @@ function checkIndexDrift(
           scan(join(dir, entry.name));
         }
       }
-    } catch {
-      // Ignore
+    } catch (e) {
+      // Ignore — directory may not be readable
+      Logger.debug('guard.checker', 'Failed to scan directories during index drift check', { error: (e as Error).message });
     }
   }
 
@@ -808,7 +819,8 @@ function fixSpecDrift(projectRoot: string, drift: DriftResult, dryRun: boolean):
     const hint = `\n<!-- mumuspec-drift-fix: Add enforcement rules for SHALL constraints -->\n`;
     writeText(absPath, content + hint);
     return true;
-  } catch {
+  } catch (e) {
+    Logger.debug('guard.checker', 'Failed to apply spec drift fix', { error: (e as Error).message });
     return false;
   }
 }

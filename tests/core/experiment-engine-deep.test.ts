@@ -2,7 +2,7 @@
  * Deep coverage tests for experiment-engine.ts.
  *
  * Strategy: Use REAL filesystem for state persistence (readYaml, writeYaml, etc.)
- * and mock ONLY execSync (git) and runAllEvals (eval runner).
+ * and mock ONLY spawnSync (git) and runAllEvals (eval runner).
  * This avoids existsSync/mock readYaml mismatch issues.
  */
 
@@ -11,10 +11,13 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-// ── Mock execSync (git) ────────────────────────────────────────────
-const execSyncImpl = vi.fn(() => 'mock-output');
+// ── Mock spawnSync (git) ───────────────────────────────────────────
+const spawnSyncImpl = vi.fn((): { stdout: string; status: number; stderr?: string } => ({
+  stdout: '',
+  status: 0,
+}));
 vi.mock('node:child_process', () => ({
-  execSync: (cmd: string, _opts?: unknown) => execSyncImpl(cmd),
+  spawnSync: (...args: any[]) => spawnSyncImpl(...args),
 }));
 
 // ── Mock eval runner ───────────────────────────────────────────────
@@ -352,9 +355,9 @@ describe('generateDirections — manual paths', () => {
 describe('initExperiment', () => {
   it('creates state with git branch and commit info', () => {
     const root = freshRoot();
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValueOnce('main\n');       // git branch --show-current
-    execSyncImpl.mockReturnValueOnce('deadbeef\n');    // git rev-parse HEAD
+    spawnSyncImpl.mockReset();
+    spawnSyncImpl.mockReturnValueOnce({ stdout: 'main\n', status: 0 });     // git branch --show-current
+    spawnSyncImpl.mockReturnValueOnce({ stdout: 'deadbeef\n', status: 0 });  // git rev-parse HEAD
 
     const state = initExperiment(root, {
       name: 'exp-1',
@@ -379,9 +382,9 @@ describe('initExperiment', () => {
 
   it('uses default maxMetaRounds when config omits it', () => {
     const root = freshRoot();
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValueOnce('main\n');
-    execSyncImpl.mockReturnValueOnce('abc123\n');
+    spawnSyncImpl.mockReset();
+    spawnSyncImpl.mockReturnValueOnce({ stdout: 'main\n', status: 0 });
+    spawnSyncImpl.mockReturnValueOnce({ stdout: 'abc123\n', status: 0 });
 
     const state = initExperiment(root, {
       name: 'exp-default',
@@ -1012,9 +1015,9 @@ describe('adoptImprovements', () => {
       arms: [makeArm({ id: 'arm-dir-1', directionId: 'dir-1', branch: 'experiment/exp-test/dir-1' })],
     });
     saveState(root, state);
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValueOnce('abc123 feat: improvement\n');  // git log
-    execSyncImpl.mockReturnValueOnce('');                          // git cherry-pick
+    spawnSyncImpl.mockReset();
+    spawnSyncImpl.mockReturnValueOnce({ stdout: 'abc123 feat: improvement\n', status: 0 });  // git log
+    spawnSyncImpl.mockReturnValueOnce({ stdout: '', status: 0 });                                // git cherry-pick
 
     const result = adoptImprovements(root, 'exp-test');
 

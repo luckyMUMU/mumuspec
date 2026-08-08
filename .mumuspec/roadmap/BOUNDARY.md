@@ -1,3 +1,8 @@
+---
+scope: .mumuspec/roadmap
+layer: 1
+---
+
 # BOUNDARY: .mumuspec/roadmap/
 
 > 本目录的边界声明 — 记录对外接口、依赖、数据契约、变更日志。

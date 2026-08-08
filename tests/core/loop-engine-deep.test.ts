@@ -17,15 +17,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockChangeStates = new Map<string, any>();
 let activeChangeName: string | null = null;
 
-// Create execSync mock via vi.hoisted() so the reference IS hoisted above vi.mock calls
-const { mockExecSync } = vi.hoisted(() => ({
-  mockExecSync: vi.fn(),
+// Create spawnSync mock via vi.hoisted() so the reference IS hoisted above vi.mock calls
+const { mockSpawnSync } = vi.hoisted(() => ({
+  mockSpawnSync: vi.fn((): { stdout: string; status: number; stderr?: string } => ({
+    stdout: 'mock-sha',
+    status: 0,
+  })),
 }));
 
 // ─── Mock child_process (git worktree operations) ───
 
 vi.mock('node:child_process', () => ({
-  execSync: (...args: any[]) => mockExecSync(...args),
+  spawnSync: (...args: any[]) => mockSpawnSync(...args),
 }));
 
 // ─── Mock change/manager ───
@@ -119,7 +122,7 @@ describe('mergeWorktreeBack', () => {
   beforeEach(() => {
     mockChangeStates.clear();
     activeChangeName = null;
-    mockExecSync.mockReset();
+    mockSpawnSync.mockReset();
   });
 
   it('returns false when no worktree_path', () => {
@@ -175,8 +178,8 @@ describe('mergeWorktreeBack', () => {
   });
 
   it('returns false when git commands fail', () => {
-    mockExecSync.mockReset();
-    mockExecSync.mockImplementation(() => { throw new Error('git failed'); });
+    mockSpawnSync.mockReset();
+    mockSpawnSync.mockImplementation(() => { throw new Error('git failed'); });
     seedChange('ch1', createLoopState({
       worktree_path: '/tmp/wt',
       original_branch: 'main',
@@ -200,8 +203,8 @@ describe('mergeWorktreeBack', () => {
     mergeWorktreeBack(PROJECT_ROOT, 'my-feature');
 
     // Verify git commands reference the correct branch
-    const branchCalls = mockExecSync.mock.calls.filter(
-      (call: any) => typeof call[0] === 'string' && call[0].includes('my-feature')
+    const branchCalls = mockSpawnSync.mock.calls.filter(
+      (call: any) => Array.isArray(call[1]) && call[1].some((a: any) => typeof a === 'string' && a.includes('my-feature'))
     );
     expect(branchCalls.length).toBeGreaterThan(0);
   });
@@ -213,11 +216,11 @@ describe('mergeWorktreeBack', () => {
 
 describe('cleanupWorktrees', () => {
   beforeEach(() => {
-    mockExecSync.mockReset();
+    mockSpawnSync.mockReset();
   });
 
   it('returns empty arrays when no worktrees exist', () => {
-    mockExecSync.mockReturnValueOnce(''); // git worktree list returns empty
+    mockSpawnSync.mockReturnValueOnce({ stdout: '', status: 0 }); // git worktree list returns empty
     // No worktrees means no subsequent calls, so the mockReturnValueOnce is sufficient
 
     const result = cleanupWorktrees(PROJECT_ROOT);
@@ -235,15 +238,15 @@ describe('cleanupWorktrees', () => {
       '',
     ].join('\n');
 
-    mockExecSync.mockImplementation((cmd: string | Buffer) => {
-      const cmdStr = cmd.toString();
+    mockSpawnSync.mockImplementation((_cmd: string, args?: string[]) => {
+      const cmdStr = (args ?? []).join(' ');
       if (cmdStr.includes('worktree list')) {
-        return worktreeOutput;
+        return { stdout: worktreeOutput, status: 0 };
       }
       if (cmdStr.includes('branch --merged')) {
-        return '  main\n  feature\n';
+        return { stdout: '  main\n  feature\n', status: 0 };
       }
-      return '';
+      return { stdout: '', status: 0 };
     });
 
     const result = cleanupWorktrees(PROJECT_ROOT);
@@ -264,15 +267,15 @@ describe('cleanupWorktrees', () => {
       '',
     ].join('\n');
 
-    mockExecSync.mockImplementation((cmd: string | Buffer) => {
-      const cmdStr = cmd.toString();
+    mockSpawnSync.mockImplementation((_cmd: string, args?: string[]) => {
+      const cmdStr = (args ?? []).join(' ');
       if (cmdStr.includes('worktree list')) {
-        return worktreeOutput;
+        return { stdout: worktreeOutput, status: 0 };
       }
       if (cmdStr.includes('branch --merged')) {
-        return '  main\n  loop/test-change\n';
+        return { stdout: '  main\n  loop/test-change\n', status: 0 };
       }
-      return '';
+      return { stdout: '', status: 0 };
     });
 
     const result = cleanupWorktrees(PROJECT_ROOT);
@@ -290,15 +293,15 @@ describe('cleanupWorktrees', () => {
       '',
     ].join('\n');
 
-    mockExecSync.mockImplementation((cmd: string | Buffer) => {
-      const cmdStr = cmd.toString();
+    mockSpawnSync.mockImplementation((_cmd: string, args?: string[]) => {
+      const cmdStr = (args ?? []).join(' ');
       if (cmdStr.includes('worktree list')) {
-        return worktreeOutput;
+        return { stdout: worktreeOutput, status: 0 };
       }
       if (cmdStr.includes('branch --merged')) {
-        return '  main\n'; // loop/stale-change not merged
+        return { stdout: '  main\n', status: 0 }; // loop/stale-change not merged
       }
-      return '';
+      return { stdout: '', status: 0 };
     });
 
     const result = cleanupWorktrees(PROJECT_ROOT);
@@ -317,22 +320,22 @@ describe('cleanupWorktrees', () => {
       '',
     ].join('\n');
 
-    mockExecSync.mockImplementation((cmd: string | Buffer) => {
-      const cmdStr = cmd.toString();
+    mockSpawnSync.mockImplementation((_cmd: string, args?: string[]) => {
+      const cmdStr = (args ?? []).join(' ');
       if (cmdStr.includes('worktree list')) {
-        return worktreeOutput;
+        return { stdout: worktreeOutput, status: 0 };
       }
       if (cmdStr.includes('branch --merged')) {
-        return '  main\n  loop/merged-change\n';
+        return { stdout: '  main\n  loop/merged-change\n', status: 0 };
       }
-      return '';
+      return { stdout: '', status: 0 };
     });
 
     const result = cleanupWorktrees(PROJECT_ROOT, { dryRun: true });
     expect(result.cleaned).toContain(loopWorktree);
     // Verify remove command was NOT called
-    const removeCalls = mockExecSync.mock.calls.filter(
-      (call: any) => typeof call[0] === 'string' && call[0].includes('worktree remove')
+    const removeCalls = mockSpawnSync.mock.calls.filter(
+      (call: any) => Array.isArray(call[1]) && call[1].join(' ').includes('worktree remove')
     );
     expect(removeCalls.length).toBe(0);
   });
@@ -348,15 +351,15 @@ describe('cleanupWorktrees', () => {
       '',
     ].join('\n');
 
-    mockExecSync.mockImplementation((cmd: string | Buffer) => {
-      const cmdStr = cmd.toString();
+    mockSpawnSync.mockImplementation((_cmd: string, args?: string[]) => {
+      const cmdStr = (args ?? []).join(' ');
       if (cmdStr.includes('worktree list')) {
-        return worktreeOutput;
+        return { stdout: worktreeOutput, status: 0 };
       }
       if (cmdStr.includes('branch --merged')) {
-        return '  main\n';
+        return { stdout: '  main\n', status: 0 };
       }
-      return '';
+      return { stdout: '', status: 0 };
     });
 
     const result = cleanupWorktrees(PROJECT_ROOT);
@@ -374,15 +377,15 @@ describe('cleanupWorktrees', () => {
       '',
     ].join('\n');
 
-    mockExecSync.mockImplementation((cmd: string | Buffer) => {
-      const cmdStr = cmd.toString();
+    mockSpawnSync.mockImplementation((_cmd: string, args?: string[]) => {
+      const cmdStr = (args ?? []).join(' ');
       if (cmdStr.includes('worktree list')) {
-        return worktreeOutput;
+        return { stdout: worktreeOutput, status: 0 };
       }
       if (cmdStr.includes('branch --merged')) {
-        return '  main\n  other\n';
+        return { stdout: '  main\n  other\n', status: 0 };
       }
-      return '';
+      return { stdout: '', status: 0 };
     });
 
     const result = cleanupWorktrees(PROJECT_ROOT);
@@ -399,8 +402,8 @@ describe('evaluateRound — convergence via progress threshold', () => {
   beforeEach(() => {
     mockChangeStates.clear();
     activeChangeName = null;
-    mockExecSync.mockReset();
-    mockExecSync.mockImplementation(() => 'mock-sha');
+    mockSpawnSync.mockReset();
+    mockSpawnSync.mockImplementation(() => ({ stdout: 'mock-sha', status: 0 }));
   });
 
   it('converges when progress >= 0.85 (CONVERGENCE_THRESHOLD)', () => {
@@ -499,8 +502,8 @@ describe('evaluateRound — auto_commit disabled', () => {
   beforeEach(() => {
     mockChangeStates.clear();
     activeChangeName = null;
-    mockExecSync.mockReset();
-    mockExecSync.mockImplementation(() => 'mock-sha');
+    mockSpawnSync.mockReset();
+    mockSpawnSync.mockImplementation(() => ({ stdout: 'mock-sha', status: 0 }));
   });
 
   it('does NOT commit when auto_commit is false', () => {
@@ -594,8 +597,8 @@ describe('evaluateRound — commitRound failure', () => {
     seedChange('ch1', loopState);
 
     // Make git commands fail
-    mockExecSync.mockReset();
-    mockExecSync.mockImplementation(() => {
+    mockSpawnSync.mockReset();
+    mockSpawnSync.mockImplementation(() => {
       throw new Error('git add failed: not a git repo');
     });
 
@@ -627,8 +630,8 @@ describe('evaluateRound — writes next_focus and issues to commit message', () 
   beforeEach(() => {
     mockChangeStates.clear();
     activeChangeName = null;
-    mockExecSync.mockReset();
-    mockExecSync.mockImplementation(() => 'mock-sha');
+    mockSpawnSync.mockReset();
+    mockSpawnSync.mockImplementation(() => ({ stdout: 'mock-sha', status: 0 }));
   });
 
   it('includes next_focus in commit message when provided', () => {
@@ -658,11 +661,11 @@ describe('evaluateRound — writes next_focus and issues to commit message', () 
     evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     // Check that commit was called with a message containing next_focus
-    const commitCall = mockExecSync.mock.calls.find(
-      (call: any) => typeof call[0] === 'string' && call[0].includes('git commit')
+    const commitCall = mockSpawnSync.mock.calls.find(
+      (call: any) => Array.isArray(call[1]) && call[1][0] === 'commit'
     );
     expect(commitCall).toBeDefined();
-    expect(commitCall[0]).toContain('refactor auth module');
+    expect(commitCall![1].join(' ')).toContain('refactor auth module');
   });
 
   it('includes issues in commit message when present', () => {
@@ -690,12 +693,12 @@ describe('evaluateRound — writes next_focus and issues to commit message', () 
 
     evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
-    const commitCall = mockExecSync.mock.calls.find(
-      (call: any) => typeof call[0] === 'string' && call[0].includes('git commit')
+    const commitCall = mockSpawnSync.mock.calls.find(
+      (call: any) => Array.isArray(call[1]) && call[1][0] === 'commit'
     );
     expect(commitCall).toBeDefined();
-    expect(commitCall[0]).toContain('missing error handling');
-    expect(commitCall[0]).toContain('TODO: add tests');
+    expect(commitCall![1].join(' ')).toContain('missing error handling');
+    expect(commitCall![1].join(' ')).toContain('TODO: add tests');
   });
 
   it('handles goal_achieved commit message format', () => {
@@ -804,13 +807,13 @@ describe('initLoop — worktree creation path', () => {
   beforeEach(() => {
     mockChangeStates.clear();
     activeChangeName = null;
-    mockExecSync.mockReset();
-    mockExecSync.mockImplementation((cmd: string | Buffer) => {
-      const cmdStr = cmd.toString();
+    mockSpawnSync.mockReset();
+    mockSpawnSync.mockImplementation((_cmd: string, args?: string[]) => {
+      const cmdStr = (args ?? []).join(' ');
       if (cmdStr.includes('branch --show-current')) {
-        return 'main';
+        return { stdout: 'main', status: 0 };
       }
-      return '';
+      return { stdout: '', status: 0 };
     });
   });
 
@@ -995,8 +998,8 @@ describe('full lifecycle — multi-round flow', () => {
   beforeEach(() => {
     mockChangeStates.clear();
     activeChangeName = null;
-    mockExecSync.mockReset();
-    mockExecSync.mockImplementation(() => 'mock-sha');
+    mockSpawnSync.mockReset();
+    mockSpawnSync.mockImplementation(() => ({ stdout: 'mock-sha', status: 0 }));
   });
 
   it('rounds 1 → 2 → converge', () => {

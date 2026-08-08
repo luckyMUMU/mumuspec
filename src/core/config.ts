@@ -146,32 +146,10 @@ export interface MumuSpecConfig {
     default_rollback_limit: number;
     default_rebuild_limit: number;
     default_build_mode: string;
-    /**
-     * @deprecated 0.12.0 — use `workflow.tdd_enforced` (strength-aware) instead.
-     * Kept for backwards compat with pre-0.12 configs; new code MUST read
-     * `workflow.tdd_enforced` and `constraint_strength.overrides.workflow.tdd_enforced`.
-     */
-    default_tdd_mode: string;
-    /**
-     * @deprecated 0.12.0 — use `workflow.single_active_change` (strength-aware).
-     * Source of truth is now `workflow.single_active_change`; this legacy
-     * field is kept only so `deepMerge` doesn't drop it from old configs.
-     */
-    single_active_change: boolean;
     default_isolation: string;
     allow_isolation_downgrade: boolean;
     implementation_strategy: string;
     design_strategy: string;
-    /**
-     * @deprecated 0.12.0 — use `workflow.tdd_enforced` (strength-aware).
-     * Duplicate of `default_tdd_mode`; both are legacy.
-     */
-    tdd_mode: string;
-    /**
-     * @deprecated 0.12.0 — use `constraint_strength.overrides.test_immutability`
-     * (strength-aware). Also mirrored by `ci.test_immutability_check`.
-     */
-    test_immutability: boolean;
   };
   /**
    * Four workflow rules (0.11.0+). Strength-aware since 0.12.0.

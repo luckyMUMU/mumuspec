@@ -20,6 +20,7 @@ import type { Command } from 'commander';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { findProjectRoot, now } from '../../core/utils.js';
+import { resolveBoundaryPath } from '../../contract/loader.js';
 
 interface ModuleReview {
   module: string;
@@ -101,8 +102,8 @@ function scoreModule(modPath: string, moduleName: string, projectRoot: string): 
 
   // D1: 规范层一致性
   let specConsistency = 10;
-  const boundaryPath = join(modPath, 'BOUNDARY.md');
-  if (!existsSync(boundaryPath)) {
+  const boundaryPath = resolveBoundaryPath(modPath);
+  if (!boundaryPath) {
     specConsistency = 4;
     issues.push('Missing BOUNDARY.md');
     suggestions.push('Run sync to auto-generate BOUNDARY.md');
@@ -119,7 +120,7 @@ function scoreModule(modPath: string, moduleName: string, projectRoot: string): 
 
   // D2: 契约层完整性
   let contractCompleteness = 10;
-  if (!existsSync(boundaryPath)) {
+  if (!boundaryPath) {
     contractCompleteness = 3;
   } else {
     const content = readFileSync(boundaryPath, 'utf8');
@@ -141,7 +142,7 @@ function scoreModule(modPath: string, moduleName: string, projectRoot: string): 
   // D4: 工作流完整性 — evaluate structural maturity
   let workflow = 6;
   if (existsSync(join(modPath, 'index.ts'))) workflow += 1; // barrel export
-  if (existsSync(boundaryPath)) {
+  if (boundaryPath && existsSync(boundaryPath)) {
     const bc = readFileSync(boundaryPath, 'utf8');
     if (bc.includes('对外接口') && bc.includes('依赖声明')) workflow += 1;
     if (bc.includes('变更日志')) workflow += 1;
@@ -173,7 +174,7 @@ function scoreModule(modPath: string, moduleName: string, projectRoot: string): 
 
   // D7: 文档同步
   let docSync = 10;
-  if (existsSync(boundaryPath)) {
+  if (boundaryPath && existsSync(boundaryPath)) {
     const content = readFileSync(boundaryPath, 'utf8');
     if (!content.includes(now().split('T')[0].slice(0, 7)) && !content.includes('2026-08')) {
       docSync -= 2;

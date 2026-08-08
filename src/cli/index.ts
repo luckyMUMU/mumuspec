@@ -66,7 +66,7 @@ initLocale();
 program
   .name('mumuspec')
   .description('MumuSpec — Tree-distributed dual-constraint specification system')
-  .version('0.17.0');
+  .version('0.17.1');
 
 // === init ===
 program
@@ -194,8 +194,9 @@ program
     const indexChildren = (analysis?.sourceDirs || []).map((dir) => ({
       name: dir,
       path: `${dir}`,
-      summary: getDirectorySummary(dir, analysis!.projectType),
-      shallNotCount: 0,
+      prd_summary: getDirectorySummary(dir, analysis!.projectType),
+      tech_summary: getDirectorySummary(dir, analysis!.projectType),
+      constraint_count: 0,
     }));
     writeYaml(indexPath, {
       scope: '.',

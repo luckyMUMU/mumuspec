@@ -8,7 +8,7 @@ import type { MumuSpecConfig } from '../core/config.js';
 import { readText, writeText, ensureDir, computeHash, now, appendAuditLog, getMumuSpecDir } from '../core/utils.js';
 import { MumuSpecError } from '../core/errors.js';
 import { ensureFeedbackStructure, getChangeFeedbackDir } from '../feedback/manager.js';
-import { getChangeDir, getArchiveDir } from './paths.js';
+import { getChangeDir, getDiscardedDir } from './paths.js';
 import { loadChangeState, saveChangeState } from './state.js';
 import { getActiveChange } from './listing.js';
 import { scaffoldChangeSpecs } from '../core/spec-scaffolder.js';
@@ -198,9 +198,7 @@ export function discardChange(
 
   saveChangeState(projectRoot, changeName, state, scope);
 
-  const archiveDir = getArchiveDir(projectRoot, scope);
-  const discardedDir = join(archiveDir, 'discarded', changeName);
-  ensureDir(discardedDir);
+  const discardedDir = getDiscardedDir(projectRoot, changeName, scope);
 
   try {
     renameSync(changeDir, discardedDir);

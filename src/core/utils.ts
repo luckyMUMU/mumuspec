@@ -120,6 +120,11 @@ export function normalizePath(p: string): string {
   return p.split(sep).join('/');
 }
 
+/** Validate change name — ponytail: 单行正则，覆盖路径穿越风险 */
+export function validateChangeName(name: string): boolean {
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name);
+}
+
 /** Get the layer number for a directory relative to project root */
 export function getLayerLevel(dirPath: string, projectRoot: string): number {
   const rel = relative(projectRoot, dirPath);

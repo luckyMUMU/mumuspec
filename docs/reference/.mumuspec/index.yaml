@@ -1,7 +1,0 @@
-scope: docs/reference
-layer: 2
-children:
-  - name: skills
-    path: docs/reference/skills
-    prd_summary: "Skill 详细设计规范——7+1 个原生 Skill 的逐一深入设计"
-    tech_summary: "Skill 文件清单、统一结构模板、阻塞点全局清单、状态机字段参考"

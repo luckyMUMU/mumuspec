@@ -27,35 +27,6 @@ export type ConstraintStrength = 'high' | 'medium' | 'low';
 export type ConstraintDimension = 'technical_design' | 'requirement_goals';
 
 /**
- * Constraint strength configuration (0.12.0+).
- * @deprecated 0.12.1 — use `ConstraintStrengthField` from `config.ts` for
- *   config-level shape and `ConstraintsFile.strength` for persistent file
- *   shape. This umbrella type is retained only for backwards compatibility
- *   with pre-0.12.1 code paths and will be removed in 0.13.0.
- * See docs/design/constraint-strength.md for full design.
- */
-export interface ConstraintStrengthConfig {
-  strength: {
-    technical_design: ConstraintStrength;
-    requirement_goals: ConstraintStrength;
-  };
-  exceptions: string[];
-  overrides?: {
-    workflow?: {
-      worktree_isolation?: 'inherit' | 'true' | 'false';
-      single_active_change?: 'inherit' | 'true' | 'false';
-      top_down_design?: 'inherit' | 'true' | 'false';
-      tdd_enforced?: 'inherit' | 'true' | 'false';
-    };
-    cognitive_framework?: 'inherit' | 'required' | 'optional' | 'conditional' | 'lightweight' | 'recommended' | 'strict' | 'design_only' | 'off';
-    hyperplan?: 'inherit' | 'required' | 'optional' | 'conditional' | 'lightweight' | 'recommended' | 'strict' | 'design_only' | 'off';
-    brainstorming?: 'inherit' | 'required' | 'optional' | 'conditional' | 'lightweight' | 'recommended' | 'strict' | 'design_only' | 'off';
-    test_immutability?: 'inherit' | 'required' | 'optional' | 'conditional' | 'lightweight' | 'recommended' | 'strict' | 'design_only' | 'off';
-    impact_analysis?: 'inherit' | 'required' | 'optional' | 'conditional' | 'lightweight' | 'recommended' | 'strict' | 'design_only' | 'off';
-  };
-}
-
-/**
  * A single constraint entry in `.mumuspec/constraints.yaml` (0.12.0+).
  * Persistent, code-independent, bidirectional (SHALL / SHALL NOT).
  * Tree-aware since 0.12.1: each entry carries `layer` and `scope` metadata.

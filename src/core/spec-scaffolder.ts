@@ -597,27 +597,6 @@ export function generateEnvSpec(options: {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// Backward Compatibility (deprecated wrappers)
-// ════════════════════════════════════════════════════════════════════
-
-/** @deprecated Use generateTechSpec instead. Generates tech.md with non-standard format. */
-export function generateTechMd(inference: TechInference, childSummaries: string[] = []): string {
-  return generateTechSpec(inference, {
-    layer: 0,
-    scope: '.',
-    childSummaries,
-  });
-}
-
-/** @deprecated Use generatePrdSpec instead. Generates prd.md with non-standard format. */
-export function generatePrdMd(inference: PrdInference): string {
-  return generatePrdSpec(inference, {
-    layer: 0,
-    scope: '.',
-  });
-}
-
-// ════════════════════════════════════════════════════════════════════
 // High-Level API (for init command integration)
 // ════════════════════════════════════════════════════════════════════
 

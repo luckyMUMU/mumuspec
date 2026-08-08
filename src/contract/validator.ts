@@ -329,7 +329,7 @@ export function validateBoundaries(projectRoot: string): BoundaryValidationResul
  */
 function findDirectoriesWithCode(projectRoot: string): string[] {
   const results: string[] = [];
-  const extensions = ['.ts', '.js', '.py', '.java', '.go', '.rs'];
+  const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.java', '.go', '.rs', '.vue'];
   const visited = new Set<string>(); // Symlink cycle guard
 
   function scan(dir: string, depth: number = 0) {

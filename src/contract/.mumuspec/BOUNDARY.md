@@ -159,3 +159,7 @@ dependency_graph: {}
 | 2026-08-04 | MCP TOOLS 数组补全 persist/deprecate/remove 声明 | 契约写路径工具可通过 MCP 调用 |
 | 2026-08-04 | manager.ts 审计 action 修正为 'deprecate' | 审计日志语义精确化 |
 | 2026-08-04 | loader.ts discoverContractDirs 增加深度限制 8 | 防止极端目录结构栈溢出 |
+| 2026-08-08 | BOUNDARY.md 迁移至 .mumuspec/ 目录 | 与规范文件同目录管理 |
+| 2026-08-08 | loader.ts 新增 resolveBoundaryPath + 表格格式解析 | 解析器支持 Markdown 表格，验证有效性从 1/17 提升至全量 |
+| 2026-08-08 | validator.ts 扩展文件类型（.tsx/.jsx/.mjs/.cjs/.vue） | 前端项目目录纳入边界校验覆盖 |
+| 2026-08-08 | manager.ts writeBoundary 写入 .mumuspec/ 子目录 | 新生成的 BOUNDARY.md 自动放入 .mumuspec/ |

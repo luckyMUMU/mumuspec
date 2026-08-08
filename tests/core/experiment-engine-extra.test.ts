@@ -4,7 +4,7 @@
  * and edge cases in generateDirections.
  *
  * Strategy: Same as experiment-engine-deep.test.ts — real filesystem for
- * state persistence (readYaml, writeYaml, etc.), mock ONLY execSync (git)
+ * state persistence (readYaml, writeYaml, etc.), mock ONLY spawnSync (git)
  * and runAllEvals (eval runner).
  */
 
@@ -13,10 +13,13 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-// ── Mock execSync (git) ────────────────────────────────────────────
-const execSyncImpl = vi.fn(() => 'mock-output');
+// ── Mock spawnSync (git) ───────────────────────────────────────────
+const spawnSyncImpl = vi.fn((): { stdout: string; status: number; stderr?: string } => ({
+  stdout: '',
+  status: 0,
+}));
 vi.mock('node:child_process', () => ({
-  execSync: (cmd: string, _opts?: unknown) => execSyncImpl(cmd),
+  spawnSync: (...args: any[]) => spawnSyncImpl(...args),
 }));
 
 // ── Mock eval runner ───────────────────────────────────────────────
@@ -130,17 +133,15 @@ describe('adoptImprovements — git log error path', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
-    // git log should throw to hit the outer catch (line 908-910)
-    execSyncImpl.mockImplementation(() => {
-      throw new Error('fatal: bad object');
-    });
+    spawnSyncImpl.mockReset();
+    // git log returns failure (status !== 0) to trigger error path
+    spawnSyncImpl.mockReturnValue({ stdout: '', status: 1, stderr: 'fatal: bad object' });
 
     const result = adoptImprovements(root, 'exp-test');
     expect(result.adopted).toEqual([]);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('Failed to adopt dir-1');
-    expect(result.errors[0]).toContain('bad object');
+    expect(result.errors[0]).toContain('status 1');
   });
 });
 
@@ -168,8 +169,7 @@ describe('cleanupExperiment — non-dry-run', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValue('');
+    spawnSyncImpl.mockReset();
 
     const result = cleanupExperiment(root, 'exp-test');
 
@@ -195,17 +195,15 @@ describe('cleanupExperiment — non-dry-run', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
-    execSyncImpl.mockImplementation(() => {
-      throw new Error('worktree removal failed');
-    });
+    spawnSyncImpl.mockReset();
+    spawnSyncImpl.mockReturnValue({ stdout: '', status: 1, stderr: 'worktree removal failed' });
 
     const result = cleanupExperiment(root, 'exp-test');
 
     expect(result.cleaned).toEqual([]);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain('Failed to remove');
-    expect(result.errors[0]).toContain('worktree removal failed');
+    expect(result.errors[0]).toContain('status 1');
   });
 });
 
@@ -230,11 +228,10 @@ describe('spawnArms', () => {
     saveState(root, state);
 
     // Reset exec sync to track calls
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     // For each direction: cleanupExistingWorktree (2 calls) + git worktree add (1 call)
     // cleanupExistingWorktree: git worktree remove (fails silently) + git branch -D (fails silently)
     // git worktree add -b branch path commit
-    execSyncImpl.mockReturnValue('');
 
     const arms = spawnArms(root, 'exp-test');
 
@@ -262,8 +259,7 @@ describe('spawnArms', () => {
     const state = makeState({ directions: [] });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValue('');
+    spawnSyncImpl.mockReset();
 
     const arms = spawnArms(root, 'exp-test');
     expect(arms).toEqual([]);
@@ -276,18 +272,17 @@ describe('spawnArms', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValue('');
+    spawnSyncImpl.mockReset();
 
     spawnArms(root, 'exp-test');
 
     // Should have called: remove worktree (try/catch), delete branch (try/catch), add worktree = 3 calls
-    const calls = execSyncImpl.mock.calls;
+    const calls = spawnSyncImpl.mock.calls;
     expect(calls.length).toBeGreaterThanOrEqual(1);
-    // At least one git worktree add call
-    const addCall = calls.find((c) => String(c[0]).includes('git worktree add'));
+    // spawnSync calls are (command, args[], opts) — find a 'git' call with 'worktree' in args
+    const addCall = calls.find((c) => c[0] === 'git' && Array.isArray(c[1]) && c[1].includes('worktree') && c[1].includes('add'));
     expect(addCall).toBeDefined();
-    expect(String(addCall![0])).toContain('experiment/exp-test/dir-1');
+    expect(String(addCall![1])).toContain('experiment/exp-test/dir-1');
   });
 });
 
@@ -311,8 +306,7 @@ describe('applyDirectionPatch (via spawnArms)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValue('');
+    spawnSyncImpl.mockReset();
 
     spawnArms(root, 'exp-test');
 
@@ -335,8 +329,7 @@ describe('applyDirectionPatch (via spawnArms)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValue('');
+    spawnSyncImpl.mockReset();
 
     // Should not throw
     expect(() => spawnArms(root, 'exp-test')).not.toThrow();
@@ -359,8 +352,7 @@ describe('applyDirectionPatch (via spawnArms)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValue('');
+    spawnSyncImpl.mockReset();
 
     spawnArms(root, 'exp-test');
 
@@ -418,7 +410,7 @@ describe('runArm', () => {
     const root = freshRoot();
     setupArmForRun(root);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({
       total: 20,
@@ -428,7 +420,7 @@ describe('runArm', () => {
       results: [],
     });
 
-    execSyncImpl.mockReturnValue('mock-git-output');
+    spawnSyncImpl.mockReturnValue({ stdout: 'mock-git-output', status: 0 });
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
 
@@ -458,13 +450,12 @@ describe('runArm', () => {
     const root = freshRoot();
     setupArmForRun(root);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     // runEvalInWorktree catches the error and returns empty results
     runAllEvalsImpl.mockImplementation(() => {
       throw new Error('eval runner failed');
     });
-    execSyncImpl.mockReturnValue('');
 
     // Should NOT throw because runEvalInWorktree catches it
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
@@ -481,7 +472,7 @@ describe('runArm', () => {
     const root = freshRoot();
     setupArmForRun(root);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({
       total: 0,
@@ -490,7 +481,6 @@ describe('runArm', () => {
       duration: 10,
       results: [],
     });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
 
@@ -537,10 +527,9 @@ describe('simulateChangeExecution (via runArm)', () => {
     mkdirSync(archiveDir, { recursive: true });
     mkdirSync(join(archiveDir, 'demo-change-20250101'), { recursive: true });
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({ total: 10, passed: 9, failed: 1, duration: 50, results: [] });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
 
@@ -553,10 +542,9 @@ describe('simulateChangeExecution (via runArm)', () => {
     const root = freshRoot();
     setupWorktreeWithArtifacts(root, []);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({ total: 10, passed: 9, failed: 1, duration: 50, results: [] });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
 
@@ -577,10 +565,9 @@ describe('simulateChangeExecution (via runArm)', () => {
       JSON.stringify({ actor: 'user', action: 'change.build', result: 'failed' }) + '\n'
     );
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({ total: 10, passed: 9, failed: 1, duration: 50, results: [] });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
 
@@ -595,10 +582,9 @@ describe('simulateChangeExecution (via runArm)', () => {
     const auditPath = join(worktreePath, '.mumuspec', 'audit.log');
     writeFileSync(auditPath, 'not-json\nanother-garbage\n');
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({ total: 10, passed: 9, failed: 1, duration: 50, results: [] });
-    execSyncImpl.mockReturnValue('');
 
     expect(() => runArm(root, 'exp-test', 'arm-dir-1')).not.toThrow();
   });
@@ -607,10 +593,9 @@ describe('simulateChangeExecution (via runArm)', () => {
     const root = freshRoot();
     setupWorktreeWithArtifacts(root, ['proposal.md', 'design.md', 'tasks.md']);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({ total: 10, passed: 9, failed: 1, duration: 50, results: [] });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
 
@@ -632,11 +617,11 @@ describe('cleanupExistingWorktree (via spawnArms)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
-    // First call throws (worktree remove), second throws (branch delete), third succeeds (add worktree)
-    execSyncImpl.mockImplementationOnce(() => { throw new Error('worktree not found'); });
-    execSyncImpl.mockImplementationOnce(() => { throw new Error('branch not found'); });
-    execSyncImpl.mockReturnValueOnce('');
+    spawnSyncImpl.mockReset();
+    // First call fails (worktree remove), second fails (branch delete), third succeeds (add worktree)
+    spawnSyncImpl.mockReturnValueOnce({ stdout: '', status: 1, stderr: 'worktree not found' });
+    spawnSyncImpl.mockReturnValueOnce({ stdout: '', status: 1, stderr: 'branch not found' });
+    spawnSyncImpl.mockReturnValueOnce({ stdout: '', status: 0 });
 
     expect(() => spawnArms(root, 'exp-test')).not.toThrow();
     const reloaded = loadExperimentState(root, 'exp-test')!;
@@ -650,11 +635,11 @@ describe('cleanupExistingWorktree (via spawnArms)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
-    // worktree remove succeeds, branch delete throws
-    execSyncImpl.mockReturnValueOnce('');
-    execSyncImpl.mockImplementationOnce(() => { throw new Error('branch not found'); });
-    execSyncImpl.mockReturnValueOnce('');
+    spawnSyncImpl.mockReset();
+    // worktree remove succeeds, branch delete fails
+    spawnSyncImpl.mockReturnValueOnce({ stdout: '', status: 0 });
+    spawnSyncImpl.mockReturnValueOnce({ stdout: '', status: 1, stderr: 'branch not found' });
+    spawnSyncImpl.mockReturnValueOnce({ stdout: '', status: 0 });
 
     expect(() => spawnArms(root, 'exp-test')).not.toThrow();
   });
@@ -666,9 +651,8 @@ describe('cleanupExistingWorktree (via spawnArms)', () => {
     });
     saveState(root, state);
 
-    // All execSync calls succeed (no-op cleanups + successful add)
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValue('');
+    // All spawnSync calls succeed (no-op cleanups + successful add)
+    spawnSyncImpl.mockReset();
 
     const arms = spawnArms(root, 'exp-test');
     expect(arms).toHaveLength(1);
@@ -839,9 +823,9 @@ describe('generateDirections — additional edge cases', () => {
 describe('initExperiment — additional', () => {
   it('creates experiment with empty directionCount config', () => {
     const root = freshRoot();
-    execSyncImpl.mockReset();
-    execSyncImpl.mockReturnValueOnce('feature-branch\n');
-    execSyncImpl.mockReturnValueOnce('deadbeef\n');
+    spawnSyncImpl.mockReset();
+    spawnSyncImpl.mockReturnValueOnce({ stdout: 'feature-branch\n', status: 0 });
+    spawnSyncImpl.mockReturnValueOnce({ stdout: 'deadbeef\n', status: 0 });
 
     const state = initExperiment(root, {
       name: 'exp-minimal',
@@ -886,7 +870,7 @@ describe('computeQualityScore edge cases (via runArm)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({
       total: 10,
@@ -897,7 +881,6 @@ describe('computeQualityScore edge cases (via runArm)', () => {
         { errors: Array(10).fill({}), warnings: [] } as any, // 10 errors → penalty 0.3
       ],
     });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
     // successRate = 1.0, errorPenalty = min(10/10, 0.3) = 0.3, quality = 0.7
@@ -920,7 +903,7 @@ describe('computeQualityScore edge cases (via runArm)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     // successRate = 0.2, 15 errors → penalty = min(15/10, 0.3) = 0.3
     // but 0.2 - 0.3 = -0.1, clamped to 0
@@ -933,7 +916,6 @@ describe('computeQualityScore edge cases (via runArm)', () => {
         { errors: Array(15).fill({}), warnings: [] } as any,
       ],
     });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
     expect(metrics.qualityScore).toBe(0);
@@ -962,7 +944,7 @@ describe('computePerformanceScore edge cases (via runArm)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({
       total: 10,
@@ -971,7 +953,6 @@ describe('computePerformanceScore edge cases (via runArm)', () => {
       duration: 1, // Very fast eval
       results: [],
     });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
     // Duration-based: speedScore = 1 - 0/60000 = 1.0 (effectively)
@@ -1012,10 +993,9 @@ describe('computeRobustnessScore edge cases (via runArm)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({ total: 10, passed: 9, failed: 1, duration: 50, results: [] });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
     // phaseRatio = 1/5 = 0.2, errorPenalty = min(4 * 0.1, 0.4) = 0.4
@@ -1050,10 +1030,9 @@ describe('computeRobustnessScore edge cases (via runArm)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({ total: 10, passed: 10, failed: 0, duration: 10, results: [] });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
     // All 5 phases, no errors → robustness = 1.0
@@ -1082,12 +1061,11 @@ describe('runEvalInWorktree error handling (via runArm)', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockImplementation(() => {
       throw new Error('eval crash');
     });
-    execSyncImpl.mockReturnValue('');
 
     // runEvalInWorktree catches the error and returns empty results
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
@@ -1118,7 +1096,7 @@ describe('runEvalInWorktree errors/warnings aggregation', () => {
     });
     saveState(root, state);
 
-    execSyncImpl.mockReset();
+    spawnSyncImpl.mockReset();
     runAllEvalsImpl.mockReset();
     runAllEvalsImpl.mockReturnValue({
       total: 10,
@@ -1130,7 +1108,6 @@ describe('runEvalInWorktree errors/warnings aggregation', () => {
         { errors: [{}], warnings: [{}, {}, {}] } as any,
       ],
     });
-    execSyncImpl.mockReturnValue('');
 
     const metrics = runArm(root, 'exp-test', 'arm-dir-1');
     // totalErrors = 3 + 1 = 4

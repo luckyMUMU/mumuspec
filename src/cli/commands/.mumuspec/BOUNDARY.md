@@ -1,3 +1,8 @@
+---
+scope: src/cli/commands
+layer: 3
+---
+
 # src/cli/commands/ 目录边界文档
 
 ## 对外接口
@@ -78,6 +83,12 @@ advise.ts, bundle.ts, change.ts, constraints.ts, contract.ts, dashboard.ts, deci
 - 函数内使用 `program.command('name').description('...').argument(...)...action(callback)` commander API
 - 异步 action 使用 `async` 回调
 - 错误统一通过 `catch` 捕获并使用 `console.error` + `process.exit(1)` 退出
+
+### 安全确认规范
+
+- **危险操作**（删除/归档/清理 worktree）必须提供 `--confirm` / `-y` 选项
+- 危险操作 action 执行前检查 confirm 标志：无则输出警告 + `process.exit(130)`（用户取消）
+- 规范：archive.ts、change.ts（discard）、hooks.ts（uninstall）均需实现
 
 ### 文件命名约定
 

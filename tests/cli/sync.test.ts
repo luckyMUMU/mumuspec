@@ -53,12 +53,12 @@ describe('sync command', () => {
   it('should create BOUNDARY.md when not in check mode', () => {
     const result = executeSync(testRoot, { check: false });
     expect(result.boundaryUpdated).toBeGreaterThanOrEqual(1);
-    const boundaryPath = join(testRoot, 'src', 'core', 'BOUNDARY.md');
+    const boundaryPath = join(testRoot, 'src', 'core', '.mumuspec', 'BOUNDARY.md');
     expect(existsSync(boundaryPath)).toBe(true);
   });
 
   it('should detect exports in BOUNDARY.md content after sync', () => {
-    const boundaryPath = join(testRoot, 'src', 'core', 'BOUNDARY.md');
+    const boundaryPath = join(testRoot, 'src', 'core', '.mumuspec', 'BOUNDARY.md');
     if (existsSync(boundaryPath)) {
       const content = readFileSync(boundaryPath, 'utf8');
       expect(content).toContain('helper');

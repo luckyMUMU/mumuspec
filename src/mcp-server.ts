@@ -16,12 +16,12 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, isAbsolute } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
 
-import { findProjectRoot } from './core/utils.js';
+import { findProjectRoot, isPathSafe } from './core/utils.js';
 import { loadConfig } from './core/config.js';
 
 // Spec
@@ -446,10 +446,57 @@ const TOOLS = [
   },
 ];
 
+/**
+ * Validate a path argument for MCP tools.
+ * Returns an error string if validation fails, null if safe.
+ */
+function validateToolPath(root: string, path: string): string | null {
+  if (!isPathSafe(path, root)) {
+    return `Path traversal detected: "${path}" is outside project root. Refusing to process.`;
+  }
+  return null;
+}
+
 /** Handle tool calls */
 async function handleToolCall(name: string, args: Record<string, unknown>): Promise<unknown> {
   const root = getRoot();
   const config = loadConfig(root);
+
+// Validate path arguments upfront for tools that accept filesystem paths
+const PATH_TOOLS: Record<string, string> = {
+  get_spec_context: 'path',
+  get_prohibitions: 'path',
+  get_design_context: 'path',
+  get_knowledge_context: 'path',
+  list_boundaries: 'dir',
+  check_boundaries: 'dir',
+  scaffold_boundary: 'dir',
+};
+const pathArgName = PATH_TOOLS[name];
+if (pathArgName) {
+  const rawPath = args[pathArgName] as string;
+  if (rawPath) {
+    const error = validateToolPath(root, rawPath);
+    if (error) return { error };
+  }
+}
+
+// Validate scope arguments for knowledge tools (used for filtering, not file access)
+const SCOPE_TOOLS: Record<string, string> = {
+  generate_onboarding_path: 'scope',
+  get_knowledge_coverage: 'scope',
+  find_knowledge_gaps: 'scope',
+};
+const scopeArgName = SCOPE_TOOLS[name];
+if (scopeArgName) {
+  const rawScope = args[scopeArgName] as string;
+  if (rawScope) {
+    // Scope is used for string prefix matching, not file access, but still reject traversal patterns
+    if (rawScope.includes('..') || isAbsolute(rawScope)) {
+      return { error: `Invalid scope: "${rawScope}" contains illegal path patterns` };
+    }
+  }
+}
 
   switch (name) {
     // ── Spec Context ──

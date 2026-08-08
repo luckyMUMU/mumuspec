@@ -388,6 +388,22 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     fixSteps: ['使用项目内相对路径', '不使用 ../ 等路径逃逸符号'],
     forceable: false,
   },
+  'E-SECURITY-002': {
+    code: 'E-SECURITY-002',
+    name: 'CHANGE_NAME_INVALID',
+    severity: 'ERROR',
+    description: '变更名称含非法字符（路径分隔符或 .. 序列）',
+    fixSteps: ['使用字母数字 + . _ - 组合的名称', '名称不能以 . 或 - 开头'],
+    forceable: false,
+  },
+  'E-SECURITY-003': {
+    code: 'E-SECURITY-003',
+    name: 'MCP_PATH_REQUIRED',
+    severity: 'ERROR',
+    description: 'MCP 工具调用未提供 path 参数或参数类型错误',
+    fixSteps: ['检查调用参数是否包含有效的 path 字符串', '确保 path 为相对路径且非空'],
+    forceable: false,
+  },
 };
 
 /** Get error code definition */

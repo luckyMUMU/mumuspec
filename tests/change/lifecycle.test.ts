@@ -43,6 +43,12 @@ vi.mock('../../src/change/paths.js', () => ({
     }
     return join(root, '.mumuspec', 'changes', 'archive');
   }),
+  getDiscardedDir: vi.fn((root: string, _name: string, scope?: string) => {
+    if (scope && scope !== '.') {
+      return join(root, scope, '.mumuspec', 'changes', 'archive', 'discarded');
+    }
+    return join(root, '.mumuspec', 'changes', 'archive', 'discarded');
+  }),
 }));
 
 vi.mock('../../src/change/listing.js', () => ({

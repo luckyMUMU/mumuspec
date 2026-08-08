@@ -647,6 +647,6 @@ export function registerContractCommands(program: Command): void {
       }
 
       console.log(`\nBOUNDARY.md generated: ${filePath}`);
-      console.log('Review and customize the content before committing.\n');
+      console.log('Written to .mumuspec/BOUNDARY.md — review and customize before committing.\n');
     });
 }

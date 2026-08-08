@@ -5,7 +5,8 @@
  */
 import { join, relative, sep } from 'node:path';
 import { existsSync, readdirSync } from 'node:fs';
-import { getMumuSpecDir } from '../core/utils.js';
+import { getMumuSpecDir, validateChangeName } from '../core/utils.js';
+import { MumuSpecError } from '../core/errors.js';
 
 /** Get the changes directory for a given scope.
  *  If scope is "." or undefined, returns root .mumuspec/changes/.
@@ -29,6 +30,9 @@ export function getArchiveDir(projectRoot: string, scope?: string): string {
  * Returns the full path or undefined if not found.
  */
 export function getArchivedChangeDir(projectRoot: string, changeName: string): string | undefined {
+  if (!validateChangeName(changeName)) {
+    throw new MumuSpecError('E-SECURITY-002', { changeName });
+  }
   const archiveDir = join(getMumuSpecDir(projectRoot), 'changes', 'archive');
   if (!existsSync(archiveDir)) return undefined;
 
@@ -51,7 +55,18 @@ export function getArchivedChangeDir(projectRoot: string, changeName: string): s
 
 /** Get a change directory path for a given scope */
 export function getChangeDir(projectRoot: string, changeName: string, scope?: string): string {
+  if (!validateChangeName(changeName)) {
+    throw new MumuSpecError('E-SECURITY-002', { changeName });
+  }
   return join(getChangesDir(projectRoot, scope), changeName);
+}
+
+/** Get the discarded directory path for a change */
+export function getDiscardedDir(projectRoot: string, changeName: string, scope?: string): string {
+  if (!validateChangeName(changeName)) {
+    throw new MumuSpecError('E-SECURITY-002', { changeName });
+  }
+  return join(getArchiveDir(projectRoot, scope), 'discarded', changeName);
 }
 
 /** Get the .mumuspec.yaml path for a change in a given scope */

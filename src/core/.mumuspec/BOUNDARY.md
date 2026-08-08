@@ -19,6 +19,25 @@ layer: 2
 | `types-contract.ts` | `Contract`, `ContractRegistry`, `ContractDrift`, `DriftReport`, `BoundaryDocument`, `BoundaryExport`, `ContractImpactAnalysis`, `ImpactEntry` | 契约层核心类型 |
 | `types-knowledge.ts` | `KnowledgePage`, `PageIndex` | 知识库类型 |
 
+### 日志系统
+
+| 文件 | 导出 | 用途 |
+|------|------|------|
+| `logger.ts` | `Logger` 类 | 4 级结构化日志（trace/debug/info/warn/error） |
+
+`Logger` 接口：
+- `Logger.trace(module, message, context?)` — 最详细诊断
+- `Logger.debug(module, message, context?)` — 开发调试
+- `Logger.info(module, message, context?)` — 常规信息
+- `Logger.warn(module, message, context?)` — 非致命异常
+- `Logger.error(module, message, context?)` — 错误
+
+环境变量：
+- `MUMUSPEC_LOG_LEVEL` — 控制输出级别（默认 `info`）
+- `MUMUSPEC_LOG_JSON` — `true` 时输出 JSON 到 stderr
+
+注意：面向用户的最终输出保留 `console.log/error`，Logger 仅用于内部诊断。
+
 ### 配置管理（config 系列）
 
 | 函数 | 签名 | 用途 |
@@ -73,5 +92,6 @@ layer: 2
 
 | 日期 | 变更 | 影响 |
 |------|------|------|
+| 2026-08-08 | 新增 `logger.ts`（4 级结构化日志）、`validateChangeName` 函数 | 奠定空捕获替换 + 路径穿越防护基础 |
 | 2026-08-04 | Contract Layer 实现（loader/validator/impact-analyzer/manager） | 新增类型、目录边界、漂移检测、影响分析 |
 | 2026-08-03 | 删除冗余 spec.md 和 design.md | 无功能影响 |

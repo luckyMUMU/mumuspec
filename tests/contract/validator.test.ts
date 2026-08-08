@@ -557,7 +557,8 @@ describe('validateBoundaries > basic coverage', () => {
     // ARRANGE
     const dir = setupTestDir('boundary-clean');
     writeFileSync(join(dir, 'src', 'api.ts'), 'export function getData(): void {}\n', 'utf-8');
-    writeFileSync(join(dir, 'src', 'BOUNDARY.md'), [
+    mkdirSync(join(dir, 'src', '.mumuspec'), { recursive: true });
+    writeFileSync(join(dir, 'src', '.mumuspec', 'BOUNDARY.md'), [
       '# BOUNDARY.md',
       '',
       '## 对外接口',

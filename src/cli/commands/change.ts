@@ -243,10 +243,17 @@ export function registerChangeCommands(program: Command): void {
     .command('archive')
     .description('Archive a change')
     .argument('<name>', 'change name')
-    .action((name) => {
+    .option('--confirm', 'confirm archival (irreversible operation)')
+    .action((name, options) => {
       const root = findProjectRoot();
       if (!root) {
         console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+
+      if (!options.confirm) {
+        console.error('Error: Archiving is irreversible. Use --confirm to proceed.');
+        console.error(`  mumuspec archive ${name} --confirm`);
         process.exit(1);
       }
 
@@ -270,10 +277,17 @@ export function registerChangeCommands(program: Command): void {
     .description('Discard a change')
     .argument('<name>', 'change name')
     .option('--reason <reason>', 'discard reason')
+    .option('--confirm', 'confirm discard (irreversible operation)')
     .action((name, options) => {
       const root = findProjectRoot();
       if (!root) {
         console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+
+      if (!options.confirm) {
+        console.error('Error: Discarding is irreversible. Use --confirm to proceed.');
+        console.error(`  mumuspec discard ${name} --confirm`);
         process.exit(1);
       }
 
