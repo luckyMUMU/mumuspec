@@ -1,7 +1,7 @@
 ---
 layer: 0
 scope: "."
-last_updated: "2026-08-04"
+last_updated: "2026-08-08"
 ---
 
 ## Requirement: Ponytail 基础编码约束
@@ -27,6 +27,27 @@ last_updated: "2026-08-04"
 - PONYTAIL-2: lint rule: check for unnecessary new dependencies
 - PONYTAIL-3: lint rule: detect boilerplate code patterns
 - PONYTAIL-4: lint rule: detect overly clever solutions
+
+## Requirement: 临时目录管理规范
+
+### SHALL
+- `.mumuspec/temp/` 目录作为**临时文件唯一合法存放处**，非规范文档、运行时日志、测试样本、迁移过渡文件一律存入此目录
+- 归档阶段（finalize-archive）**必须**整理 temp/ 内容：有价值的内容导入 knowledge/ 对应分类，无价值内容直接清理
+- 归档完成后 temp/ 应为空或仅保留"待用户确认"的过渡内容
+- temp/ 目录必须在 `.gitignore` 中全局排除（不纳入版本控制）
+- temp/ 子目录按归档来源分类：`design-archive/`、`designs-archive/`、`bundles-archive/`、`evals/`
+
+### SHALL NOT
+- 禁止在 temp/ 之外存放非规范文件（禁止在 .mumuspec/ 根目录散落 audit.log、*.yaml 样本等）
+- 禁止将 temp/ 内容提交至 git（gitignore 兜底 + pre-commit 检查）
+- 禁止 temp/ 长期积压未整理内容（每次归档必须触发清理）
+- 禁止在 temp/ 中存放活跃变更的工件（变更工件在 changes/<name>/ 下）
+
+### Enforcement
+- TEMP-1: `.mumuspec/temp/` 目录必须存在
+- TEMP-2: `.mumuspec/temp/` 必须在根 `.gitignore` 中被排除
+- TEMP-3: finalize-archive 阶段必须提示用户清理 temp/
+- TEMP-4: 禁止在 .mumuspec/ 根目录存放非规范文件（白名单：spec.md/prd.md/tech.md/goal.md/env-spec.md/prohibitions.md/glossary.md/index.yaml/config.yaml）
 
 ## Requirement: 项目结构规范
 
@@ -129,6 +150,7 @@ last_updated: "2026-08-04"
 - finalize-archive SHALL perform knowledge extraction (cognitive-map to knowledge pages)
 - finalize-archive SHALL clean worktree and release active change slot
 - finalize-archive SHALL clean cache/indexed.yaml of stale entries
+- finalize-archive SHALL prompt user to review and clean `.mumuspec/temp/` content, importing valuable items to `knowledge/` and deleting the rest
 - After finalize-archive completes, SHALL pause and ask user whether to delete old spec.md/design.md files
 
 ### Enforcement
@@ -158,4 +180,21 @@ last_updated: "2026-08-04"
 ### SHALL NOT
 - Init SHALL NOT overwrite existing `prd.md` or `tech.md` files without `--force` flag
 - Init SHALL NOT require user interaction during generation (fully automatic, review after)
+
+## Requirement: 术语表管理规范
+
+### SHALL
+- 项目根目录 `.mumuspec/glossary.md` 作为**权威术语参考**（Ubiquitous Language），所有文档、代码注释、沟通均应使用其中定义的统一术语
+- 新增术语须经过共识决策，禁止在不同文档中对同一术语赋予不同含义
+- 术语表与规范/代码保持同步：当引入新命令、新模块、新流程时，必须在 glossary.md 中补充对应术语
+
+### SHALL NOT
+- 禁止术语表条目与 spec.md / tech.md / prd.md 中的定义相互矛盾
+- 禁止省略术语的英文对照（原文引用场景依赖英文符号）
+- 禁止将术语表用作实现规范约束的场所（约束入 spec.md，术语入 glossary.md）
+
+### Enforcement
+- GLOSSARY-1: glossary.md 必须存在于项目根 `.mumuspec/` 目录
+- GLOSSARY-2: glossary.md 每条目必须包含"术语 / 英文 / 定义"三要素
+- GLOSSARY-3: 新增命令/模块时检查 glossary.md 是否同步更新
 

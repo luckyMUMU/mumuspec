@@ -1,0 +1,6 @@
+{
+  "source": "user",
+  "currentVersion": 1,
+  "hidden": false,
+  "intro": "MumuSpec — 规范驱动的 AI 编程工作流编排器。五阶段：open → design → build → verify → archive。含 Loop 模式、hotfix/tweak 预设路径、Ponytail 编码约束、测试不可变性保障。"
+}

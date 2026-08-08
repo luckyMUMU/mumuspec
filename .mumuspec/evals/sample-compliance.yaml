@@ -1,7 +1,0 @@
-# Sample compliance eval
-name: sample-compliance
-description: Verify no SHALL NOT violations in committed code
-type: compliance
-expected:
-  maxErrors: 0
-  mustNotContainErrorCodes: ["E-GUARD-003"]

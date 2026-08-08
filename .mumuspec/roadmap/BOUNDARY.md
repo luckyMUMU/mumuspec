@@ -20,6 +20,7 @@
 | Roadmap Item Status | `planning` / `planned` / `active` / `blocked` / `completed` / `deprecated` |
 | Roadmap Item Priority | `P0` / `P1` / `P2` |
 | Roadmap Capacity Cost | 正整数，表示占用的容量预算单位 |
+| Model Tier | `S` / `A` / `B` / `C` — 模型能力层级 |
 
 ## 导出列表
 
@@ -57,5 +58,6 @@
 
 | 日期 | 变更描述 | 影响范围 |
 |------|---------|---------|
+| 2026-08-08 | 新增 R-0012：多 Model-Tier 自适应约束强度系统（S/A/B/C 四层 + 偏移调制 + auto_detect） | 新增文件，扩展 ConstraintStrengthField schema |
 | 2026-08-06 | 扩展：新增 6 个调研驱动的 Item（R-0006~R-0011）覆盖 Graph/Loop/Guard/Onboarding/Meta-Spec/Contract | 新增文件，不修改已有 Item |
 | 2026-08-04 | 初始创建：定义三类冲突预防（优先级 + 依赖 + 互斥），支持模块级注册 | 新目录，不影响现有规范 |

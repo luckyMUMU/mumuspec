@@ -1,0 +1,49 @@
+{
+  "summary": {
+    "total_score": 72,
+    "risk_level": "中"
+  },
+  "dimensions": [
+    {
+      "name": "架构抽象",
+      "score": 88,
+      "excellent": "零 LLM 耦合（运行时仅 3 个直接依赖），MCP 薄适配层 30+ 工具全声明式 inputSchema + switch 白名单分发，跨平台路径/命令处理完备（isPathSafe/normalizePath/win32 分支），AgentType 注册表数据驱动接入 6 种 Agent，硬编码厂商字段零出现",
+      "weakness": "MCP 工具参数以 as string/boolean 断言直接下渗核心层，无 Zod/JSON Schema 运行时校验；knowledge-git.ts:39 与 git-scanner.ts:77 使用 shell 字符串拼接存在命令注入面；Streamable HTTP 无鉴权",
+      "comparison_with_mainstream": "与 LangChain v0.3+ BaseTool/StructuredTool 相比：优——纯 JSON Schema+switch 分发更轻量、零历史包袱，但缺其 Pydantic/Zod 运行时校验能力，整体持平偏优"
+    },
+    {
+      "name": "性能与资源",
+      "score": 46,
+      "excellent": "context 渐进披露只加载最多 3 层 spec（loader.ts:37-39）；MCP 10MB body 上限防内存耗尽（mcp-server.ts:1000）；drift 实测 1.1-1.9s 可接受；纯本地数据流零 token 传输成本",
+      "weakness": "冷启动 --help 2.2s / validate 2.7s / check 2.8s（29 命令模块全量静态注册无法按需加载）；无真实 diff 算法（drift 仅结构检查+子串匹配，checker.ts:653 自认 Could do more detailed comparison）；全库同步阻塞 fs I/O 无并发；无 token 计数能力",
+      "comparison_with_mainstream": "与 Aider 相比：劣——Aider 有 Myers 增量 diff 与 token 感知重写，本工具 drift 退化为子串匹配；但本地进程零 LLM 传输，此点持平。LSP 基准 N/A（工具无 LSP 能力，如实标注）"
+    },
+    {
+      "name": "安全与沙箱",
+      "score": 78,
+      "excellent": "discard 采用 renameSync 软删除归档无物理删除（lifecycle.ts:206）；finalize-archive 需显式 --delete-old 才 unlink（:164-198）；hooks 仅删除自带标记钩子（guard.ts:224）；凭据零存储（全库仅 .env 检测正则）",
+      "weakness": "commit message 含 $() 可注入（loop-engine.ts:256，内容可能来自 AI 输出）；git worktree remove --force + branch -D 无 dry-run 与确认（experiment-engine.ts:451,459）；changeName 无字符校验可路径穿越（paths.ts:53-55）；discard/archive 无交互确认，discard_user_confirmation 仅为 spec 声明未落地",
+      "comparison_with_mainstream": "与 VSCode Extension Host 相比：劣——无进程隔离/权限降级/IPC 协议校验，直接以用户身份执行 shell 命令，仅靠业务层约束兜底"
+    },
+    {
+      "name": "开发者体验",
+      "score": 76,
+      "excellent": "40+ 结构化错误码带中文描述+修复步骤（errors.ts:14-428）；init 零配置全自动脚手架；快速开始仅 4 条命令 0 行配置（README.md:118-155）；--help 输出 40+ 子命令；doctor 逐项环境检查",
+      "weakness": "45 个文件裸 console.log 无日志分级无 --verbose；多处 catch {} 空捕获吞错（cli/index.ts:183-185,355-371）；MCP 错误无堆栈（mcp-server.ts:947）；无 OpenTelemetry 埋点；mcp-server.ts 无直接单测",
+      "comparison_with_mainstream": "与 Semantic Kernel [KernelFunction] 属性+服务注册+Plugin 导入相比：优——目录+markdown+单命令脚手架表达约束更直观易懂"
+    },
+    {
+      "name": "可维护性",
+      "score": 74,
+      "excellent": "1412 用例/183 文件，branch 覆盖率 81.43%、function 82.40%；tsconfig 严格家族完整（strict/noUnusedLocals 等）；MCP 添加新工具仅需改 1 文件（TOOLS 数组+switch case），侵入性极低；直接依赖仅 3 个",
+      "weakness": "语句覆盖 62.47% 未过 80% 加分线且 coverage success:false、3 用例失败；mcp-server.ts（35KB 核心）零直接测试；npm audit 5 漏洞含 2 high（fast-uri、ip-address 经 MCP SDK 传递）；CHANGELOG 无显式 Breaking Changes 标注；无第三方 MCP Client 挂载能力",
+      "comparison_with_mainstream": "与 LangChain 数百传递依赖相比：优——3 个直接依赖的清晰瘦核心；但 MCP SDK 传递树使其非零依赖，扩展性持平于同类 CLI 工具"
+    }
+  ],
+  "top_3_improvements": [
+    "P0-安全：全库消除 shell 字符串拼接（spawnSync/execSync 改参数数组 execFile 风格、禁 shell:true）；commit message/changeName/路径参数增加运行时校验阻断注入与路径穿越；git worktree remove --force、discard 等危险操作强制 dry-run+确认钩子",
+    "P0-性能：src/cli/index.ts 29 个命令模块改动态 import 按需加载（冷启动目标 <500ms）；同步 fs I/O 异步化；drift 检测引入 Myers diff 替代子串匹配",
+    "P1-可观测与类型：日志分级+OpenTelemetry；消除空 catch 保留源码堆栈；MCP 工具补 Zod/JSON Schema 运行时校验；mcp-server.ts 补直接单测并提升语句覆盖至 80%+；对齐 MCP SDK 版本并升级修复 2 个 high CVE"
+  ],
+  "verdict": "有条件录用：总分 72 处于主流水平（70-89 锚点），架构解耦度与瘦核心设计超越多数参照物、硬性规则（无内置 retry/rerank/memory、无默认危险删除）全部通过；但性能维度 46 分暴露冷启动与 diff 能力架构级短板、安全维度存在命令注入与路径穿越面，须先完成上述 P0 整改并通过复检后方可投入生产环境。"
+}

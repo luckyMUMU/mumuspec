@@ -11,7 +11,7 @@ export default defineConfig({
       reporter: ['text', 'html', 'json'],
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.d.ts', 'src/index.ts', 'src/cli.ts', 'src/mcp-server.ts'],
-      thresholds: { branches: 0.95, functions: 0.95, lines: 0.95, statements: 0.95 },
+      thresholds: { branches: 95, functions: 95, lines: 95, statements: 95 },
     },
   },
 });
