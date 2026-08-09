@@ -32,6 +32,18 @@ layer: 2
 | `getChangeDir` | `(root, changeName, scope?) => string` | paths.ts | 获取变更目录（含 validateChangeName 校验） |
 | `getDiscardedDir` | `(root, changeName, scope?) => string` | paths.ts | 获取已丢弃目录（含 validateChangeName 校验） |
 
+### 分支生命周期（branch.ts，2026-08-08 新增）
+
+| 函数 | 签名 | 用途 |
+|------|------|------|
+| `getChangeBranchName` | `(root, changeName, config) => string` | 计算变更分支名（`<prefix>/<name>`，默认 `mumuspec/<name>`） |
+| `ensureChangeBranch` | `(root, changeName) => GitResult` | 切换到变更分支（不存在则 checkout -b 创建） |
+| `rollbackChangeCreation` | `(root, changeName) => void` | 建分支失败时清理已建 change 目录 |
+| `getActiveChangeOnBranch` | `(root, branchName) => string \| undefined` | 查询指定分支上的活跃变更（per-branch single active） |
+| `commitChangeBranch` | `(root, changeName, state) => void` | 提交变更分支代码并写入 branch_status='handled' |
+| `checkMergeGate` | `(root, changeName) => GuardResult` | merge 前置门禁（10 项校验） |
+| `mergeArchivedChange` | `(root, changeName) => void` | 执行 merge --no-ff + 冲突暂停 + 删除分支 + 写 git_merge |
+
 ### 导出类型
 
 | 类型 | 用途 |
@@ -55,6 +67,7 @@ layer: 2
 | `../spec/loader.js` | 规范上下文加载 |
 | `../feedback/manager.js` | 反馈目录初始化与变更关联（见 ADR-0001） |
 | `../knowledge/manager.js` | 知识页创建与全局索引（见 ADR-0001） |
+| `../core/git.js` | 统一 git 操作封装（分支/合并/状态校验） |
 
 ### 外部依赖
 
@@ -73,11 +86,13 @@ layer: 2
 - `.mumuspec/changes/<name>/` 目录结构
 - 变更文件：`design.md`, `prd.md`, `proposal.md`, `decisions.md`, `tasks.md`, `verify.md`
 - 约束文件：`constraints/new-shall.md`, `constraints/new-shall-not.md`
+- ChangeState 扩展字段：`branch?: string`（变更分支名）、`git_merge?: { merged, commit_sha?, strategy? }`（合并记录）、`branch_status?: 'pending'\|'handled'`（分支代码提交状态）
 
 ## 变更日志
 
 | 日期 | 变更 | 原因/影响 |
 |------|------|-----------|
+| 2026-08-08 | 新增 `branch.ts` 分支生命周期模块（7 个函数）；ChangeState 扩展 branch/git_merge/branch_status 语义 | 分支驱动多人协作：new 自动建分支、归档后合并门禁 |
 | 2026-08-08 | `getChangeDir`/`getDiscardedDir` 增加 validateChangeName 校验，拒绝路径穿越 | 安全加固 |
 | 2026-08-04 | 依赖项添加 ADR-0001 引用 | 明确 change → feedback/knowledge 单向依赖的决策依据 |
 | 2026-08-04 | 新增 barrel index.ts（统一 re-export） | 符合 spec.md 结构规范 |

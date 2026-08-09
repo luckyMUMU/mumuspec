@@ -18,7 +18,7 @@ const GOAL_QUESTIONS: LoopGrillQuestion[] = [
   {
     id: 'goal-specific',
     question: 'Goal 是否具体可验证？能否用一句话描述"完成"是什么样的状态？',
-    check: (ctx) => ctx.goal.length < 10 || /实现|完成|添加|修复|优化|重构/.test(ctx.goal),
+    check: (ctx) => ctx.goal.length >= 10 && /实现|完成|添加|修复|优化|重构/.test(ctx.goal),
     warning: 'Goal 过于模糊，建议描述具体的可交付物或行为变更',
     suggestion: '格式建议：实现 <具体功能>，使 <用户/系统> 能够 <具体行为>',
   },
@@ -35,8 +35,8 @@ const GOAL_QUESTIONS: LoopGrillQuestion[] = [
   {
     id: 'goal-granularity',
     question: '每个轮次是否有明确的子目标可以评估？',
-    check: (_ctx) => true, // Always ask
-    warning: '',
+    check: (ctx) => ctx.goal.length >= 15, // 足够长的 goal 通常暗示子目标可拆分
+    warning: '缺少明确的轮次子目标规划',
     suggestion: '建议规划：Round 1 做什么 → Round 2 做什么 → Round 3 做什么',
   },
 ];

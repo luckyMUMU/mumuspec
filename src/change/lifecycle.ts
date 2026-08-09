@@ -7,10 +7,12 @@ import type { ChangeState, Workflow } from '../core/types.js';
 import type { MumuSpecConfig } from '../core/config.js';
 import { readText, writeText, ensureDir, computeHash, now, appendAuditLog, getMumuSpecDir } from '../core/utils.js';
 import { MumuSpecError } from '../core/errors.js';
+import { getCurrentBranch, isGitRepo } from '../core/git.js';
 import { ensureFeedbackStructure, getChangeFeedbackDir } from '../feedback/manager.js';
 import { getChangeDir, getDiscardedDir } from './paths.js';
 import { loadChangeState, saveChangeState } from './state.js';
 import { getActiveChange } from './listing.js';
+import { getActiveChangeOnBranch, getChangeBranchName, ensureChangeBranch, rollbackChangeCreation } from './branch.js';
 import { scaffoldChangeSpecs } from '../core/spec-scaffolder.js';
 
 /** Create a new change */
@@ -22,14 +24,33 @@ export function createChange(
   affectedScopes: string[] = [],
   scope?: string,
 ): ChangeState {
-  const active = getActiveChange(projectRoot, scope);
-  if (active && config.workflow?.single_active_change !== false) {
-    throw new MumuSpecError('E-CHANGE-001', {
-      '当前活跃变更': active,
-      '作用域': scope || '.',
-      '修复': '完成或 Discard 当前变更后再创建新变更',
-      '提示': '如需并行变更，可在其他作用域创建变更，或在 config.yaml 设置 workflow.single_active_change: false',
-    });
+  // Per-branch single active change (branch-driven workflow)
+  const isBranchDriven = config.changes?.default_isolation === 'branch';
+  const gitRepo = isGitRepo(projectRoot);
+  const currentBranch = gitRepo ? getCurrentBranch(projectRoot) : undefined;
+  const branchName = isBranchDriven ? getChangeBranchName(projectRoot, changeName, config) : undefined;
+
+  if (isBranchDriven && gitRepo && currentBranch) {
+    const activeOnBranch = getActiveChangeOnBranch(projectRoot, currentBranch);
+    if (activeOnBranch && config.workflow?.single_active_change !== false) {
+      throw new MumuSpecError('E-CHANGE-001', {
+        '当前活跃变更': activeOnBranch,
+        '当前分支': currentBranch,
+        '修复': '完成或 Discard 当前分支上的变更后再创建新变更',
+        '提示': '单分支仅允许单一激活变更；如需并行请先合并/归档当前变更',
+      });
+    }
+  } else {
+    // Fallback: global single-active check (legacy behavior)
+    const active = getActiveChange(projectRoot, scope);
+    if (active && config.workflow?.single_active_change !== false) {
+      throw new MumuSpecError('E-CHANGE-001', {
+        '当前活跃变更': active,
+        '作用域': scope || '.',
+        '修复': '完成或 Discard 当前变更后再创建新变更',
+        '提示': '如需并行变更，可在其他作用域创建变更，或在 config.yaml 设置 workflow.single_active_change: false',
+      });
+    }
   }
 
   if (scope && scope !== '.') {
@@ -68,6 +89,7 @@ export function createChange(
     build_mode: config.changes.default_build_mode,
     tdd_mode: 'tdd',
     isolation: config.changes.default_isolation,
+    branch: branchName,
     single_active_change: true,
     user_confirmed: false,
     decisions_log: { counts: {} },
@@ -102,6 +124,22 @@ export function createChange(
   }
 
   saveChangeState(projectRoot, changeName, state, scope);
+
+  // Auto-create the change branch (branch-driven workflow)
+  if (isBranchDriven && gitRepo && branchName) {
+    try {
+      ensureChangeBranch(projectRoot, changeName);
+    } catch (e) {
+      rollbackChangeCreation(projectRoot, changeName);
+      throw new MumuSpecError('E-CHANGE-009', {
+        '变更名': changeName,
+        '分支': branchName,
+        '错误': e instanceof Error ? e.message : String(e),
+        '说明': '自动创建分支失败，已回滚变更目录',
+      });
+    }
+  }
+
   createInitialArtifacts(projectRoot, changeName, workflow, affectedScopes, scope);
   ensureFeedbackStructure(projectRoot);
   ensureDir(getChangeFeedbackDir(projectRoot, changeName));
@@ -111,6 +149,7 @@ export function createChange(
     action: 'change.create',
     change: changeName,
     scope: scope || '.',
+    branch: branchName,
     result: 'success',
   });
 

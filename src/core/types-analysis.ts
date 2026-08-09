@@ -121,7 +121,7 @@ export interface CoverageReport {
 export interface ChatKnowledgeRef {
   id: string;
   title: string;
-  type: 'decision' | 'pattern' | 'risk' | 'rationale' | 'lesson' | 'imported';
+  type: import('./types-knowledge.js').KnowledgeType;
   relevance: number;
 }
 

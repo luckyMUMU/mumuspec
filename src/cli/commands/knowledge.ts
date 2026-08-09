@@ -12,6 +12,7 @@ import { registerChatCommand } from './knowledge-chat.js';
 import { registerGitCommand } from './knowledge-git.js';
 import { registerKnowledgeScan } from './knowledge-scan.js';
 import { registerKnowledgeDoctor } from './knowledge-doctor.js';
+import { registerKnowledgeSync } from './knowledge-sync.js';
 
 export function registerKnowledgeCommands(program: Command): void {
   const knowledgeCmd = program.command('knowledge').description('Knowledge management');
@@ -23,4 +24,5 @@ export function registerKnowledgeCommands(program: Command): void {
   registerGitCommand(program);
   registerKnowledgeScan(knowledgeCmd);
   registerKnowledgeDoctor(knowledgeCmd);
+  registerKnowledgeSync(knowledgeCmd);
 }

@@ -1,21 +1,46 @@
 /**
- * Knowledge types — knowledge pages, cognitive maps, page indices, and feedback.
+ * Knowledge types — knowledge pages, cognitive maps, page indices, feedback,
+ * and bidirectional sync (export/import/tell/absorb).
  */
 
-/** Knowledge page frontmatter */
+// ========== Schema v2: Semantic Pyramid ==========
+
+/** Knowledge semantic level (L0=evidence → L3=summary) */
+export type KnowledgeLevel = 'L0' | 'L1' | 'L2' | 'L3';
+
+/** Knowledge type union (extended with 'scenario' for L2 aggregation) */
+export type KnowledgeType = 'decision' | 'pattern' | 'risk' | 'rationale' | 'lesson' | 'imported' | 'scenario';
+
+/** Knowledge page frontmatter (schema v2) */
 export interface KnowledgePageFrontmatter {
   id: string;
   title: string;
-  type: 'decision' | 'pattern' | 'risk' | 'rationale' | 'lesson' | 'imported';
-  status: 'confirmed' | 'superseded' | 'deprecated' | 'proposed';
+  type: KnowledgeType;
+  status: 'confirmed' | 'superseded' | 'deprecated' | 'proposed' | 'draft';
   scope: string;
+  /** Semantic pyramid level */
+  level?: KnowledgeLevel;
+  /** L2 scenario aggregation key */
+  scenario?: string;
+  /** Source agent identifier (for imported knowledge) */
+  source_agent?: string;
   created_at: string;
+  updated_at?: string;
   verified_at?: string;
   tags?: string[];
   graph_bindings?: string[];
   related_pages?: string[];
+  backward_refs?: string[];
   supersedes?: string;
   superseded_by?: string;
+  source_change?: string;
+  source_phase?: string;
+  source_artifact?: string;
+  cognitive_origin?: {
+    quadrant?: string;
+    reasoning_chain?: string[];
+    confidence?: 'high' | 'medium' | 'low';
+  };
 }
 
 /** Knowledge page */
@@ -154,4 +179,119 @@ export interface FeedbackLog {
   }>;
   session_links: FeedbackSessionLink[];
   last_updated: string;
+}
+
+// ========== Schema v2: Bidirectional Knowledge Sync ==========
+
+/** Conflict resolution strategy for imports */
+export type ConflictStrategy = 'skip' | 'overwrite' | 'new-version' | 'merge' | 'manual';
+
+/** Export filter options */
+export interface ExportOptions {
+  scope?: string;
+  type?: KnowledgeType[];
+  tags?: string[];
+  ids?: string[];
+  level?: KnowledgeLevel[];
+  since?: string; // ISO date — only entries updated since
+}
+
+/** Import options */
+export interface ImportOptions {
+  scope?: string;
+  type?: KnowledgeType[];
+  conflict: ConflictStrategy;
+  dryRun: boolean;
+}
+
+/** Artifact produced by export — tailored for a specific agent */
+export interface AgentArtifact {
+  target: string;
+  content: string;
+  filePath: string;
+  format: string;
+  entryCount: number;
+}
+
+/** Sync capabilities declaration per agent target */
+export interface SyncCapabilities {
+  directExport: boolean;
+  directImport: boolean;
+  conversationFallback: boolean;
+  supportedTypes: KnowledgeType[];
+}
+
+/** Bidirectional knowledge sync plugin interface */
+export interface KnowledgeSyncPlugin {
+  target: string;
+  capabilities: SyncCapabilities;
+
+  /** Export: convert MumuSpec knowledge entries to agent-readable artifact */
+  formatForAgent(entries: KnowledgePage[], opts: ExportOptions): AgentArtifact;
+
+  /** Import: parse agent source text into MumuSpec knowledge entries */
+  parseFromAgent(source: string, opts: ImportOptions): KnowledgePage[];
+
+  /** Generate conversation push prompt (for 'tell' command) */
+  getExportPrompt?(entries: KnowledgePage[], opts: ExportOptions): string;
+
+  /** Generate extract prompt (for 'absorb' command) */
+  getExtractPrompt?(): string;
+
+  /** Parse agent's conversation response back into entries */
+  parseConversationResponse?(response: string): KnowledgePage[];
+
+  /** Resolve conflict between existing and incoming entry */
+  resolveConflict?(
+    existing: KnowledgePage,
+    incoming: KnowledgePage,
+    strategy: ConflictStrategy,
+  ): 'skip' | 'replace' | 'rename';
+}
+
+/** Conversation message for tell/absorb workflows */
+export interface ConversationMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+/** Import conflict record */
+export interface ImportConflict {
+  existing_id: string;
+  incoming_title: string;
+  similarity: number; // 0-1 title similarity
+  strategy: ConflictStrategy;
+  resolved: boolean;
+  resolution?: 'skipped' | 'replaced' | 'renamed';
+}
+
+/** Knowledge usage metrics */
+export interface KnowledgeMetrics {
+  stats: {
+    total_queries: number;
+    cache_hits: number;
+    exports: Record<string, number>;
+    imports: Record<string, number>;
+    by_type: Record<string, number>;
+    unused_threshold_days: number;
+  };
+}
+
+/** Search result with relevance score */
+export interface KnowledgeSearchResult {
+  entry: PageIndexEntry;
+  score: number;
+  matchedFields: string[];
+  excerpt: string;
+}
+
+/** Export/import operation result */
+export interface SyncOperationResult {
+  operation: 'export' | 'import' | 'tell' | 'absorb';
+  target: string;
+  entryCount: number;
+  conflicts: ImportConflict[];
+  artifact?: AgentArtifact;
+  dryRun: boolean;
+  timestamp: string;
 }

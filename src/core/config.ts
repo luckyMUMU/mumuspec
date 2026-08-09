@@ -148,6 +148,8 @@ export interface MumuSpecConfig {
     default_build_mode: string;
     default_isolation: string;
     allow_isolation_downgrade: boolean;
+    /** Branch prefix for branch-driven workflow (default "mumuspec") */
+    branch_prefix: string;
     implementation_strategy: string;
     design_strategy: string;
   };

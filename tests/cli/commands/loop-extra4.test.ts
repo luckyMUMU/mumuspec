@@ -406,7 +406,7 @@ describe('loop extra coverage', () => {
       expect(mockEvaluateRound).toHaveBeenCalledWith(FAKE_ROOT, 'test-change', expect.objectContaining({
         needs_user_input: true,
         next_focus: 'Clarify requirements',
-      }));
+      }), expect.anything());
     });
   });
 

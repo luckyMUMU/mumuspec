@@ -319,7 +319,7 @@ describe('loop command handlers', () => {
 
       expect(mockEvaluateRound).toHaveBeenCalledWith(FAKE_ROOT, 'test-change', expect.objectContaining({
         progress: 0.7,
-      }));
+      }), expect.anything());
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Round 2 Evaluation'));
     });
 

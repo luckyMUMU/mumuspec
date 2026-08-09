@@ -1,7 +1,7 @@
 ---
 layer: 0
 scope: "."
-last_updated: "2026-08-08"
+last_updated: "2026-08-09"
 ---
 
 ## Requirement: Ponytail 基础编码约束
@@ -197,4 +197,58 @@ last_updated: "2026-08-08"
 - GLOSSARY-1: glossary.md 必须存在于项目根 `.mumuspec/` 目录
 - GLOSSARY-2: glossary.md 每条目必须包含"术语 / 英文 / 定义"三要素
 - GLOSSARY-3: 新增命令/模块时检查 glossary.md 是否同步更新
+
+
+<!-- delta-merged from capability-tier-design/capability-tier-design.md -->
+# Delta Spec: 通用基础能力与专用工具分层
+
+## New Requirement: 能力分层原则
+
+### SHALL
+- 每个命令必须声明自己的层级（`tier: "general" | "dedicated"`），通过 `CommandMetadata` 接口自描述
+- 专用工具（dedicated）必须实现标准守门流程：前置校验 → 影响预览 → 显式确认 → 执行 → 后置验证 → 报告
+- 通用基础能力（general）必须支持 `--dry-run` 模式，供用户预览操作结果
+- 不可逆操作（archive / discard / force overwrite）必须要求二次确认（输入变更名称/key）
+- 从通用能力切换到专用工具时，必须经过用户确认
+- 通用能力的组合结果不得自动作为专用工具的输入
+- 每个专用工具的确认提示必须展示影响范围预览
+- dry-run 输出必须与实际执行输出格式一致
+
+### SHALL NOT
+- SHALL NOT 将通用能力标记为专用工具以提高"重要性"（分层基于风险等级）
+- SHALL NOT 在执行通用能力时要求用户显式确认（除非用户在配置中显式启用）
+- SHALL NOT 跳过专用工具的前置校验（即使"看起来没问题"）
+- SHALL NOT 在用户未确认时执行不可逆操作
+- SHALL NOT 通用能力组合产生副作用（通用能力必须是纯只读的）
+- SHALL NOT 专用工具的能力降级为 general，除非风险变化经过评估并走契约变更流程
+
+### SHOULD
+- 专用工具应复用通用能力的校验逻辑，而非重复实现
+- 不可逆操作应尽可能提供回滚方案或备份机制
+- 能力层级的默认值应可通过 config.yaml 配置覆盖
+- 专用工具在 hotfix 预设下可降级前置校验强度（但仍需用户确认）
+
+### Enforcement
+- CAP-1: 每个命令必须在代码中声明 `CommandMetadata`，包含 `tier` / `risk` / `confirmRequired` / `reversible` 字段
+- CAP-2: 专用工具必须经过完整守门流程才能执行（可通过 `mumuspec capability <cmd>` 验证）
+- CAP-3: 通用能力组合不得产生文件系统副作用（测试覆盖）
+- CAP-4: 不可逆操作必须等待二次确认，确认输入必须匹配变更名称
+- CAP-5: dry-run 输出与实际执行输出格式必须一致（schema 校验）
+
+## New Requirement: 能力声明与自描述
+
+### SHALL
+- MumuSpec  SHALL 提供 `mumuspec capability <command>` 命令查询任意命令的能力属性
+- 通用基础能力 SHALL 标记 `composable: true`，支持链式调用、并行探索、迭代深化
+- 专用工具 SHALL 标记 `composable: false`，执行过程不可中断或跳转
+- 能力层级的提升或降低 SHALL 走外部契约变更流程（影响分析 → 用户征询 → 文档同步 → 记录持久化）
+
+### SHALL NOT
+- SHALL NOT 允许运行时动态修改命令的能力层级（必须修改代码 + 评审）
+- SHALL NOT 通过 `mumuspec capability` 查询不到的层级作为执行依据
+
+### Enforcement
+- CAP-DESC-1: `mumuspec capability` 必须能返回所有已注册命令的元数据
+- CAP-DESC-2: 能力元数据必须与代码实现一致（CI 校验）
+- CAP-DESC-3: 能力层级变更必须在 `.mumuspec/contracts/` 中有对应记录
 

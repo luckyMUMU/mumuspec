@@ -1,4 +1,15 @@
 pages:
+  - id: KE-ast-guard-hyperplan
+    title: Adversarial design review insights from ast-guard
+    type: decision
+    status: confirmed
+    scope: ast-guard
+    file: .mumuspec\knowledge\decisions\KE-ast-guard-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - ast-guard
   - id: KE-dashboard-onboard-chat-hyperplan
     title: Adversarial design review insights from dashboard-onboard-chat
     type: decision
@@ -10,6 +21,28 @@ pages:
       - hyperplan
       - decision
       - dashboard-onboard-chat
+  - id: KE-onboard-cli-hyperplan
+    title: Adversarial design review insights from onboard-cli
+    type: decision
+    status: confirmed
+    scope: onboard-cli
+    file: .mumuspec\knowledge\decisions\KE-onboard-cli-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - onboard-cli
+  - id: KE-ast-guard-patterns
+    title: Architecture patterns from ast-guard
+    type: pattern
+    status: confirmed
+    scope: ast-guard
+    file: .mumuspec\knowledge\patterns\KE-ast-guard-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - ast-guard
   - id: KE-dashboard-onboard-chat-patterns
     title: Architecture patterns from dashboard-onboard-chat
     type: pattern
@@ -21,6 +54,17 @@ pages:
       - pattern
       - architecture
       - dashboard-onboard-chat
+  - id: KE-onboard-cli-patterns
+    title: Architecture patterns from onboard-cli
+    type: pattern
+    status: confirmed
+    scope: onboard-cli
+    file: .mumuspec\knowledge\patterns\KE-onboard-cli-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - onboard-cli
   - id: KP-0035
     title: 完整目录结构示例
     type: pattern
@@ -450,6 +494,17 @@ pages:
       - comparison
       - pattern
     verified_at: 2026-07-31T16:19:01.701Z
+  - id: KE-onboard-cli-q4-risk
+    title: Residual risks from onboard-cli
+    type: risk
+    status: confirmed
+    scope: onboard-cli
+    file: .mumuspec\knowledge\risks\KE-onboard-cli-q4-risk.md
+    tags:
+      - auto-extracted
+      - q4
+      - risk
+      - onboard-cli
   - id: KP-0015
     title: Knowledge Layer 后端故障风险与降级策略
     type: risk
@@ -515,6 +570,17 @@ pages:
       - project-status
       - risk
     verified_at: 2026-07-31T16:19:01.701Z
+  - id: KE-ast-guard-lessons
+    title: Lessons from ast-guard decisions
+    type: lesson
+    status: confirmed
+    scope: ast-guard
+    file: .mumuspec\knowledge\lessons\KE-ast-guard-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - ast-guard
   - id: KE-dashboard-onboard-chat-lessons
     title: Lessons from dashboard-onboard-chat decisions
     type: lesson
@@ -526,6 +592,17 @@ pages:
       - lesson
       - decisions
       - dashboard-onboard-chat
+  - id: KE-onboard-cli-lessons
+    title: Lessons from onboard-cli decisions
+    type: lesson
+    status: confirmed
+    scope: onboard-cli
+    file: .mumuspec\knowledge\lessons\KE-onboard-cli-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - onboard-cli
   - id: KL-0006
     title: 开放问题
     type: lesson

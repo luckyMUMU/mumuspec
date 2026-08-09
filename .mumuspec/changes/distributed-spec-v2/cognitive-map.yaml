@@ -1,0 +1,99 @@
+# Cognitive Map — distributed-spec-v2 (R-0003)
+
+entries:
+  # ──── Q1: Known Knowns ────
+  - quadrant: Q1
+    category: known-known
+    question: "分布式 Spec V2 的核心差异是什么？"
+    answer: "用分离的 prd.md / tech.md 替代单一 spec.md，支持跨层级继承（parent_prd/parent_tech）"
+    confidence: high
+    source: "roadmap/items/R-0003.md"
+
+  - quadrant: Q1
+    category: known-known
+    question: "Parser 层已有能力是什么？"
+    answer: "parsePrdFile/parseTechFile 已实现并含 parseRequirements，支持标准 ## Requirement: 块格式"
+    confidence: high
+    source: "src/spec/parser.ts"
+
+  - quadrant: Q1
+    category: known-known
+    question: "Validator 层已有能力是什么？"
+    answer: "validatePrdFile/validateTechFile 已实现，覆盖 E-SPEC-008~012 错误码"
+    confidence: high
+    source: "src/spec/validator.ts"
+
+  - quadrant: Q1
+    category: known-known
+    question: "Guard Layer 中缺失什么？"
+    answer: "collectAllProhibitions 仅从 spec.md 收集，未涉及 prd.md/tech.md 中的 SHALL NOT"
+    confidence: high
+    source: "src/guard/checker.ts 行 375-390"
+
+  - quadrant: Q1
+    category: known-known
+    question: "PrdFile 类型是否已有 requirements 字段？"
+    answer: "原来没有 — 解析后丢弃约束细节；需新增可选 requirements 字段供 Guard 层消费"
+    confidence: high
+    source: "src/core/types-spec.ts 行 55-62"
+
+  - quadrant: Q1
+    category: known-known
+    question: "向后兼容的边界条件是什么？"
+    answer: "旧格式 prd.md（无 doc_type: prd frontmatter）必须静默跳过，不产生错误"
+    confidence: high
+    source: "validator.ts (isV2Prd / isV2Tech 哨兵)"
+
+  # ──── Q3: Reasoning (confirmed) ────
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "Q3-001: 是否应修改 Scaffolder 的 prd.md 生成格式？"
+    answer: "Confirmed：已有 generatePrdSpec 生成标准格式，无需修改"
+    confidence: high
+    source: "src/core/spec-scaffolder.ts → generatePrdSpec"
+
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "Q3-002: 是否引入新命令？"
+    answer: "Confirmed：无新命令。Guard 层修改通过现有 mumuspec validate/guard 暴露"
+    confidence: high
+    source: "无新 CLI 命令"
+
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "Q3-003: 是否需要修改 Loader 或其他已有模块？"
+    answer: "Confirmed：Loader 已支持 V2 格式 (loadSpecContext)。仅需 Guard 层适配"
+    confidence: high
+    source: "src/spec/loader.ts — loadSpecContext + processInheritance"
+
+  # ──── Q4: Blind Spots ────
+  - quadrant: Q4
+    category: blind-spot
+    question: "多项目 monorepo 中的性能"
+    answer: "collectDistributedProhibitions 递归扫描，大型 monorepo 时可能增加 IO。MVP 阶段接受，后续可缓存"
+    confidence: medium
+    source: "performance"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "prd.md 中的 SHALL NOT 比 tech.md 更模糊"
+    answer: "产品禁止项更抽象（'禁止降低安全性'），Guard 代码匹配可能 false-negative。文档层面规范禁止项具体化"
+    confidence: medium
+    source: "heuristic-limitation"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "循环 parent_prd 引用的检测"
+    answer: "当前未检测 A→B→A 循环。processInheritance 仅在解析层报错，Guard 层不参与"
+    confidence: low
+    source: "cycle-detection-deferred"
+
+  # guard tracking fields (injected by mumuspec guard)
+  converged: true
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 3
+  rounds_completed: 1

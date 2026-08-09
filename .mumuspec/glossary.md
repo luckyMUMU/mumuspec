@@ -1,9 +1,9 @@
 ---
 layer: 0
 scope: "."
-last_updated: "2026-08-08"
+last_updated: "2026-08-09"
 type: glossary
-version: "1.1"
+version: "1.2"
 ---
 
 # MumuSpec 通用语言术语速查表
@@ -320,5 +320,44 @@ E-<DOMAIN>-<NUMBER>
 | **知识导入** | Knowledge Import | 从 temp/ 中筛选有价值内容迁移至 knowledge/ 对应分类的操作 |
 | **白名单根文件** | Root File Whitelist | `.mumuspec/` 根目录允许存放的非目录型规范文件清单：spec.md / prd.md / tech.md / goal.md / env-spec.md / prohibitions.md / glossary.md / index.yaml / config.yaml |
 | **归档归档** | Archive Clean State | 归档完成后 temp/ 为空或仅保留待确认内容（DoD 之一） |
+
+---
+
+## 16. 能力分层（Capability Tier）
+
+| 术语 | 英文 | 定义 |
+|------|------|------|
+| **通用基础能力** | General Capability | 灵活、可组合、支持探索的低风险操作层级，无副作用，无需显式确认即可执行 |
+| **专用工具** | Dedicated Tool | 严格约束、高风险或强业务规则的操作层级，必须经过守门流程 |
+| **能力分层** | Capability Tier / Layering | 根据风险等级和业务规则强度将系统能力划分为 general 和 dedicated 两层的模型 |
+| **守门流程** | Guard Flow | 专用工具的标准化执行流程：前置校验 → 影响预览 → 显式确认 → 执行 → 后置验证 → 报告 |
+| **二次确认** | Secondary Confirmation | 不可逆操作前要求用户输入关键标识（如变更名称）以确认意图的安全机制 |
+| **不可逆操作** | Irreversible Operation | 执行后无法回滚或回滚成本极高的操作（archive / discard / force overwrite） |
+| **能力元数据** | CommandMetadata | 每个命令自描述其能力层级的接口，包含 `tier` / `risk` / `confirmRequired` / `reversible` / `composable` 字段 |
+| **能力自描述** | Capability Self-Description | 命令通过 `mumuspec capability <cmd>` 查询自身属性的机制 |
+| **组合自由度** | Composition Freedom | 通用能力之间自由编排的灵活程度（链式 / 并行 / 迭代 / 重试） |
+| **能力切换** | Capability Switch | 从通用能力组合过渡到专用工具执行时必须经过的用户确认边界 |
+| **影响预览** | Impact Preview | 专用工具执行前展示变更范围的 dry-run 报告（diff 格式） |
+
+### 能力判定标准
+
+| 维度 | 通用基础能力 | 专用工具 |
+|------|-------------|----------|
+| 可逆性 | 可逆或幂等 | 不可逆或回滚成本高 |
+| 影响范围 | 仅当前上下文 | 项目全局或多个模块 |
+| 用户确认 | 可选（默认跳过） | 强制显式确认 |
+| 组合自由度 | 高（可自由编排） | 低（预设流程，不可跳转） |
+| 错误容忍 | 可重试、无副作用 | 错误需人工介入 |
+
+### 能力流转模型
+
+```
+用户请求
+    │
+    ▼
+能力路由器 ──► 通用基础能力（直接执行 / 自由组合）
+    │
+    └──► 专用工具（守门流程：校验 → 确认 → 执行 → 验证）
+```
 
 > **维护规则**：新增术语必须经过团队共识，更新本表后同步更新代码注释与文档中的对应表述。禁止在不同文档中对同一术语赋予不同含义。

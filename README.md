@@ -10,6 +10,27 @@ MumuSpec 通过 SHALL（必须做）与 MUST NOT（绝不能做）两套规范�
 
 ---
 
+## Quick Start
+
+```bash
+# 1. Install MumuSpec
+npm install -g mumuspec
+
+# 2. Onboard your project (5 questions, ~2 min)
+cd /path/to/your-project
+mumuspec onboard quickstart --preset frontend
+
+# 3. Create your first change
+mumuspec new my-first-change
+
+# 4. Follow the guided tutorial
+mumuspec tutorial
+```
+
+> Presets: `frontend` | `backend` | `fullstack`. See [文档](docs/) for advanced usage.
+
+---
+
 ## 设计理念
 
 MumuSpec 围绕四大设计支柱构建，将"AI 该做什么"与"绝不该做什么"编织成可执行的约束网络：

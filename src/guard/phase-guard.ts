@@ -305,24 +305,29 @@ function checkDesignToBuild(
     }
   }
 
-  // Grill-me result (full workflow only) — 过程 BP（BP-15 压力测试）推荐执行，
-  // 未完成仅产生 warning，不阻塞阶段转换
-  if (state.workflow === 'full' && state.grill_me_result) {
+  // Grill-me result — 阶段准入质询，各阶段可在有疑义时触发
+  // 未完成仅产生 warning，不阻塞阶段转换；phase-aware 检查：
+  // 当 grill_me_result.phase 存在时，只在该 phase 匹配 targetPhase 时检查
+  if (state.grill_me_result) {
     const gm = state.grill_me_result;
-    if (!gm.completed) {
-      warnings.push({ code: 'W-DESIGN-007', message: 'grill-me 压力测试未完成' });
-    }
-    if (gm.rounds > gm.max_rounds) {
-      warnings.push({
-        code: 'W-DESIGN-008',
-        message: `grill-me 追问轮次超出上限 (${gm.rounds}/${gm.max_rounds})`,
-      });
-    }
-    if (!gm.consensus_reached && gm.deferred_count > 0) {
-      warnings.push({
-        code: 'W-DESIGN-011',
-        message: `grill-me 有 ${gm.deferred_count} 个 deferred 分支未达成共识`,
-      });
+    // Only check if this grill-me result is for the target phase (or unspecified = design)
+    const gmPhase = gm.phase ?? 'design';
+    if (gmPhase === 'design') {
+      if (!gm.completed) {
+        warnings.push({ code: 'W-DESIGN-007', message: 'grill-me 压力测试未完成' });
+      }
+      if (gm.rounds > gm.max_rounds) {
+        warnings.push({
+          code: 'W-DESIGN-008',
+          message: `grill-me 追问轮次超出上限 (${gm.rounds}/${gm.max_rounds})`,
+        });
+      }
+      if (!gm.consensus_reached && gm.deferred_count > 0) {
+        warnings.push({
+          code: 'W-DESIGN-011',
+          message: `grill-me 有 ${gm.deferred_count} 个 deferred 分支未达成共识`,
+        });
+      }
     }
   }
 

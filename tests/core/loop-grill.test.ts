@@ -52,15 +52,14 @@ describe('runLoopGrill', () => {
   });
 
   describe('goal validation', () => {
-    it('short goal triggers check=true (inverted semantics: returns true when needs attention)', () => {
+    it('flags a too-short goal as warning (after semantic fix)', () => {
       const ctx = validContext({ goal: 'fix' });
       const report = runLoopGrill(ctx);
 
-      // Due to inverted semantics in source: check returns true = bad,
-      // but runLoopGrill treats true as "passed". So no warning is emitted
-      // for short goals despite the check flagging them.
+      // After fix: check returns false for short goals => warning emitted
       const goalWarning = report.findings.find((f) => f.questionId === 'goal-specific');
-      expect(goalWarning).toBeUndefined();
+      expect(goalWarning).toBeDefined();
+      expect(goalWarning!.severity).toBe('warning');
     });
 
     it('flags a goal with too many scope items', () => {
@@ -74,14 +73,13 @@ describe('runLoopGrill', () => {
       expect(scopeWarning!.severity).toBe('warning');
     });
 
-    it('granularity question has empty warning so no finding emitted despite check=true', () => {
-      const ctx = validContext();
+    it('granularity question emits warning for short goals', () => {
+      const ctx = validContext({ goal: '小功能' }); // < 15 chars
       const report = runLoopGrill(ctx);
 
-      // The granularity question has warning: '' (empty string), so even though
-      // check returns true, the if (!passed && q.warning) guard skips it.
+      // The granularity check returns false for short goals => warning emitted
       const granFinding = report.findings.find((f) => f.questionId === 'goal-granularity');
-      expect(granFinding).toBeUndefined();
+      expect(granFinding).toBeDefined();
     });
   });
 
@@ -242,6 +240,7 @@ describe('formatGrillReport', () => {
   });
 
   it('includes recommendations when present', () => {
+    // Short goal + no criteria triggers both criteria-exist critical and recommendations
     const ctx = validContext({ goal: 'fix', criteria: [] });
     const report = runLoopGrill(ctx);
     const output = formatGrillReport(report);

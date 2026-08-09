@@ -1,0 +1,31 @@
+{
+  "type": "backend",
+  "description": "Backend project with API endpoints, services, and data access",
+  "guard_layer": {
+    "shall": [
+      "All public APIs must have explicit type annotations",
+      "Input validation must use a schema library (zod/joi/class-validator)",
+      "All async functions must handle errors explicitly",
+      "Database queries must use parameterized queries or ORM",
+      "Rate limiting must be implemented on public endpoints",
+      "All endpoints must return consistent error response format",
+      "Integration tests required for critical API paths"
+    ],
+    "shall_not": [
+      "Do not expose internal stack traces to clients",
+      "Do not use any type without documented reason",
+      "Do not swallow errors silently (empty catch blocks)",
+      "Do not bypass schema validation for any user input"
+    ]
+  },
+  "constraint_strength": {
+    "default": "medium",
+    "overrides": [
+      { "id": "ERR-1", "level": "high" },
+      { "id": "TS-1", "level": "high" }
+    ]
+  },
+  "ai": {
+    "generate_rules": true
+  }
+}

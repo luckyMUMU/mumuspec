@@ -1,0 +1,33 @@
+{
+  "type": "fullstack",
+  "description": "Full-stack project with frontend UI and backend API",
+  "guard_layer": {
+    "shall": [
+      "All components must have TypeScript type definitions for Props",
+      "Use Composition API (Vue) or Hooks (React) for new components",
+      "All public APIs must have explicit type annotations",
+      "Input validation must use a schema library (zod/joi/class-validator)",
+      "All async operations must handle errors with try/catch",
+      "API contracts must be shared between frontend and backend",
+      "Tests must cover both frontend components and backend endpoints"
+    ],
+    "shall_not": [
+      "Do not directly manipulate the DOM outside of framework APIs",
+      "Do not use any type without documented reason",
+      "Do not skip tests with .skip without documented reason",
+      "Do not expose internal stack traces to clients",
+      "Do not bypass schema validation for any user input"
+    ]
+  },
+  "constraint_strength": {
+    "default": "medium",
+    "overrides": [
+      { "id": "FW-1", "level": "high" },
+      { "id": "ERR-1", "level": "high" },
+      { "id": "TS-1", "level": "high" }
+    ]
+  },
+  "ai": {
+    "generate_rules": true
+  }
+}

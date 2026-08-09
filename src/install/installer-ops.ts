@@ -53,10 +53,14 @@ function findSkillSource(packageName: string): string | undefined {
   const candidates = [
     join(process.cwd(), 'skills', `${packageName}.md`),
     join(process.cwd(), 'skills', packageName, 'SKILL.md'),
+    // nested layout: skills/mumuspec/<name>/SKILL.md
+    join(process.cwd(), 'skills', 'mumuspec', packageName, 'SKILL.md'),
     join(__dirname, '..', '..', 'skills', `${packageName}.md`),
     join(__dirname, '..', '..', 'skills', packageName, 'SKILL.md'),
+    join(__dirname, '..', '..', 'skills', 'mumuspec', packageName, 'SKILL.md'),
     join(process.cwd(), 'node_modules', 'mumuspec', 'skills', `${packageName}.md`),
     join(process.cwd(), 'node_modules', 'mumuspec', 'skills', packageName, 'SKILL.md'),
+    join(process.cwd(), 'node_modules', 'mumuspec', 'skills', 'mumuspec', packageName, 'SKILL.md'),
   ];
   return candidates.find((c) => existsSync(c));
 }
@@ -65,9 +69,12 @@ function findMumuspecWorkflowSource(): string | undefined {
   const candidates = [
     join(process.cwd(), 'skills', 'mumuspec.md'),
     join(process.cwd(), 'skills', 'mumuspec-workflow', 'SKILL.md'),
+    join(process.cwd(), 'skills', 'mumuspec', 'SKILL.md'),
     join(__dirname, '..', '..', 'skills', 'mumuspec.md'),
     join(__dirname, '..', '..', 'skills', 'mumuspec-workflow', 'SKILL.md'),
+    join(__dirname, '..', '..', 'skills', 'mumuspec', 'SKILL.md'),
     join(process.cwd(), 'node_modules', 'mumuspec', 'skills', 'mumuspec.md'),
+    join(process.cwd(), 'node_modules', 'mumuspec', 'skills', 'mumuspec', 'SKILL.md'),
     join(process.cwd(), '.catpaw', 'skills', 'mumuspec-workflow', 'SKILL.md'),
     join(
       process.platform === 'win32' ? process.env.USERPROFILE || '' : process.env.HOME || '',

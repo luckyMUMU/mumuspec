@@ -1,0 +1,60 @@
+name: llm-freedom-enhancement
+phase: archive-completed
+workflow: full
+created_at: 2026-08-09T04:54:09.235Z
+updated_at: 2026-08-09T05:09:12.046Z
+scope: .
+affected_scopes: []
+build_layers:
+  - layer: 0
+    scope: src/core/workflow-recommender.ts
+    status: done
+  - layer: 1
+    scope: src/core/bp-registry.ts
+    status: done
+  - layer: 2
+    scope: tests/cli/change-new-recommend.test.ts
+    status: done
+test_cases:
+  design_locked: true
+  suites_locked: true
+  suites_locked_layers:
+    - 0-core
+    - 1-cli
+  suites_hash: {}
+  design_content_hash: cb410c3525411a06
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+verify_result: pass
+branch_status: handled
+isolation: branch
+branch: mumuspec/llm-freedom-enhancement
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts: {}
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  cognitive_map_ref: cognitive-map.yaml
+  q1_count: 5
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 3
+  converged: true
+  rounds_completed: 1
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md

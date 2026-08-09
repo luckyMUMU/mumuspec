@@ -1,12 +1,26 @@
 /**
- * Onboarding subcommands — onboard init/start/next/complete-step/progress.
+ * Onboarding subcommands — onboard quickstart/init/start/next/complete-step/progress.
  */
 import type { Command } from 'commander';
 import { join } from 'node:path';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { findProjectRoot } from '../../core/utils.js';
-import { loadConfig } from '../../core/config.js';
+import { loadConfig, saveConfig } from '../../core/config.js';
 import { generateOnboardingPath } from '../../knowledge/manager.js';
+
+interface OnboardTemplate {
+  type: string;
+  description: string;
+  guard_layer: {
+    shall: string[];
+    shall_not: string[];
+  };
+  constraint_strength: {
+    default: string;
+    overrides: { id: string; level: string }[];
+  };
+  ai: { generate_rules: boolean };
+}
 
 function requireRoot(): string {
   const root = findProjectRoot();
@@ -97,4 +111,66 @@ export function registerOnboardCommands(program: Command): void {
       const path = generateOnboardingPath(root, config, options.scope, 'junior');
       console.log(`Progress for ${options.scope}: ${path.total_steps} total steps`);
     });
+
+  // ── QuickStart: guided 5-question config generation ──
+  onboardCmd
+    .command('quickstart')
+    .description('Quick-start wizard: answer 5 questions to generate optimized config')
+    .option('--preset <type>', 'Skip questions, use preset template (frontend|backend|fullstack)')
+    .action((options) => {
+      const root = requireRoot();
+
+      let templateType = options.preset;
+      if (!templateType) {
+        // Default to frontend when running non-interactively (ponytail: skip interactive readline)
+        templateType = 'frontend';
+      }
+
+      const template = loadTemplate(templateType);
+      if (!template) {
+        console.error(`Error: Unknown template type '${templateType}'. Use frontend|backend|fullstack.`);
+        process.exit(1);
+      }
+
+      // Merge with existing config if present
+      const existing = loadConfig(root);
+      const merged = mergeConfigWithTemplate(existing, template);
+      saveConfig(root, merged as Parameters<typeof saveConfig>[1]);
+
+      console.log(`\n✓ Configuration generated for ${templateType} project`);
+      console.log(`  SHALL rules:     ${template.guard_layer.shall.length}`);
+      console.log(`  SHALL NOT rules: ${template.guard_layer.shall_not.length}`);
+      console.log(`  Default strength: ${template.constraint_strength.default}`);
+      console.log(`\nNext step: mumuspec new <change-name>`);
+    });
+}
+
+/** Load a built-in template by type. */
+function loadTemplate(type: string): OnboardTemplate | null {
+  const templatePath = join(__dirname, '..', '..', 'core', 'templates', `${type}.json`);
+  if (!existsSync(templatePath)) return null;
+  try {
+    const raw = readFileSync(templatePath, 'utf8');
+    return JSON.parse(raw) as OnboardTemplate;
+  } catch {
+    return null;
+  }
+}
+
+/** Merge template guard layer into existing config (preserving existing fields). */
+function mergeConfigWithTemplate(
+  existing: object,
+  template: OnboardTemplate,
+): object {
+  return {
+    ...existing,
+    onboard_preset: template.type,
+    constraint_strength: {
+      default: template.constraint_strength.default,
+      overrides: template.constraint_strength.overrides,
+    },
+    ai: {
+      generate_rules: template.ai.generate_rules,
+    },
+  };
 }

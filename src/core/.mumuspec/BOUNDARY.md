@@ -46,6 +46,25 @@ layer: 2
 | `saveConfig` | `(root: string, config: MumuSpecConfig) => void` | 保存项目配置 |
 | `getDefaultConfig` | `(name: string) => MumuSpecConfig` | 获取默认配置 |
 
+### Git 操作封装（git.ts，2026-08-08 新增）
+
+统一 git 命令执行封装，供 change 分支生命周期 / merge 命令调用。所有调用走 `spawnSync`（args 数组，**无 shell:true**），返回 `{ status, stdout, stderr }`。
+
+| 函数 | 签名 | 用途 |
+|------|------|------|
+| `git` | `(cwd, args, opts?) => GitResult` | 底层执行（timeout 默认 10s，可 allowFail） |
+| `getCurrentBranch` | `(cwd) => string \| undefined` | `git branch --show-current` |
+| `createBranch` | `(cwd, name) => GitResult` | `git checkout -b <name>` |
+| `switchBranch` | `(cwd, name) => GitResult` | `git checkout <name>` |
+| `isWorkingTreeClean` | `(cwd) => boolean` | `git status --porcelain` 为空 |
+| `getMainBranch` | `(cwd) => string` | main 优先，fallback master |
+| `mergeNoFF` | `(cwd, branch, msg) => GitResult` | `git merge --no-ff <branch> -m <msg>` |
+| `getMergeConflicts` | `(cwd) => string[]` | `git diff --name-only --diff-filter=U` |
+| `commitAll` | `(cwd, msg) => GitResult` | `git add -A && git commit -m <msg>` |
+| `branchExists` | `(cwd, name) => boolean` | `git rev-parse --verify --quiet` |
+| `deleteBranch` | `(cwd, name) => GitResult` | `git branch -d <name>`（仅已合并） |
+| `getHeadSha` | `(cwd) => string` | `git rev-parse HEAD` |
+
 ### 项目分析
 
 | 函数 | 签名 | 用途 |
@@ -69,6 +88,7 @@ layer: 2
 |------|------|
 | `node:fs` | 文件系统 |
 | `node:path` | 路径处理 |
+| `node:child_process` | git 命令执行（git.ts，spawnSync 无 shell） |
 | `yaml` | YAML 解析/序列化 |
 
 ### 外部依赖
@@ -92,6 +112,7 @@ layer: 2
 
 | 日期 | 变更 | 影响 |
 |------|------|------|
+| 2026-08-08 | 新增 `git.ts` 统一 git 封装（12 个函数，spawnSync 安全调用） | 新外部接口：git 分支/合并操作；新依赖 node:child_process |
 | 2026-08-08 | 新增 `logger.ts`（4 级结构化日志）、`validateChangeName` 函数 | 奠定空捕获替换 + 路径穿越防护基础 |
 | 2026-08-04 | Contract Layer 实现（loader/validator/impact-analyzer/manager） | 新增类型、目录边界、漂移检测、影响分析 |
 | 2026-08-03 | 删除冗余 spec.md 和 design.md | 无功能影响 |

@@ -74,6 +74,8 @@ export interface ChangeState {
   build_mode: string;
   tdd_mode: string;
   isolation: string;
+  /** Change branch name (branch-driven workflow, e.g. "mumuspec/<name>") */
+  branch?: string;
   single_active_change: boolean;
   user_confirmed: boolean;
   decisions_log: { counts: Record<string, number>; content_hash?: string };
@@ -95,10 +97,17 @@ export interface ChangeState {
     degraded: boolean;
   };
   grill_me_result?: {
+    /** Whether the grill-me questioning session completed */
     completed: boolean;
+    /** Which phase this result is for (allows phase-specific tracking) */
+    phase?: string;
+    /** Number of questioning rounds used */
     rounds: number;
+    /** Maximum rounds allowed */
     max_rounds: number;
+    /** Number of deferred (postponed) answers */
     deferred_count: number;
+    /** Whether explicit consensus gate was passed */
     consensus_reached: boolean;
   };
   git_merge?: {
