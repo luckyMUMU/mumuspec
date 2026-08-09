@@ -11,6 +11,7 @@
 import { appendFile, mkdir, readdir, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { readText, writeText } from '../core/utils.js';
 import type { CheckRecord } from './types.js';
 
 const STATS_DIR = '.mumuspec/evolution';
@@ -54,8 +55,7 @@ export async function readCheckRecords(projectRoot: string): Promise<CheckRecord
   const filePath = getStatsFilePath(projectRoot);
   if (!existsSync(filePath)) return [];
 
-  const { readText } = await import('../core/utils.js');
-  const content = readText(projectRoot, join(STATS_DIR, STATS_FILE));
+  const content = readText(filePath);
   if (!content) return [];
 
   return content
@@ -73,8 +73,7 @@ export async function rotateStatsIfNeeded(projectRoot: string): Promise<void> {
   const filePath = getStatsFilePath(projectRoot);
   if (!existsSync(filePath)) return;
 
-  const { readText, writeText } = await import('../core/utils.js');
-  const content = readText(projectRoot, join(STATS_DIR, STATS_FILE));
+  const content = readText(filePath);
   if (!content) return;
 
   const lines = content.split('\n').filter((l) => l.trim());
@@ -83,7 +82,7 @@ export async function rotateStatsIfNeeded(projectRoot: string): Promise<void> {
   // Keep most recent half
   const keep = lines.slice(-Math.floor(MAX_RECORDS / 2));
   // ponytail: simple rotation — lossy but keeps recent data
-  writeText(projectRoot, join(STATS_DIR, STATS_FILE), keep.join('\n') + '\n');
+  writeText(filePath, keep.join('\n') + '\n');
 }
 
 /**

@@ -13,7 +13,7 @@ import { findProjectRoot } from '../../core/utils.js';
 import { generateReport } from '../../meta-evolution/scoring.js';
 import { analyzeAllFreshness } from '../../meta-evolution/knowledge-evolution.js';
 import { recommendSkills } from '../../meta-evolution/skill-recommender.js';
-import { PRESERVATION_ANCHORS, analyzeImpact, formatImpactAnalysis } from '../../meta-evolution/impact-analysis.js';
+import { PRESERVATION_ANCHORS } from '../../meta-evolution/impact-analysis.js';
 import type { CheckRecord } from '../../meta-evolution/types.js';
 import { DEFAULT_SCORING_CONFIG } from '../../meta-evolution/types.js';
 
@@ -54,7 +54,7 @@ export function registerMetaEvolveCommand(program: Command): void {
     });
 }
 
-function runAnalyze(root: string, scopes: string[]): void {
+function runAnalyze(_root: string, scopes: string[]): void {
   // TC-META-09: CLI --analyze output contains expected header
   console.log('┌──────────────────────────────────────────────────────┐');
   console.log('│  Meta-Spec Evolution: Effectiveness Score Report      │');
@@ -100,7 +100,7 @@ function runAnalyze(root: string, scopes: string[]): void {
   console.log(`  Generated: ${report.generatedAt}`);
 }
 
-function runPropose(root: string, scopes: string[]): void {
+function runPropose(_root: string, _scopes: string[]): void {
   // TC-META-06: --propose outputs markdown proposal
   const emptyRecords: CheckRecord[] = [];
   const report = generateReport(emptyRecords, DEFAULT_SCORING_CONFIG, PRESERVATION_ANCHORS);
