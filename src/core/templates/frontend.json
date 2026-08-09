@@ -1,0 +1,30 @@
+{
+  "type": "frontend",
+  "description": "Frontend project with UI components, routing, and client-side state",
+  "guard_layer": {
+    "shall": [
+      "All components must have TypeScript type definitions for Props",
+      "Use Composition API (Vue) or Hooks (React) for new components",
+      "Prefer utility-first CSS (Tailwind) over custom CSS",
+      "All async operations must handle errors with try/catch",
+      "Routing must use file-based or centralized route configuration",
+      "Tests must cover public component APIs"
+    ],
+    "shall_not": [
+      "Do not directly manipulate the DOM outside of framework APIs",
+      "Do not use any type without documented reason",
+      "Do not skip tests with .skip without documented reason",
+      "Do not create components with nesting depth > 3 levels"
+    ]
+  },
+  "constraint_strength": {
+    "default": "medium",
+    "overrides": [
+      { "id": "FW-1", "level": "high" },
+      { "id": "ERR-1", "level": "high" }
+    ]
+  },
+  "ai": {
+    "generate_rules": true
+  }
+}

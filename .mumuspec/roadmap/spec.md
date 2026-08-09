@@ -1,7 +1,9 @@
 ---
 layer: 0
 scope: ".mumuspec/roadmap"
-last_updated: "2026-08-04"
+last_updated: "2026-08-09"
+version: "v2"
+based_on: "v1 (2026-08-04 .. 2026-08-09, R-0001~R-0005)"
 type: roadmap
 ---
 
@@ -17,18 +19,21 @@ type: roadmap
 .mumuspec/
 ├── roadmap/                          # 全局 Roadmap 入口
 │   ├── spec.md                       # 本文档：规则定义 + 跨模块冲突检测
-│   ├── items/                        # 全局级近期目标条目
-│   │   └── .gitkeep
+│   ├── items/                        # 当前活跃目标条目
+│   │   └── R-0001.md .. R-0007.md
 │   ├── template/                     # Item 模板目录
 │   │   └── item.md
+│   ├── archive/                      # 已归档的历史版本
+│   │   └── 2026-Q3/                  # 按归档批次分目录
+│   │       └── R-0001.md .. R-0005.md
 │   └── BOUNDARY.md                   # 本目录边界文档
 │
 └── [module]/
     └── .mumuspec/
         └── roadmap/                  # 模块级 Roadmap（可选）
-            ├── items/                # 近期目标条目
+            ├── items/
             │   └── R-XXXX.md
-            └── status.yaml           # 模块 Roadmap 状态快照
+            └── status.yaml
 ```
 
 ---
@@ -80,6 +85,9 @@ type: roadmap
 | `mutex_with` | list[string] | 互斥的 Roadmap Item ID（不可同时 active） |
 | `excludes` | list[string] | 明确排除的范围声明 |
 | `capacity_cost` | number | 占用的容量预算单位（默认 1） |
+| `supersedes` | string | 替代的旧版本 Item ID（跨版本重编号时使用） |
+| `completed_at` | date | 完成日期（仅 status=completed 时填写） |
+| `scope_expanded` | string | 范围变更说明（实际实施与原始 scope 不同时填写） |
 
 ### SHALL NOT
 - 禁止 Item 文件使用非 `R-` 前缀的文件名
@@ -230,6 +238,19 @@ type: roadmap
 - ROADMAP-70: 校验全局 active 数量上限
 - ROADMAP-71: 校验模块级 active 数量上限
 - ROADMAP-72: 校验容量预算不超支
+
+---
+
+## 归档与版本管理
+
+### SHALL
+- 已完成的 Items 必须移至 `.mumuspec/roadmap/archive/<批次>/` 目录，不在 `items/` 中保留
+- 归档批次命名格式：`YYYY-QN`（季度）或 `YYYY-MM`（月度）
+- 新版 Items 重新编号从 R-0001 开始，通过 `supersedes` 字段引用旧版 ID
+
+### Enforcement
+- ROADMAP-80: `items/` 中不允许存在 `status: completed` 的 Item
+- ROADMAP-81: 归档 Item 的 `supersedes` 引用链完整性
 
 ---
 

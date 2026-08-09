@@ -406,7 +406,7 @@ describe('evaluateRound — convergence via progress threshold', () => {
     mockSpawnSync.mockImplementation(() => ({ stdout: 'mock-sha', status: 0 }));
   });
 
-  it('converges when progress >= 0.85 (CONVERGENCE_THRESHOLD)', () => {
+  it('converges when progress >= 0.85 (CONVERGENCE_THRESHOLD)', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -428,14 +428,14 @@ describe('evaluateRound — convergence via progress threshold', () => {
       needs_user_input: false,
     };
 
-    const result = evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
+    const result = await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     const savedState = mockChangeStates.get('ch1');
     expect(savedState.loop_state.phase).toBe('converged');
     expect(result.should_continue).toBe(false);
   });
 
-  it('does NOT converge when progress is just below threshold (0.849)', () => {
+  it('does NOT converge when progress is just below threshold (0.849)', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -457,14 +457,14 @@ describe('evaluateRound — convergence via progress threshold', () => {
       needs_user_input: false,
     };
 
-    const result = evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
+    const result = await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     const savedState = mockChangeStates.get('ch1');
     expect(savedState.loop_state.phase).toBe('plan');
     expect(result.should_continue).toBe(true);
   });
 
-  it('converges when progress > threshold even with issues', () => {
+  it('converges when progress > threshold even with issues', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -486,7 +486,7 @@ describe('evaluateRound — convergence via progress threshold', () => {
       needs_user_input: false,
     };
 
-    const result = evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
+    const result = await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     const savedState = mockChangeStates.get('ch1');
     expect(savedState.loop_state.phase).toBe('converged');
@@ -506,7 +506,7 @@ describe('evaluateRound — auto_commit disabled', () => {
     mockSpawnSync.mockImplementation(() => ({ stdout: 'mock-sha', status: 0 }));
   });
 
-  it('does NOT commit when auto_commit is false', () => {
+  it('does NOT commit when auto_commit is false', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -529,7 +529,7 @@ describe('evaluateRound — auto_commit disabled', () => {
       needs_user_input: false,
     };
 
-    const result = evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
+    const result = await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     expect(result.should_commit).toBe(false);
 
@@ -539,7 +539,7 @@ describe('evaluateRound — auto_commit disabled', () => {
     expect(savedState.loop_state.rounds[0].commit_sha).toBeUndefined();
   });
 
-  it('does NOT commit when goal_achieved is true (even with auto_commit=true)', () => {
+  it('does NOT commit when goal_achieved is true (even with auto_commit=true)', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -561,7 +561,7 @@ describe('evaluateRound — auto_commit disabled', () => {
       needs_user_input: false,
     };
 
-    const result = evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
+    const result = await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     expect(result.should_commit).toBe(false);
 
@@ -580,7 +580,7 @@ describe('evaluateRound — commitRound failure', () => {
     activeChangeName = null;
   });
 
-  it('does not throw when git commit fails', () => {
+  it('does not throw when git commit fails', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -610,9 +610,7 @@ describe('evaluateRound — commitRound failure', () => {
     };
 
     // Should NOT throw
-    expect(() => {
-      evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
-    }).not.toThrow();
+    await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     const savedState = mockChangeStates.get('ch1');
     // Phase should still advance to plan
@@ -634,7 +632,7 @@ describe('evaluateRound — writes next_focus and issues to commit message', () 
     mockSpawnSync.mockImplementation(() => ({ stdout: 'mock-sha', status: 0 }));
   });
 
-  it('includes next_focus in commit message when provided', () => {
+  it('includes next_focus in commit message when provided', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -658,7 +656,7 @@ describe('evaluateRound — writes next_focus and issues to commit message', () 
       needs_user_input: false,
     };
 
-    evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
+    await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     // Check that commit was called with a message containing next_focus
     const commitCall = mockSpawnSync.mock.calls.find(
@@ -668,7 +666,7 @@ describe('evaluateRound — writes next_focus and issues to commit message', () 
     expect(commitCall![1].join(' ')).toContain('refactor auth module');
   });
 
-  it('includes issues in commit message when present', () => {
+  it('includes issues in commit message when present', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -691,7 +689,7 @@ describe('evaluateRound — writes next_focus and issues to commit message', () 
       needs_user_input: false,
     };
 
-    evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
+    await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     const commitCall = mockSpawnSync.mock.calls.find(
       (call: any) => Array.isArray(call[1]) && call[1][0] === 'commit'
@@ -701,7 +699,7 @@ describe('evaluateRound — writes next_focus and issues to commit message', () 
     expect(commitCall![1].join(' ')).toContain('TODO: add tests');
   });
 
-  it('handles goal_achieved commit message format', () => {
+  it('handles goal_achieved commit message format', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 2,
@@ -723,7 +721,7 @@ describe('evaluateRound — writes next_focus and issues to commit message', () 
       needs_user_input: false,
     };
 
-    const result = evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
+    const result = await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     // goal_achieved means should_commit=false
     expect(result.should_commit).toBe(false);
@@ -1002,7 +1000,7 @@ describe('full lifecycle — multi-round flow', () => {
     mockSpawnSync.mockImplementation(() => ({ stdout: 'mock-sha', status: 0 }));
   });
 
-  it('rounds 1 → 2 → converge', () => {
+  it('rounds 1 → 2 → converge', async () => {
     seedChange('lifecycle-test', createLoopState());
 
     // Round 1: act, record action, evaluate (plan)
@@ -1015,7 +1013,7 @@ describe('full lifecycle — multi-round flow', () => {
       success: true,
     });
 
-    const eval1 = evaluateRound(PROJECT_ROOT, 'lifecycle-test', {
+    const eval1 = await evaluateRound(PROJECT_ROOT, 'lifecycle-test', {
       progress: 0.4,
       goal_achieved: false,
       issues: [],
@@ -1038,7 +1036,7 @@ describe('full lifecycle — multi-round flow', () => {
       success: true,
     });
 
-    const eval2 = evaluateRound(PROJECT_ROOT, 'lifecycle-test', {
+    const eval2 = await evaluateRound(PROJECT_ROOT, 'lifecycle-test', {
       progress: 0.95,
       goal_achieved: true,
       issues: [],
@@ -1072,3 +1070,7 @@ describe('full lifecycle — multi-round flow', () => {
     expect(r4.round).toBe(4);
   });
 });
+
+
+
+

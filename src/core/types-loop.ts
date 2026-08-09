@@ -10,6 +10,8 @@
  * - Default 3-round limit (configurable)
  */
 
+import type { MetricsSnapshot } from './metrics/types.js';
+
 // ════════════════════════════════════════════════════════════════════
 // Loop Phase — sub-states within the loop workflow
 // ════════════════════════════════════════════════════════════════════
@@ -37,6 +39,11 @@ export type LoopActionType =
   | 'knowledge_query'
   | 'code_analysis'
   | 'decision_record';
+
+/** Loop evaluation mode. */
+export type LoopEvaluateMode = 'manual' | 'auto' | 'hybrid';
+/** @alias for backward compatibility */
+export type EvaluateMode = LoopEvaluateMode;
 
 /** A single action taken during a loop round */
 export interface LoopAction {
@@ -120,6 +127,10 @@ export interface LoopState {
   total_actions: number;
   /** Convergence score trend (for detecting stagnation) */
   progress_trend: number[];
+  /** Metrics history from auto-evaluate rounds (R-0002) */
+  metrics_history?: MetricsSnapshot[];
+  /** Current evaluation mode (manual | auto | hybrid) */
+  evaluate_mode?: LoopEvaluateMode;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -187,6 +198,8 @@ export interface LoopInitInput {
   use_worktree?: boolean;
   /** Whether to auto-commit */
   auto_commit?: boolean;
+  /** Evaluation mode: manual (default), auto, or hybrid (R-0002) */
+  evaluate_mode?: LoopEvaluateMode;
 }
 
 /** Summary of loop status for display */

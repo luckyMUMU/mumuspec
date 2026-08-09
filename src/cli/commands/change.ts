@@ -53,7 +53,11 @@ export function registerChangeCommands(program: Command): void {
       const config = loadConfig(root);
 
       try {
-        const state = createChange(root, name, options.workflow, config, options.scope);
+        // Fix L56 scope bug: options.scope is the affected-scopes array;
+        // the real scope param is the first scope (or '.').
+        const scopes = options.scope ?? [];
+        const scope = scopes[0] ?? '.';
+        const state = createChange(root, name, options.workflow, config, scopes, scope);
 
         // Update state with dist_spec pointers (Distributed Spec V2)
         state.dist_spec = {

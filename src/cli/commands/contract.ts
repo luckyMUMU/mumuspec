@@ -20,6 +20,8 @@ import {
   detectContractDrift,
 } from '../../contract/validator.js';
 import { persistContract } from '../../contract/manager.js';
+import { toSarifString } from '../../contract/formatter/sarif.js';
+import { toProblemMatcherString } from '../../contract/formatter/problem-matcher.js';
 import { findProjectRoot, readText, readdirSync } from '../../core/utils.js';
 import { getActiveChange } from '../../change/manager.js';
 import { loadChangeState } from '../../change/state.js';
@@ -249,6 +251,7 @@ export function registerContractCommands(program: Command): void {
     .description('Detect contract drift (full report)')
     .option('--change <name>', 'change name (verifies the change exists first)')
     .option('--json', 'Output as JSON')
+    .option('--format <fmt>', 'Output format: sarif, problem-matcher', 'default')
     .action((options) => {
       const root = findProjectRoot();
       if (!root) {
@@ -257,6 +260,18 @@ export function registerContractCommands(program: Command): void {
       }
 
       const report = detectContractDrift(root);
+
+      // Standardized output formats (R-0006)
+      if (options.format === 'sarif') {
+        console.log(toSarifString(report));
+        if (report.has_critical_drifts) process.exit(1);
+        return;
+      }
+      if (options.format === 'problem-matcher') {
+        console.log(toProblemMatcherString(report));
+        if (report.has_critical_drifts) process.exit(1);
+        return;
+      }
 
       if (options.json) {
         console.log(JSON.stringify(report, null, 2));

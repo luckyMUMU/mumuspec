@@ -61,6 +61,7 @@ export function registerSyncCommand(program: Command): void {
     .description('Sync code state to persistent spec (BOUNDARY.md, index.yaml, contracts)')
     .option('--check', 'dry-run mode: report drift without writing')
     .option('--migrate', 'detect old-format structures and output migration plan')
+    .option('--report <file>', 'write sync report to file (markdown format)')
     .option('--module <name>', 'sync only a specific module')
     .action((options) => {
       const root = findProjectRoot();
@@ -73,6 +74,14 @@ export function registerSyncCommand(program: Command): void {
 
       printReport(result);
 
+      // Write report to file if --report specified
+      if (options.report) {
+        const reportContent = generateReportMarkdown(result, root);
+        const reportPath = join(root, options.report);
+        writeFileSync(reportPath, reportContent, 'utf8');
+        console.log(`  ✓ Report written to ${options.report}`);
+      }
+
       if (result.issues.filter((i) => i.severity === 'error').length > 0) {
         process.exit(1);
       }
@@ -84,7 +93,7 @@ export function registerSyncCommand(program: Command): void {
  */
 export function executeSync(
   projectRoot: string,
-  options: { check?: boolean; migrate?: boolean; module?: string },
+  options: { check?: boolean; migrate?: boolean; module?: string; report?: string },
 ): SyncResult {
   const result: SyncResult = {
     modulesScanned: 0,
@@ -346,6 +355,66 @@ function detectOldFormatIssues(projectRoot: string, _modules: ScannedModule[]): 
   }
 
   return issues;
+}
+
+/**
+ * Generate a markdown-formatted sync report for file output.
+ */
+function generateReportMarkdown(result: SyncResult, projectRoot: string): string {
+  const lines: string[] = [];
+  lines.push('# MumuSpec Sync Report');
+  lines.push('');
+  lines.push(`> Generated: ${now()}`);
+  lines.push(`> Project: ${projectRoot}`);
+  lines.push('');
+  lines.push('## Summary');
+  lines.push('');
+  lines.push(`| Metric | Value |`);
+  lines.push(`|--------|-------|`);
+  lines.push(`| Modules scanned | ${result.modulesScanned} |`);
+  lines.push(`| BOUNDARY.md updated | ${result.boundaryUpdated} |`);
+  lines.push(`| Index aligned | ${result.indexAligned} |`);
+  lines.push('');
+
+  if (result.issues.length > 0) {
+    lines.push('## Issues');
+    lines.push('');
+    const errors = result.issues.filter((i) => i.severity === 'error');
+    const warnings = result.issues.filter((i) => i.severity === 'warning');
+    const infos = result.issues.filter((i) => i.severity === 'info');
+
+    if (errors.length > 0) {
+      lines.push(`### Errors (${errors.length})`);
+      lines.push('');
+      for (const e of errors) {
+        lines.push(`- **[${e.module}]** ${e.message}`);
+      }
+      lines.push('');
+    }
+    if (warnings.length > 0) {
+      lines.push(`### Warnings (${warnings.length})`);
+      lines.push('');
+      for (const w of warnings) {
+        lines.push(`- **[${w.module}]** ${w.message}`);
+      }
+      lines.push('');
+    }
+    if (infos.length > 0) {
+      lines.push(`### Info (${infos.length})`);
+      lines.push('');
+      for (const i of infos) {
+        lines.push(`- **[${i.module}]** ${i.message}`);
+      }
+      lines.push('');
+    }
+  } else {
+    lines.push('## Issues');
+    lines.push('');
+    lines.push('No issues detected. Code state matches persistent spec.');
+    lines.push('');
+  }
+
+  return lines.join('\n');
 }
 
 function printReport(result: SyncResult): void {

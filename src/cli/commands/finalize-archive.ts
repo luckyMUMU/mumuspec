@@ -26,6 +26,7 @@ import {
 } from '../../core/utils.js';
 import { MumuSpecError } from '../../core/errors.js';
 import { loadConfig } from '../../core/config.js';
+import { getCurrentBranch, getMainBranch, switchBranch } from '../../core/git.js';
 import {
   loadChangeState,
   getArchivedChangeDir,
@@ -328,9 +329,18 @@ function updateCodeGraphSnapshot(
   // ponytail: minimal implementation for initial scaffold
 }
 
-function cleanupWorktree(_projectRoot: string, _changeName: string): void {
-  // ponytail: actual worktree cleanup is git operations;
-  // we just verify no leftover worktree directories exist
+function cleanupWorktree(projectRoot: string, _changeName: string): void {
+  // Branch-driven workflow: after archive, switch back to the main branch.
+  // The change branch is kept until `mumuspec merge` deletes it (safe -d).
+  try {
+    const current = getCurrentBranch(projectRoot);
+    const main = getMainBranch(projectRoot);
+    if (current && main && current !== main) {
+      switchBranch(projectRoot, main);
+    }
+  } catch {
+    // Non-fatal: repo may be absent or no main branch; skip switch
+  }
 }
 
 function cleanStaleCache(projectRoot: string, _config: ReturnType<typeof loadConfig>): number {

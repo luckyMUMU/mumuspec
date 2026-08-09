@@ -40,10 +40,11 @@ layer: 3
 | `registerLoopCommands` | `loop.ts` | loop |
 | `registerSyncCommand` | `sync.ts` | sync |
 | `registerReviewCommand` | `review.ts` | review |
+| `registerMergeCommand` | `merge.ts` | merge（2026-08-08 新增） |
 
-### 命令文件清单（32 个 .ts 文件）
+### 命令文件清单（33 个 .ts 文件）
 
-advise.ts, bundle.ts, change.ts, constraints.ts, contract.ts, dashboard.ts, decisions.ts, doctor.ts, env.ts, eval.ts, feedback.ts, finalize-archive.ts, guard.ts, hooks.ts, i18n.ts, install.ts, knowledge.ts, knowledge-analysis.ts, knowledge-chat.ts, knowledge-crud.ts, knowledge-doctor.ts, knowledge-git.ts, knowledge-onboard.ts, knowledge-scan.ts, loop.ts, recommend.ts, review.ts, skill.ts, spec.ts, state.ts, sync.ts
+advise.ts, bundle.ts, change.ts, constraints.ts, contract.ts, dashboard.ts, decisions.ts, doctor.ts, env.ts, eval.ts, feedback.ts, finalize-archive.ts, guard.ts, hooks.ts, i18n.ts, install.ts, knowledge.ts, knowledge-analysis.ts, knowledge-chat.ts, knowledge-crud.ts, knowledge-doctor.ts, knowledge-git.ts, knowledge-onboard.ts, knowledge-scan.ts, loop.ts, merge.ts, recommend.ts, review.ts, skill.ts, spec.ts, state.ts, sync.ts
 
 ## 依赖声明
 
@@ -100,4 +101,5 @@ advise.ts, bundle.ts, change.ts, constraints.ts, contract.ts, dashboard.ts, deci
 
 | 日期 | 变更说明 |
 |------|----------|
+| 2026-08-08 | 新增 `merge.ts`（`mumuspec merge <change>` 命令：归档后合并变更分支到主分支，--no-ff + 冲突暂停） |
 | 2025-07-09 | 首次创建，记录 src/cli/commands/ 对外接口、依赖与数据契约 |

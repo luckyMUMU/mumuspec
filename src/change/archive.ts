@@ -117,6 +117,9 @@ export function archiveChange(
     };
   }
 
+  // Initialize merge record placeholder (filled by `mumuspec merge`)
+  state.git_merge = state.git_merge ?? { merged: false };
+
   saveChangeState(projectRoot, changeName, state, scope);
 
   const archiveDir = getArchiveDir(projectRoot, scope);

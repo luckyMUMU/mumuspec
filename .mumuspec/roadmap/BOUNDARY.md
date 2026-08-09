@@ -1,11 +1,13 @@
 ---
 scope: .mumuspec/roadmap
 layer: 1
+version: "v2"
 ---
 
 # BOUNDARY: .mumuspec/roadmap/
 
 > 本目录的边界声明 — 记录对外接口、依赖、数据契约、变更日志。
+> 当前版本：v2（基于 v1 归档 R-0001~R-0005 后重编）
 
 ---
 
@@ -13,9 +15,10 @@ layer: 1
 
 | 接口 | 类型 | 说明 |
 |------|------|------|
-| `spec.md` | 规范文档 | Roadmap 规则定义 — 所有模块和工具必须遵守 |
+| `spec.md` | 规范文档 | Roadmap 规则定义（当前 v2） |
 | `template/item.md` | 模板文件 | Roadmap Item 的标准模板 |
-| `items/*.md` | 目标条目 | 全局级近期目标条目集合 |
+| `items/*.md` | 目标条目 | 当前活跃目标条目集合（R-0001~R-0007） |
+| `archive/*/` | 归档 | 已完成的旧版本 Item（按批次分组） |
 
 ## 对外符号 / 类型
 
@@ -31,9 +34,10 @@ layer: 1
 
 | 导出 | 路径 | 说明 |
 |------|------|------|
-| 主规范 | `./spec.md` | Roadmap 规范定义 |
+| 主规范 | `./spec.md` | Roadmap 规范定义（v2） |
 | 模板 | `./template/item.md` | Item 模板 |
-| 目标条目 | `./items/*.md` | Global Roadmap Items |
+| 目标条目 | `./items/R-0001.md` .. `R-0007.md` | 当前活跃 Items |
+| v1 归档 | `./archive/2026-Q3/R-0001.md` .. `R-0005.md` | 2026-Q3 完成的 Items |
 
 ---
 
@@ -52,10 +56,34 @@ layer: 1
 
 必填字段定义在 `spec.md`—Requirement: 目标条目定义 中详述。
 
+### 跨版本追溯
+
+- `supersedes` 字段链接新版 Item 与被替代的旧版 Item
+- 归档目录中的旧版 Items 不应被直接依赖引用（已 out of scope）
+
 ### 跨模块引用格式
 
-- `depends_on` / `mutex_with` 引用的 ID 必须是 `R-NNNN` 格式
+- `depends_on` / `mutex_with` 引用的 ID 必须是 `R-NNNN` 格式（当前活跃 items 中的有效 ID）
 - `scope` 字段必须是相对路径（如 `src/core`、`.`）
+
+---
+
+## v2 Items 依赖图
+
+```
+R-0001 (Graph Orchestrator) ─────┐
+                                 │ mutex_with
+R-0002 (Loop Auto-Eval)         │
+      ↓ depends_on              ↓
+R-0003 (AST Guard) ←──── mutex_with ────→ R-0005 (Meta-Spec Evolution)
+                                      ↗ depends_on
+R-0004 (Onboarding)               R-0002 + R-0003
+
+R-0006 (Contract Standard) — 独立，无依赖
+R-0007 (Model-Tier) — 独立，无依赖
+```
+
+**DAG 验证**：无环 ✓（R-0002 → R-0003；R-0005 → R-0002 + R-0003）
 
 ---
 
@@ -63,6 +91,7 @@ layer: 1
 
 | 日期 | 变更描述 | 影响范围 |
 |------|---------|---------|
-| 2026-08-08 | 新增 R-0012：多 Model-Tier 自适应约束强度系统（S/A/B/C 四层 + 偏移调制 + auto_detect） | 新增文件，扩展 ConstraintStrengthField schema |
-| 2026-08-06 | 扩展：新增 6 个调研驱动的 Item（R-0006~R-0011）覆盖 Graph/Loop/Guard/Onboarding/Meta-Spec/Contract | 新增文件，不修改已有 Item |
-| 2026-08-04 | 初始创建：定义三类冲突预防（优先级 + 依赖 + 互斥），支持模块级注册 | 新目录，不影响现有规范 |
+| 2026-08-09 | **v2 重设计**：归档 v1 完成的 R-0001~R-0005 至 archive/2026-Q3/；重编 R-0001~R-0007（原 R-0006~R-0012）；解决 R-0006 scope 被低估、R-0007↔R-0008 隐性耦合、R-0009 与现有 onboarding 重叠、互斥不对称等冲突；新增归档管理机制（ROADMAP-80/81） | 全部 Items 重写 + spec.md 版本升级 + BOUNDARY.md 更新 |
+| 2026-08-08 | 新增 R-0012（已归档至 archive/2026-Q3/） | 历史记录 |
+| 2026-08-06 | 新增 R-0006~R-0011（已归档至 archive/2026-Q3/） | 历史记录 |
+| 2026-08-04 | v1 初始创建：三类冲突预防（已归档至 archive/2026-Q3/） | 历史记录 |

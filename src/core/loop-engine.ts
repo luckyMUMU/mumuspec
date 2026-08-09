@@ -22,7 +22,15 @@ import {
   LoopEvaluation,
   LoopInitInput,
   LoopStatusSummary,
+  EvaluateMode,
 } from './types-loop.js';
+import type { MetricsSnapshot } from './metrics/types.js';
+import {
+  autoEvaluate,
+  hybridEvaluate,
+  registerBuiltInEvaluators,
+  getActiveEvaluatorCount,
+} from './metrics/auto-evaluate.js';
 
 // ════════════════════════════════════════════════════════════════════
 // Default Configuration
@@ -52,6 +60,7 @@ export function initLoop(
   const maxRounds = input.max_rounds ?? DEFAULT_MAX_ROUNDS;
   const useWorktree = input.use_worktree ?? true;
   const autoCommit = input.auto_commit ?? true;
+  const evalMode = input.evaluate_mode ?? 'manual';
 
   let worktreePath: string | undefined;
   let originalBranch: string | undefined;
@@ -77,6 +86,8 @@ export function initLoop(
     merged_back: false,
     total_actions: 0,
     progress_trend: [],
+    metrics_history: [],
+    evaluate_mode: evalMode,
   };
 
   // Persist loop state into change state
@@ -177,12 +188,18 @@ export function recordAction(
 /**
  * Evaluate the current round and determine next steps.
  * Transitions phase: act → evaluate → (commit | converged | blocked | exhausted)
+ *
+ * Supports three evaluation modes:
+ * - manual (default): uses provided LoopEvaluation as-is
+ * - auto: computes metrics automatically, ignores manual evaluation
+ * - hybrid: combines auto metrics (70%) with manual progress (30%)
  */
-export function evaluateRound(
+export async function evaluateRound(
   projectRoot: string,
   changeName: string,
   evaluation: LoopEvaluation,
-): { should_commit: boolean; should_continue: boolean } {
+  options: { mode?: EvaluateMode; manualProgress?: number } = {},
+): Promise<{ should_commit: boolean; should_continue: boolean }> {
   const state = loadChangeState(projectRoot, changeName);
   if (!state?.loop_state) {
     throw new Error(`Loop not initialized for change: ${changeName}`);
@@ -195,15 +212,71 @@ export function evaluateRound(
     throw new Error('No active round to evaluate.');
   }
 
+  const mode: EvaluateMode = options.mode ?? loop.evaluate_mode ?? 'manual';
+
+  // ── Auto / Hybrid evaluation ──
+  let finalEvaluation = evaluation;
+  if (mode === 'auto' || mode === 'hybrid') {
+    try {
+      // Lazily register built-in evaluators on first use
+      if (getActiveEvaluatorCount() === 0) {
+        registerBuiltInEvaluators();
+      }
+
+      const ctx = {
+        projectRoot,
+        changeName,
+        worktreePath: loop.worktree_path,
+        previousRound: loop.current_round - 1,
+        roundHistory: loop.rounds,
+      };
+
+      const manualProgress = options.manualProgress ?? evaluation.progress;
+      const evalResult = mode === 'auto'
+        ? await autoEvaluate(ctx)
+        : await hybridEvaluate(ctx, manualProgress);
+
+      // Convert auto-evaluate result to LoopEvaluation
+      finalEvaluation = {
+        progress: evalResult.progress,
+        goal_achieved: evalResult.goalAchieved,
+        issues: [],
+        next_focus: evalResult.recommendation,
+        needs_user_input: false,
+      };
+
+      // Persist metrics snapshot
+      const snapshot: MetricsSnapshot = {
+        round: loop.current_round,
+        timestamp: now(),
+        progress: evalResult.progress,
+        goalAchieved: evalResult.goalAchieved,
+        metrics: evalResult.metrics.map(m => ({
+          name: m.name,
+          value: m.value,
+          details: m.details,
+        })),
+      };
+      if (!loop.metrics_history) {
+        loop.metrics_history = [];
+      }
+      loop.metrics_history.push(snapshot);
+    } catch (err) {
+      // Auto-evaluation failed — fall back to manual and log warning
+      console.warn(`Auto-evaluate failed, falling back to manual: ${(err as Error).message}`);
+      finalEvaluation = evaluation;
+    }
+  }
+
   // Record evaluation
-  currentRound.evaluation = evaluation;
+  currentRound.evaluation = finalEvaluation;
   currentRound.completed_at = now();
-  loop.progress_trend.push(evaluation.progress);
+  loop.progress_trend.push(finalEvaluation.progress);
 
   // Determine next phase
-  if (evaluation.goal_achieved || evaluation.progress >= CONVERGENCE_THRESHOLD) {
+  if (finalEvaluation.goal_achieved || finalEvaluation.progress >= CONVERGENCE_THRESHOLD) {
     loop.phase = 'converged';
-  } else if (evaluation.needs_user_input) {
+  } else if (finalEvaluation.needs_user_input) {
     loop.phase = 'blocked';
   } else if (loop.current_round >= loop.max_rounds) {
     loop.phase = 'exhausted';
@@ -215,10 +288,10 @@ export function evaluateRound(
   saveChangeState(projectRoot, changeName, state, state.scope);
 
   // Auto-commit if enabled
-  const shouldCommit = loop.auto_commit && !evaluation.goal_achieved;
+  const shouldCommit = loop.auto_commit && !finalEvaluation.goal_achieved;
   if (shouldCommit) {
     try {
-      const commitMsg = commitRound(projectRoot, loop.current_round, evaluation);
+      const commitMsg = commitRound(projectRoot, loop.current_round, finalEvaluation);
       currentRound.commit_sha = commitMsg.sha;
       currentRound.commit_message = commitMsg.message;
       state.loop_state = loop;

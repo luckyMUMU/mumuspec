@@ -256,6 +256,7 @@ export function parsePrdFile(content: string, filePath: string): PrdFile {
     content: body,
     userScenarios,
     acceptanceCriteria,
+    requirements,
   };
 }
 

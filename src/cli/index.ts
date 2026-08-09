@@ -38,6 +38,7 @@ import { registerKnowledgeCommands } from './commands/knowledge.js';
 import { registerConstraintsCommands } from './commands/constraints.js';
 import { registerFeedbackCommands } from './commands/feedback.js';
 import { registerInstallCommands } from './commands/install.js';
+import { registerTutorialCommand } from './commands/tutorial.js';
 import { registerFinalizeArchiveCommand } from './commands/finalize-archive.js';
 import { registerHooksCommands } from './commands/hooks.js';
 import { registerDashboardCommands } from './commands/dashboard.js';
@@ -52,11 +53,14 @@ import { registerDecisionsCommand } from './commands/decisions.js';
 import { registerAdviseCommand } from './commands/advise.js';
 import { registerContractCommands } from './commands/contract.js';
 import { registerLoopCommands } from './commands/loop.js';
+import { registerGrillMeCommand } from './commands/grill-me.js';
 import { registerSyncCommand } from './commands/sync.js';
 import { registerReviewCommand } from './commands/review.js';
+import { registerMergeCommand } from './commands/merge.js';
 import { registerAuditLogCommand } from './commands/audit-log.js';
 import { registerTraceCommand } from './commands/trace.js';
 import { registerGraphCommand } from './commands/graph.js';
+import { registerMetaEvolveCommand } from './commands/meta-evolve.js';
 
 const program = new Command();
 
@@ -66,7 +70,7 @@ initLocale();
 program
   .name('mumuspec')
   .description('MumuSpec — Tree-distributed dual-constraint specification system')
-  .version('0.18.0');
+  .version('0.19.0');
 
 // === init ===
 program
@@ -408,11 +412,15 @@ registerDecisionsCommand(program);
 registerAdviseCommand(program);
 registerContractCommands(program);
 registerLoopCommands(program);
+registerGrillMeCommand(program);
 registerSyncCommand(program);
 registerReviewCommand(program);
+registerMergeCommand(program);
 registerAuditLogCommand(program);
 registerTraceCommand(program);
 registerGraphCommand(program);
+registerTutorialCommand(program);
+registerMetaEvolveCommand(program);
 
 // Handle unknown commands gracefully
 program.on('command:*', () => {

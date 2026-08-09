@@ -8,6 +8,7 @@ import { loadChangeState, saveChangeState } from '../../change/manager.js';
 import { executeTransition, requiresUserConfirmation } from '../../change/state-machine.js';
 import type { ChangePhase } from '../../core/types.js';
 import { runPhaseGuard } from '../../guard/phase-guard.js';
+import { commitChangeBranch } from '../../change/branch.js';
 
 export function registerGuardCommand(program: Command): void {
   program
@@ -27,9 +28,28 @@ export function registerGuardCommand(program: Command): void {
       }
 
       const config = loadConfig(root);
-      const result = runPhaseGuard(root, change, phase, {
+      let result = runPhaseGuard(root, change, phase, {
         strength: config.constraint_strength,
       });
+
+      // Branch-driven workflow: verify → archive-in-progress applies the branch
+      // commit first, then re-runs the guard (so E-VERIFY-002 branch_status
+      // check passes), then transitions. Order: commit → handled → check → apply.
+      if (options.apply && phase === 'archive-in-progress') {
+        const preState = loadChangeState(root, change);
+        if (preState && preState.phase === 'verify' && preState.branch_status !== 'handled') {
+          try {
+            commitChangeBranch(root, change, preState);
+            result = runPhaseGuard(root, change, phase, {
+              strength: config.constraint_strength,
+            });
+          } catch (e) {
+            console.error(`✗ 变更分支提交失败: ${e instanceof Error ? e.message : String(e)}`);
+            console.error('  可手动提交后执行: mumuspec state set <name> branch_status handled');
+            process.exit(1);
+          }
+        }
+      }
 
       if (options.json) {
         console.log(JSON.stringify(result, null, 2));

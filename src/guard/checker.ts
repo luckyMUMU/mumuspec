@@ -2,12 +2,13 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { Logger } from '../core/logger.js';
 import type { SpecFile, GuardResult, DriftResult, GuardError, GuardWarning } from '../core/types.js';
-import { parseSpecFile } from '../spec/parser.js';
+import { parseSpecFile, parsePrdFile, parseTechFile } from '../spec/parser.js';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
 import { readText, writeText } from '../core/utils.js';
 import type { ConstraintStrengthField } from '../core/config.js';
 import { evaluateConstraint, type ConstraintCheck } from '../core/constraint-evaluator.js';
 import { detectContractDrift } from '../contract/validator.js';
+import { getLanguageProvider, registerBuiltInProviders, getProviderCount } from './language-provider-registry.js';
 
 /**
  * Guard check metadata — maps error codes to strength-evaluation attributes.
@@ -371,7 +372,13 @@ function checkPonytail(
   }
 }
 
-/** Collect all SHALL NOT constraints from all specs */
+/**
+ * Collect all SHALL NOT constraints from all spec files.
+ *
+ * Includes both legacy spec.md and distributed-spec V2 prd.md / tech.md.
+ * prd.md / tech.md are parsed with V2-aware parsers; parsing failures are
+ * silently skipped (backward compat — projects without prd/tech still work).
+ */
 function collectAllProhibitions(
   projectRoot: string,
 ): { text: string; source: string }[] {
@@ -386,21 +393,141 @@ function collectAllProhibitions(
     }
   }
 
+  // Collect SHALL NOT from distributed-spec prd.md / tech.md
+  collectDistributedProhibitions(projectRoot, results);
+
   return results;
 }
 
-/** Check if a prohibition is violated in code content */
+/** Recursively collect SHALL NOT from prd.md and tech.md files */
+function collectDistributedProhibitions(
+  projectRoot: string,
+  results: { text: string; source: string }[],
+): void {
+  function scan(dir: string): void {
+    const mumuDir = join(dir, '.mumuspec');
+
+    // prd.md
+    const prdPath = join(mumuDir, 'prd.md');
+    if (existsSync(prdPath)) {
+      try {
+        const content = readText(prdPath);
+        if (content && /^doc_type:\s*prd/m.test(content)) {
+          const prd = parsePrdFile(content, prdPath);
+          if (prd.requirements) {
+            for (const req of prd.requirements) {
+              for (const shallNot of req.shallNot) {
+                results.push({ text: shallNot, source: prdPath });
+              }
+            }
+          }
+        }
+      } catch {
+        // Skip — prd.md may be malformed
+        Logger.debug('guard.checker', 'Failed to parse prd.md for prohibitions', { path: prdPath });
+      }
+    }
+
+    // tech.md
+    const techPath = join(mumuDir, 'tech.md');
+    if (existsSync(techPath)) {
+      try {
+        const content = readText(techPath);
+        if (content && /^doc_type:\s*tech/m.test(content)) {
+          const tech = parseTechFile(content, techPath);
+          for (const req of tech.requirements) {
+            for (const shallNot of req.shallNot) {
+              results.push({ text: shallNot, source: techPath });
+            }
+          }
+        }
+      } catch {
+        // Skip — tech.md may be malformed
+        Logger.debug('guard.checker', 'Failed to parse tech.md for prohibitions', { path: techPath });
+      }
+    }
+
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+          scan(join(dir, entry.name));
+        }
+      }
+    } catch {
+      // Ignore — directory may not be readable
+    }
+  }
+
+  scan(projectRoot);
+}
+
+/**
+ * Check AST-based constraint violations using the Language Provider registry.
+ *
+ * Parses the constraint ID from `ast:<constraint>` format, looks up the provider
+ * by file extension, and delegates to the provider's semantic checker.
+ *
+ * Falls back gracefully: any error returns null so the caller can try regex.
+ */
+function checkAstViolation(
+  content: string,
+  prohibition: string,
+  filePath: string,
+): { line: number } | null {
+  try {
+    // Extract constraint ID (e.g., "ast:no-mutable-state" → "no-mutable-state")
+    const constraintId = prohibition.slice(4);
+    if (!constraintId) return null;
+
+    // Auto-initialize built-in providers on first use
+    if (getProviderCount() === 0) {
+      registerBuiltInProviders();
+    }
+
+    // Extract extension from filePath (e.g., "src/foo.ts" → ".ts")
+    const dotIndex = filePath.lastIndexOf('.');
+    if (dotIndex < 0) return null;
+    const ext = filePath.slice(dotIndex).toLowerCase();
+
+    const provider = getLanguageProvider(ext);
+    if (!provider) return null;
+
+    const ast = provider.parse(content, filePath);
+    const violations = provider.checkConstraint(ast, {
+      type: constraintId,
+      params: {},
+    });
+
+    if (violations.length === 0) return null;
+
+    // Return the first violation's line
+    const first = violations[0];
+    return { line: first.location.line };
+  } catch {
+    // AST analysis failed — signal caller to fall back to regex
+    Logger.debug('guard.checker', 'AST analysis failed, will fallback to regex', { file: filePath });
+    return null;
+  }
+}
+
+/** Check if a prohibition is violated in code content (with AST fallback) */
 function checkProhibitionViolation(
   content: string,
   prohibition: string,
   filePath: string,
 ): { line: number } | null {
-  const lower = prohibition.toLowerCase();
+  // AST-based routing: if prohibition starts with 'ast:', use AST provider
+  if (prohibition.startsWith('ast:')) {
+    const astViolation = checkAstViolation(content, prohibition, filePath);
+    if (astViolation) return astViolation;
+    // AST failed or found nothing — fallback to regex below
+  }
+
+  const lower = prohibition.replace(/^ast:/i, '').toLowerCase();
   const isJsxProhibition = lower.includes('jsx') || lower.includes('tsx');
 
   // JSX/TSX prohibition: detect actual JSX syntax, not the approved htm/h() alternatives.
-  // The prohibition text itself references `htm` and `h()` as CORRECT usage, so we must
-  // NOT match those identifiers — instead look for JSX angle-bracket syntax.
   if (isJsxProhibition) {
     return detectJsxSyntax(content, filePath);
   }

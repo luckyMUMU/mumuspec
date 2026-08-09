@@ -59,6 +59,8 @@ export interface PrdFile {
   content: string;
   userScenarios: string[];
   acceptanceCriteria: string[];
+  /** Constraint blocks (SHALL/SHALL NOT) — used by Guard Layer for prohibition extraction */
+  requirements?: Requirement[];
 }
 
 /** Frontmatter specific to prd.md */

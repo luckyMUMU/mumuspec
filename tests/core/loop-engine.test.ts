@@ -455,33 +455,33 @@ describe('evaluateRound', () => {
     activeChangeName = null;
   });
 
-  it('throws if loop not initialized', () => {
+  it('throws if loop not initialized', async () => {
     seedChange('my-change', undefined);
 
-    expect(() => {
+    await expect(
       evaluateRound(PROJECT_ROOT, 'my-change', {
         progress: 0.5,
         goal_achieved: false,
         issues: [],
         needs_user_input: false,
-      });
-    }).toThrow('Loop not initialized');
+      })
+    ).rejects.toThrow('Loop not initialized');
   });
 
-  it('throws if no active round', () => {
+  it('throws if no active round', async () => {
     seedChange('my-change', createLoopState({ phase: 'plan' }));
 
-    expect(() => {
+    await expect(
       evaluateRound(PROJECT_ROOT, 'my-change', {
         progress: 0.5,
         goal_achieved: false,
         issues: [],
         needs_user_input: false,
-      });
-    }).toThrow('No active round');
+      })
+    ).rejects.toThrow('No active round');
   });
 
-  it('sets phase to converged when goal achieved', () => {
+  it('sets phase to converged when goal achieved', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -502,7 +502,7 @@ describe('evaluateRound', () => {
       needs_user_input: false,
     };
 
-    const result = evaluateRound(PROJECT_ROOT, 'my-change', evaluation);
+    const result = await evaluateRound(PROJECT_ROOT, 'my-change', evaluation);
 
     const savedState = mockChangeStates.get('my-change');
     expect(savedState.loop_state.phase).toBe('converged');
@@ -510,7 +510,7 @@ describe('evaluateRound', () => {
     expect(result.should_continue).toBe(false);
   });
 
-  it('sets phase to blocked when user input needed', () => {
+  it('sets phase to blocked when user input needed', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -532,14 +532,14 @@ describe('evaluateRound', () => {
       block_reason: 'API design uncertain',
     };
 
-    const result = evaluateRound(PROJECT_ROOT, 'my-change', evaluation);
+    const result = await evaluateRound(PROJECT_ROOT, 'my-change', evaluation);
 
     const savedState = mockChangeStates.get('my-change');
     expect(savedState.loop_state.phase).toBe('blocked');
     expect(result.should_continue).toBe(false);
   });
 
-  it('sets phase to exhausted when max rounds reached without convergence', () => {
+  it('sets phase to exhausted when max rounds reached without convergence', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 3,
@@ -561,14 +561,14 @@ describe('evaluateRound', () => {
       needs_user_input: false,
     };
 
-    const result = evaluateRound(PROJECT_ROOT, 'my-change', evaluation);
+    const result = await evaluateRound(PROJECT_ROOT, 'my-change', evaluation);
 
     const savedState = mockChangeStates.get('my-change');
     expect(savedState.loop_state.phase).toBe('exhausted');
     expect(result.should_continue).toBe(false);
   });
 
-  it('sets phase to plan when more rounds available', () => {
+  it('sets phase to plan when more rounds available', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -590,14 +590,14 @@ describe('evaluateRound', () => {
       needs_user_input: false,
     };
 
-    const result = evaluateRound(PROJECT_ROOT, 'my-change', evaluation);
+    const result = await evaluateRound(PROJECT_ROOT, 'my-change', evaluation);
 
     const savedState = mockChangeStates.get('my-change');
     expect(savedState.loop_state.phase).toBe('plan');
     expect(result.should_continue).toBe(true);
   });
 
-  it('records progress trend', () => {
+  it('records progress trend', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -612,7 +612,7 @@ describe('evaluateRound', () => {
     });
     seedChange('my-change', loopState);
 
-    evaluateRound(PROJECT_ROOT, 'my-change', {
+    await evaluateRound(PROJECT_ROOT, 'my-change', {
       progress: 0.6,
       goal_achieved: false,
       issues: [],
@@ -623,7 +623,7 @@ describe('evaluateRound', () => {
     expect(savedState.loop_state.progress_trend).toEqual([0.2, 0.6]);
   });
 
-  it('sets completed_at on the round', () => {
+  it('sets completed_at on the round', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -637,7 +637,7 @@ describe('evaluateRound', () => {
     });
     seedChange('my-change', loopState);
 
-    evaluateRound(PROJECT_ROOT, 'my-change', {
+    await evaluateRound(PROJECT_ROOT, 'my-change', {
       progress: 0.5,
       goal_achieved: false,
       issues: [],

@@ -47,8 +47,9 @@ changes:
   default_build_mode: executing-plans
   default_tdd_mode: tdd
   single_active_change: true
-  default_isolation: worktree
+  default_isolation: branch
   allow_isolation_downgrade: true
+  branch_prefix: mumuspec
   implementation_strategy: bottom-up
   design_strategy: top-down
   tdd_mode: tdd

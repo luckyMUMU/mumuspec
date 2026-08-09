@@ -59,7 +59,7 @@ export function registerLoopCommands(program: Command): void {
   // ── grill (前置可行性验证) ──
   loopCmd
     .command('grill')
-    .description('Run grill-me validation for loop parameters before init')
+    .description('Run loop-specific grill validation (for cross-phase grilling, use: mumuspec grill-me --phase loop)')
     .requiredOption('--goal <statement>', 'overall goal statement to validate')
     .option('--criteria <criteria...>', 'convergence criteria (optional)', [])
     .option('--rounds <n>', 'max rounds (default: 3)', '3')
@@ -238,7 +238,9 @@ export function registerLoopCommands(program: Command): void {
     .option('--issue <issue>', 'issue discovered (repeatable)', (val: string, prev: string[]) => [...prev, val], [] as string[])
     .option('--needs-user', 'flag that user input is needed')
     .option('--block-reason <reason>', 'reason for being blocked')
-    .action((change, options) => {
+    .option('--auto', 'use auto-evaluate mode (metric-driven)')
+    .option('--hybrid', 'use hybrid mode (auto 70% + manual 30%)')
+    .action(async (change, options) => {
       const root = findProjectRoot();
       if (!root) {
         console.error('Error: Not in a MumuSpec project.');
@@ -257,15 +259,20 @@ export function registerLoopCommands(program: Command): void {
         process.exit(1);
       }
 
+      // Determine evaluation mode
+      let mode: 'manual' | 'auto' | 'hybrid' = 'manual';
+      if (options.auto) mode = 'auto';
+      else if (options.hybrid) mode = 'hybrid';
+
       try {
-        const result = evaluateRound(root, changeName, {
+        const result = await evaluateRound(root, changeName, {
           progress,
           goal_achieved: options.goalAchieved || false,
           issues: options.issue || [],
           next_focus: options.nextFocus,
           needs_user_input: options.needsUser || false,
           block_reason: options.blockReason,
-        });
+        }, { mode, manualProgress: progress });
 
         const status = getLoopStatus(root, changeName);
         if (!status) {
@@ -579,8 +586,9 @@ export function registerLoopCommands(program: Command): void {
       console.log('');
       console.log('Default: 3 rounds, auto-commit, worktree isolation');
       console.log('');
-      console.log('Pre-loop (grill-me):');
-      console.log('  mumuspec loop grill --goal "<goal>"          — Validate feasibility before init');
+      console.log('Pre-loop validation:');
+      console.log('  mumuspec loop grill --goal "<goal>"          — Loop-specific static checks');
+      console.log('  mumuspec grill-me run --phase loop            — Cross-phase static + interactive');
       console.log('');
       console.log('Workflow:');
       console.log('  1. Initialize:  mumuspec loop init <name> --goal "..."');
