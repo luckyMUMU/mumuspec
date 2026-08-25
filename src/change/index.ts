@@ -7,4 +7,5 @@ export * from './state.js';
 export * from './paths.js';
 export * from './archive.js';
 export * from './phase-graph.js';
+export * from './phase-graph-loader.js';
 export * from './state-machine.js';

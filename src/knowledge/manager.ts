@@ -44,3 +44,15 @@ export {
 export {
   organizeKnowledge,
 } from './organize.js';
+
+export {
+  buildMemoryIndex,
+  rebuildMemoryIndex,
+  loadMemoryIndex,
+  getMemoryContext,
+} from './memory.js';
+
+export type {
+  MemoryIndex,
+  MemoryEntry,
+} from './memory.js';

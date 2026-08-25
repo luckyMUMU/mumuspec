@@ -23,8 +23,9 @@ import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
+// 实现已从 execSync 改为 spawnSync 数组形式（防命令注入）
 vi.mock('node:child_process', () => ({
-  execSync: vi.fn(),
+  spawnSync: vi.fn(),
 }));
 
 import {
@@ -64,10 +65,12 @@ describe('resolvePawCmd — win32 path with paw.cmd exists', () => {
 
     try {
       // Call installPackage which triggers resolvePawCmd via installCatpawPackage
-      const { execSync } = await import('node:child_process');
-      (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-        JSON.stringify({ success: true, skillId: 10 }),
-      );
+      const { spawnSync } = await import('node:child_process');
+      (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+        status: 0,
+        stdout: JSON.stringify({ success: true, skillId: 10 }),
+        stderr: '',
+      });
 
       const result = installPackage('catpaw', 'browser', 'workspace', testRoot);
       expect(result.success).toBe(true);
@@ -85,10 +88,12 @@ describe('resolvePawCmd — win32 path with paw.cmd exists', () => {
     process.env.USERPROFILE = testRoot;
 
     try {
-      const { execSync } = await import('node:child_process');
-      (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-        JSON.stringify({ success: true, skillId: 20 }),
-      );
+      const { spawnSync } = await import('node:child_process');
+      (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+        status: 0,
+        stdout: JSON.stringify({ success: true, skillId: 20 }),
+        stderr: '',
+      });
 
       const result = installPackage('catpaw', 'browser', 'workspace', testRoot);
       expect(result.success).toBe(true);
@@ -103,12 +108,14 @@ describe('resolvePawCmd — win32 path with paw.cmd exists', () => {
 // ════════════════════════════════════════════════════════════════════
 
 describe('resolveCatpawDataDir — MEITPAW_HOME env var', () => {
-  it('uses MEITPAW_HOME when set', () => {
+  it('uses MEITPAW_HOME when set', async () => {
     const customDataDir = join(tmpdir(), 'mumuspec-custom-data-' + Date.now());
     mkdirSync(customDataDir, { recursive: true });
 
     const origMeitpawHome = process.env.MEITPAW_HOME;
+    const origCatpawHome = process.env.CATPAW_HOME;
     process.env.MEITPAW_HOME = customDataDir;
+    delete process.env.CATPAW_HOME; // Ensure CATPAW_HOME doesn't take precedence
 
     try {
       const result = installPackage('catpaw', 'mumuspec-workflow', 'user');
@@ -116,6 +123,7 @@ describe('resolveCatpawDataDir — MEITPAW_HOME env var', () => {
       expect(result.path).toContain(customDataDir);
     } finally {
       process.env.MEITPAW_HOME = origMeitpawHome;
+      if (origCatpawHome) process.env.CATPAW_HOME = origCatpawHome;
       rmSync(customDataDir, { recursive: true, force: true });
     }
   });
@@ -265,10 +273,12 @@ describe('installCatpawPackage — no skillId, no workspacePath, workspace path,
   });
 
   it('installs catpaw package to workspace with valid skillId', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      JSON.stringify({ success: true, skillId: 123 }),
-    );
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: JSON.stringify({ success: true, skillId: 123 }),
+      stderr: '',
+    });
 
     const result = installPackage('catpaw', 'browser', 'workspace', testRoot);
     expect(result.success).toBe(true);
@@ -281,28 +291,32 @@ describe('installCatpawPackage — no skillId, no workspacePath, workspace path,
   });
 
   it('handles non-JSON output with "success" keyword', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      'Skill installed successfully!',
-    );
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: 'Skill installed successfully!',
+      stderr: '',
+    });
 
     const result = installPackage('catpaw', 'browser', 'workspace', testRoot);
     expect(result.success).toBe(true);
   });
 
   it('handles non-JSON output with "installed" keyword', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      'The skill has been installed.',
-    );
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: 'The skill has been installed.',
+      stderr: '',
+    });
 
     const result = installPackage('catpaw', 'browser', 'workspace', testRoot);
     expect(result.success).toBe(true);
   });
 
-  it('returns error when execSync throws (error message extraction)', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+  it('returns error when spawnSync throws (error message extraction)', async () => {
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
       throw new Error('Network timeout');
     });
 
@@ -467,9 +481,9 @@ describe('installCatpawCommand — no workspacePath, win32 path, preset starts w
 // ════════════════════════════════════════════════════════════════════
 
 describe('listInstalledCatpaw — error', () => {
-  it('returns error when execSync throws', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+  it('returns error when spawnSync throws', async () => {
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
       throw new Error('paw command not found');
     });
 
@@ -551,10 +565,12 @@ describe('Additional branch coverage — installCatpawPackage with skillId', () 
     const testRoot = join(tmpdir(), 'mumuspec-cp-workspace-' + Date.now());
     mkdirSync(testRoot, { recursive: true });
 
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      JSON.stringify({ success: true, skillId: 456 }),
-    );
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: JSON.stringify({ success: true, skillId: 456 }),
+      stderr: '',
+    });
 
     const result = installPackage('catpaw', 'browser', 'workspace', testRoot);
     expect(result.success).toBe(true);
@@ -566,14 +582,16 @@ describe('Additional branch coverage — installCatpawPackage with skillId', () 
     const testRoot = join(tmpdir(), 'mumuspec-cp-no-skillid-' + Date.now());
     mkdirSync(testRoot, { recursive: true });
 
-    // Mock execSync to return success but the package has no skillId
+    // Mock spawnSync to return success but the package has no skillId
     // The "browser" package in the catpaw manifest has skillId: 1
     // To test the no-skillId path, we need a package without skillId
     // Let's check the manifest to find one
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      JSON.stringify({ success: true, skillId: 1 }),
-    );
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: JSON.stringify({ success: true, skillId: 1 }),
+      stderr: '',
+    });
 
     const result = installPackage('catpaw', 'browser', 'workspace', testRoot);
     expect(result.success).toBe(true);
@@ -648,10 +666,12 @@ describe('Additional branch coverage — installGenericAgentPackage edge cases',
   });
 
   it('installs catpaw package to user target with skillId (non-workspace path)', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      JSON.stringify({ success: true, skillId: 789 }),
-    );
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: JSON.stringify({ success: true, skillId: 789 }),
+      stderr: '',
+    });
 
     // Set CATPAW_HOME to a temp directory to avoid using USERPROFILE
     const fakeDataDir = join(tmpdir(), 'mumuspec-fake-data-' + Date.now());

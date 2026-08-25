@@ -316,7 +316,7 @@ cognitive-map.yaml grill-me 条目格式（追加到 entries 列表中）：
 - hyperplan `open_questions` → 转化为新 Q2 问题，进入认知框架 Stage 2 增量轮
 - 更新 `cognitive-map.yaml` 后继续
 
-### Step 5: 编写测试用例规格
+### Step 5: 编写测试用例定义
 
 基于 Q1 锚定 + Q3 确认约束 + grill-me 共识记录 + Hyperplan 幸存硬约束设计测试用例：
 
@@ -397,7 +397,7 @@ mumuspec decisions append --phase design --change <name>
 - test-cases/ 存在，每层至少一个 cases.md
 - `test_cases.design_locked: true`
 - `test_cases.design_content_hash` 匹配
-- `tdd_mode == "tdd"`
+- `tdd_mode` 匹配配置值 (default_tdd_mode)
 - Hyperplan 硬约束已合并、开放问题已解决（若触发）
 - grill-me：`grill_me_result.completed == true`、`rounds <= 10`
 - 认知框架：Q1 > 0、Q2/Q3 无待处理（或达上限）、Q4 扫描 ≥ 3 维度、已收敛
@@ -424,7 +424,7 @@ Guard 检查项（`design_to_build`）：
 - test-cases/ exists with cases.md per layer
 - test_cases.design_locked: true
 - test_cases.design_content_hash matches
-- tdd_mode == "tdd"
+- tdd_mode matches default_tdd_mode
 - hyperplan_result.hard_constraints merged（若触发）
 - hyperplan_result.open_questions resolved（若触发）
 - cognitive_framework.enabled: true
@@ -480,11 +480,11 @@ mumuspec state check <change-name> design --recover
 | "grill-me 可以跳过，直接进入 Hyperplan" | BP-4.5 不可跳过（full 工作流），共识确认是必要步骤 |
 | "grill-me 让用户填问卷（批量提问）" | 每次只问 1 个问题，等回答后再继续 |
 | "grill-me 问纯技术事实" | 事实与决策分离 — 代码可查的信息不问用户 |
-| "Hyperplan 可以跳过 Round 2/3" | 跳过 Round 2/3 导致守卫失败 |
+| "Hyperplan 可以跳过 Round 2/3" | 跳过 Round 2/3 导致阶段守卫失败 |
 | "测试用例可以 Build 阶段再写" | 测试用例是设计的一部分 — Design 阶段锁定 |
 | "用户没确认 Q3，先继续" | Q3 必须 confirmed/rejected/modified — 不可跳过 |
 | "认知框架 5 轮太多了，提前收敛" | 强制收敛仅在达到 5 轮上限后触发 |
-| "Ponytail 约束不需要检查" | ponytail_constraints_defined 是守卫必检项 |
+| "Ponytail 约束不需要检查" | ponytail_constraints_defined 是阶段守卫必检项 |
 | "design.md 可以不写 Enforcement" | 所有 Enforcement 检查必须定义（非 TBD） |
 
 ---

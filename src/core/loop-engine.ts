@@ -8,8 +8,9 @@
  */
 
 import { resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { now, appendAuditLog, getMumuSpecDir } from './utils.js';
+import { git, getHeadSha, getCurrentBranch } from './git.js';
+// spawnSync 已全部收编到 ./git.js 统一封装（超时/CRLF 规范化/错误码）
 import {
   loadChangeState,
   saveChangeState,
@@ -319,24 +320,22 @@ function commitRound(
   const cwd = worktreePath || projectRoot;
 
   try {
-    // Stage all changes
-    spawnSync('git', ['add', '-A'], { cwd, stdio: 'ignore' });
+    // Stage all changes（git() 封装：失败抛 E-GIT-002，带超时与错误上下文）
+    git(cwd, ['add', '-A']);
 
     // Build commit message
     const message = buildCommitMessage(round, evaluation);
 
-    // Commit
-    spawnSync('git', ['commit', '-m', message], {
-      cwd,
-      stdio: 'ignore',
-    });
+    // Commit —— nothing to commit 属常态（该轮无变更），允许失败；
+    // 其他失败（pre-commit hook 拒绝等）必须抛错，避免把空 sha 当作提交成功
+    const commitResult = git(cwd, ['commit', '-m', message], { allowFail: true });
+    if (commitResult.status !== 0
+      && !/nothing to commit/i.test(`${commitResult.stderr}${commitResult.stdout}`)) {
+      throw new Error(`git commit failed: ${commitResult.stderr || 'unknown error'}`);
+    }
 
     // Get SHA
-    const shaOut = spawnSync('git', ['rev-parse', 'HEAD'], {
-      cwd,
-      encoding: 'utf-8',
-    });
-    const sha = (shaOut.stdout ?? '').trim();
+    const sha = getHeadSha(cwd);
 
     return { sha, message };
   } catch (err) {
@@ -391,31 +390,23 @@ export function mergeWorktreeBack(
   try {
     // Push worktree changes to a branch
     const worktreeBranch = `loop/${changeName}`;
-    // Avoid shell operators; try -b first, then plain checkout as fallback
-    const branchRes = spawnSync('git', ['checkout', '-b', worktreeBranch], {
-      cwd: loop.worktree_path,
-      stdio: 'ignore',
-    });
+    // 先尝试新建分支，已存在则直接切换（git() 封装：失败抛 E-GIT-002）
+    const branchRes = git(loop.worktree_path, ['checkout', '-b', worktreeBranch], { allowFail: true });
     if (branchRes.status !== 0) {
-      spawnSync('git', ['checkout', worktreeBranch], {
-        cwd: loop.worktree_path,
-        stdio: 'ignore',
-      });
+      git(loop.worktree_path, ['checkout', worktreeBranch]);
     }
-    spawnSync('git', ['push', 'origin', worktreeBranch], {
-      cwd: loop.worktree_path,
-      stdio: 'ignore',
-    });
+    // 本地仓库可能无 origin 远端，push 失败不阻断合并流程
+    git(loop.worktree_path, ['push', 'origin', worktreeBranch], { allowFail: true });
 
-    // Switch back to original branch and merge
-    spawnSync('git', ['checkout', loop.original_branch], {
-      cwd: projectRoot,
-      stdio: 'ignore',
-    });
-    spawnSync('git', ['merge', worktreeBranch], {
-      cwd: projectRoot,
-      stdio: 'ignore',
-    });
+    // 切回原分支 —— 必须验证成功：checkout 失败时当前分支未知，
+    // 继续 merge 会把代码合入错误的目标分支
+    git(projectRoot, ['checkout', loop.original_branch]);
+
+    // 合并 —— 失败（冲突等）时不得标记 merged_back，返回 false 让上层感知
+    const mergeResult = git(projectRoot, ['merge', worktreeBranch], { allowFail: true });
+    if (mergeResult.status !== 0) {
+      return false;
+    }
 
     loop.merged_back = true;
     state.loop_state = loop;
@@ -559,41 +550,24 @@ function createWorktree(
   projectRoot: string,
   changeName: string,
 ): { worktreePath: string; originalBranch: string } {
-  // Get current branch
-  const branchRes = spawnSync('git', ['branch', '--show-current'], {
-    cwd: projectRoot,
-    encoding: 'utf-8',
-  });
-  const originalBranch = (branchRes.stdout ?? '').trim();
+  // Get current branch（git() 封装；detached HEAD 时返回 undefined）
+  const originalBranch = getCurrentBranch(projectRoot);
+  if (!originalBranch) {
+    throw new Error('Cannot create worktree: detached HEAD or not a git repository');
+  }
 
   const worktreeBranch = `loop/${changeName}`;
   const worktreePath = resolve(projectRoot, '.mumuspec', '.loop-worktrees', changeName);
 
   // Clean up existing worktree/branch if they exist (from previous failed attempt)
-  try {
-    spawnSync('git', ['worktree', 'remove', worktreePath, '--force'], {
-      cwd: projectRoot,
-      stdio: 'ignore',
-    });
-  } catch {
-    // Ignore - worktree may not exist
-  }
-  try {
-    spawnSync('git', ['branch', '-D', worktreeBranch], {
-      cwd: projectRoot,
-      stdio: 'ignore',
-    });
-  } catch {
-    // Ignore - branch may not exist
-  }
+  // 清理属尽力而为，允许失败（残留物不影响重新创建）
+  git(projectRoot, ['worktree', 'remove', worktreePath, '--force'], { allowFail: true });
+  git(projectRoot, ['branch', '-D', worktreeBranch], { allowFail: true });
 
-  // Create worktree on a new branch
+  // Create worktree on a new branch —— 失败必须抛错：
+  // 否则返回不存在的 worktreePath，后续所有写入静默落空
   // Note: ensureDir is intentionally NOT called here - git worktree add creates the directory
-  spawnSync(
-    'git',
-    ['worktree', 'add', '-b', worktreeBranch, worktreePath, originalBranch],
-    { cwd: projectRoot, stdio: 'ignore' }
-  );
+  git(projectRoot, ['worktree', 'add', '-b', worktreeBranch, worktreePath, originalBranch]);
 
   return { worktreePath, originalBranch };
 }
@@ -608,12 +582,13 @@ export function cleanupWorktrees(
   const cleaned: string[] = [];
   const remaining: string[] = [];
 
-  // List all worktrees
-  const listRes = spawnSync('git', ['worktree', 'list', '--porcelain'], {
-    cwd: projectRoot,
-    encoding: 'utf-8',
-  });
-  const output = listRes.stdout ?? '';
+  // List all worktrees（非 git 仓库等失败场景返回空列表）
+  let output = '';
+  try {
+    output = git(projectRoot, ['worktree', 'list', '--porcelain']).stdout;
+  } catch {
+    return { cleaned, remaining };
+  }
 
   const worktrees = parseWorktreeList(output);
 
@@ -635,14 +610,8 @@ export function cleanupWorktrees(
 
     if (isMerged) {
       if (!options.dryRun) {
-        try {
-          spawnSync('git', ['worktree', 'remove', wt.path, '--force'], {
-            cwd: projectRoot,
-            stdio: 'ignore',
-          });
-        } catch {
-          // Ignore cleanup errors
-        }
+        // 清理属尽力而为，允许失败（残留物可下次再清）
+        git(projectRoot, ['worktree', 'remove', wt.path, '--force'], { allowFail: true });
       }
       cleaned.push(wt.path);
     } else {
@@ -687,11 +656,9 @@ function parseWorktreeList(output: string): Array<{ path: string; branch: string
 function checkBranchMerged(projectRoot: string, branch: string): boolean {
   if (!branch) return false;
   try {
-    const mergedRes = spawnSync('git', ['branch', '--merged', 'HEAD'], {
-      cwd: projectRoot,
-      encoding: 'utf-8',
-    });
-    return (mergedRes.stdout ?? '').split('\n').some((b) => b.trim().replace('* ', '') === branch);
+    const mergedRes = git(projectRoot, ['branch', '--merged', 'HEAD'], { allowFail: true });
+    if (mergedRes.status !== 0) return false;
+    return mergedRes.stdout.split('\n').some((b) => b.trim().replace('* ', '') === branch);
   } catch {
     return false;
   }

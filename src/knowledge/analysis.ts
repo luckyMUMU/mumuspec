@@ -277,9 +277,10 @@ export function answerQuery(
     }
 
     for (const term of queryTerms) {
-      const regex = new RegExp(term, 'gi');
-      const matches = contentLower.match(regex);
-      if (matches) score += matches.length * 2;
+      // 安全计数：用 split 代替 new RegExp——查询词含正则元字符（如 * (a+)+ ）时
+      // 不会触发 SyntaxError 或灾难性回溯（ReDoS）
+      const occurrences = contentLower.split(term).length - 1;
+      if (occurrences > 0) score += occurrences * 2;
     }
 
     for (const tag of page.frontmatter.tags ?? []) {

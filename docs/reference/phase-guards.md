@@ -112,7 +112,7 @@ checks:
   - suite-map.yaml exists with single layer mapping
   - test_cases.design_locked: true
   - test_cases.design_content_hash matches test-cases/ actual hash
-  - tdd_mode == "tdd"
+  - tdd_mode matches default_tdd_mode
   - decisions_log.counts.open > 0
   - decisions_log.content_hash matches
   - user_confirmed: true
@@ -133,7 +133,7 @@ checks:
   - test-cases/ exists with at least one cases.md per layer
   - test_cases.design_locked: true
   - test_cases.design_content_hash matches test-cases/ actual hash
-  - tdd_mode == "tdd"
+  - tdd_mode matches default_tdd_mode
   - hyperplan_result.hard_constraints all merged into design.md  # 仅 triggered==true 时检查
   - hyperplan_result.open_questions all resolved                 # 仅 triggered==true 时检查
   # 认知框架守卫（仅 workflow == "full" 时检查）
@@ -162,7 +162,7 @@ checks:
   - build_command passed (if configured)
   - isolation field set (worktree preferred)
   - build_mode field set
-  - tdd_mode == "tdd"
+  - tdd_mode matches default_tdd_mode
   - build_layers all status = done
   - build_layers_completed_in_bottom_up_order: true  # layer 3→0 顺序完成
   - each layer enforcement passed

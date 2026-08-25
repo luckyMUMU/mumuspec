@@ -36,15 +36,19 @@
 |------|------|------|
 | **变更** | Change | 一次有生命周期的规范修改 + 代码实现过程 |
 | **阶段** | Phase | 变更生命周期的阶段：Open → Design → Build → Verify → Archive |
-| **阶段守卫** | Phase Guard | 阶段转换时自动执行的校验门禁 |
+| **阶段守卫** | Phase Guard | 阶段转换时自动执行的工件完整性 + 规范合规性校验 |
 | **回退** | Rollback | 从后序阶段回退到前序阶段（如 Build → Design） |
 | **快照** | Snapshot | 阶段转换前的工件备份，用于回退恢复 |
-| **预设路径** | Preset Path | 预定义的变更流程：hotfix / tweak / full |
+| **预设路径** | Preset Path | 预定义的变更流程：hotfix / tweak / full / loop |
+| **循环迭代（loop）** | Loop Workflow | 预设路径之一：直入 build 阶段、跳过 open/design 的循环迭代路径，适用于探索性任务与反复调优 |
+| **归档进行中** | archive-in-progress | 变更进入归档阶段的进行中状态标识；规范写法为连字符 `archive-in-progress`（区别于旧写法 `archive-inprogress`） |
 | **单一活跃变更** | Single Active Change | 同一时间只允许一个变更处于活跃状态 |
 | **决策日志** | decisions.md | 记录变更过程中的设计决策和回退原因 |
 | **测试用例锁定** | Test Cases Lock | Design 阶段结束后测试用例不可变 |
 | **不可变性校验** | Immutability Check | 验证测试用例和套件在锁定后未被篡改 |
 | **Hyperplan** | Hyperplan | 变更前对抗式设计审查流程，多角色多轮次蒸馏 |
+
+> **阶段守卫（Phase Guard）术语裁定**：本文档统一使用"阶段守卫"指代 Phase Guard；"门禁"仅保留用于非 Phase Guard 的确认点（如 BP 用户确认门禁），二者不再互指。"守卫"不单独指代 Phase Guard，避免互指歧义。
 
 ## 知识层术语（含代码图谱）
 
@@ -83,6 +87,14 @@
 | **CI 校验** | CI Check | CI pipeline 中的全量规范校验 |
 | **Phase Guard** | Phase Guard | 阶段转换时的工件完整性 + 规范合规性校验 |
 | **错误码** | Error Code | `E-<DOMAIN>-<NUMBER>` 格式的结构化错误标识 |
+
+## 约束强度术语
+
+| 术语 | 英文 | 定义 |
+|------|------|------|
+| **行为约束** | Behavioral Constraint | HOW — 约束 LLM 的执行过程（如 tdd_enforced、commit 格式、Ponytail 顺序），默认 advisory / WARN，给 LLM 执行自由 |
+| **结果约束** | Result Constraint | DONE — 约束最终必须达成的结果（如 SHALL 满足性、测试全绿、无 critical drift、工件完备），默认 block 硬门禁 |
+| **行为 vs 结果分层** | Behavioral vs Result Layering | 同一约束强度下，结果约束硬性 block、行为约束 advisory WARN 的分层原则；详见 [constraint-strength.md §1.3](../design/constraint-strength.md) |
 
 ## AI 集成术语
 

@@ -55,3 +55,9 @@ last_updated: "2026-08-04"
 ### Enforcement
 - TOOL-1: `mumuspec doctor` 输出格式校验（工具名 + 版本 + 状态）
 - TOOL-2: Node.js 版本低于 20.0.0 时返回 WARN
+
+## Detected
+
+> 此部分由 `mumuspec env detect --save` 自动生成，记录当前环境实际检测到的工具与版本。运行该命令后此处会被真实检测结果填充。
+
+（待运行 `mumuspec env detect --save` 填充当前环境数据）

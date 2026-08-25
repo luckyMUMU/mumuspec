@@ -47,6 +47,7 @@ vi.mock('../../../src/change/state-machine.js', () => ({
   getWorkflowPhases: vi.fn(() => ['open', 'design']),
   isTerminal: vi.fn(() => false),
   requiresUserConfirmation: vi.fn(() => ({ required: false, bp: '', description: '' })),
+  activateProjectWorkflow: vi.fn(),
 }));
 
 describe('state command handler — test-cases and state branches', () => {

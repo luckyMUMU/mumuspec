@@ -6,6 +6,9 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     testTimeout: 30000,
+    // Windows 兼容：threads pool 在加载完整 CLI 命令树（src/cli/index.ts → buildProgram，
+    // cli-smoke.test.ts）时 worker 崩溃且无输出；forks pool 使用独立进程，稳定。
+    pool: 'forks',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json'],

@@ -332,7 +332,7 @@ mumuspec state check <change-name> open --recover
 | "需求很清楚，不需要 brainstorming" | brainstorming 不可跳过 — 必须加载 skill |
 | "一轮 Q&A 足够了" | 不可将一轮 Q&A 视为充分澄清 |
 | "影响范围很小，跳过图谱分析" | 影响分析是 Phase Guard 必检项 |
-| "历史知识不重要" | knowledge_context_loaded 是守卫检查项 |
+| "历史知识不重要" | knowledge_context_loaded 是阶段守卫检查项 |
 | "用户没反对，直接创建工件" | 不反对 ≠ 同意 — BP-1 必须显式确认 |
 | "变更名我来定" | 命名必须用户确认 — 不可自动生成 |
 | "delta-specs 只要 SHALL 就行" | delta-specs 必须含 SHALL 和 SHALL NOT |

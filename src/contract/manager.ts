@@ -7,7 +7,7 @@
  * - BOUNDARY.md auto-scaffolding from code analysis
  */
 
-import { existsSync, writeFileSync, mkdirSync, appendFileSync, readdirSync, rmdirSync } from 'node:fs';
+import { existsSync, writeFileSync, mkdirSync, appendFileSync, rmdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { stringify as stringifyYaml } from 'yaml';
 import type {
@@ -15,10 +15,13 @@ import type {
   BoundaryExport,
   ContractRegistry,
 } from '../core/types-contract.js';
+import { analyzeExports, analyzeImports } from './ast-analyzer.js';
+import type { ExportInfo } from './ast-analyzer.js';
 import { loadAllContracts, invalidateContractCache } from './loader.js';
 import { MUMUSPEC_DIR, CONTRACTS_SUBDIR, AUDIT_LOG_FILE, REGISTRY_FILE, BOUNDARY_FILE } from './constants.js';
 import { readText } from '../core/utils.js';
 import { Logger } from '../core/logger.js';
+import { MumuSpecError } from '../core/errors.js';
 import { analyzeContractImpact } from './impact-analyzer.js';
 
 /** Write registry to YAML file — ponytail: centralizes serialization logic */
@@ -53,6 +56,7 @@ const LOCK_RETRY_MS = 50;
 /**
  * Acquire a lock for exclusive file access.
  * Returns a release function. Call it when done.
+ * P0-3 Fix: Throws on timeout instead of silent bypass; uses statSync for non-blocking check.
  */
 function acquireLock(contractsDir: string): () => void {
   const lockDir = join(contractsDir, '.lock');
@@ -65,21 +69,30 @@ function acquireLock(contractsDir: string): () => void {
         try {
           rmdirSync(lockDir);
         } catch (e) {
-          // Ignore cleanup failure
           Logger.warn('contract.manager', 'Failed to release lock', { error: (e as Error).message });
         }
       };
     } catch {
-      // Lock held by another process — wait and retry
+      // P0-3 Fix: Check if lock is stale (holder crashed) and reclaim
+      try {
+        const stat = statSync(lockDir);
+        if (Date.now() - stat.mtimeMs > LOCK_TIMEOUT_MS) {
+          rmdirSync(lockDir); // Remove stale lock
+          continue;
+        }
+      } catch {
+        // Lock removed by another process, retry immediately
+      }
+      // Non-blocking wait: use a short synchronous pause via statSync on a file
       const waitUntil = Date.now() + LOCK_RETRY_MS;
       while (Date.now() < waitUntil) {
-        // Busy-wait — ponytail: simple, short duration, no external dep
+        // ponytail: minimal sync wait — for true async, use setTimeout in caller
       }
     }
   }
 
-  // Timeout — proceed anyway (best effort)
-  return () => {};
+  // P0-3 Fix: Throw on timeout instead of silent bypass
+  throw new MumuSpecError('E-CONTRACT-010', { detail: 'Lock acquisition timeout' });
 }
 
 /**
@@ -426,173 +439,37 @@ return filePath;
 }
 
 // ════════════════════════════════════════════════════════════════════
-// Code analysis helpers
+// Code analysis helpers (AST-based, using ast-analyzer.ts)
 // ════════════════════════════════════════════════════════════════════
 
-/** Detect exported symbols from source directory */
+/** Detect exported symbols from source directory using AST parsing */
 function detectExports(dirPath: string): BoundaryExport[] {
-  const exports: BoundaryExport[] = [];
-  const extensions = ['.ts', '.js'];
-
   try {
-    const entries = readDirEntries(dirPath);
-    for (const entry of entries) {
-      if (entry.isFile() && extensions.some((ext) => entry.name.endsWith(ext))) {
-        const content = readText(join(dirPath, entry.name));
-        if (!content) continue;
-
-        detectFunctionExports(content, entry.name, exports);
-        detectClassExports(content, entry.name, exports);
-        detectTypeExports(content, entry.name, exports);
-        detectConstExports(content, entry.name, exports);
-        detectDefaultExports(content, entry.name, exports);
-        detectNamedReExports(content, entry.name, exports);
-      }
-    }
+    const astExports = analyzeExports(dirPath);
+    return astExports.map(adaptExportInfo);
   } catch (e) {
-    // Ignore — directory may not exist or be unreadable
-    Logger.warn('contract.manager', 'Failed to read directory for export detection', { error: (e as Error).message });
-  }
-
-  // Deduplicate by name
-  const seen = new Set<string>();
-  return exports.filter(e => {
-    if (seen.has(e.name)) return false;
-    seen.add(e.name);
-    return true;
-  });
-}
-
-/** Detect `export function name(...)` declarations */
-function detectFunctionExports(content: string, fileName: string, out: BoundaryExport[]): void {
-  const matches = content.match(/export\s+(?:async\s+)?function\s+(\w+)\s*(?:<[^>]*>)?\s*\(([^)]*)\)/g);
-  if (!matches) return;
-  for (const match of matches) {
-    const nameMatch = match.match(/function\s+(\w+)/);
-    const sigMatch = match.match(/\(([^)]*)\)/);
-    if (nameMatch) {
-      out.push({ name: nameMatch[1], kind: 'function', description: `From ${fileName}`, signature: sigMatch ? sigMatch[1] : undefined });
-    }
-  }
-}
-
-/** Detect `export class Name` declarations */
-function detectClassExports(content: string, fileName: string, out: BoundaryExport[]): void {
-  const matches = content.match(/export\s+(?:abstract\s+)?class\s+(\w+)/g);
-  if (!matches) return;
-  for (const match of matches) {
-    const nameMatch = match.match(/class\s+(\w+)/);
-    if (nameMatch) {
-      out.push({ name: nameMatch[1], kind: 'class', description: `From ${fileName}` });
-    }
-  }
-}
-
-/** Detect `export interface Name` / `export type Name` declarations */
-function detectTypeExports(content: string, fileName: string, out: BoundaryExport[]): void {
-  const matches = content.match(/export\s+(interface|type)\s+(\w+)/g);
-  if (!matches) return;
-  for (const match of matches) {
-    const parts = match.match(/(interface|type)\s+(\w+)/);
-    if (parts) {
-      out.push({ name: parts[2], kind: parts[1] as 'interface' | 'type', description: `From ${fileName}` });
-    }
-  }
-}
-
-/** Detect `export const NAME` declarations */
-function detectConstExports(content: string, fileName: string, out: BoundaryExport[]): void {
-  const matches = content.match(/export\s+const\s+(\w+)/g);
-  if (!matches) return;
-  for (const match of matches) {
-    const nameMatch = match.match(/const\s+(\w+)/);
-    if (nameMatch) {
-      out.push({ name: nameMatch[1], kind: 'const', description: `From ${fileName}` });
-    }
-  }
-}
-
-/** Detect `export default function/class/NAME` declarations — ponytail: simple regex, avoids AST parsing */
-function detectDefaultExports(content: string, fileName: string, out: BoundaryExport[]): void {
-  const matches = content.match(/export\s+default\s+(?:(?:async\s+)?function\s+(\w+)|class\s+(\w+)|(\w+))/g);
-  if (!matches) return;
-  for (const match of matches) {
-    const nameMatch = match.match(/default\s+(?:(?:async\s+)?function\s+(\w+)|class\s+(\w+)|(\w+))/);
-    if (!nameMatch) continue;
-    const name = nameMatch[1] || nameMatch[2] || nameMatch[3];
-    if (name) {
-      out.push({ name, kind: nameMatch[1] || nameMatch[2] ? (nameMatch[1] ? 'function' : 'class') : 'const', description: `Default export from ${fileName}` });
-    }
-  }
-}
-
-/** Detect `export { foo as bar, baz }` named re-exports with aliasing */
-function detectNamedReExports(content: string, fileName: string, out: BoundaryExport[]): void {
-  const matches = content.match(/export\s*\{([^}]+)\}/g);
-  if (!matches) return;
-  for (const match of matches) {
-    const inner = match.match(/\{([^}]+)\}/);
-    if (!inner) continue;
-    const items = inner[1].split(',').map(s => s.trim()).filter(Boolean);
-    for (const item of items) {
-      const asMatch = item.match(/(\w+)\s+as\s+(\w+)/);
-      if (asMatch) {
-        out.push({ name: asMatch[2], kind: 'const', description: `Re-exported as '${asMatch[2]}' from ${fileName}` });
-      } else if (item && !item.includes('type')) {
-        out.push({ name: item.trim(), kind: 'const', description: `Re-exported from ${fileName}` });
-      }
-    }
-  }
-}
-
-/** Detect imports from source directory */
-function detectImports(dirPath: string): Set<string> {
-  const imports = new Set<string>();
-  const extensions = ['.ts', '.js'];
-
-  try {
-    const entries = readDirEntries(dirPath);
-    for (const entry of entries) {
-      if (entry.isFile() && extensions.some((ext) => entry.name.endsWith(ext))) {
-        const content = readText(join(dirPath, entry.name));
-        if (!content) continue;
-
-        // import { x, y } from 'module'
-        const importMatches = content.match(/import\s+(?:[^,\s]+\s*,\s*)?(?:\{[^}]+\}|[\w\*]+)\s+from\s+['"]([^'"]+)['"]/g);
-        if (importMatches) {
-          for (const match of importMatches) {
-            const moduleMatch = match.match(/from\s+['"]([^'"]+)['"]/);
-            if (moduleMatch) {
-              imports.add(moduleMatch[1]);
-            }
-          }
-        }
-
-        // import 'module' (side-effect import)
-        const sideEffectImports = content.match(/import\s+['"]([^'"]+)['"]\s*;/g);
-        if (sideEffectImports) {
-          for (const match of sideEffectImports) {
-            const moduleMatch = match.match(/import\s+['"]([^'"]+)['"]/);
-            if (moduleMatch) {
-              imports.add(moduleMatch[1]);
-            }
-          }
-        }
-      }
-    }
-  } catch (e) {
-    // Ignore — directory may not exist or be unreadable
-    Logger.warn('contract.manager', 'Failed to read directory for import detection', { error: (e as Error).message });
-  }
-
-  return imports;
-}
-
-/** Read directory entries (shorthand) */
-function readDirEntries(dirPath: string) {
-  try {
-    return readdirSync(dirPath, { withFileTypes: true });
-  } catch {
+    Logger.warn('contract.manager', 'AST export detection failed', { error: (e as Error).message });
     return [];
+  }
+}
+
+/** Adapt AST analyzer output to BoundaryExport with description/signature */
+function adaptExportInfo(info: ExportInfo): BoundaryExport {
+  const fileName = info.file ? info.file.split(/[\\/]/).pop() || '' : '';
+  return {
+    name: info.name,
+    kind: info.kind,
+    description: fileName ? `From ${fileName}` : 'Auto-detected',
+    signature: info.signature,
+  };
+}
+
+/** Detect imports from source directory using AST parsing */
+function detectImports(dirPath: string): Set<string> {
+  try {
+    return analyzeImports(dirPath);
+  } catch (e) {
+    Logger.warn('contract.manager', 'AST import detection failed', { error: (e as Error).message });
+    return new Set();
   }
 }

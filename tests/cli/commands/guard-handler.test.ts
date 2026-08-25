@@ -56,6 +56,7 @@ vi.mock('../../../src/change/manager.js', async (importOriginal) => {
 vi.mock('../../../src/change/state-machine.js', () => ({
   executeTransition: mockExecuteTransition,
   requiresUserConfirmation: mockRequiresUserConfirmation,
+  activateProjectWorkflow: vi.fn(),
 }));
 
 vi.mock('../../../src/guard/phase-guard.js', () => ({

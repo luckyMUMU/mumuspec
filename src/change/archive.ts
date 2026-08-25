@@ -1,7 +1,7 @@
 /**
  * Change archive sub-processes — version bump, delta-merge, knowledge extraction.
  */
-import { existsSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ChangeState } from '../core/types.js';
 import { loadConfig } from '../core/config.js';
@@ -102,6 +102,7 @@ export function archiveChange(
 
   if (!isTweak) {
     mergeDeltaSpecsToMain(projectRoot, changeName, changeDir);
+    mergeChangeArtifacts(projectRoot, changeName, changeDir, state);
     extractKnowledgeToGlobal(projectRoot, changeName, changeDir, state);
   }
 
@@ -120,17 +121,27 @@ export function archiveChange(
   // Initialize merge record placeholder (filled by `mumuspec merge`)
   state.git_merge = state.git_merge ?? { merged: false };
 
-  saveChangeState(projectRoot, changeName, state, scope);
-
   const archiveDir = getArchiveDir(projectRoot, scope);
   const archivedDir = join(archiveDir, `${new Date().toISOString().split('T')[0]}-${changeName}`);
 
   ensureDir(archivedDir);
   try {
     renameSync(changeDir, archivedDir);
-  } catch {
-    // Ignore
+  } catch (err) {
+    // Rename failed: do NOT save state or write success audit
+    appendAuditLog(getMumuSpecDir(projectRoot), {
+      actor: 'user',
+      action: 'change.archive',
+      change: changeName,
+      workflow: state.workflow,
+      result: 'failed',
+      error: (err as Error).message,
+    });
+    throw new MumuSpecError('E-CHANGE-011', { cause: (err as Error).message });
   }
+
+  // Only save state AFTER successful rename
+  saveChangeState(projectRoot, changeName, state, scope);
 
   appendAuditLog(getMumuSpecDir(projectRoot), {
     actor: 'user',
@@ -164,45 +175,200 @@ export function mergeDeltaSpecsToMain(
 
     for (const specFile of specFiles) {
       const specContent = readFileSync(join(deltaSpecsDir, specFile), 'utf8');
+      const marker = `<!-- delta-merged from ${changeName}/${specFile} -->`;
 
+      // P0-2 Fix: Determine target path
+      let targetPath: string | null = null;
       if (specFile.endsWith('-tech.md')) {
         const scopePath = specFile.replace(/-tech\.md$/, '');
         const targetDir = scopePath === '.' || scopePath === '' ? projectRoot : join(projectRoot, scopePath);
         const targetTechPath = join(targetDir, '.mumuspec', 'tech.md');
-        if (existsSync(targetTechPath)) {
-          appendFileSync(targetTechPath, `\n\n<!-- delta-merged from ${changeName}/${specFile} -->\n${specContent}\n`);
-          continue;
-        }
         const targetSpecPath = join(targetDir, '.mumuspec', 'spec.md');
-        if (existsSync(targetSpecPath)) {
-          appendFileSync(targetSpecPath, `\n\n<!-- delta-merged from ${changeName}/${specFile} -->\n${specContent}\n`);
-          continue;
-        }
-      }
-
-      if (specFile.endsWith('-prd.md')) {
+        if (existsSync(targetTechPath)) targetPath = targetTechPath;
+        else if (existsSync(targetSpecPath)) targetPath = targetSpecPath;
+      } else if (specFile.endsWith('-prd.md')) {
         const scopePath = specFile.replace(/-prd\.md$/, '');
         const targetDir = scopePath === '.' || scopePath === '' ? projectRoot : join(projectRoot, scopePath);
         const targetPrdPath = join(targetDir, '.mumuspec', 'prd.md');
-        if (existsSync(targetPrdPath)) {
-          appendFileSync(targetPrdPath, `\n\n<!-- delta-merged from ${changeName}/${specFile} -->\n${specContent}\n`);
-          continue;
-        }
         const targetDesignPath = join(targetDir, '.mumuspec', 'design.md');
-        if (existsSync(targetDesignPath)) {
-          appendFileSync(targetDesignPath, `\n\n<!-- delta-merged from ${changeName}/${specFile} -->\n${specContent}\n`);
-          continue;
-        }
+        if (existsSync(targetPrdPath)) targetPath = targetPrdPath;
+        else if (existsSync(targetDesignPath)) targetPath = targetDesignPath;
+      }
+      if (!targetPath) {
+        const mumuDir = getMumuSpecDir(projectRoot);
+        const mainSpecPath = join(mumuDir, 'spec.md');
+        if (existsSync(mainSpecPath)) targetPath = mainSpecPath;
+      }
+      if (!targetPath) continue;
+
+      // P0-2 Fix: Idempotency check - skip if already merged
+      const existing = readFileSync(targetPath, 'utf8');
+      if (existing.includes(marker)) {
+        continue;  // Already merged, skip to prevent duplication
       }
 
-      const mumuDir = getMumuSpecDir(projectRoot);
-      const mainSpecPath = join(mumuDir, 'spec.md');
-      if (existsSync(mainSpecPath)) {
-        appendFileSync(mainSpecPath, `\n\n<!-- delta-merged from ${changeName}/${specFile} -->\n${specContent}\n`);
-      }
+      // P0-2 Fix: Atomic write (read → modify → write)
+      const merged = `${existing}\n\n${marker}\n${specContent}\n`;
+      const tmpPath = `${targetPath}.tmp.${process.pid}`;
+      writeFileSync(tmpPath, merged, 'utf8');
+      renameSync(tmpPath, targetPath);
     }
   } catch {
     // Non-fatal
+  }
+}
+
+/**
+ * Merge change artifacts to their permanent locations during archive.
+ * Handles: constraints/, .mumuspec/ (change-level spec updates),
+ * and records merge results in audit log.
+ */
+export function mergeChangeArtifacts(
+  projectRoot: string,
+  changeName: string,
+  changeDir: string,
+  state: ChangeState,
+): void {
+  const mergeLog: string[] = [];
+
+  // 1. Merge constraints/ to target scope's constraints.yaml or spec
+  mergeConstraintsToScope(projectRoot, changeName, changeDir, state, mergeLog);
+
+  // 2. Merge change-level .mumuspec/ spec updates to target scope
+  mergeChangeLevelSpecs(projectRoot, changeName, changeDir, state, mergeLog);
+
+  // 3. Record merge summary in audit log
+  if (mergeLog.length > 0) {
+    appendAuditLog(getMumuSpecDir(projectRoot), {
+      actor: 'system',
+      action: 'change.merge_artifacts',
+      change: changeName,
+      summary: mergeLog.join(' | '),
+      result: 'success',
+    });
+  }
+}
+
+/**
+ * Merge constraints/ directory contents to the target scope's constraints.yaml
+ * or append to spec.md as new requirement blocks.
+ */
+function mergeConstraintsToScope(
+  projectRoot: string,
+  changeName: string,
+  changeDir: string,
+  state: ChangeState,
+  mergeLog: string[],
+): void {
+  const constraintsDir = join(changeDir, 'constraints');
+  if (!existsSync(constraintsDir)) return;
+
+  try {
+    const entries = readdirSync(constraintsDir);
+    const constraintFiles = entries.filter((f: string) => f.endsWith('.md'));
+    if (constraintFiles.length === 0) return;
+
+    // Determine target scope — use state.scope or default to root
+    const scope = state.scope || '.';
+    const targetDir = scope === '.' ? projectRoot : join(projectRoot, scope);
+    const targetMumuDir = join(targetDir, '.mumuspec');
+
+    // Try to merge into constraints.yaml first, then spec.md/tech.md
+    const techPath = join(targetMumuDir, 'tech.md');
+    const specPath = join(targetMumuDir, 'spec.md');
+
+    for (const constraintFile of constraintFiles) {
+      const content = readFileSync(join(constraintsDir, constraintFile), 'utf8');
+      if (!content || !content.trim()) continue;
+
+      const marker = `<!-- constraint-merged from ${changeName}/${constraintFile} -->`;
+
+      // Try tech.md first (V2 format), then spec.md (V1 format)
+      const targetPath = existsSync(techPath) ? techPath : (existsSync(specPath) ? specPath : null);
+      if (!targetPath) continue;
+
+      const existing = readFileSync(targetPath, 'utf8');
+      if (existing.includes(marker)) continue; // Idempotency
+
+      const merged = `${existing}\n\n${marker}\n${content}\n`;
+      const tmpPath = `${targetPath}.tmp.${process.pid}`;
+      writeFileSync(tmpPath, merged, 'utf8');
+      renameSync(tmpPath, targetPath);
+      mergeLog.push(`constraints/${constraintFile} → ${targetPath.replace(projectRoot, '')}`);
+    }
+  } catch {
+    // Non-fatal
+  }
+}
+
+/**
+ * Merge change-level .mumuspec/ (prd.md/tech.md) to the target scope's
+ * corresponding spec files, if they contain updates not covered by delta-specs.
+ */
+function mergeChangeLevelSpecs(
+  projectRoot: string,
+  changeName: string,
+  changeDir: string,
+  state: ChangeState,
+  mergeLog: string[],
+): void {
+  const changeMumuDir = join(changeDir, '.mumuspec');
+  if (!existsSync(changeMumuDir)) return;
+
+  const scope = state.scope || '.';
+  const targetDir = scope === '.' ? projectRoot : join(projectRoot, scope);
+  const targetMumuDir = join(targetDir, '.mumuspec');
+
+  // Merge prd.md
+  const changePrdPath = join(changeMumuDir, 'prd.md');
+  if (existsSync(changePrdPath)) {
+    try {
+      const content = readFileSync(changePrdPath, 'utf8');
+      if (content && content.trim()) {
+        const targetPrdPath = join(targetMumuDir, 'prd.md');
+        const targetDesignPath = join(targetMumuDir, 'design.md');
+        const targetPath = existsSync(targetPrdPath) ? targetPrdPath : (existsSync(targetDesignPath) ? targetDesignPath : null);
+        if (targetPath) {
+          const marker = `<!-- change-spec-merged from ${changeName}/.mumuspec/prd.md -->`;
+          const existing = readFileSync(targetPath, 'utf8');
+          if (!existing.includes(marker)) {
+            const merged = `${existing}\n\n${marker}\n${content}\n`;
+            const tmpPath = `${targetPath}.tmp.${process.pid}`;
+            writeFileSync(tmpPath, merged, 'utf8');
+            renameSync(tmpPath, targetPath);
+            mergeLog.push(`.mumuspec/prd.md → ${targetPath.replace(projectRoot, '')}`);
+          }
+        }
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  // Merge tech.md
+  const changeTechPath = join(changeMumuDir, 'tech.md');
+  if (existsSync(changeTechPath)) {
+    try {
+      const content = readFileSync(changeTechPath, 'utf8');
+      if (content && content.trim()) {
+        const targetTechPath = join(targetMumuDir, 'tech.md');
+        const targetSpecPath = join(targetMumuDir, 'spec.md');
+        const targetPath = existsSync(targetTechPath) ? targetTechPath : (existsSync(targetSpecPath) ? targetSpecPath : null);
+        if (targetPath) {
+          const marker = `<!-- change-spec-merged from ${changeName}/.mumuspec/tech.md -->`;
+          const existing = readFileSync(targetPath, 'utf8');
+          if (!existing.includes(marker)) {
+            const merged = `${existing}\n\n${marker}\n${content}\n`;
+            const tmpPath = `${targetPath}.tmp.${process.pid}`;
+            writeFileSync(tmpPath, merged, 'utf8');
+            renameSync(tmpPath, targetPath);
+            mergeLog.push(`.mumuspec/tech.md → ${targetPath.replace(projectRoot, '')}`);
+          }
+        }
+      }
+    } catch {
+      // Non-fatal
+    }
   }
 }
 

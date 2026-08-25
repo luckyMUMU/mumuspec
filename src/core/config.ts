@@ -152,6 +152,12 @@ export interface MumuSpecConfig {
     branch_prefix: string;
     implementation_strategy: string;
     design_strategy: string;
+    /**
+     * Default tdd_mode for newly created changes (CHG-5, 0.20.0+).
+     * Replaces the hardcoded 'tdd'. Old changes keep their original value (not migrated).
+     * @default 'tdd'
+     */
+    default_tdd_mode: 'tdd' | 'non-tdd';
   };
   /**
    * Four workflow rules (0.11.0+). Strength-aware since 0.12.0.
@@ -170,6 +176,23 @@ export interface MumuSpecConfig {
     test_immutability_check: boolean;
     full_check_on_push: boolean;
     drift_detection_on_pr: boolean;
+    /**
+     * CHG-1: pre-commit 变更归属校验开关（默认 true）。
+     * 为 true 时，非白名单分支上无活跃 change 的提交会按 constraint_strength
+     * 输出警告（high=block，medium=warn，low=info）。
+     */
+    pre_commit_ownership_check: boolean;
+    /** CI/常规分支白名单 — 这些分支上的提交不做归属校验（默认 main/master） */
+    ownership_ci_branches: string[];
+  };
+  /**
+   * CHG-2: 守卫绕过审计配置（0.20.0+）。
+   * bypass_audit=true（默认）：guard --force / state transition --confirm /
+   * state set 受保护字段 允许执行，但必须写 audit-log 并输出风险提示。
+   * bypass_audit=false：上述绕过操作被拒绝（guard --force exit 1，state 拒绝 E-STATE-001）。
+   */
+  guard: {
+    bypass_audit: boolean;
   };
   ai: {
     generate_rules: boolean;

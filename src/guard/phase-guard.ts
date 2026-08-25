@@ -56,13 +56,18 @@ function checkRequiredSections(
 }
 
 /**
- * Run a phase guard check */
+ * Run a phase guard check
+ *
+ * CHG-5: `options.expectedTddMode`（默认 'tdd'）替代硬编码 'tdd' 校验。
+ * 旧变更（tdd_mode 与配置不符）只报 WARN，不阻断。
+ */
 export function runPhaseGuard(
   projectRoot: string,
   changeName: string,
   targetPhase: string,
-  options: { strength?: ConstraintStrengthField } = {},
+  options: { strength?: ConstraintStrengthField; expectedTddMode?: string } = {},
 ): GuardResult {
+  const expectedTddMode = options.expectedTddMode ?? 'tdd';
   const state = loadChangeState(projectRoot, changeName);
   if (!state) {
     return applyStrengthToGuardResult(
@@ -82,9 +87,9 @@ export function runPhaseGuard(
       break;
     case 'build':
       if (state.workflow === 'hotfix' || state.workflow === 'tweak') {
-        rawResult = checkOpenToBuildHotfix(state, projectRoot, changeName);
+        rawResult = checkOpenToBuildHotfix(state, projectRoot, changeName, expectedTddMode);
       } else {
-        rawResult = checkDesignToBuild(state, projectRoot, changeName);
+        rawResult = checkDesignToBuild(state, projectRoot, changeName, expectedTddMode);
       }
       break;
     case 'verify':
@@ -102,6 +107,32 @@ export function runPhaseGuard(
   }
 
   return applyStrengthToGuardResult(rawResult, options.strength);
+}
+
+/**
+ * CHG-5: tdd_mode 校验 — 只校验合法枚举（tdd|non-tdd）且与配置默认值一致。
+ * 非法值 → error；合法但与期望不符（旧变更）→ WARN 不阻断。
+ */
+function checkTddMode(
+  state: ChangeState,
+  expectedTddMode: string,
+  errors: { code: string; message: string; detail?: string }[],
+  warnings: { code: string; message: string; detail?: string }[],
+): void {
+  const mode = state.tdd_mode;
+  if (mode !== 'tdd' && mode !== 'non-tdd') {
+    errors.push({
+      code: 'E-GUARD-001',
+      message: `tdd_mode 非法: ${String(mode)} (合法值: tdd|non-tdd)`,
+    });
+    return;
+  }
+  if (mode !== expectedTddMode) {
+    warnings.push({
+      code: 'W-GUARD-001',
+      message: `tdd_mode (${mode}) 与配置默认值 (${expectedTddMode}) 不一致（旧变更不迁移）`,
+    });
+  }
 }
 
 /** open_to_design guard */
@@ -163,6 +194,7 @@ function checkOpenToBuildHotfix(
   state: ChangeState,
   projectRoot: string,
   changeName: string,
+  expectedTddMode: string = 'tdd',
 ): GuardResult {
   const errors: { code: string; message: string; detail?: string }[] = [];
   const warnings: { code: string; message: string; detail?: string }[] = [];
@@ -197,10 +229,8 @@ function checkOpenToBuildHotfix(
     }
   }
 
-  // Check tdd_mode
-  if (state.tdd_mode !== 'tdd') {
-    errors.push({ code: 'E-GUARD-001', message: 'tdd_mode 必须为 tdd' });
-  }
+  // Check tdd_mode（CHG-5: 比对 expectedTddMode，非法报错，旧变更不匹配仅 WARN）
+  checkTddMode(state, expectedTddMode, errors, warnings);
 
   return { passed: errors.length === 0, errors, warnings };
 }
@@ -210,6 +240,7 @@ function checkDesignToBuild(
   state: ChangeState,
   projectRoot: string,
   changeName: string,
+  expectedTddMode: string = 'tdd',
 ): GuardResult {
   const errors: { code: string; message: string; detail?: string }[] = [];
   const warnings: { code: string; message: string; detail?: string }[] = [];
@@ -253,10 +284,8 @@ function checkDesignToBuild(
     });
   }
 
-  // Check tdd_mode
-  if (state.tdd_mode !== 'tdd') {
-    errors.push({ code: 'E-GUARD-001', message: 'tdd_mode 必须为 tdd' });
-  }
+  // Check tdd_mode（CHG-5: 比对 expectedTddMode，非法报错，旧变更不匹配仅 WARN）
+  checkTddMode(state, expectedTddMode, errors, warnings);
 
   // DS-001: Structured Design Template check (E-DESIGN-009)
   if (existsSync(designPath)) {

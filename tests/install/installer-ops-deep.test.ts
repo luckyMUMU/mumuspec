@@ -18,7 +18,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 vi.mock('node:child_process', () => ({
-  execSync: vi.fn(),
+  spawnSync: vi.fn(),
 }));
 
 import {
@@ -67,11 +67,13 @@ describe('installPackage — extended error paths', () => {
     expect(result).toBeDefined();
   });
 
-  it('catpaw non-workflow package with skillId (browser) — mocked execSync success', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      JSON.stringify({ success: true, skillId: 10 }),
-    );
+  it('catpaw non-workflow package with skillId (browser) — mocked spawnSync success', async () => {
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: JSON.stringify({ success: true, skillId: 10 }),
+      stderr: '',
+    });
 
     const result = installPackage('catpaw', 'browser', 'workspace', testWorkspace);
     expect(result.success).toBe(true);
@@ -90,19 +92,21 @@ describe('installPackage — extended error paths', () => {
     expect(result.path).toBeDefined();
   });
 
-  it('catpaw browser package — execSync returns non-JSON output with "success"', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      'Successfully installed skill browser',
-    );
+  it('catpaw browser package — spawnSync returns non-JSON output with "success"', async () => {
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: 'Successfully installed skill browser',
+      stderr: '',
+    });
 
     const result = installPackage('catpaw', 'browser', 'workspace', testWorkspace);
     expect(result.success).toBe(true);
   });
 
-  it('catpaw browser package — execSync fails', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+  it('catpaw browser package — spawnSync fails', async () => {
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
       throw new Error('Network error');
     });
 
@@ -111,11 +115,13 @@ describe('installPackage — extended error paths', () => {
     expect(result.error).toContain('Failed to install');
   });
 
-  it('catpaw browser package — execSync returns JSON without success field', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      JSON.stringify({ message: 'unknown response' }),
-    );
+  it('catpaw browser package — spawnSync returns JSON without success field', async () => {
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: JSON.stringify({ message: 'unknown response' }),
+      stderr: '',
+    });
 
     const result = installPackage('catpaw', 'browser', 'workspace', testWorkspace);
     expect(result.success).toBe(false);
@@ -307,15 +313,17 @@ describe('listInstalledMcp', () => {
 
 describe('listInstalledCatpaw', () => {
   it('returns skills from successful paw command', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      JSON.stringify({
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: JSON.stringify({
         skills: [
           { name: 'browser', installPath: '/path/to/browser', source: 'marketplace' },
           { name: 'mumuspec', installPath: '/path/to/mumuspec', source: 'user' },
         ],
       }),
-    );
+      stderr: '',
+    });
 
     const result = listInstalledCatpaw('/some/workspace');
     expect(result.success).toBe(true);
@@ -324,17 +332,21 @@ describe('listInstalledCatpaw', () => {
   });
 
   it('returns empty skills from non-JSON output', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce('not json');
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      status: 0,
+      stdout: 'not json',
+      stderr: '',
+    });
 
     const result = listInstalledCatpaw('/some/workspace');
     expect(result.success).toBe(true);
     expect(result.skills).toEqual([]);
   });
 
-  it('returns error when execSync throws', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+  it('returns error when spawnSync throws', async () => {
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
       throw new Error('Command not found');
     });
 

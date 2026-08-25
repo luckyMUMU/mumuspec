@@ -12,12 +12,14 @@ layer: 3
 - **复数命令**（包含多个子命令）：`register<Name>Commands(program)` — `program: Command`（commander 实例）
 - **单数命令**（单一功能）：`register<Name>Command(program)` — `program: Command`
 
-### 完整命令注册函数列表（24 个）
+### 完整命令注册函数列表（31 个）
+
+> 与 `src/cli/index.ts` 的 `buildProgram()` 中 31 次 `register*` 调用逐一核对（2026-08-22）。
 
 | 注册函数 | 来源文件 | 命令名 |
 |----------|----------|--------|
-| `registerSpecCommands` | `spec.ts` | spec |
-| `registerChangeCommands` | `change.ts` | change |
+| `registerSpecCommands` | `spec.ts` | spec（含 check / drift / validate / context / add-spec / search / sync-specs） |
+| `registerChangeCommands` | `change.ts` | change（new / status / list / archive / discard） |
 | `registerGuardCommand` | `guard.ts` | guard |
 | `registerStateCommands` | `state.ts` | state |
 | `registerKnowledgeCommands` | `knowledge.ts` | knowledge |
@@ -38,13 +40,22 @@ layer: 3
 | `registerAdviseCommand` | `advise.ts` | advise |
 | `registerContractCommands` | `contract.ts` | contract |
 | `registerLoopCommands` | `loop.ts` | loop |
+| `registerGrillMeCommand` | `grill-me.ts` | grill-me（2026-08-22 补录） |
 | `registerSyncCommand` | `sync.ts` | sync |
 | `registerReviewCommand` | `review.ts` | review |
 | `registerMergeCommand` | `merge.ts` | merge（2026-08-08 新增） |
+| `registerAuditLogCommand` | `audit-log.ts` | audit-log（2026-08-22 补录） |
+| `registerTraceCommand` | `trace.ts` | trace（2026-08-22 补录） |
+| `registerGraphCommand` | `graph.ts` | graph（2026-08-22 补录） |
+| `registerTutorialCommand` | `tutorial.ts` | tutorial（2026-08-22 补录） |
+| `registerMetaEvolveCommand` | `meta-evolve.ts` | meta-evolve（2026-08-22 补录） |
+| `registerTeamCommands` | `team.ts` | team（init / clarify / run / status / confirm / scaffold / info） |
 
-### 命令文件清单（33 个 .ts 文件）
+> 注：`check` 命令由 `spec.ts` 的 `registerSpecCommands` 注册（ponytail 合并自原 check.ts，防止 commander 重复注册崩溃），**不属于** `guard.ts`。`knowledge-*.ts` / `cognitive-map.ts` / `loop-experiment.ts` 等子文件仅导出被父命令模块内部调用的子注册函数，不在 index.ts 顶层注册，故不列入上表。
 
-advise.ts, bundle.ts, change.ts, constraints.ts, contract.ts, dashboard.ts, decisions.ts, doctor.ts, env.ts, eval.ts, feedback.ts, finalize-archive.ts, guard.ts, hooks.ts, i18n.ts, install.ts, knowledge.ts, knowledge-analysis.ts, knowledge-chat.ts, knowledge-crud.ts, knowledge-doctor.ts, knowledge-git.ts, knowledge-onboard.ts, knowledge-scan.ts, loop.ts, merge.ts, recommend.ts, review.ts, skill.ts, spec.ts, state.ts, sync.ts
+### 命令文件清单（42 个 .ts 文件）
+
+advise.ts, audit-log.ts, bundle.ts, change.ts, cognitive-map.ts, constraints.ts, contract.ts, dashboard.ts, decisions.ts, doctor.ts, env.ts, eval.ts, feedback.ts, finalize-archive.ts, graph.ts, grill-me.ts, guard.ts, hooks.ts, i18n.ts, install.ts, knowledge.ts, knowledge-analysis.ts, knowledge-chat.ts, knowledge-crud.ts, knowledge-doctor.ts, knowledge-git.ts, knowledge-onboard.ts, knowledge-scan.ts, knowledge-sync.ts, loop.ts, loop-experiment.ts, merge.ts, meta-evolve.ts, recommend.ts, review.ts, skill.ts, spec.ts, state.ts, sync.ts, team.ts, trace.ts, tutorial.ts
 
 ## 依赖声明
 
@@ -84,6 +95,7 @@ advise.ts, bundle.ts, change.ts, constraints.ts, contract.ts, dashboard.ts, deci
 - 函数内使用 `program.command('name').description('...').argument(...)...action(callback)` commander API
 - 异步 action 使用 `async` 回调
 - 错误统一通过 `catch` 捕获并使用 `console.error` + `process.exit(1)` 退出
+- **`check` 命令归属 `spec.ts`**（`registerSpecCommands` 内；原 check.ts 已合并，防止 commander 重复注册崩溃）— 不属于 `guard.ts`。`mumuspec check` 的 `--json` 输出聚合 compliance / drift / glossary 并携带真实 exitCode（LOOP-4 L1）
 
 ### 安全确认规范
 
@@ -101,5 +113,6 @@ advise.ts, bundle.ts, change.ts, constraints.ts, contract.ts, dashboard.ts, deci
 
 | 日期 | 变更说明 |
 |------|----------|
+| 2026-08-22 | 与 `index.ts` 逐一核对：注册函数列表 24→31（补录 grill-me/audit-log/trace/graph/tutorial/meta-evolve），文件清单 33→41；明确 `check` 命令归属 `spec.ts`（非 guard.ts），记录 `--json` 聚合契约与 E-CHECK-001 |
 | 2026-08-08 | 新增 `merge.ts`（`mumuspec merge <change>` 命令：归档后合并变更分支到主分支，--no-ff + 冲突暂停） |
 | 2025-07-09 | 首次创建，记录 src/cli/commands/ 对外接口、依赖与数据契约 |

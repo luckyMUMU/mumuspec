@@ -210,7 +210,7 @@ bindings:
 
 ### 2.4 代码图谱存储与索引
 
-| 维度 | 规格 |
+| 维度 | 规范 |
 |------|------|
 | **存储引擎** | SQLite（嵌入式，无需额外服务） |
 | **解析引擎** | tree-sitter（多语言 AST 解析） |
@@ -327,6 +327,8 @@ graph LR
 ```
 .mumuspec/knowledge/
 ├── _index.yaml                   # PageIndex 主索引（全局）
+├── _reverse-index.yaml           # 反向索引（代码节点 → 知识页面）
+├── _memory.yaml                  # LLM-Wiki 记忆索引（L3 项目级 + L2 作用域级摘要）
 ├── decisions/                    # 架构决策记录
 │   ├── KP-0001-payment-saga.md
 │   ├── KP-0003-auth-jwt-design.md
@@ -337,15 +339,19 @@ graph LR
 ├── risks/                        # 已知风险
 │   ├── KP-0020-concurrent-payment-risk.md
 │   └── ...
-├── rationale/                    # 设计理由
+├── rationales/                   # 设计理由
 │   ├── KP-0030-why-event-driven.md
 │   └── ...
 ├── lessons/                      # 经验教训
 │   ├── KP-0040-rollback-lesson-auth.md
 │   └── ...
+├── imports/                      # 导入的外部知识
+│   └── ...
 └── _archive/                     # 已废弃/已替代的知识页面
     └── ...
 ```
+
+> **结构白名单**: `knowledge/` 下的子目录和文件由 `structure-validator.ts` 强制校验，未定义的目录/文件将报 `E-SPEC-013`/`E-SPEC-014`。合法子目录：`decisions`, `patterns`, `risks`, `rationales`, `lessons`, `imports`。合法文件：`_index.yaml`, `_reverse-index.yaml`, `_memory.yaml`。
 
 ---
 
@@ -443,6 +449,23 @@ graph TD
 3. `stale` 页面仅加载标题和摘要（1 行），不加载正文
 4. 通过 `related_pages` 按需深入加载（懒加载）
 
+### 4.3a LLM-Wiki 记忆索引（`_memory.yaml`）
+
+除了渐进式知识加载，Knowledge Layer 还提供 **LLM-Wiki 记忆索引**，作为设计时 AI 的外部记忆入口：
+
+| 层级 | 内容 | 用途 |
+|------|------|------|
+| **L3 项目级** | goals, key_decisions (top 10), active_risks (top 5), recent_lessons (top 5) | AI 快速获取项目全局上下文 |
+| **L2 作用域级** | 按 scope 分组的 decisions, patterns, risks | AI 获取当前工作作用域的历史决策和模式 |
+
+**记忆索引特性**：
+- `_memory.yaml` 在缺失时自动重建（`loadMemoryIndex` 检测缺失 → 调用 `rebuildMemoryIndex`）
+- `loadSpecContext` 自动加载记忆上下文作为 `knowledge_memory` 字段
+- 记忆加载是 best-effort 的 — 失败不阻塞 spec 加载
+- 每个条目包含 `summary` 字段（从知识页内容提取的一行摘要），AI 无需读取完整页面即可获得关键信息
+
+> **语义金字塔**: L3 Summary → L2 Scenario → L1 Decision → L0 Evidence。`_memory.yaml` 提供 L3+L2 层摘要，AI 可按需深入到 L1（单个知识页）和 L0（原始工件）。
+
 ### 4.4 新鲜度管理
 
 知识页面的 `verified_at` 与代码图谱的最后修改时间对比，自动计算新鲜度：
@@ -538,7 +561,7 @@ interface BackendCapabilities {
 }
 ```
 
-### 三种后端 Adapter 规格
+### 三种后端 Adapter 规范
 
 #### CBM 后端(默认)
 

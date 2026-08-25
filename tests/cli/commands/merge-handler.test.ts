@@ -59,7 +59,7 @@ async function runMerge(args: string[]) {
     throw new Error(`exit:${code}`);
   });
   try {
-    await program.parseAsync(['node', 'test', ...args]);
+    await program.parseAsync(['node', 'test', 'merge', ...args]);
   } catch (e) {
     // process.exit throws; ignore
   }
@@ -99,7 +99,9 @@ describe('merge command', () => {
     mocks.mockGetCurrentBranch.mockReturnValue('master');
     mocks.mockGetMainBranch.mockReturnValue('master');
     mocks.mockMergeArchivedChange.mockImplementation(() => {
-      const err = new (require('../../../src/core/errors.js').MumuSpecError)('E-MERGE-010', { '说明': '冲突' });
+      const err = new Error('E-MERGE-010');
+      (err as any).code = 'E-MERGE-010';
+      (err as any).context = { '说明': '冲突' };
       throw err;
     });
     const logSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);

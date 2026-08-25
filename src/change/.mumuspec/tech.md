@@ -1,7 +1,7 @@
 ---
 scope: src/change
 layer: 2
-last_updated: '2026-08-04'
+last_updated: '2026-08-22'
 ---
 
 # Technical Design: change
@@ -13,6 +13,8 @@ last_updated: '2026-08-04'
 - 变更创建时必须初始化 build_layers 和 test_cases
 - 归档操作必须将变更从 active 移到 archive 目录
 - 决策日志必须支持按 phase 分类记录
+- 归档时必须将约束和变更级 spec 归并到目标作用域（`mergeChangeArtifacts`）
+- 归并操作必须幂等（通过 Marker 注释防重复）
 
 ## SHALL NOT constraints (migrated from spec.md)
 
@@ -20,6 +22,7 @@ last_updated: '2026-08-04'
 - 禁止回滚次数超过 rollback_limit
 - 禁止在 terminal 状态（archive-completed/discarded）继续转换
 - 禁止创建同名活跃变更
+- 禁止归档归并时重复写入同一内容（Marker 注释幂等检查）
 
 ## Enforcement (migrated from spec.md)
 
@@ -34,6 +37,8 @@ last_updated: '2026-08-04'
 - **三种 Workflow**：full（完整五阶段）、hotfix（跳过 design）、tweak（最轻量，跳过 delta-spec 和知识提取）
 - **版本自动 Bump**：归档时根据 workflow 类型自动递增版本号，同步更新 package.json 和 src/cli.ts
 - **知识提取（D1-D8）**：归档时从 cognitive-map、decisions.md、design.md、hyperplan_result 自动提取知识页
+- **归档归并**：`mergeChangeArtifacts` 将 `constraints/` 和变更级 `.mumuspec/` spec 文件归并到目标作用域的 `tech.md`/`prd.md`/`spec.md`，使用 Marker 注释确保幂等性
+- **原子写入**：归并操作使用 `tmp` 文件 + `rename` 确保原子性
 
 ## 接口契约 (Interface contracts)
 
@@ -50,6 +55,11 @@ function createChange(projectRoot, name, workflow, config, scopes): ChangeState;
 function archiveChange(projectRoot, changeName): void;
 function lockTestCases(projectRoot, changeName): string;
 function appendDecision(projectRoot, changeName, phase, decision): void;
+
+// archive.ts — 归档子流程
+function mergeDeltaSpecsToMain(projectRoot, changeName, changeDir, state): void;
+function mergeChangeArtifacts(projectRoot, changeName, changeDir, state): void;
+function extractKnowledgeToGlobal(projectRoot, changeName, changeDir, state): void;
 ```
 
 ## 依赖关系 (Dependencies)

@@ -156,8 +156,9 @@ describe('mergeDeltaSpecsToMain — scopePath empty branch (line 167)', () => {
 
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
-    expect(mockAppendFileSync).toHaveBeenCalled();
-    expect(mockAppendFileSync.mock.calls[0][1]).toContain('delta-merged from');
+    // Implementation now uses writeFileSync + renameSync instead of appendFileSync
+    expect(mockWriteFileSync).toHaveBeenCalled();
+    expect(mockWriteFileSync.mock.calls[0][1]).toContain('delta-merged from');
   });
 
   it('merges root-scope -prd.md into project root prd.md', () => {
@@ -168,7 +169,8 @@ describe('mergeDeltaSpecsToMain — scopePath empty branch (line 167)', () => {
 
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
-    expect(mockAppendFileSync).toHaveBeenCalled();
+    // Implementation now uses writeFileSync + renameSync instead of appendFileSync
+    expect(mockWriteFileSync).toHaveBeenCalled();
   });
 });
 

@@ -27,7 +27,8 @@ layer: 2
 | `validateScope` | `(root, scope) => void` | lifecycle.ts | 校验变更作用域 |
 | `escalateChange` | `(root, targetScope) => void` | lifecycle.ts | 向上升级变更 |
 | `appendDecision` | `(root, change, decision) => void` | decisions.ts | 追加决策记录 |
-| `mergeDeltaSpecsToMain` | `(root, name, archivedDir, state) => void` | archive.ts | 合并增量规范到主规范 |
+| `mergeDeltaSpecsToMain` | `(root, name, archivedDir, state) => void` | archive.ts | 合并增量规范到主规范（幂等，Marker 注释防重复） |
+| `mergeChangeArtifacts` | `(root, name, changeDir, state) => void` | archive.ts | 归档时归并约束和变更级 spec 到目标作用域（幂等） |
 | `extractKnowledgeToGlobal` | `(root, name, archivedDir, state) => void` | archive.ts | 提取知识到全局库 |
 | `getChangeDir` | `(root, changeName, scope?) => string` | paths.ts | 获取变更目录（含 validateChangeName 校验） |
 | `getDiscardedDir` | `(root, changeName, scope?) => string` | paths.ts | 获取已丢弃目录（含 validateChangeName 校验） |
@@ -86,12 +87,14 @@ layer: 2
 - `.mumuspec/changes/<name>/` 目录结构
 - 变更文件：`design.md`, `prd.md`, `proposal.md`, `decisions.md`, `tasks.md`, `verify.md`
 - 约束文件：`constraints/new-shall.md`, `constraints/new-shall-not.md`
+- 归档归并：`mergeChangeArtifacts` 将 `constraints/` 和 `.mumuspec/` 下的 spec 文件幂等归并到目标作用域的 `tech.md`/`prd.md`/`spec.md`
 - ChangeState 扩展字段：`branch?: string`（变更分支名）、`git_merge?: { merged, commit_sha?, strategy? }`（合并记录）、`branch_status?: 'pending'\|'handled'`（分支代码提交状态）
 
 ## 变更日志
 
 | 日期 | 变更 | 原因/影响 |
 |------|------|-----------|
+| 2026-08-22 | 新增 `mergeChangeArtifacts` 归档归并函数 — 将 constraints/ 和变更级 .mumuspec/ spec 幂等归并到目标作用域 | 归档时自动归并约束和 spec，通过 Marker 注释确保幂等性 |
 | 2026-08-08 | 新增 `branch.ts` 分支生命周期模块（7 个函数）；ChangeState 扩展 branch/git_merge/branch_status 语义 | 分支驱动多人协作：new 自动建分支、归档后合并门禁 |
 | 2026-08-08 | `getChangeDir`/`getDiscardedDir` 增加 validateChangeName 校验，拒绝路径穿越 | 安全加固 |
 | 2026-08-04 | 依赖项添加 ADR-0001 引用 | 明确 change → feedback/knowledge 单向依赖的决策依据 |

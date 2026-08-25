@@ -61,7 +61,12 @@ import { registerAuditLogCommand } from './commands/audit-log.js';
 import { registerTraceCommand } from './commands/trace.js';
 import { registerGraphCommand } from './commands/graph.js';
 import { registerMetaEvolveCommand } from './commands/meta-evolve.js';
+import { registerTeamCommands } from './commands/team.js';
 
+// Builds the full command tree without parsing args, so tests can import it
+// and assert command-tree invariants (e.g. no duplicate registrations)
+// without triggering CLI execution as a side effect.
+export function buildProgram() {
 const program = new Command();
 
 // Initialize locale before any command runs
@@ -70,7 +75,7 @@ initLocale();
 program
   .name('mumuspec')
   .description('MumuSpec — Tree-distributed dual-constraint specification system')
-  .version('0.19.0');
+  .version('0.19.1');
 
 // === init ===
 program
@@ -421,6 +426,7 @@ registerTraceCommand(program);
 registerGraphCommand(program);
 registerTutorialCommand(program);
 registerMetaEvolveCommand(program);
+registerTeamCommands(program);
 
 // Handle unknown commands gracefully
 program.on('command:*', () => {
@@ -429,5 +435,5 @@ program.on('command:*', () => {
   process.exit(1);
 });
 
-// Parse arguments
-program.parse();
+  return program;
+}

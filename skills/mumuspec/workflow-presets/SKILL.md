@@ -7,7 +7,7 @@ description: "MumuSpec 预设路径: Hotfix（Bug 修复）和 Tweak（小变更
 
 > **phase**: preset · **workflow**: `hotfix|tweak`
 
-预设路径是 MumuSpec 快速变更通道，跳过 brainstorming 和 Design，适用于不涉及新能力设计的行为修复或局部优化。
+预设路径是 MumuSpec 的快捷工作流，跳过 brainstorming 和 Design，适用于不涉及新能力设计的行为修复或局部优化。
 
 ---
 
@@ -29,7 +29,7 @@ description: "MumuSpec 预设路径: Hotfix（Bug 修复）和 Tweak（小变更
 
 ### 关键约束
 
-- **TDD 不豁免**：即使跳过 Design，红绿 TDD 循环和测试不可变性约束仍然强制适用
+- **TDD 不豁免**（默认 tdd 下）：即使跳过 Design，红绿 TDD 循环和测试不可变性约束仍然强制适用
 - **测试用例必须在 Open 阶段定义并锁定**：hotfix 虽跳过 Design，仍须定义单层 test-cases/
 
 ### 快速 Open（复用 phase-open 简化版）
@@ -104,7 +104,7 @@ mumuspec guard <name> open --apply
 
 ### 关键约束
 
-- **TDD 不豁免**：即使 tweak，红绿 TDD 循环和测试不可变性约束仍强制适用
+- **TDD 不豁免**（默认 tdd 下）：即使 tweak，红绿 TDD 循环和测试不可变性约束仍强制适用
 - **测试用例必须在 Open 阶段定义并锁定**：tweak 须定义单层 test-cases/
 
 ### 快速 Open（极简版）
@@ -245,7 +245,7 @@ mumuspec state set <name> phase design
 
 | Agent 想法 | 实际风险 |
 |-----------|---------|
-| "hotfix 不需要 TDD" | TDD 不可豁免 — tdd_mode 固定为 tdd |
+| "hotfix 不需要 TDD" | TDD 不可豁免 — tdd_mode 遵循配置（默认 tdd） |
 | "测试用例可以不锁定" | 即使预设路径也须定义并锁定 test-cases/ |
 | "tweak 可以跳过 Ponytail" | Ponytail 合规检查在 build 阶段强制执行 |
 | "范围扩大了继续做" | 超出条件必须升级 — BP-18 不可跳过 |

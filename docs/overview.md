@@ -84,7 +84,7 @@ MumuSpec 的核心目标是**创建独立于代码的、基于"技术设计 + �
 | **规范自动生成**（从代码逆向生成 spec.md） | 规范是设计意图的表达，自动生成会导致"代码即规范"的循环依赖 | 不计划 |
 | **多语言规范翻译** | 规范以项目主语言编写，AI 工具可自行翻译 | 不计划 |
 | **实时协作编辑** | 单一活跃变更约束已序列化规范修改，无需实时协作 | 不计划 |
-| **规范版本回滚**（rollback spec to historical version） | 规范变更通过 Git 版本控制管理，不额外实现 | 不计划 |
+| **规范版本回退**（rollback spec to historical version） | 规范变更通过 Git 版本控制管理，不额外实现 | 不计划 |
 | **强制代码风格检查**（格式化、缩进等） | 由项目现有 ESLint/Prettier 负责，MumuSpec 聚焦架构约束 | 不计划 |
 
 ## 1.3 设计假设
@@ -118,7 +118,7 @@ MumuSpec 的核心目标是**创建独立于代码的、基于"技术设计 + �
 ```mermaid
 graph LR
     subgraph Pillars["MumuSpec 四大设计支柱"]
-        P1["正向设计+反向禁止<br/>(Dual Constraint)<br/>· SHALL / MUST<br/>· SHALL NOT / MUST NOT (硬性禁止)<br/>· 禁止项=可执行检查"]
+        P1["正向设计+反向禁止<br/>(Dual Constraint)<br/>· SHALL / MUST<br/>· SHALL NOT (硬性禁止)<br/>· 禁止项=可执行检查"]
         P2["树状分布+渐进式披露<br/>(Tree Progressive)<br/>· 按目录树分层存放<br/>· 每层含本层+子层信息<br/>· 按切入层级加载<br/>· 避免上下文过载"]
         P3["持久化+代码一致<br/>(Code-Bound)<br/>· CI/CD 自动校验<br/>· 测试即契约<br/>· 代码图谱绑定<br/>· 漂移检测+告警"]
         P4["双维度动态约束强度<br/>(Dynamic Constraint Strength)<br/>· 技术设计维度 (HOW)<br/>· 需求目标维度 (WHAT)<br/>· 三档强度 high/medium/low<br/>· 工作流限制渐进式放开"]
@@ -143,7 +143,7 @@ graph LR
         R1["默认 Worktree 隔离<br/>· 物理隔离主分支<br/>· 支持零上下文恢复"]
         R2["单一活跃变更<br/>· 同时只允许一个活跃变更<br/>· 强制单一任务专注"]
         R3["自顶向下设计 自下向上实现<br/>· 设计: 根→模块→叶子<br/>· 实现: 叶子→模块→根"]
-        R4["默认红绿 TDD<br/>· 测试用例是设计产出<br/>· Design 后锁定不可变更<br/>· tdd_mode 固定不可关闭"]
+        R4["默认红绿 TDD<br/>· 测试用例是设计产出<br/>· Design 后锁定不可变更<br/>· tdd_mode 遵循配置（默认 tdd）"]
     end
 ```
 

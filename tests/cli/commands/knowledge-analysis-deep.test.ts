@@ -15,6 +15,7 @@ const {
   mockReadReverseIndex,
   mockMkdirSync,
   mockWriteFileSync,
+  mockReadFileSync,
 } = vi.hoisted(() => ({
   mockFindProjectRoot: vi.fn(),
   mockLoadConfig: vi.fn(),
@@ -24,6 +25,7 @@ const {
   mockReadReverseIndex: vi.fn(),
   mockMkdirSync: vi.fn(),
   mockWriteFileSync: vi.fn(),
+  mockReadFileSync: vi.fn(),
 }));
 
 vi.mock('../../../src/core/utils.js', async (importOriginal) => {
@@ -45,6 +47,7 @@ vi.mock('../../../src/knowledge/manager.js', () => ({
 vi.mock('node:fs', () => ({
   mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
   writeFileSync: (...args: unknown[]) => mockWriteFileSync(...args),
+  readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
 }));
 
 // ════════════════════════════════════════════════════════════════════
@@ -62,6 +65,7 @@ describe('knowledge-analysis command — deep coverage', () => {
     exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => { throw new Error('exit'); }) as () => never);
     mockFindProjectRoot.mockReturnValue('/fake/root');
     mockLoadConfig.mockReturnValue({ project: { name: 'test' } });
+    mockReadFileSync.mockReturnValue(JSON.stringify({ version: '1.0.0' }));
 
     // Default impact result with all sections populated
     mockAnalyzeImpact.mockReturnValue({

@@ -1,0 +1,88 @@
+name: onboard-cli
+phase: archive-completed
+workflow: full
+created_at: 2026-08-09T05:58:14.716Z
+updated_at: 2026-08-09 06:16:29
+scope: .
+affected_scopes:
+  - src/cli/commands
+  - src/core/templates
+build_layers:
+  - status: done
+    modules:
+      - src/core/templates/frontend.json
+      - src/core/templates/backend.json
+      - src/core/templates/fullstack.json
+  - status: done
+    modules:
+      - src/cli/commands/knowledge-onboard.ts
+      - src/cli/commands/tutorial.ts
+  - status: done
+    modules:
+      - src/cli/index.ts
+      - README.md
+test_cases:
+  design_locked: true
+  design_doc: design.md
+  design_content_hash: e3b0c44298fc1c14
+  suites_locked: true
+  suites_locked_layers:
+    - 1-templates
+    - 2-onboard-quickstart
+    - 3-tutorial
+    - 4-cli-register
+  suites_hash:
+    template-loading: dGVtcGxhdGUtbG9hZA==
+    config-merge: Y29uZmlnLW1lcmdl
+    tutorial-stages: dHV0b3JpYWwtc3RhZ2Vz
+    readme-quickstart: cmVhZG1lLXF1aWNrc3RhcnQ=
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/onboard-cli
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts: {}
+rollback_history: []
+cognitive_map: cognitive-map.yaml
+cognitive_framework:
+  enabled: true
+  q1_count: 3
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 4
+  converged: true
+  rounds_completed: 1
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+phase_progress:
+  - phase: open
+    completed: true
+    user_confirmed: true
+  - phase: design
+    completed: true
+    user_confirmed: true
+  - phase: build
+    completed: true
+    user_confirmed: true
+knowledge_extraction:
+  completed: true
+  pages_created_count: 4
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

@@ -43,7 +43,7 @@ my-project/
 │   │   │   ├── constraints/
 │   │   │   │   ├── new-shall.md
 │   │   │   │   └── new-shall-not.md
-│   │   │   ├── test-cases/                 # 测试用例规格（0.6.0 新增）
+│   │   │   ├── test-cases/                 # 测试用例定义（0.6.0 新增）
 │   │   │   │   ├── layer-0-cases.md        # 根层测试用例
 │   │   │   │   ├── layer-1-cases.md        # src 层测试用例
 │   │   │   │   └── layer-2-cases.md        # auth 层测试用例

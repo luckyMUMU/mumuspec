@@ -15,6 +15,16 @@ export interface SpecFrontmatter {
   parent_tech?: string;
   /** Document type discriminator */
   doc_type?: 'spec' | 'prd' | 'tech' | 'design' | 'prohibitions';
+  /** P1-1 Fix: Prohibition annotations for semantic checking */
+  prohibitions?: ProhibitionAnnotation[];
+}
+
+/** P1-1 Fix: Prohibition annotation mapping natural language to machine-readable check */
+export interface ProhibitionAnnotation {
+  /** The natural language prohibition text (matches shallNot entry) */
+  text: string;
+  /** Machine-readable annotation */
+  annotation: MachineReadableAnnotation;
 }
 
 /** A single requirement block in spec.md */
@@ -32,6 +42,22 @@ export interface EnforcementRule {
   description: string;
   check?: string;
   severity: Severity;
+  /** P1-1 Fix: Machine-readable annotation for semantic checking */
+  machine_readable?: MachineReadableAnnotation;
+}
+
+/** P1-1 Fix: Machine-readable constraint annotation for AST-based checking */
+export interface MachineReadableAnnotation {
+  /** Constraint type for routing to AST checker */
+  type: 'no-new-dependency' | 'no-mutable-state' | 'no-side-effect' | 'pure-function' | 'no-global-state' | 'custom';
+  /** Scope of the check */
+  scope?: 'function' | 'module' | 'class' | 'file';
+  /** Target of the check (e.g., 'exported' for exported functions) */
+  target?: string;
+  /** Custom AST constraint ID (when type is 'custom') */
+  ast_constraint?: string;
+  /** Human-readable explanation of why this annotation was chosen */
+  rationale?: string;
 }
 
 /** Parsed spec.md content */
@@ -137,6 +163,41 @@ export interface SpecContext {
   index?: SpecIndex;
   /** Inheritance conflicts detected during loading */
   inheritance_conflicts?: InheritanceConflictRef[];
+  /** LLM-Wiki memory context — relevant knowledge for design-time decisions */
+  knowledge_memory?: SpecKnowledgeMemory;
+}
+
+/** Compact knowledge memory attached to spec context for AI consumption */
+export interface SpecKnowledgeMemory {
+  /** Project-level summary string */
+  project_summary: string;
+  /** Relevant historical decisions for the current scope */
+  relevant_decisions: Array<{
+    id: string;
+    title: string;
+    summary: string;
+    scope: string;
+  }>;
+  /** Relevant architectural patterns for the current scope */
+  relevant_patterns: Array<{
+    id: string;
+    title: string;
+    summary: string;
+    scope: string;
+  }>;
+  /** Active risks to consider */
+  relevant_risks: Array<{
+    id: string;
+    title: string;
+    summary: string;
+    scope: string;
+  }>;
+  /** Recent lessons learned */
+  recent_lessons: Array<{
+    id: string;
+    title: string;
+    summary: string;
+  }>;
 }
 
 /** Reference to an inheritance conflict between parent and child */

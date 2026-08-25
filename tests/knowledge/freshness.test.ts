@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { verifyKnowledge, listStalePages, supersedeKnowledge } from '../../src/knowledge/freshness.js';
-import { createKnowledgePage } from '../../src/knowledge/pages.js';
+import { createKnowledgePage, getKnowledgePage } from '../../src/knowledge/pages.js';
 import type { MumuSpecConfig } from '../../src/core/config.js';
 
 function defaultConfig(): MumuSpecConfig {

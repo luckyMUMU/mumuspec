@@ -281,7 +281,7 @@ base_ref: a1b2c3d4e5f6
 build_mode: null                 # executing-plans|subagent-driven-development|direct
 build_pause: null                # null|plan-ready
 isolation: null                  # branch|worktree
-tdd_mode: tdd                    # 固定为 tdd
+tdd_mode: tdd                    # 默认 tdd，可配置 (default_tdd_mode)
 verify_mode: null                # light|full
 verify_result: pending           # pending|pass|pass-with-deviations|fail
 verification_report: null

@@ -11,18 +11,30 @@ export function computeHash(content: string): string {
   return createHash('sha256').update(content, 'utf8').digest('hex').substring(0, 16);
 }
 
+/** Maximum allowed YAML file size (10 MB) — P0-8 Fix: prevents OOM from malicious specs */
+const MAX_YAML_FILE_SIZE = 10 * 1024 * 1024;
+
 /** Read and parse a YAML file */
 export function readYaml<T = unknown>(filePath: string): T | undefined {
   if (!existsSync(filePath)) return undefined;
+  // P0-8 Fix: Read file and check size to prevent OOM
   const content = readFileSync(filePath, 'utf8');
-  return parse(content) as T;
+  if (content.length > MAX_YAML_FILE_SIZE) {
+    throw new Error(`YAML file too large: ${filePath} (${content.length} bytes, max ${MAX_YAML_FILE_SIZE})`);
+  }
+  // P0-8 Fix: Use safe parse options to prevent YAML bomb attacks
+  return parse(content, { maxAliasCount: 100 }) as T;
 }
 
 /** Write an object as YAML to a file */
 export function writeYaml(filePath: string, data: unknown): void {
   ensureDir(dirname(filePath));
-  const content = stringify(data, { indent: 2, lineWidth: 120 });
-  writeFileSync(filePath, content, 'utf8');
+  writeFileSync(filePath, dumpYaml(data), 'utf8');
+}
+
+/** Serialize an object to a YAML string */
+export function dumpYaml(data: unknown): string {
+  return stringify(data, { indent: 2, lineWidth: 120 });
 }
 
 /** Read a text file */
@@ -100,7 +112,7 @@ export function appendAuditLog(
 export function parseFrontmatter<T = Record<string, unknown>>(
   content: string,
 ): { frontmatter: T | undefined; body: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) {
     return { frontmatter: undefined, body: content };
   }

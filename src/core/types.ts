@@ -19,3 +19,4 @@ export * from './types-knowledge.js';
 export * from './types-analysis.js';
 export * from './types-env.js';
 export * from './types-contract.js';
+export * from './types-team.js';

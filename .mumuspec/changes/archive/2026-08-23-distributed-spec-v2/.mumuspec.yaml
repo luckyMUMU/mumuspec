@@ -1,0 +1,63 @@
+name: distributed-spec-v2
+phase: archive-completed
+workflow: full
+created_at: 2026-08-09T03:53:24.474Z
+updated_at: 2026-08-09T04:34:45.096Z
+scope: .
+affected_scopes: []
+build_layers:
+  - layer: 0
+    scope: src/core
+    status: done
+  - layer: 1
+    scope: src/spec
+    status: done
+  - layer: 2
+    scope: src/guard
+    status: done
+  - layer: 3
+    scope: tests/e2e
+    status: done
+test_cases:
+  design_locked: true
+  suites_locked: true
+  suites_locked_layers:
+    - layer-0-cases
+    - layer-1-cases
+  suites_hash: {}
+  design_content_hash: d0e2553b846cf976
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+verify_result: pass
+branch_status: handled
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/distributed-spec-v2
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts: {}
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  cognitive_map_ref: cognitive-map.yaml
+  q1_count: 6
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 3
+  converged: true
+  rounds_completed: 1
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md

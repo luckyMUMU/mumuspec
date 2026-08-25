@@ -1,0 +1,134 @@
+# Cognitive Map — dashboard-onboard-chat
+
+entries:
+  # ──── Q1: Known Knowns ────
+  - quadrant: Q1
+    category: known-known
+    question: "Dashboard 可视化对象？"
+    answer: "spec 拓扑：SpecModule / Constraint / Change / Knowledge 节点；GOVERNED_BY / DEPENDS_ON / DERIVED_FROM 边"
+    confidence: high
+    source: "proposal.md §3.1"
+
+  - quadrant: Q1
+    category: known-known
+    question: "Onboard Chat 引导模式"
+    answer: "分支决策树：按角色跳转不同路径；localStorage 持久化；与图谱联动高亮"
+    confidence: high
+    source: "Q2=branching"
+
+  - quadrant: Q1
+    category: known-known
+    question: "节点详情面板深度"
+    answer: "文本摘要 + metadata + change 时间线（当节点关联 change 时）"
+    confidence: high
+    source: "Q2=with-timeline"
+
+  - quadrant: Q1
+    category: known-known
+    question: "Q&A 检索机制"
+    answer: "关键词匹配 + 评分（mock），命中展示知识条目 + 图谱节点联动"
+    confidence: high
+    source: "proposal.md §3.1"
+
+  - quadrant: Q1
+    category: known-known
+    question: "数据源"
+    answer: "MVP 全量 mock；类型按 src/core/types.ts 构造；不调用 CLI 或文件系统"
+    confidence: high
+    source: "proposal.md §6"
+
+  - quadrant: Q1
+    category: known-known
+    question: "技术栈"
+    answer: "React 18 + TS + Vite 5；Zustand；React Flow；CSS Modules；Vitest + Testing Library"
+    confidence: high
+    source: "proposal.md §4"
+
+  - quadrant: Q1
+    category: known-known
+    question: "与主 CLI 边界"
+    answer: "零耦合；独立 package.json；不把 React 依赖拉入主 CLI"
+    confidence: high
+    source: "proposal.md §6"
+
+  - quadrant: Q1
+    category: known-known
+    question: "工作区测试/构建工具链"
+    answer: "vitest + tsx + typescript；engines node>=20；demo/ 已示范子项目"
+    confidence: high
+    source: "package.json"
+
+  # ──── Q3: Reasoning (confirmed) ────
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "Q3-001: onboard store 是否按 role 分区存储进度 key"
+    answer: "Confirmed：不同角色的引导进度分别记录，key 按角色前缀分区"
+    confidence: high
+    source: "Q1[Onboard=branching]+Q1[localStorage]→role 分区"
+
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "Q3-002: mock-graph 至少包含几个 change 节点"
+    answer: "Confirmed：≥3 个 change 节点，才能完整展示详情面板时间线"
+    confidence: high
+    source: "Q1[detail=with-timeline]→需要 change 实体数组"
+
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "Q3-003: Chat 与图谱联动方式"
+    answer: "Confirmed：store 提供 focusNode(id) action，Chat 调用 Store；禁止直接 ref 调用图谱实例"
+    confidence: high
+    source: "Q1[branching 联动]→store 中介解耦"
+
+  # ──── Q4: Blind Spots ────
+  - quadrant: Q4
+    category: blind-spot
+    question: "详情面板 XSS 风险"
+    answer: "React 默认转义；接入真实数据后 review"
+    confidence: medium
+    source: "hyperplan:security"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "大图谱（100+ 节点）性能"
+    answer: "MVP <20 无需虚拟化；后续引入虚拟化或分页"
+    confidence: medium
+    source: "hyperplan:performance"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "localStorage 不可用 fallback"
+    answer: "内存 state + sessionStorage 镜像；无跨设备"
+    confidence: medium
+    source: "hyperplan:compat"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "引导历史 vs mock knowledge 一致性"
+    answer: "mock 常量快照；真实数据时加版本戳"
+    confidence: low
+    source: "hyperplan:consistency"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "是否预留真实数据接入层"
+    answer: "MVP 完全封闭；adapter 接口 post-MVP"
+    confidence: medium
+    source: "gap:future-integration 推迟"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "是否需要多视图切换"
+    answer: "MVP 单图谱视图；多视图 post-MVP"
+    confidence: medium
+    source: "gap:multi-view 推迟"
+
+  # guard tracking fields (injected, not structural)
+  converged: true
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 6
+  rounds_completed: 1

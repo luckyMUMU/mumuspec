@@ -15,6 +15,7 @@ import {
   getValidTransitionsWithContext,
   isTerminal,
   findTransitionPath,
+  activateProjectWorkflow,
 } from '../../change/state-machine.js';
 
 interface CheckResult {
@@ -38,6 +39,8 @@ export function registerGraphCommand(program: Command): void {
         console.error('Error: Not in a MumuSpec project.');
         process.exit(1);
       }
+      // CHG-7: 激活项目级 workflow 覆盖（无则回退内置）
+      activateProjectWorkflow(root);
 
       const changeName = options.change || getActiveChange(root);
       if (!changeName) {

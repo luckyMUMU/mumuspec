@@ -7,6 +7,7 @@
 import { resolve } from 'node:path';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { getCurrentBranch, getHeadSha } from './git.js';
 import {
   ensureDir,
   now,
@@ -310,18 +311,15 @@ export function initExperiment(
   const experimentDir = getExperimentDir(projectRoot, input.name);
   ensureDir(experimentDir);
 
-  // Detect current branch and commit
-  const branchResult = spawnSync('git', ['branch', '--show-current'], {
-    cwd: projectRoot,
-    encoding: 'utf-8',
-  });
-  const originalBranch = (branchResult.stdout ?? '').trim();
-
-  const commitResult = spawnSync('git', ['rev-parse', 'HEAD'], {
-    cwd: projectRoot,
-    encoding: 'utf-8',
-  });
-  const baseCommit = (commitResult.stdout ?? '').trim();
+  // Detect current branch and commit（git() 封装：失败抛错而非静默空值）
+  const originalBranch = getCurrentBranch(projectRoot);
+  if (!originalBranch) {
+    throw new Error('Cannot init experiment: detached HEAD or not a git repository');
+  }
+  const baseCommit = getHeadSha(projectRoot);
+  if (!baseCommit) {
+    throw new Error('Cannot init experiment: empty repository (no HEAD commit)');
+  }
 
   // Generate directions
   const directions = generateDirections(projectRoot, input.config);

@@ -1,4 +1,5 @@
-import type { ChangePhase } from '../core/types.js';
+import type { ChangePhase, Workflow } from '../core/types.js';
+import { loadWorkflowConfig, buildFallbackConfig } from './phase-graph-loader.js';
 
 /**
  * Edge direction in the directed graph.
@@ -41,6 +42,40 @@ export interface PhaseEdge {
   };
   /** Optional runtime condition that must be true for this edge to be available */
   condition?: (state: { workflow: string; [key: string]: unknown }) => boolean;
+  /** Declarative condition source (CHG-6) — compiled into `condition` at build time */
+  conditionSpec?: WorkflowConditionSpec;
+}
+
+/**
+ * Declarative condition spec (CHG-6) — YAML 可表达，本期仅支持 workflow_in。
+ */
+export interface WorkflowConditionSpec {
+  workflow_in: Workflow[];
+}
+
+/**
+ * YAML edge spec (CHG-6) — WorkflowEdgeSpec.bp.id 映射为 PhaseEdge.blockingPoint.bp。
+ */
+export interface WorkflowEdgeSpec {
+  from: ChangePhase;
+  to: ChangePhase;
+  direction: EdgeDirection;
+  countAs: EdgeCounter;
+  label: string;
+  bp?: { id: string; description: string; required: boolean };
+  condition?: WorkflowConditionSpec;
+}
+
+/**
+ * WorkflowConfig (CHG-6) — workflow.default.yaml 的运行时形态，单一事实源。
+ * 置于本文件以规避 types-workflow ↔ phase-graph 循环依赖（EdgeDirection/EdgeCounter 定义于此）。
+ */
+export interface WorkflowConfig {
+  version: number;
+  phases: ChangePhase[];
+  terminal: ChangePhase[];
+  edges: WorkflowEdgeSpec[];
+  workflows: Record<Workflow, { phases: ChangePhase[]; skip_design?: boolean }>;
 }
 
 /**
@@ -56,158 +91,34 @@ export interface PhaseEdge {
 export class PhaseGraph {
   private adjacencyList: Map<ChangePhase, PhaseEdge[]> = new Map();
   private terminalStates: Set<ChangePhase> = new Set();
+  private config: WorkflowConfig;
 
-  constructor() {
-    // Initialize adjacency list for all known phases
-    const allPhases: ChangePhase[] = [
-      'open', 'design', 'build', 'verify',
-      'archive-in-progress', 'archive-completed', 'discarded',
-    ];
-    for (const phase of allPhases) {
+  constructor(config?: WorkflowConfig) {
+    // 无 config → 内置 fallback（与历史硬编码同构，AC-02 向后兼容）
+    this.config = config ?? buildFallbackConfig();
+
+    // Initialize adjacency list for all configured phases
+    for (const phase of this.config.phases) {
       this.adjacencyList.set(phase, []);
     }
 
     // Mark terminal states
-    this.terminalStates.add('archive-completed');
-    this.terminalStates.add('discarded');
+    for (const phase of this.config.terminal) {
+      this.terminalStates.add(phase);
+    }
 
-    // Build default edges
-    this.buildDefaultEdges();
+    // Build edges from config (replaces the old hardcoded buildDefaultEdges)
+    this.buildFromConfig(this.config.edges);
   }
 
   /**
-   * Build the default DCG edges that represent the MumuSpec workflow.
-   * This replaces the old FORWARD_TRANSITIONS + ROLLBACK_TRANSITIONS.
+   * Build graph edges from a WorkflowConfig (CHG-6).
+   * bp.id → blockingPoint.bp；conditionSpec → condition 函数（调用点零改动）。
    */
-  private buildDefaultEdges(): void {
-    // === FORWARD EDGES (progress) ===
-    this.addEdge({
-      from: 'open',
-      to: 'design',
-      direction: 'forward',
-      countAs: 'none',
-      label: 'open→design（完整工作流）',
-      blockingPoint: { bp: 'BP-3', description: '工件审查与确认', required: true },
-    });
-
-    this.addEdge({
-      from: 'design',
-      to: 'build',
-      direction: 'forward',
-      countAs: 'none',
-      label: 'design→build',
-      blockingPoint: { bp: 'BP-4', description: '设计方案确认', required: true },
-    });
-
-    this.addEdge({
-      from: 'build',
-      to: 'verify',
-      direction: 'forward',
-      countAs: 'none',
-      label: 'build→verify',
-    });
-
-    this.addEdge({
-      from: 'verify',
-      to: 'archive-in-progress',
-      direction: 'forward',
-      countAs: 'none',
-      label: 'verify→archive-in-progress',
-      blockingPoint: { bp: 'BP-17', description: '归档最终确认', required: true },
-    });
-
-    this.addEdge({
-      from: 'archive-in-progress',
-      to: 'archive-completed',
-      direction: 'forward',
-      countAs: 'none',
-      label: 'archive→completed',
-    });
-
-    // === SKIP EDGES (conditional shortcuts for hotfix/tweak) ===
-    this.addEdge({
-      from: 'open',
-      to: 'build',
-      direction: 'skip',
-      countAs: 'none',
-      label: 'open→build（hotfix/tweak 跳过 design）',
-      blockingPoint: { bp: 'BP-3', description: '工件审查与确认（预设路径）', required: true },
-      condition: (state) => state.workflow === 'hotfix' || state.workflow === 'tweak',
-    });
-
-    // === BACKWARD EDGES (rollback — creates cycles) ===
-    this.addEdge({
-      from: 'build',
-      to: 'design',
-      direction: 'backward',
-      countAs: 'rollback',
-      label: 'build→design（回退重设）',
-    });
-
-    this.addEdge({
-      from: 'verify',
-      to: 'design',
-      direction: 'backward',
-      countAs: 'rollback',
-      label: 'verify→design（设计层面重做）',
-    });
-
-    this.addEdge({
-      from: 'verify',
-      to: 'build',
-      direction: 'backward',
-      countAs: 'rebuild',
-      label: 'verify→build（仅修复/重建）',
-    });
-
-    this.addEdge({
-      from: 'archive-in-progress',
-      to: 'build',
-      direction: 'backward',
-      countAs: 'rollback',
-      label: 'archive→build（CI 失败回退）',
-    });
-
-    // === TERMINAL EDGES ===
-    this.addEdge({
-      from: 'open',
-      to: 'discarded',
-      direction: 'skip',
-      countAs: 'none',
-      label: 'open→discarded（废弃变更）',
-    });
-
-    this.addEdge({
-      from: 'design',
-      to: 'discarded',
-      direction: 'skip',
-      countAs: 'none',
-      label: 'design→discarded（废弃变更）',
-    });
-
-    this.addEdge({
-      from: 'build',
-      to: 'discarded',
-      direction: 'skip',
-      countAs: 'none',
-      label: 'build→discarded（废弃变更）',
-    });
-
-    this.addEdge({
-      from: 'verify',
-      to: 'discarded',
-      direction: 'skip',
-      countAs: 'none',
-      label: 'verify→discarded（废弃变更）',
-    });
-
-    this.addEdge({
-      from: 'archive-in-progress',
-      to: 'discarded',
-      direction: 'skip',
-      countAs: 'none',
-      label: 'archive→discarded（废弃变更）',
-    });
+  private buildFromConfig(edges: WorkflowEdgeSpec[]): void {
+    for (const spec of edges) {
+      this.addEdge(compileEdge(spec));
+    }
   }
 
   /**
@@ -261,6 +172,15 @@ export class PhaseGraph {
    */
   isTerminalState(phase: ChangePhase): boolean {
     return this.terminalStates.has(phase);
+  }
+
+  /**
+   * Get the phase sequence for a workflow preset (CHG-6).
+   * Reads from config.workflows — single source of truth (replaces the
+   * hardcoded switch in state-machine.ts).
+   */
+  getWorkflowPhases(workflow: Workflow): ChangePhase[] {
+    return this.config.workflows[workflow]?.phases ?? [];
   }
 
   /**
@@ -469,7 +389,38 @@ export class PhaseGraph {
 }
 
 /**
- * Singleton instance of the default phase graph.
- * Used when custom configuration is not provided.
+ * Compile a declarative condition spec into a runtime condition function.
+ * Calling sites (resolveEdge/getOutgoingEdges/findPath/getSkipEdges/hasEdge)
+ * only ever see `edge.condition` — zero call-site changes.
  */
-export const DEFAULT_PHASE_GRAPH = new PhaseGraph();
+function compileCondition(spec?: WorkflowConditionSpec): PhaseEdge['condition'] {
+  if (!spec) return undefined;
+  return (state) => spec.workflow_in.includes(state.workflow as Workflow);
+}
+
+/**
+ * Compile a YAML edge spec into a runtime PhaseEdge.
+ * - spec.bp.id → blockingPoint.bp（保持 PhaseEdge 结构不变）
+ * - spec.condition（声明式）→ condition 函数 + conditionSpec 原文（供测试断言）
+ */
+function compileEdge(spec: WorkflowEdgeSpec): PhaseEdge {
+  return {
+    from: spec.from,
+    to: spec.to,
+    direction: spec.direction,
+    countAs: spec.countAs,
+    label: spec.label,
+    blockingPoint: spec.bp
+      ? { bp: spec.bp.id, description: spec.bp.description, required: spec.bp.required }
+      : undefined,
+    conditionSpec: spec.condition,
+    condition: compileCondition(spec.condition),
+  };
+}
+
+/**
+ * Singleton instance of the default phase graph.
+ * Built from workflow.default.yaml (CHG-6) with fail-safe fallback to the
+ * built-in default when the YAML is missing/corrupt.
+ */
+export const DEFAULT_PHASE_GRAPH = new PhaseGraph(loadWorkflowConfig());

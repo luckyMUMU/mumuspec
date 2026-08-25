@@ -215,7 +215,7 @@ MumuSpec 遵循"内部强制、外部兼容、强度可调"的设计哲学边界
      - hyperplan `open_questions` → 转化为新 Q2 问题，进入认知框架 Stage 2 增量轮
      - 更新 `cognitive-map.yaml` 后继续 Step 3
    - 详见 [参考：Skill 生态](../reference/skill-ecosystem.md#hyperplan)
-3. 编写测试用例规格（test-cases/，按 layer 组织）
+3. 编写测试用例定义（test-cases/，按 layer 组织）
    - Q4 兜底策略中的测试兜底项须有对应测试用例
 4. 代码图谱验证（确认不破坏现有调用链）
 5. 生成实现层级计划（build_layers，从深到浅排序）
@@ -288,10 +288,13 @@ h. 提交代码（worktree 内 git commit）
 ### B. 规范归档（原子操作 B0-B5）
 - B0: 备份受影响规范文件
 - B1: delta-specs 合并到主 spec.md（ADDED/MODIFIED/REMOVED/RENAMED 语义）
+- B1a: **约束归并**（`mergeChangeArtifacts`）— 将 `constraints/` 和变更级 `.mumuspec/` spec 文件幂等归并到目标作用域的 `tech.md`/`prd.md`/`spec.md`
 - B2: 更新 prohibitions.md 汇总
 - B3: 更新 index.yaml
 - B4: 更新代码图谱快照
 - B5: 提交规范变更到主分支（与 B4 同一 commit）
+
+> **幂等归并**: B1a 使用 Marker 注释（如 `<!-- constraint-merged from <change>/<file> -->`）确保多次归档不会重复写入同一内容。原子写入使用 `tmp` 文件 + `rename` 确保数据一致性。
 
 ### C. 清理与收尾
 - 移动变更到 archive/ 目录
@@ -463,7 +466,7 @@ hyperplan 执行中失败
 ├── constraints/
 │   ├── new-shall.md            # 新增正向要求
 │   └── new-shall-not.md        # 新增反向禁止
-├── test-cases/                 # 测试用例规格（Design 阶段锁定）
+├── test-cases/                 # 测试用例定义（Design 阶段锁定）
 │   ├── layer-0-cases.md
 │   ├── layer-1-cases.md
 │   └── layer-N-cases.md

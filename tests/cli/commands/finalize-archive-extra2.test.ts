@@ -278,13 +278,7 @@ describe('finalize-archive internal helpers via command invocation', () => {
   });
 
   // ── cleanupWorktree error path (source lines 142-148) ──
-
-  it('should record warning when cleanupWorktree throws', async () => {
-    // The current cleanupWorktree is a no-op, so we can't easily test
-    // its error path without modifying the source. Skipping as per constraint.
-    // ponytail: cleanupWorktree has no error path in current implementation
-    expect(true).toBe(true);
-  });
+  // cleanupWorktree 当前为 no-op、无错误路径，无可测行为——移除空断言占位用例
 
   // ── JSON output (source lines 209-211) ──
 

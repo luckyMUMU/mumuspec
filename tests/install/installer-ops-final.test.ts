@@ -24,9 +24,9 @@ import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-// ── Mock execSync ────────────────────────────────────────────────
+// ── Mock spawnSync（实现已从 execSync 改为 spawnSync 数组形式）──
 vi.mock('node:child_process', () => ({
-  execSync: vi.fn(),
+  spawnSync: vi.fn(),
 }));
 
 import {
@@ -54,19 +54,19 @@ describe('installCatpawPackage — outer catch block (lines 212-214, 247, 263)',
   beforeEach(async () => {
     mkdirSync(join(testRoot, '.meituan-catpaw', 'skills'), { recursive: true });
     mkdirSync(join(testRoot, '.catpaw', 'commands'), { recursive: true });
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReset();
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReset();
   });
 
   afterEach(() => {
     rmSync(testRoot, { recursive: true, force: true });
   });
 
-  it('returns error when execSync throws (outer catch block, lines 212-214)', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      throw new Error('spawn paw ENOENT');
-    });
+  it('returns error when spawnSync fails (outer catch block, lines 212-214)', async () => {
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      { error: new Error('spawn paw ENOENT') },
+    );
 
     const result = installPackage('catpaw', 'browser', 'workspace', testRoot);
     expect(result.success).toBe(false);
@@ -75,8 +75,10 @@ describe('installCatpawPackage — outer catch block (lines 212-214, 247, 263)',
   });
 
   it('verifies install success response shape (line 254 path assignment)', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce('skill installed successfully');
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      { status: 0, stdout: 'skill installed successfully' },
+    );
 
     const result = installPackage('catpaw', 'browser', 'workspace', testRoot);
     // When output is non-JSON but contains "success", installSuccess = true
@@ -86,10 +88,10 @@ describe('installCatpawPackage — outer catch block (lines 212-214, 247, 263)',
   });
 
   it('returns marketplace update failed message in update mode (line 263)', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      throw new Error('registry timeout');
-    });
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValue(
+      { error: new Error('registry timeout') },
+    );
 
     const result = installPackage('catpaw', 'browser', 'workspace', testRoot, 'update');
     expect(result.success).toBe(false);
@@ -423,7 +425,7 @@ describe('formatInstalledSkills — scope inference and edge cases', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════
-// listInstalledCatpaw — JSON edge cases via mocked execSync
+// listInstalledCatpaw — JSON edge cases via mocked spawnSync
 // ════════════════════════════════════════════════════════════════════
 
 describe('listInstalledCatpaw — JSON edge cases', () => {
@@ -432,9 +434,9 @@ describe('listInstalledCatpaw — JSON edge cases', () => {
   });
 
   it('returns empty skills when JSON has no skills field', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      JSON.stringify({ totalCount: 0, meta: {} }),
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      { status: 0, stdout: JSON.stringify({ totalCount: 0, meta: {} }) },
     );
 
     const result = listInstalledCatpaw();
@@ -443,9 +445,9 @@ describe('listInstalledCatpaw — JSON edge cases', () => {
   });
 
   it('returns empty skills when JSON result has skills as empty array', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      JSON.stringify({ skills: [] }),
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      { status: 0, stdout: JSON.stringify({ skills: [] }) },
     );
 
     const result = listInstalledCatpaw();
@@ -454,14 +456,14 @@ describe('listInstalledCatpaw — JSON edge cases', () => {
   });
 
   it('returns skills from properly structured JSON', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
-      JSON.stringify({
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      { status: 0, stdout: JSON.stringify({
         skills: [
           { name: 'browser', installPath: '/path/to/browser', source: 'marketplace' },
           { name: 'mumuspec', installPath: '/path/to/mumuspec', source: 'user' },
         ],
-      }),
+      }) },
     );
 
     const result = listInstalledCatpaw();
@@ -470,11 +472,11 @@ describe('listInstalledCatpaw — JSON edge cases', () => {
     expect(result.skills[0].name).toBe('browser');
   });
 
-  it('returns error when execSync throws', async () => {
-    const { execSync } = await import('node:child_process');
-    (execSync as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
-      throw new Error('paw not found');
-    });
+  it('returns error when spawnSync fails', async () => {
+    const { spawnSync } = await import('node:child_process');
+    (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      { error: new Error('paw not found') },
+    );
 
     const result = listInstalledCatpaw();
     expect(result.success).toBe(false);

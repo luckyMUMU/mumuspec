@@ -1,6 +1,6 @@
 {
   "name": "mumuspec",
-  "version": "0.19.0",
+  "version": "0.19.1",
   "description": "MumuSpec — Tree-distributed dual-constraint specification system for AI-assisted development",
   "type": "module",
   "main": "dist/index.js",
@@ -25,8 +25,8 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsc",
-    "build:clean": "rimraf dist && tsc",
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "build:clean": "rimraf dist && tsc && node scripts/copy-assets.mjs",
     "dev": "tsx src/cli.ts",
     "mcp": "tsx src/mcp-server.ts",
     "test": "vitest run",
@@ -35,9 +35,12 @@
     "lint": "tsc --noEmit",
     "enforce": "node scripts/enforcement-check.mjs",
     "enforce:strict": "node scripts/enforcement-check.mjs --strict",
-    "prebuild": "node scripts/prebuild-check.mjs",
+    "smoke": "node dist/cli.js --help && node dist/cli.js check",
+    "gen:error-codes": "node scripts/gen-error-codes-doc.mjs",
+    "ci:check": "node scripts/ci-check.mjs",
+    "prebuild": "node scripts/prebuild-check.mjs && node scripts/gen-error-codes-doc.mjs",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run build && npm run test",
+    "prepublishOnly": "npm run build && npm run enforce:strict && npm run test",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",

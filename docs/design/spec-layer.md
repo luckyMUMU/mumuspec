@@ -191,6 +191,20 @@ my-project/
 
 > 完整目录结构见 [附录：目录结构](../appendix/directory-structure.md)。
 
+### 3a. 结构白名单校验
+
+MumuSpec 强制 `.mumuspec/` 目录结构白名单，防止未定义的目录和文件被创建：
+
+| 校验范围 | 合法条目 | 错误码 |
+|---------|---------|--------|
+| 顶级目录 | `changes`, `knowledge`, `contracts`, `feedback`, `roadmap`, `adr`, `designs-archive` | `E-SPEC-013` |
+| 顶级文件 | `config.yaml`, `spec.md`, `prd.md`, `tech.md`, `design.md`, `prohibitions.md`, `goal.md`, `env-spec.md`, `glossary.md`, `index.yaml`, `audit.log`, `agents-hash.json`, `constraints.yaml`, `cognitive-map.yaml`, `BOUNDARY.md` | `E-SPEC-014` |
+| knowledge 子目录 | `decisions`, `patterns`, `risks`, `rationales`, `lessons`, `imports` | `E-SPEC-013` |
+| knowledge 文件 | `_index.yaml`, `_reverse-index.yaml`, `_memory.yaml` | `E-SPEC-014` |
+| changes 子目录 | `archive` + 活跃变更目录（须含 `.mumuspec.yaml`） | `E-SPEC-013` |
+
+`mumuspec validate` 执行时会自动扫描项目中所有 `.mumuspec/` 目录并报告违规条目。
+
 ## 4. 渐进式披露加载策略
 
 当 AI 从某个目录切入工作时，**只加载三层规范 + 设计文档**：

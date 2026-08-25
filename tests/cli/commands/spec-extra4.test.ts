@@ -39,6 +39,8 @@ const {
   mockParseTechFile,
   mockFormatError,
   mockLoadChangeState,
+  mockDetectDriftWithContracts,
+  mockDetectAgentsDrift,
 } = vi.hoisted(() => ({
   mockFindProjectRoot: vi.fn(),
   mockLoadConfig: vi.fn(),
@@ -49,6 +51,8 @@ const {
   mockCheckCompliance: vi.fn(),
   mockDetectDrift: vi.fn(),
   mockAutoFixDrift: vi.fn(),
+  mockDetectDriftWithContracts: vi.fn(() => []),
+  mockDetectAgentsDrift: vi.fn(() => []),
   mockExistsSync: vi.fn(),
   mockEnsureDir: vi.fn(),
   mockWriteText: vi.fn(),
@@ -119,6 +123,8 @@ vi.mock('../../../src/guard/checker.js', () => ({
   checkCompliance: mockCheckCompliance,
   detectDrift: mockDetectDrift,
   autoFixDrift: mockAutoFixDrift,
+  detectDriftWithContracts: mockDetectDriftWithContracts,
+  detectAgentsDrift: mockDetectAgentsDrift,
 }));
 
 vi.mock('../../../src/change/state.js', () => ({

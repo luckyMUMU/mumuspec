@@ -141,8 +141,13 @@ function checkPonytail4(srcDir) {
         const relPath = file.replace(root + '\\', '/');
         report('warn', 'PONYTAIL-4', `${relPath}: nested ternary operators (consider if/else for clarity)`);
       }
-      // Bitwise operators in non-performance-critical modules
-      if ((/~\w+/.test(content) || /\|= 0/.test(content))
+      // Bitwise operators in non-performance-critical modules.
+      // Tightened to flag real bitwise usage only:
+      //   ~identifier (e.g. ~mask), ~~ double-not idiom, |= 0 OR-assign.
+      // Excludes `~` followed by a digit (git-rev ranges like HEAD~1) or `$`
+      // (template-literal "≈" text like `~${minutes} min`), which the naive
+      // /~\w+/ pattern misflagged as bitwise.
+      if ((/~[A-Za-z_][\w$]*/.test(content) || /~~/.test(content) || /\|= ?0/.test(content))
         && !file.includes('bundle') && !file.includes('packager')) {
         const relPath = file.replace(root + '\\', '/');
         report('warn', 'PONYTAIL-4', `${relPath}: bitwise operators in non-performance-critical module`);

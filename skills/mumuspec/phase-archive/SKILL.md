@@ -207,10 +207,10 @@ mumuspec state check <change-name> archive --recover
 | "知识提取可以跳过" | 知识提取是 archive_complete 守卫必检项 |
 | "delta-specs 合并可以手动做" | 必须通过脚本自动完成 — 语义合并需保证一致性 |
 | "CI 失败了继续归档" | CRITICAL 失败必须回退到 Build |
-| "worktree 不用清理" | worktree 清理是守卫必检项 |
-| "知识冲突不重要" | knowledge_conflicts_resolved 是守卫必检项 |
+| "worktree 不用清理" | worktree 清理是阶段守卫必检项 |
+| "知识冲突不重要" | knowledge_conflicts_resolved 是阶段守卫必检项 |
 | "归档后还能改" | archive-completed 是终态 — 不可回退 |
-| "graph_bindings 不用验证" | knowledge_graph_bindings_verified 是守卫必检项 |
+| "graph_bindings 不用验证" | knowledge_graph_bindings_verified 是阶段守卫必检项 |
 
 ---
 

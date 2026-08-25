@@ -1,170 +1,260 @@
 /**
- * Tests for src/i18n/locales.ts — locale management and template strings
+ * Unit tests for src/i18n/locales.ts — locale management, string lookup, skill path resolution.
+ *
+ * Tests the actual implementation (not mocked) to improve i18n test coverage (D8 dimension).
  */
-
-import { describe, it, expect, afterEach } from 'vitest';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import {
+  initLocale,
   getLocale,
   setLocale,
+  resolveSkillPath,
+  listAvailableLocales,
   t,
   uiString,
-  listAvailableLocales,
-  initLocale,
-  resolveSkillPath,
+  UI_STRINGS,
+  type Locale,
 } from '../../src/i18n/locales.js';
 
-describe('i18n locales', () => {
-  const testDir = join(tmpdir(), `mumuspec-i18n-test-${Date.now()}`);
+// ────────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────────
 
-  afterEach(() => {
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
-    }
-  });
+function makeTempDir(): string {
+  return mkdtempSync(join(tmpdir(), `mumuspec-i18n-${Date.now()}-${Math.random().toString(36).slice(2)}`));
+}
 
-  it('setLocale changes locale', () => {
-    setLocale('zh');
-    expect(getLocale()).toBe('zh');
-    setLocale('en');
-    expect(getLocale()).toBe('en');
-  });
+function safeRemove(dir: string): void {
+  try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+}
 
-  it('t returns template with vars substituted', () => {
-    setLocale('en');
-    const result = t('Hello {name}', { name: 'World' });
-    expect(result).toBe('Hello World');
-  });
+// ────────────────────────────────────────────────────────────────────
+// Tests
+// ────────────────────────────────────────────────────────────────────
 
-  it('t handles missing var gracefully', () => {
-    setLocale('en');
-    const result = t('Value: {missing}');
-    expect(result).toContain('missing');
-  });
+describe('i18n/locales.ts', () => {
+  let tempDir: string;
+  const savedLang = process.env.MUMUSPEC_LANG;
+  const savedEnvLang = process.env.LANG;
 
-  it('uiString returns non-empty string for valid key', () => {
-    setLocale('en');
-    const result = uiString('cli.welcome');
-    expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
-  });
-
-  it('listAvailableLocales returns array', () => {
-    mkdirSync(join(testDir, '.mumuspec'), { recursive: true });
-    const locales = listAvailableLocales(testDir);
-    expect(locales).toBeInstanceOf(Array);
-  });
-});
-
-// ─── 15 new tests for t(), resolveSkillPath, initLocale, locale variants ───
-
-describe('i18n locales — additional coverage', () => {
-  const testDir = join(tmpdir(), `mumuspec-i18n-test-${Date.now()}`);
-  const origLang = process.env.LANG;
-  const origMumuLang = process.env.MUMUSPEC_LANG;
-
-  afterEach(() => {
+  beforeEach(() => {
+    tempDir = makeTempDir();
     delete process.env.MUMUSPEC_LANG;
-    if (origLang !== undefined) {
-      process.env.LANG = origLang;
-    } else {
-      delete process.env.LANG;
-    }
-    if (origMumuLang !== undefined) {
-      process.env.MUMUSPEC_LANG = origMumuLang;
-    } else {
-      delete process.env.MUMUSPEC_LANG;
-    }
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
-    }
+    delete process.env.LANG;
+    setLocale('zh'); // reset to default
   });
 
-  it('t() interpolates multiple parameters', () => {
-    setLocale('en');
-    const result = t('{a} plus {b} equals {c}', { a: '1', b: '2', c: '3' });
-    expect(result).toBe('1 plus 2 equals 3');
+  afterEach(() => {
+    safeRemove(tempDir);
+    if (savedLang !== undefined) process.env.MUMUSPEC_LANG = savedLang;
+    else delete process.env.MUMUSPEC_LANG;
+    if (savedEnvLang !== undefined) process.env.LANG = savedEnvLang;
+    else delete process.env.LANG;
   });
 
-  it('t() leaves placeholder unchanged when variable is missing', () => {
-    const result = t('Hello {name}, age {age}', { name: 'Alice' });
-    expect(result).toContain('Alice');
-    expect(result).toContain('{age}');
+  // ── initLocale ──
+
+  describe('initLocale', () => {
+    it('defaults to zh when no env vars set', () => {
+      const locale = initLocale();
+      expect(locale).toBe('zh');
+      expect(getLocale()).toBe('zh');
+    });
+
+    it('detects en from MUMUSPEC_LANG env var', () => {
+      process.env.MUMUSPEC_LANG = 'en';
+      expect(initLocale()).toBe('en');
+    });
+
+    it('detects zh from MUMUSPEC_LANG env var', () => {
+      process.env.MUMUSPEC_LANG = 'zh';
+      expect(initLocale()).toBe('zh');
+    });
+
+    it('falls back to LANG env var', () => {
+      process.env.LANG = 'en_US.UTF-8';
+      expect(initLocale()).toBe('en');
+    });
+
+    it('detects zh from LANG env var', () => {
+      process.env.LANG = 'zh_CN.UTF-8';
+      expect(initLocale()).toBe('zh');
+    });
+
+    it('MUMUSPEC_LANG takes priority over LANG', () => {
+      process.env.MUMUSPEC_LANG = 'zh';
+      process.env.LANG = 'en_US.UTF-8';
+      expect(initLocale()).toBe('zh');
+    });
+
+    it('reads locale from workspace config file', () => {
+      writeFileSync(join(tempDir, '.mumuspec.yaml'), 'language: en\n');
+      expect(initLocale(tempDir)).toBe('en');
+    });
+
+    it('reads zh from workspace config file', () => {
+      writeFileSync(join(tempDir, '.mumuspec.yaml'), 'language: zh\n');
+      expect(initLocale(tempDir)).toBe('zh');
+    });
+
+    it('handles missing workspace config gracefully', () => {
+      expect(initLocale(tempDir)).toBe('zh');
+    });
+
+    it('handles malformed workspace config gracefully', () => {
+      writeFileSync(join(tempDir, '.mumuspec.yaml'), 'not valid yaml: [broken');
+      expect(initLocale(tempDir)).toBe('zh');
+    });
   });
 
-  it('t() handles mixed type parameters (string and number)', () => {
-    const result = t('Count: {count}, Name: {name}', { count: 42, name: 'Test' });
-    expect(result).toBe('Count: 42, Name: Test');
+  // ── getLocale / setLocale ──
+
+  describe('getLocale / setLocale', () => {
+    it('setLocale changes current locale', () => {
+      setLocale('en');
+      expect(getLocale()).toBe('en');
+    });
+
+    it('setLocale to zh works', () => {
+      setLocale('en');
+      setLocale('zh');
+      expect(getLocale()).toBe('zh');
+    });
   });
 
-  it('t() with no vars returns template as-is', () => {
-    const template = 'No placeholders here';
-    expect(t(template)).toBe(template);
+  // ── resolveSkillPath ──
+
+  describe('resolveSkillPath', () => {
+    it('returns localized path when locale is en and file exists', () => {
+      const skillsDir = join(tempDir, '.mumuspec', 'skills', 'en');
+      mkdirSync(skillsDir, { recursive: true });
+      writeFileSync(join(skillsDir, 'my-skill.md'), '# Skill');
+
+      setLocale('en');
+      const result = resolveSkillPath(tempDir, 'my-skill');
+      expect(result).toBe(join(skillsDir, 'my-skill.md'));
+    });
+
+    it('falls back to default path when localized file does not exist', () => {
+      const skillsDir = join(tempDir, '.mumuspec', 'skills');
+      mkdirSync(skillsDir, { recursive: true });
+      writeFileSync(join(skillsDir, 'my-skill.md'), '# Skill');
+
+      setLocale('en');
+      const result = resolveSkillPath(tempDir, 'my-skill');
+      expect(result).toBe(join(skillsDir, 'my-skill.md'));
+    });
+
+    it('returns default path for zh locale', () => {
+      const skillsDir = join(tempDir, '.mumuspec', 'skills');
+      mkdirSync(skillsDir, { recursive: true });
+      writeFileSync(join(skillsDir, 'my-skill.md'), '# Skill');
+
+      setLocale('zh');
+      const result = resolveSkillPath(tempDir, 'my-skill');
+      expect(result).toBe(join(skillsDir, 'my-skill.md'));
+    });
+
+    it('returns null when skill file does not exist', () => {
+      setLocale('zh');
+      const result = resolveSkillPath(tempDir, 'nonexistent');
+      expect(result).toBeNull();
+    });
   });
 
-  it('t() handles empty template', () => {
-    expect(t('')).toBe('');
+  // ── listAvailableLocales ──
+
+  describe('listAvailableLocales', () => {
+    it('returns only zh when no en directory exists', () => {
+      const result = listAvailableLocales(tempDir);
+      expect(result).toEqual(['zh']);
+    });
+
+    it('returns zh and en when en directory exists', () => {
+      mkdirSync(join(tempDir, '.mumuspec', 'skills', 'en'), { recursive: true });
+      const result = listAvailableLocales(tempDir);
+      expect(result).toContain('zh');
+      expect(result).toContain('en');
+      expect(result.length).toBe(2);
+    });
+
+    it('always includes zh as first locale', () => {
+      mkdirSync(join(tempDir, '.mumuspec', 'skills', 'en'), { recursive: true });
+      const result = listAvailableLocales(tempDir);
+      expect(result[0]).toBe('zh');
+    });
   });
 
-  it('t() handles repeated placeholders', () => {
-    const result = t('{x} and {x} again', { x: 'value' });
-    expect(result).toBe('value and value again');
+  // ── t (template substitution) ──
+
+  describe('t', () => {
+    it('returns template as-is when no vars', () => {
+      expect(t('Hello World')).toBe('Hello World');
+    });
+
+    it('substitutes single variable', () => {
+      expect(t('Hello {name}', { name: 'World' })).toBe('Hello World');
+    });
+
+    it('substitutes multiple variables', () => {
+      expect(t('{greeting}, {name}!', { greeting: 'Hi', name: 'Bob' })).toBe('Hi, Bob!');
+    });
+
+    it('handles numeric values', () => {
+      expect(t('Count: {n}', { n: 42 })).toBe('Count: 42');
+    });
+
+    it('leaves placeholder when key not in vars', () => {
+      expect(t('Hello {missing}', { name: 'World' })).toBe('Hello {missing}');
+    });
+
+    it('handles empty vars object', () => {
+      expect(t('Hello {name}', {})).toBe('Hello {name}');
+    });
   });
 
-  it('t() handles zero as a value', () => {
-    const result = t('Value is {val}', { val: 0 });
-    expect(result).toBe('Value is 0');
+  // ── uiString ──
+
+  describe('uiString', () => {
+    it('returns zh string when locale is zh', () => {
+      setLocale('zh');
+      expect(uiString('common.done')).toBe('完成');
+    });
+
+    it('returns en string when locale is en', () => {
+      setLocale('en');
+      expect(uiString('common.done')).toBe('Done');
+    });
+
+    it('falls back to zh when key missing in en', () => {
+      setLocale('en');
+      // Use a key that only exists in zh (if any) — but all keys exist in both
+      // So test with a non-existent key instead
+      expect(uiString('nonexistent.key')).toBe('nonexistent.key');
+    });
+
+    it('falls back to key when not found in any locale', () => {
+      setLocale('zh');
+      expect(uiString('totally.missing')).toBe('totally.missing');
+    });
   });
 
-  it('uiString returns Chinese text for zh locale', () => {
-    setLocale('zh');
-    expect(uiString('dashboard.title')).toBe('MUMUSPEC 状态面板');
-    expect(uiString('common.done')).toBe('完成');
-  });
+  // ── UI_STRINGS ──
 
-  it('uiString returns English text for en locale', () => {
-    setLocale('en');
-    expect(uiString('dashboard.title')).toBe('MUMUSPEC DASHBOARD');
-    expect(uiString('common.done')).toBe('Done');
-  });
+  describe('UI_STRINGS', () => {
+    it('has both zh and en locales', () => {
+      expect(UI_STRINGS.zh).toBeDefined();
+      expect(UI_STRINGS.en).toBeDefined();
+    });
 
-  it('uiString falls back to zh for unknown key', () => {
-    setLocale('en');
-    const result = uiString('nonexistent.key');
-    expect(result).toBe('nonexistent.key');
-  });
-
-  it('resolveSkillPath returns null when no skill file exists', () => {
-    setLocale('en');
-    const result = resolveSkillPath(testDir, 'nonexistent-skill');
-    expect(result).toBeNull();
-  });
-
-  it('resolveSkillPath finds default skill file', () => {
-    setLocale('en');
-    mkdirSync(join(testDir, '.mumuspec', 'skills'), { recursive: true });
-    writeFileSync(join(testDir, '.mumuspec', 'skills', 'test-skill.md'), '# Test Skill');
-    const result = resolveSkillPath(testDir, 'test-skill');
-    expect(result).not.toBeNull();
-    expect(result).toContain('test-skill.md');
-  });
-
-  it('initLocale detects en locale from MUMUSPEC_LANG env', () => {
-    process.env.MUMUSPEC_LANG = 'en';
-    const result = initLocale();
-    expect(result).toBe('en');
-    expect(getLocale()).toBe('en');
-  });
-
-  it('initLocale detects zh locale from config file', () => {
-    mkdirSync(testDir, { recursive: true });
-    writeFileSync(join(testDir, '.mumuspec.yaml'), 'language: zh\n');
-    const result = initLocale(testDir);
-    expect(result).toBe('zh');
-    expect(getLocale()).toBe('zh');
+    it('has same keys in zh and en', () => {
+      const zhKeys = Object.keys(UI_STRINGS.zh).sort();
+      const enKeys = Object.keys(UI_STRINGS.en).sort();
+      expect(zhKeys).toEqual(enKeys);
+    });
   });
 });
-

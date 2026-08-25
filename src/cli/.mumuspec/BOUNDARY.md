@@ -42,10 +42,12 @@ layer: 2
 | `mumuspec knowledge doctor` | `commands/knowledge-doctor.ts` | 知识库诊断 |
 | `mumuspec hooks` | `commands/hooks.ts` | Hooks 管理 |
 | `mumuspec i18n` | `commands/i18n.ts` | 国际化管理 |
+| `mumuspec team` | `commands/team.ts` | 团队编排管理 |
 
 ### 命令注册入口
 
 - `registerAllCommands(program: Command): void` — 注册所有 CLI 命令
+- `registerTeamCommands(program: Command): void` — 注册 team 子命令（init/clarify/run/status/confirm/scaffold/info）
 
 ## 依赖声明
 

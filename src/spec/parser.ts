@@ -143,6 +143,19 @@ export function serializeSpecFile(spec: SpecFile): string {
   lines.push(`layer: ${fm.layer}`);
   lines.push(`scope: "${fm.scope}"`);
   lines.push(`last_updated: "${fm.last_updated}"`);
+  // P1-1 Fix: Serialize prohibitions annotations
+  if (fm.prohibitions && fm.prohibitions.length > 0) {
+    lines.push('prohibitions:');
+    for (const p of fm.prohibitions) {
+      lines.push(`  - text: "${p.text}"`);
+      lines.push('    annotation:');
+      lines.push(`      type: ${p.annotation.type}`);
+      if (p.annotation.scope) lines.push(`      scope: ${p.annotation.scope}`);
+      if (p.annotation.target) lines.push(`      target: "${p.annotation.target}"`);
+      if (p.annotation.ast_constraint) lines.push(`      ast_constraint: "${p.annotation.ast_constraint}"`);
+      if (p.annotation.rationale) lines.push(`      rationale: "${p.annotation.rationale}"`);
+    }
+  }
   lines.push('---');
   lines.push('');
 

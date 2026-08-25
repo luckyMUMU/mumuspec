@@ -24,7 +24,7 @@ export function organizeKnowledge(
 ): KnowledgeOrganizeResult {
   const issues: KnowledgeIssue[] = [];
   const knowledgeDir = getKnowledgeDir(projectRoot, config);
-  const typeDirs = ['decisions', 'patterns', 'risks', 'rationale', 'lessons', 'imports'];
+  const typeDirs = ['decisions', 'patterns', 'risks', 'rationales', 'lessons', 'imports'];
   const typeDirSet = new Set(typeDirs);
 
   // Collect all files from filesystem
@@ -152,7 +152,7 @@ export function organizeKnowledge(
     decision: 'decisions',
     pattern: 'patterns',
     risk: 'risks',
-    rationale: 'rationale',
+    rationale: 'rationales',
     lesson: 'lessons',
   };
   for (const page of allPages) {

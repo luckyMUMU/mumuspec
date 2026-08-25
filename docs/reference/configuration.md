@@ -355,6 +355,102 @@ workflow:
 
 ---
 
+## 工作流覆盖（`.mumuspec/workflow.yaml`）
+
+> **CHG-7 新增**。项目级覆盖流程定义：自定义阶段边 / 阻塞点 / 条件 / workflow 序列，无需改代码。默认不配置时行为与内置默认完全一致。
+
+### 位置与优先级
+
+| 配置来源 | 路径 | 优先级 |
+|---------|------|--------|
+| 项目级覆盖 | `.mumuspec/workflow.yaml`（与 `config.yaml` 同级） | **高**（存在且有效时生效） |
+| 内置默认 | 包内 `workflow.default.yaml`（只读） | 低（兜底） |
+
+### 格式与整体替换语义
+
+项目级文件是**完整 `WorkflowConfig`**，与内置默认同构，**整体替换**（`edges` / `workflows` 全量），**不支持增量合并**（如只想改一条边，须复制内置定义后修改，再整体写入）。
+
+```yaml
+# .mumuspec/workflow.yaml
+version: 1
+
+phases:
+  - open
+  - design
+  - build
+  - verify
+  - archive-in-progress
+  - archive-completed
+  - discarded
+
+terminal:
+  - archive-completed
+  - discarded
+
+edges:
+  # forward（progress）
+  - { from: open, to: design, direction: forward, countAs: none, label: open→design（完整工作流）, bp: { id: BP-3, description: 工件审查与确认, required: true } }
+  - { from: design, to: build, direction: forward, countAs: none, label: design→build, bp: { id: BP-4, description: 设计方案确认, required: true } }
+  - { from: build, to: verify, direction: forward, countAs: none, label: build→verify }
+  # …其余边参考内置默认（`src/change/workflow.default.yaml`），此处省略…
+  # skip（conditional shortcut）
+  - { from: open, to: build, direction: skip, countAs: none, label: open→build（hotfix/tweak 跳过 design）, condition: { workflow_in: [hotfix, tweak] } }
+  # backward（rollback/rework）
+  - { from: build, to: design, direction: backward, countAs: rollback, label: build→design（回退重设） }
+  # terminal（discarded）
+  - { from: open, to: discarded, direction: skip, countAs: none, label: open→discarded（废弃变更） }
+
+workflows:
+  full:  { phases: [open, design, build, verify, archive-in-progress, archive-completed] }
+  hotfix: { phases: [open, build, verify, archive-in-progress, archive-completed], skip_design: true }
+  tweak: { phases: [open, build, verify, archive-in-progress, archive-completed], skip_design: true }
+  loop:  { phases: [build, verify, archive-in-progress, archive-completed] }
+```
+
+字段规则（与内置校验一致）：
+
+| 字段 | 规则 |
+|------|------|
+| `version` | 必须为 `1` |
+| `phases` | 必须等于内置 `PHASE_ORDER`（open→discarded，7 个，顺序一致） |
+| `terminal` | 必须是已知阶段（默认 `archive-completed` / `discarded`） |
+| `edges[].from/to` | 必须是已知阶段；`direction` ∈ `forward|backward|skip`；`countAs` ∈ `rollback|rebuild|none`；`label` 非空 |
+| `edges[].bp` | 可选；`id` 非空、`description` 字符串、`required` 布尔 |
+| `edges[].condition` | 可选；本期仅支持 `workflow_in`（非空、均为已知 workflow） |
+| `workflows` | 必须**恰好**包含 `full`/`hotfix`/`tweak`/`loop` 四个键，不得有未知键；phases 必须均为已知阶段 |
+
+### 边移除的语义
+
+项目级通过"删边"实现自定义，但需注意柔性边算法：
+
+- 移除**非终态 → 非终态**的显式边（如 `design→build`）：显式边及其阻塞点（BP-4）消失，`requiresUserConfirmation` 不再要求确认；但转换仍可达——系统会合成**柔性边**（无 BP、`countAs: none`）。
+- 移除**指向终态**的边（如 `archive-in-progress→archive-completed`）：转换**真正被禁**（`E-CHANGE-006`），因为终态目标无柔性边兜底。
+
+> 若需彻底禁用某条非终态转换，可配合调整 `terminal`（将目标设为终态）——但这会改变终态判定，请谨慎使用。
+
+### 校验与回退（fail-safe）
+
+加载遵循 CHG-6 的 fail-safe 风格，任何异常都不会中断变更操作：
+
+| 场景 | 行为 |
+|------|------|
+| 文件不存在 | 静默回退内置默认（无 WARN） |
+| YAML 解析失败（损坏） | `console.warn`（含路径 + 原因）+ 回退内置默认 |
+| 校验失败（未知 phase / 非法 direction / 缺 workflows 键等） | `console.warn`（注明具体原因）+ 回退内置默认 |
+
+WARN 示例：
+
+```
+[phase-graph-loader] project workflow config invalid at /path/.mumuspec/workflow.yaml: edges[0].to must be a known phase; falling back to built-in default workflow config
+```
+
+### 生效时点
+
+- CLI / MCP 在每次变更操作（`state transition` / `state next` / `state graph` / `guard --apply` / MCP `get_change_status`）开始时加载一次项目级配置。
+- **不做进程内热更新**：修改 YAML 后，下一次命令（或下一个 MCP 请求）生效。
+
+---
+
 ## 动态约束强度配置
 
 ### constraint_strength.*

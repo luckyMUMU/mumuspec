@@ -100,7 +100,7 @@ OpenSpec 的核心理念是"先对齐再编码"——通过结构化规范文件
 - 自动检测规范与代码漂移（6+ 种类型）
 - Pre-commit + CI + Phase Guard 三层校验
 - **默认 Worktree 隔离**，物理隔离主分支
-- **默认红绿 TDD**，固定不可关闭
+- **默认红绿 TDD**，遵循配置（默认 tdd）
 - 强制工作流 + 约束守卫兜底
 
 > **关键差异**: MumuSpec 在 OpenSpec 的 Delta Spec 语义基础上，增加了 **SHALL NOT delta**（反向禁止差异）和 **constraints/ 工件**（约束工件目录）。同时将 OpenSpec 的"全量加载"替换为"渐进式披露"——这一改进直接解决了 AI 上下文窗口过载问题，是 MumuSpec 设计中最具工程价值的创新之一。

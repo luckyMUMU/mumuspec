@@ -1,8 +1,12 @@
 import { existsSync, readFileSync, writeFileSync, chmodSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join, resolve, parse } from 'node:path';
 import { checkCompliance, detectDrift } from '../guard/checker.js';
-import { findProjectRoot } from '../core/utils.js';
+import { findProjectRoot, getMumuSpecDir, appendAuditLog } from '../core/utils.js';
 import { loadConfig } from '../core/config.js';
+import type { MumuSpecConfig } from '../core/config.js';
+import { getCurrentBranch } from '../core/git.js';
+import { getActiveChangeOnBranch } from '../change/branch.js';
+import { evaluateConstraint } from '../core/constraint-evaluator.js';
 import { readReverseIndex } from '../knowledge/manager.js';
 import type { GuardResult, DriftResult } from '../core/types.js';
 
@@ -295,6 +299,78 @@ function runPreCommit(projectRoot: string, errors: string[], warnings: string[])
       warnings.push(`[DRIFT] ${drift.message} (${drift.type})`);
     }
   }
+
+  // CHG-1: 变更归属校验 — 非白名单分支且无活跃 change 的提交按强度阻断/警告
+  checkChangeOwnership(projectRoot, errors, warnings);
+}
+
+/**
+ * CHG-1: pre-commit 变更归属校验（Spec §5 HOOK pre-commit）。
+ *
+ * 配置：ci.pre_commit_ownership_check（默认 true）、ci.ownership_ci_branches（默认 main/master）。
+ * 算法：
+ *   1. 配置关闭 → 跳过
+ *   2. 无法确定分支（detached HEAD）→ 跳过
+ *   3. 白名单分支（CI/常规）→ 跳过
+ *   4. 分支上存在活跃 change → 放行
+ *   5. 否则 evaluateConstraint 按 constraint_strength 求值：
+ *      high=block（E-HOOK-001 阻断），medium=warn，low=info（warn）
+ */
+export function checkChangeOwnership(
+  projectRoot: string,
+  errors: string[],
+  warnings: string[],
+): void {
+  const config = loadConfig(projectRoot);
+  // hook 不得因配置加载失败而阻断 git —— 无法加载配置时跳过归属校验
+  if (!config) return;
+  if (!config.ci?.pre_commit_ownership_check) return;
+
+  const branch = getCurrentBranch(projectRoot);
+  if (!branch) return; // detached HEAD — 无法归属，跳过
+
+  if (config.ci?.ownership_ci_branches?.includes(branch)) return;
+
+  if (getActiveChangeOnBranch(projectRoot, branch)) return;
+
+  const evalResult = evaluateConstraint(
+    {
+      id: 'pre_commit_change_ownership',
+      dimension: 'requirement_goals',
+      min_strength: 'high',
+    },
+    config.constraint_strength,
+  );
+
+  const msg = `分支 '${branch}' 无活跃变更，直接提交将绕过 MumuSpec。建议: mumuspec new <name>`;
+  if (evalResult.action === 'block') {
+    errors.push(`[E-HOOK-001] ${msg}`);
+  } else {
+    warnings.push(`[E-HOOK-001] ${msg} (strength=${config.constraint_strength?.requirement_goals ?? 'high'})`);
+  }
+}
+
+/**
+ * CHG-1: post-commit 未登记提交标记（Spec §5 HOOK post-commit）。
+ * 非白名单分支且无活跃 change 的提交 → audit-log 追加 commit.unregistered（不阻断）。
+ */
+export function markUnregisteredCommit(projectRoot: string, config: MumuSpecConfig): void {
+  if (!config) return;
+  if (!config.ci?.pre_commit_ownership_check) return;
+
+  const branch = getCurrentBranch(projectRoot);
+  if (!branch) return;
+
+  if (config.ci?.ownership_ci_branches?.includes(branch)) return;
+
+  if (getActiveChangeOnBranch(projectRoot, branch)) return;
+
+  appendAuditLog(getMumuSpecDir(projectRoot), {
+    actor: 'user',
+    action: 'commit.unregistered',
+    branch,
+    result: 'warn',
+  });
 }
 
 function runPostMerge(projectRoot: string, errors: string[], warnings: string[]): void {
@@ -404,6 +480,10 @@ export function parseKnowledgeImpact(message: string): KnowledgeImpact | null {
  */
 function runPostCommit(projectRoot: string, _errors: string[], warnings: string[]): void {
   const config = loadConfig(projectRoot);
+
+  // CHG-1: 未登记提交标记（commit.unregistered）— 在知识更新前执行，始终审计
+  markUnregisteredCommit(projectRoot, config);
+
   if (!config.knowledge.commit_update.enabled) return;
 
   try {

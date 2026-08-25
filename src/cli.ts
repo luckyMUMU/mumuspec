@@ -4,4 +4,6 @@
  * Real implementation lives in src/cli/index.ts.
  * Keep this file so the package.json "bin" entry still works.
  */
-import './cli/index.js';
+import { buildProgram } from './cli/index.js';
+
+buildProgram().parse();

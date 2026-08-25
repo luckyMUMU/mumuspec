@@ -22,19 +22,21 @@ export const specComplianceEvaluator: Evaluator = {
         { cwd, encoding: 'utf-8', timeout: 30_000 }
       );
 
+      // 命令失败（崩溃/找不到 change/超时）时不得假设合规——返回 nullResult 让
+      // autoEvaluate 跳过该指标，避免虚假满分推动错误的收敛判定
+      if (result.error || result.status !== 0) {
+        return nullResult(
+          `guard command failed (status: ${result.error ? result.error.message : result.status})`
+        );
+      }
+
       const output = result.stdout ?? '';
       const lines = output.split('\n').filter(l => l.trim());
       const jsonLine = lines.find(l => l.startsWith('{'));
 
       if (!jsonLine) {
-        // If guard passes without JSON output, assume full compliance
-        return {
-          name: 'spec-compliance',
-          value: 1.0,
-          weight: 0.25,
-          details: 'Guard validation passed — full compliance',
-          rawData: { passed: true },
-        };
+        // guard 退出码 0 但无 JSON 输出：无法度量合规率，保守跳过而非默认满分
+        return nullResult('guard produced no JSON output — cannot determine compliance');
       }
 
       const report = JSON.parse(jsonLine);

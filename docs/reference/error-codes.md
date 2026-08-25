@@ -1,164 +1,866 @@
-# 错误码参考
+# Error Codes Reference
 
-> 层级: Level 2 参考文档
+> **Auto-generated** from `src/core/errors.ts`. Do not edit manually.
+> Run `node scripts/gen-error-codes-doc.mjs` to regenerate.
 
----
+Last updated: 2026-08-22
 
-## 错误码格式
+## Summary
 
-`E-<DOMAIN>-<NUMBER>`
+| Domain | Count |
+|--------|-------|
+| SPEC | 14 |
+| CHANGE | 11 |
+| HOOK | 1 |
+| MERGE | 10 |
+| GUARD | 7 |
+| PONYTAIL | 4 |
+| CONTRACT | 10 |
+| KNOWLEDGE | 3 |
+| DESIGN | 2 |
+| SECURITY | 3 |
+| STATE | 1 |
+| AGENTS | 1 |
+| CHECK | 1 |
+| GIT | 3 |
+| **Total** | **71** |
 
-| Domain | 范围 | 说明 |
-|--------|------|------|
-| SPEC | E-SPEC-001 ~ E-SPEC-099 | 规范层错误 |
-| CHANGE | E-CHANGE-001 ~ E-CHANGE-099 | 变更层错误 |
-| GUARD | E-GUARD-001 ~ E-GUARD-099 | 校验层错误 |
-| GRAPH | E-GRAPH-001 ~ E-GRAPH-099 | 代码图谱错误 |
-| CONTRACT | E-CONTRACT-001 ~ E-CONTRACT-099 | 契约层错误 |
-| DESIGN | E-DESIGN-001 ~ E-DESIGN-099 | 设计层错误（认知框架） |
-| KNOWLEDGE | E-KNOWLEDGE-001 ~ E-KNOWLEDGE-099 | 知识层错误 |
-| PONYTAIL | E-PONYTAIL-001 ~ E-PONYTAIL-099 | Ponytail 编码约束错误 |
-| SECURITY | E-SECURITY-001 ~ E-SECURITY-099 | 安全错误 |
+## SPEC Domain
 
----
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-SPEC-001` | SPEC_FORMAT_INVALID | ERROR | spec.md YAML frontmatter 格式错误 | No |
+| `E-SPEC-002` | SPEC_LAYER_EXCEED_MAX | ERROR | 规范层级超过 max_layer_depth | No |
+| `E-SPEC-003` | SPEC_INHERITANCE_CONFLICT | ERROR | 子层 SHALL NOT 与父层 SHALL 矛盾 | No |
+| `E-SPEC-004` | SPEC_ENFORCEMENT_MISSING | WARN | SHALL/SHALL NOT 无对应 Enforcement | Yes |
+| `E-SPEC-005` | SPEC_DRIFT_DETECTED | ERROR | spec.md 声明的 Requirement 在代码中无实现 | No |
+| `E-SPEC-006` | SPEC_DESIGN_DOC_MISSING | ERROR | 有 spec.md 但无 design.md | No |
+| `E-SPEC-007` | SPEC_INDEX_OUTDATED | WARN | index.yaml 与实际目录结构不一致 | Yes |
+| `E-SPEC-008` | PRD_FRONTMATTER_INVALID | ERROR | prd.md YAML frontmatter 缺少必填字段 (layer, scope) | No |
+| `E-SPEC-009` | TECH_FRONTMATTER_INVALID | ERROR | tech.md YAML frontmatter 缺少必填字段 (layer, scope) | No |
+| `E-SPEC-010` | PARENT_SPEC_NOT_FOUND | ERROR | parent_prd 或 parent_tech 指向的文件不存在 | No |
+| `E-SPEC-011` | DISTRIBUTED_SPEC_FORMAT_INVALID | WARN | 分布式 prd.md/tech.md 使用非 Requirement 块格式 | Yes |
+| `E-SPEC-012` | DIST_SPEC_SHALL_UNIMPLEMENTED | ERROR | tech.md 中声明的 SHALL 约束在代码中找不到实现 | No |
+| `E-SPEC-013` | UNDEFINED_MUMUSPEC_DIRECTORY | ERROR | .mumuspec/ 下存在未定义的目录 | No |
+| `E-SPEC-014` | UNDEFINED_MUMUSPEC_FILE | ERROR | .mumuspec/ 下存在未定义的文件 | No |
 
-## 错误码定义表
+### `E-SPEC-001`: SPEC_FORMAT_INVALID
 
-### SPEC — 规范层
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: spec.md YAML frontmatter 格式错误
 
-| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
-|--------|------|---------|---------|---------|---------|---------|
-| E-SPEC-001 | SPEC_FORMAT_INVALID | ERROR | spec.md YAML frontmatter 格式错误 | frontmatter 字段类型不匹配或缺失必填字段 | 1. 检查 `layer`/`scope`/`last_updated` 字段类型 2. 参考 [规范格式](../design/spec-layer.md#4-规范文件格式) 3. 运行 `mumuspec validate` 重新校验 | [规范层设计](../design/spec-layer.md) |
-| E-SPEC-002 | SPEC_LAYER_EXCEED_MAX | ERROR | 规范层级超过 max_layer_depth | 目录嵌套深度超过 config.yaml 中 `specs.max_layer_depth`（默认 5） | 1. 检查目录嵌套深度 2. 调整 `config.yaml: specs.max_layer_depth` 3. 或将深层目录规范合并到父层 | [配置参考](configuration.md) |
-| E-SPEC-003 | SPEC_INHERITANCE_CONFLICT | ERROR | 子层 SHALL NOT 与父层 SHALL 矛盾 | 子层收紧约束到与父层 SHALL 要求互斥 | 1. 检查继承链 2. 调整子层 SHALL NOT 或父层 SHALL 3. 必要时引入中间层过渡 | [规范层设计](../design/spec-layer.md#5-规范层级关系与继承) |
-| E-SPEC-004 | SPEC_ENFORCEMENT_MISSING | WARN | SHALL/SHALL NOT 无对应 Enforcement | 约束声明缺少可执行检查规则 | 1. 为该约束补充 Enforcement 检查规则 2. 或标记为 `enforcement: manual`（降级为人工检查） | [规范层设计](../design/spec-layer.md) |
-| E-SPEC-005 | SPEC_DRIFT_DETECTED | ERROR | spec.md 声明的 Requirement 在代码中无实现 | 规范与代码不一致 | 1. 检查是否遗漏实现 2. 或更新 spec.md 移除该 Requirement 3. 运行 `mumuspec drift` 确认修复 | [漂移检测](drift-detection.md) |
-| E-SPEC-006 | SPEC_DESIGN_DOC_MISSING | ERROR | 有 spec.md 但无 design.md | 每个有 spec.md 的目录必须维护 design.md | 1. 运行 `mumuspec design init <scope>` 创建 design.md 2. 填写设计决策和架构原理 | [规范层设计](../design/spec-layer.md#43-designmd--目录级设计文档) |
-| E-SPEC-007 | SPEC_INDEX_OUTDATED | WARN | index.yaml 与实际目录结构不一致 | 子目录新增/删除后未更新索引 | 1. 运行 `mumuspec spec index --update` 2. 或设置 `config.yaml: specs.auto_index: true` | [配置参考](configuration.md) |
+**Fix Steps**:
+1. 检查 layer/scope/last_updated 字段类型
+2. 运行 mumuspec validate 重新校验
 
-### CHANGE — 变更层
+### `E-SPEC-002`: SPEC_LAYER_EXCEED_MAX
 
-| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
-|--------|------|---------|---------|---------|---------|---------|
-| E-CHANGE-001 | CHANGE_ALREADY_ACTIVE | ERROR | 已有活跃变更，无法创建新变更 | 单一活跃变更约束阻止并行变更 | 1. 完成或 Discard 当前变更 2. `mumuspec list` 查看活跃变更 3. `mumuspec archive <name>` 或 `mumuspec discard <name>` | [变更层设计](../design/change-layer.md) |
-| E-CHANGE-002 | CHANGE_ROLLBACK_LIMIT | ERROR | rollback_count 达到上限（默认 3） | 变更回退次数耗尽 | 1. 接受偏差: `mumuspec change accept-deviations --change <name>` 2. 废弃: `mumuspec discard <name>` 3. 手动提升上限（需审批）: `mumuspec config set changes.rollback_limit 5` | [错误恢复决策树](../design/change-layer.md#9-错误恢复决策树) |
-| E-CHANGE-003 | CHANGE_REBUILD_LIMIT | ERROR | rebuild_count 达到上限（默认 5） | 重建次数耗尽，强制升级为 Design 回退 | 1. 系统自动升级为 `verify_to_design_rollback` 2. 若 rollback_count 也超限 → 进入 E-CHANGE-002 流程 | [错误恢复决策树](../design/change-layer.md#92-rebuild_count-超限) |
-| E-CHANGE-004 | CHANGE_TEST_CASES_LOCKED | ERROR | 尝试修改已锁定的 test-cases/ | Design 阶段锁定后测试用例不可变 | 1. 回退到 Design: `mumuspec rollback <name> --to design` 2. 修改 test-cases/ 3. 重新锁定: `mumuspec test-cases lock <name>` | [变更层设计](../design/change-layer.md) |
-| E-CHANGE-005 | CHANGE_WORKTREE_FAIL | ERROR | worktree 创建失败 | 磁盘空间不足/权限问题/git 异常 | 1. 检查磁盘空间和权限 2. 降级为 branch 模式: `mumuspec config set changes.default_isolation branch` 3. 记录降级原因到 decisions.md | [错误恢复决策树](../design/change-layer.md#95-worktree-创建失败) |
-| E-CHANGE-006 | CHANGE_PHASE_INVALID_TRANSITION | ERROR | 非法状态机转换 | 当前 phase 不允许转换到目标 phase | 1. 检查当前 phase: `mumuspec status <name>` 2. 参考 [Phase Guard](phase-guards.md) 确认可转换路径 3. 使用 `mumuspec state graph <name>` 可视化状态机 | [Phase Guard](phase-guards.md) |
-| E-CHANGE-007 | CHANGE_DECISIONS_HASH_MISMATCH | ERROR | decisions.md content_hash 不匹配 | decisions.md 被手动篡改 | 1. 检查 decisions.md 是否被手动修改 2. 从 snapshots/ 恢复正确版本 3. 运行 `mumuspec guard <name> <phase>` 重新校验 | [Phase Guard](phase-guards.md) |
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 规范层级超过 max_layer_depth
 
-### GUARD — 校验层
+**Fix Steps**:
+1. 检查目录嵌套深度
+2. 调整 config.yaml: specs.max_layer_depth
 
-| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
-|--------|------|---------|---------|---------|---------|---------|
-| E-GUARD-001 | GUARD_ARTIFACT_MISSING | ERROR | Phase Guard 检查发现工件缺失 | 阶段转换缺少必要文件 | 1. 查看守卫报告确认缺失工件 2. 补充缺失工件 3. 重新运行 `mumuspec guard <name> <phase>` | [Phase Guard](phase-guards.md) |
-| E-GUARD-002 | GUARD_SHALL_VIOLATION | ERROR | SHALL 约束未满足 | 正向要求未实现 | 1. 实现 SHALL 要求 2. 或调整 spec.md 降低约束 3. 运行 `mumuspec check --shall` 验证 | [漂移检测](drift-detection.md) |
-| E-GUARD-003 | GUARD_SHALL_NOT_VIOLATION | ERROR | SHALL NOT 约束被违反 | 反向禁止被触碰 | 1. 移除违规代码 2. 或调整 spec.md（需走变更流程） 3. SHALL NOT 不可通过 `--force` 跳过 | [漂移检测](drift-detection.md) |
-| E-GUARD-004 | GUARD_TEST_IMMUTABILITY | ERROR | 测试用例或套件 hash 不匹配 | test-cases/ 或 suite-map.yaml 被篡改 | 1. 检查文件是否被手动修改 2. 从 snapshots/ 恢复 3. 运行 `mumuspec test-immutability <name>` 验证 | [漂移检测](drift-detection.md) |
-| E-GUARD-005 | GUARD_HYPERPLAN_NOT_MERGED | ERROR | hyperplan 硬约束未合并到 design.md | 对抗审查产出未整合到设计文档 | 1. 读取 `.mumuspec.yaml: hyperplan_result.hard_constraints` 2. 将硬约束合并到 design.md 的 SHALL/SHALL NOT 3. 运行 `mumuspec check --hyperplan-merged --change <name>` | [变更层设计](../design/change-layer.md) |
-| E-GUARD-006 | GUARD_HYPERPLAN_OPEN_QUESTIONS | ERROR | hyperplan 开放问题未解决 | 对抗审查的未收敛争议阻断后续步骤 | 1. 查看开放问题列表 2. 用户决策后标记为 resolved 3. 运行 `mumuspec check --hyperplan-open-questions --change <name>` | [变更层设计](../design/change-layer.md) |
-| E-GUARD-007 | GUARD_PRE_COMMIT_TIMEOUT | WARN | Pre-commit 检查超过 5s | 检查规则过多或项目过大 | 1. 考虑缩小检查范围 2. 优化规则性能 3. 或使用 `--staged-only` 限制检查范围 | [校验层设计](../design/guard-layer.md) |
+### `E-SPEC-003`: SPEC_INHERITANCE_CONFLICT
 
-### GRAPH — 代码图谱
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 子层 SHALL NOT 与父层 SHALL 矛盾
 
-| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
-|--------|------|---------|---------|---------|---------|---------|
-| E-GRAPH-001 | GRAPH_INDEX_FAIL | ERROR | 代码索引失败 | 文件权限/tree-sitter 语法支持问题 | 1. 检查文件读写权限 2. 确认 tree-sitter 语法包已安装 3. 运行 `mumuspec index --verbose` 查看详情 | [知识层设计](../design/knowledge-layer.md) |
-| E-GRAPH-002 | GRAPH_DRIFT | WARN | 图谱节点与实际代码不一致 | 代码变更后未更新图谱 | 1. 运行 `mumuspec index` 更新图谱 2. 或启用 `config.yaml: code_graph.auto_index_on_commit: true` | [漂移检测](drift-detection.md) |
-| E-GRAPH-003 | GRAPH_BROKEN_CHAIN | ERROR | 检测到断裂的调用链 | 被引用的函数/类已被删除 | 1. 检查代码是否删除了被引用的符号 2. 修复引用或恢复符号 3. 运行 `mumuspec trace <symbol>` 验证 | [知识层设计](../design/knowledge-layer.md) |
-| E-GRAPH-004 | GRAPH_LANGUAGE_UNSUPPORTED | WARN | 检测到不支持的语言文件 | tree-sitter 未安装该语言语法包 | 1. 安装对应语言的 tree-sitter 语法包 2. 或在 config.yaml `code_graph.languages` 中排除该语言 | [配置参考](configuration.md) |
+**Fix Steps**:
+1. 检查继承链
+2. 调整子层 SHALL NOT 或父层 SHALL
 
-### CONTRACT — 契约层
+### `E-SPEC-004`: SPEC_ENFORCEMENT_MISSING
 
-| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
-|--------|------|---------|---------|---------|---------|---------|
-| E-CONTRACT-001 | CONTRACT_NOT_REGISTERED | WARN | 契约文件未在 _registry.yaml 注册 | 新添加的契约文件未注册 | 1. 运行 `mumuspec contract registry update` 2. 或手动编辑 _registry.yaml | [契约层设计](../design/contract-layer.md) |
-| E-CONTRACT-002 | CONTRACT_DRIFT_EXTERNAL | ERROR | 代码调用外部服务但无契约声明 | 发现未声明的跨服务调用 | 1. 在 `contracts/external/` 中创建对应契约 2. 运行 `mumuspec contract derive <name>` 派生约束 | [契约层设计](../design/contract-layer.md) |
-| E-CONTRACT-003 | CONTRACT_DRIFT_OUTBOUND | ERROR | 代码暴露接口未在 outbound 契约声明 | 对外接口缺少正式契约 | 1. 在 `contracts/outbound/` 中创建对应契约 2. 运行 `mumuspec contract verify --all` 验证 | [契约层设计](../design/contract-layer.md) |
-| E-CONTRACT-004 | CONTRACT_BREAKING_CHANGE | ERROR | stable 端点字段被删除或类型改变 | 向后兼容性破坏 | 1. 走 deprecation 流程（先标注 deprecated） 2. 或新增 API 版本 3. 运行 `mumuspec contract compat-check <name>` | [契约层设计](../design/contract-layer.md#7-版本管理与兼容性) |
-| E-CONTRACT-005 | CONTRACT_DERIVE_FAIL | ERROR | 派生约束注入失败 | scope 路径不存在或格式错误 | 1. 检查 `derived_constraints.scope` 路径 2. 确认目标 `.mumuspec/` 目录存在 3. 运行 `mumuspec contract derive <name> --verbose` | [契约层设计](../design/contract-layer.md#6-约束派生机制) |
-| E-CONTRACT-006 | CONTRACT_REF_UNRESOLVED | ERROR | $ref 引用无法解析 | schemas/ 目录中引用路径错误 | 1. 检查 `$ref` 路径 2. 确认 schemas/ 目录结构 3. 运行 `mumuspec contract verify <name>` | [契约层设计](../design/contract-layer.md) |
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: SHALL/SHALL NOT 无对应 Enforcement
 
-### DESIGN — 设计层（认知框架）
+**Fix Steps**:
+1. 为该约束补充 Enforcement 检查规则
+2. 或标记为 enforcement: manual
 
-| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
-|--------|------|---------|---------|---------|---------|---------|
-| E-DESIGN-001 | COGNITIVE_MAP_MISSING | ERROR | cognitive-map.yaml 不存在 | Design 阶段未执行认知框架 | 1. 回退到 Design 2. 执行认知框架 Step 0 3. 生成 cognitive-map.yaml | [认知框架](cognitive-framework.md) |
-| E-DESIGN-002 | COGNITIVE_Q1_EMPTY | ERROR | Q1 已知的已知为空 | 信息采集未完成 | 1. 检查 proposal.md 和 spec.md 是否已加载 2. 重新执行 Stage 1 信息采集 | [认知框架](cognitive-framework.md) |
-| E-DESIGN-003 | COGNITIVE_Q2_PENDING | ERROR | Q2 存在待回答问题且未达轮次上限 | 有未解决的已知未知 | 1. 回答待处理的 Q2 问题 2. 或达到轮次上限后强制收敛 | [认知框架](cognitive-framework.md) |
-| E-DESIGN-004 | COGNITIVE_Q3_PENDING | ERROR | Q3 存在待确认推导且未达轮次上限 | 有未确认的隐性需求 | 1. 确认或拒绝待处理的 Q3 推导 2. 或达到轮次上限后强制收敛 | [认知框架](cognitive-framework.md) |
-| E-DESIGN-005 | COGNITIVE_Q4_INCOMPLETE | ERROR | Q4 盲区扫描未完成（少于 3 个维度） | 盲区扫描不充分 | 1. 补充 Q4 扫描维度 2. 确保至少扫描 3 个维度 | [认知框架](cognitive-framework.md) |
-| E-DESIGN-006 | COGNITIVE_NOT_CONVERGED | ERROR | 认知地图未收敛且未达轮次上限 | 认知框架未完成收敛 | 1. 继续执行 Q2/Q3 轮次 2. 或达到轮次上限后强制收敛 3. 重新通过 design_to_build 守卫 | [认知框架](cognitive-framework.md) |
+### `E-SPEC-005`: SPEC_DRIFT_DETECTED
 
-### KNOWLEDGE — 知识层
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: spec.md 声明的 Requirement 在代码中无实现
 
-| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
-|--------|------|---------|---------|---------|---------|---------|
-| E-KNOWLEDGE-001 | KNOWLEDGE_PAGE_FORMAT_INVALID | ERROR | 知识页面 YAML frontmatter 格式错误 | id/title/type/status/scope 等必填字段缺失或类型不匹配 | 1. 检查 frontmatter 字段 2. 运行 `mumuspec knowledge verify --id <id>` | [知识层设计](../design/knowledge-layer.md) |
-| E-KNOWLEDGE-002 | KNOWLEDGE_EXTRACTION_FAIL | ERROR | Archive 阶段知识提取失败 | cognitive-map.yaml / decisions.md 格式异常或内容缺失 | 1. 检查变更工件完整性 2. 重新执行 `mumuspec knowledge extract <change>` | [知识层设计](../design/knowledge-layer.md) |
-| E-KNOWLEDGE-003 | KNOWLEDGE_PAGE_NOT_FOUND | ERROR | PageIndex 引用的知识页面文件不存在 | 知识文件被手动删除或移动 | 1. 检查 _index.yaml 条目 2. 恢复文件或更新索引 | [知识层设计](../design/knowledge-layer.md) |
-| E-KNOWLEDGE-004 | KNOWLEDGE_GRAPH_BINDING_INVALID | ERROR | 知识页面 graph_bindings 引用的代码节点不存在 | 代码重构后未更新知识页面关联 | 1. 运行 `mumuspec knowledge verify --id <id>` 2. 更新 graph_bindings 或标记 deprecated | [知识层设计](../design/knowledge-layer.md) |
-| E-KNOWLEDGE-005 | KNOWLEDGE_CONFLICT_UNRESOLVED | ERROR | 检测到知识冲突但未处理 | 新知识 supersede 旧知识但未标记 | 1. 运行 `mumuspec knowledge supersede <old-id> --by <new-id>` | [知识层设计](../design/knowledge-layer.md) |
-| E-KNOWLEDGE-006 | KNOWLEDGE_INDEX_CORRUPT | ERROR | PageIndex _index.yaml 与实际文件不一致 | 索引文件损坏或手动编辑 | 1. 运行 `mumuspec knowledge index --rebuild` | [知识层设计](../design/knowledge-layer.md) |
-| E-KNOWLEDGE-007 | KNOWLEDGE_FRESHNESS_EXPIRED | WARN | 知识页面超过 freshness.error_after_days | 长期未验证的知识页面 | 1. 运行 `mumuspec knowledge verify --all` 2. 重新验证或标记 deprecated | [漂移检测](drift-detection.md) |
-| E-KNOWLEDGE-008 | KNOWLEDGE_REVERSE_INDEX_STALE | WARN | 反向索引与主索引不一致 | 反向索引未自动更新 | 1. 运行 `mumuspec knowledge index --update-reverse` | [知识层设计](../design/knowledge-layer.md) |
+**Fix Steps**:
+1. 检查是否遗漏实现
+2. 或更新 spec.md 移除该 Requirement
 
-### PONYTAIL — 编码约束
+### `E-SPEC-006`: SPEC_DESIGN_DOC_MISSING
 
-| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
-|--------|------|---------|---------|---------|---------|---------|
-| E-PONYTAIL-001 | PONYTAIL_YAGNI_VIOLATION | WARN | 引入了未被请求的抽象层或功能 | 违反 YAGNI 原则 | 1. 删除不必要的抽象 2. 或用 `ponytail:` 注释标记理由 | [规范层设计](../design/spec-layer.md) |
-| E-PONYTAIL-002 | PONYTAIL_UNNECESSARY_DEPENDENCY | ERROR | 在标准库/平台特性已满足时引入新依赖 | 违反优先级阶梯第 3-5 级 | 1. 使用标准库/平台特性替代 2. 或使用已有依赖 | [规范层设计](../design/spec-layer.md) |
-| E-PONYTAIL-003 | PONYTAIL_BOILERPLATE | WARN | 生成未被请求的样板代码 | 违反最小实现原则 | 1. 删除样板代码 2. 使用最小可工作实现 | [规范层设计](../design/spec-layer.md) |
-| E-PONYTAIL-004 | PONYTAIL_CLEVER_OVER_SIMPLE | WARN | 用复杂方案替代简单方案 | 违反 boring over clever 原则 | 1. 简化为 boring 方案 2. 或用 `ponytail:` 注释标记理由 | [规范层设计](../design/spec-layer.md) |
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 有 spec.md 但无 design.md
 
-### SECURITY — 安全
+**Fix Steps**:
+1. 运行 mumuspec design init <scope> 创建 design.md
 
-| 错误码 | 名称 | 严重级别 | 触发条件 | 原因说明 | 修复步骤 | 相关文档 |
-|--------|------|---------|---------|---------|---------|---------|
-| E-SECURITY-001 | SECURITY_PATH_TRAVERSAL | ERROR | CLI 参数路径超出项目根目录 | 路径遍历攻击防护 | 1. 使用项目内相对路径 2. 不使用 `../` 等路径逃逸符号 | [校验层设计](../design/guard-layer.md#5-安全校验) |
-| E-SECURITY-002 | SECURITY_MCP_UNAUTHORIZED | ERROR | MCP 调用未通过 Token 认证 | MCP Server 访问控制 | 1. 设置 `MUMUSPEC_MCP_TOKEN` 环境变量 2. 确认 Token 与配置一致 | [校验层设计](../design/guard-layer.md#52-mcp-server-访问控制) |
-| E-SECURITY-003 | SECURITY_SENSITIVE_INFO | WARN | 规范文件中检测到敏感信息模式 | API Key/Token/密码等可能泄露 | 1. 移除敏感信息 2. 或在 config.yaml 中标记为允许的模式 3. 检查是否应使用环境变量替代 | [校验层设计](../design/guard-layer.md#54-敏感信息检测) |
-| E-SECURITY-004 | SECURITY_YAML_INJECTION | ERROR | YAML 文件包含潜在注入载荷 | 危险 YAML 标签（如 `!!python/eval`） | 1. 检查 YAML 内容 2. 移除危险标签 3. 使用安全 YAML 解析器 | [校验层设计](../design/guard-layer.md#53-输入校验规则) |
+### `E-SPEC-007`: SPEC_INDEX_OUTDATED
 
----
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: index.yaml 与实际目录结构不一致
 
-## 错误信息模板
+**Fix Steps**:
+1. 运行 mumuspec validate --update-index
 
-每个错误输出遵循以下格式：
+### `E-SPEC-008`: PRD_FRONTMATTER_INVALID
 
-```
-[E-CHANGE-002] CHANGE_ROLLBACK_LIMIT (ERROR)
-  描述: rollback_count 已达到上限 (3/3)
-  当前变更: add-user-auth
-  上下文: Verify 阶段发现设计缺陷，需回退到 Design
-  可选操作:
-    1. 接受偏差归档: mumuspec change accept-deviations --change add-user-auth
-    2. 废弃变更:     mumuspec change discard --change add-user-auth
-    3. 手动提升上限: mumuspec config set changes.rollback_limit 5 (需记录原因)
-  相关文档: docs/reference/error-codes.md#E-CHANGE-002
-```
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: prd.md YAML frontmatter 缺少必填字段 (layer, scope)
 
-### `--force` 选项说明
+**Fix Steps**:
+1. 添加 layer 和 scope 字段
+2. 运行 mumuspec validate 重新校验
 
-| 错误码 | `--force` 行为 | 说明 |
-|--------|---------------|------|
-| E-SPEC-004 | 可跳过 WARN | 标记为 `enforcement: manual` |
-| E-SPEC-007 | 可跳过 WARN | 自动更新 index.yaml |
-| E-GUARD-002 | 可跳过（记录偏差） | 仅记录到 accepted_deviations，不阻断 |
-| E-GUARD-003 | **不可跳过** | SHALL NOT 违规不可 force |
-| E-GUARD-007 | 可跳过 WARN | 继续提交 |
-| E-CONTRACT-001 | 可跳过 WARN | 自动注册 |
-| E-KNOWLEDGE-007 | 可跳过 WARN | 继续构建，标记为 stale |
-| E-KNOWLEDGE-008 | 可跳过 WARN | 自动重建反向索引 |
-| E-PONYTAIL-001 | 可跳过 WARN | 标记为 intentional |
-| E-PONYTAIL-003 | 可跳过 WARN | 标记为 intentional |
-| E-PONYTAIL-004 | 可跳过 WARN | 标记为 intentional |
-| E-SECURITY-003 | 可跳过 WARN | 标记为允许的模式 |
+### `E-SPEC-009`: TECH_FRONTMATTER_INVALID
 
-> **重要**: SHALL NOT 违规（E-GUARD-003）和测试不可变性违规（E-GUARD-004）**永远不可**通过 `--force` 跳过。
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: tech.md YAML frontmatter 缺少必填字段 (layer, scope)
 
----
+**Fix Steps**:
+1. 添加 layer 和 scope 字段
+2. 运行 mumuspec validate 重新校验
 
-> **导航**: [← Skill 生态](skill-ecosystem.md) | [发布策略 →](release-strategy.md) | [返回概览](../overview.md)
+### `E-SPEC-010`: PARENT_SPEC_NOT_FOUND
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: parent_prd 或 parent_tech 指向的文件不存在
+
+**Fix Steps**:
+1. 检查路径是否正确
+2. 创建缺失的父文档或移除引用
+
+### `E-SPEC-011`: DISTRIBUTED_SPEC_FORMAT_INVALID
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 分布式 prd.md/tech.md 使用非 Requirement 块格式
+
+**Fix Steps**:
+1. 使用 ## Requirement: <name> 格式定义约束
+2. 运行 mumuspec validate --verbose
+
+### `E-SPEC-012`: DIST_SPEC_SHALL_UNIMPLEMENTED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: tech.md 中声明的 SHALL 约束在代码中找不到实现
+
+**Fix Steps**:
+1. 检查代码是否满足约束
+2. 或更新 tech.md 移除/调整约束
+
+### `E-SPEC-013`: UNDEFINED_MUMUSPEC_DIRECTORY
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: .mumuspec/ 下存在未定义的目录
+
+**Fix Steps**:
+1. 移除未定义的目录
+2. 或将其内容合并到已定义的目录中
+
+### `E-SPEC-014`: UNDEFINED_MUMUSPEC_FILE
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: .mumuspec/ 下存在未定义的文件
+
+**Fix Steps**:
+1. 移除未定义的文件
+2. 或将其内容合并到已定义的 spec 文件中
+
+## CHANGE Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-CHANGE-001` | CHANGE_ALREADY_ACTIVE | ERROR | 已有活跃变更，无法创建新变更 | No |
+| `E-CHANGE-002` | CHANGE_ROLLBACK_LIMIT | ERROR | rollback_count 达到上限 | No |
+| `E-CHANGE-003` | CHANGE_REBUILD_LIMIT | ERROR | rebuild_count 达到上限，强制升级为 Design 回退 | No |
+| `E-CHANGE-004` | CHANGE_TEST_CASES_LOCKED | ERROR | 尝试修改已锁定的 test-cases/ | No |
+| `E-CHANGE-005` | CHANGE_WORKTREE_FAIL | ERROR | worktree 创建失败 | No |
+| `E-CHANGE-006` | CHANGE_PHASE_INVALID_TRANSITION | ERROR | 非法状态机转换 | No |
+| `E-CHANGE-007` | CHANGE_DECISIONS_HASH_MISMATCH | ERROR | decisions.md content_hash 不匹配 | No |
+| `E-CHANGE-008` | CHANGE_SCOPE_OVERFLOW | ERROR | 变更 affected_scopes 超出当前作用域子树 | No |
+| `E-CHANGE-009` | CHANGE_BRANCH_CREATE_FAILED | ERROR | 自动创建变更分支失败（已回退变更目录） | No |
+| `E-CHANGE-010` | CHANGE_DISCARD_MOVE_FAILED | ERROR | 废弃变更时目录移动失败，变更保留在原位置 | No |
+| `E-CHANGE-011` | CHANGE_ARCHIVE_MOVE_FAILED | ERROR | 归档变更时目录移动失败，变更保留在原位置 | No |
+
+### `E-CHANGE-001`: CHANGE_ALREADY_ACTIVE
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 已有活跃变更，无法创建新变更
+
+**Fix Steps**:
+1. 完成或 Discard 当前变更
+2. mumuspec list 查看活跃变更
+
+### `E-CHANGE-002`: CHANGE_ROLLBACK_LIMIT
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: rollback_count 达到上限
+
+**Fix Steps**:
+1. 接受偏差归档
+2. 废弃变更
+3. 手动提升上限（需审批）
+
+### `E-CHANGE-003`: CHANGE_REBUILD_LIMIT
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: rebuild_count 达到上限，强制升级为 Design 回退
+
+**Fix Steps**:
+1. 系统自动升级为 verify_to_design_rollback
+
+### `E-CHANGE-004`: CHANGE_TEST_CASES_LOCKED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 尝试修改已锁定的 test-cases/
+
+**Fix Steps**:
+1. 回退到 Design: mumuspec rollback <name> --to design
+
+### `E-CHANGE-005`: CHANGE_WORKTREE_FAIL
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: worktree 创建失败
+
+**Fix Steps**:
+1. 检查磁盘空间和权限
+2. 降级为 branch 模式
+
+### `E-CHANGE-006`: CHANGE_PHASE_INVALID_TRANSITION
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 非法状态机转换
+
+**Fix Steps**:
+1. 检查当前 phase
+2. 参考 Phase Guard 确认可转换路径
+
+### `E-CHANGE-007`: CHANGE_DECISIONS_HASH_MISMATCH
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: decisions.md content_hash 不匹配
+
+**Fix Steps**:
+1. 检查 decisions.md 是否被手动修改
+2. 从 snapshots/ 恢复正确版本
+
+### `E-CHANGE-008`: CHANGE_SCOPE_OVERFLOW
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 变更 affected_scopes 超出当前作用域子树
+
+**Fix Steps**:
+1. 缩减 affected_scopes 到当前作用域子树内
+2. 或在父级作用域创建变更
+
+### `E-CHANGE-009`: CHANGE_BRANCH_CREATE_FAILED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 自动创建变更分支失败（已回退变更目录）
+
+**Fix Steps**:
+1. 检查 git 仓库状态与分支名冲突
+2. 解决后重新执行 mumuspec new
+
+### `E-CHANGE-010`: CHANGE_DISCARD_MOVE_FAILED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 废弃变更时目录移动失败，变更保留在原位置
+
+**Fix Steps**:
+1. 检查目标目录是否已存在
+2. 手动将变更目录移到 .mumuspec/changes/archive/discarded/
+
+### `E-CHANGE-011`: CHANGE_ARCHIVE_MOVE_FAILED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 归档变更时目录移动失败，变更保留在原位置
+
+**Fix Steps**:
+1. 检查目标目录是否已存在
+2. 手动将变更目录移到 .mumuspec/changes/archive/
+
+## HOOK Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-HOOK-001` | HOOK_CHANGE_OWNERSHIP | ERROR | 分支上无活跃变更，直接提交将绕过 MumuSpec 流程 | No |
+
+### `E-HOOK-001`: HOOK_CHANGE_OWNERSHIP
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 分支上无活跃变更，直接提交将绕过 MumuSpec 流程
+
+**Fix Steps**:
+1. 运行 mumuspec new <name> 创建变更并切换到变更分支
+2. 或将该分支加入 ci.ownership_ci_branches 白名单
+
+## MERGE Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-MERGE-001` | MERGE_CHANGE_NOT_FOUND | ERROR | 变更不存在，无法合并 | No |
+| `E-MERGE-002` | MERGE_NOT_ARCHIVED | ERROR | 变更未归档，禁止合并分支 | No |
+| `E-MERGE-003` | MERGE_BRANCH_NOT_HANDLED | ERROR | 变更分支代码未提交（branch_status 未置 handled） | No |
+| `E-MERGE-004` | MERGE_ISOLATION_INVALID | ERROR | 变更不是分支隔离模式或缺少分支信息 | No |
+| `E-MERGE-005` | MERGE_NOT_ON_MAIN | ERROR | 必须在主分支上执行合并 | No |
+| `E-MERGE-006` | MERGE_WORKING_TREE_DIRTY | ERROR | 当前工作区有未提交改动，禁止合并 | No |
+| `E-MERGE-007` | MERGE_BRANCH_MISSING | ERROR | 变更分支不存在 | No |
+| `E-MERGE-008` | MERGE_MAIN_BRANCH_MISSING | ERROR | 未找到 main/master 主分支 | No |
+| `E-MERGE-009` | MERGE_GATE_REJECTED | ERROR | 合并门禁未通过 | No |
+| `E-MERGE-010` | MERGE_CONFLICT | ERROR | 合并发生冲突，已暂停 | No |
+
+### `E-MERGE-001`: MERGE_CHANGE_NOT_FOUND
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 变更不存在，无法合并
+
+**Fix Steps**:
+1. 确认变更名称正确
+2. mumuspec list 查看活跃/归档变更
+
+### `E-MERGE-002`: MERGE_NOT_ARCHIVED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 变更未归档，禁止合并分支
+
+**Fix Steps**:
+1. 先执行 mumuspec archive <name> --confirm 归档变更
+2. 归档完成后再合并
+
+### `E-MERGE-003`: MERGE_BRANCH_NOT_HANDLED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 变更分支代码未提交（branch_status 未置 handled）
+
+**Fix Steps**:
+1. 提交分支代码后执行 mumuspec guard <name> archive-in-progress --apply --confirm
+
+### `E-MERGE-004`: MERGE_ISOLATION_INVALID
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 变更不是分支隔离模式或缺少分支信息
+
+**Fix Steps**:
+1. 确认 config.yaml changes.default_isolation 为 branch
+2. 检查变更 state.branch 字段
+
+### `E-MERGE-005`: MERGE_NOT_ON_MAIN
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 必须在主分支上执行合并
+
+**Fix Steps**:
+1. 切换到主分支 (git checkout main/master) 后重试
+
+### `E-MERGE-006`: MERGE_WORKING_TREE_DIRTY
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 当前工作区有未提交改动，禁止合并
+
+**Fix Steps**:
+1. 提交或 stash 当前改动后重试
+
+### `E-MERGE-007`: MERGE_BRANCH_MISSING
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 变更分支不存在
+
+**Fix Steps**:
+1. 确认变更分支是否已被删除
+2. 检查 git branch -a
+
+### `E-MERGE-008`: MERGE_MAIN_BRANCH_MISSING
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 未找到 main/master 主分支
+
+**Fix Steps**:
+1. 确认仓库存在 main 或 master 分支
+
+### `E-MERGE-009`: MERGE_GATE_REJECTED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 合并门禁未通过
+
+**Fix Steps**:
+1. 查看门禁错误详情并逐项修复
+
+### `E-MERGE-010`: MERGE_CONFLICT
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 合并发生冲突，已暂停
+
+**Fix Steps**:
+1. 手动解决冲突 (git status)
+2. git add <files> && git commit
+3. 重新执行 mumuspec merge
+
+## GUARD Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-GUARD-001` | GUARD_ARTIFACT_MISSING | ERROR | Phase Guard 检查发现工件缺失 | No |
+| `E-GUARD-002` | GUARD_SHALL_VIOLATION | ERROR | SHALL 约束未满足 | Yes |
+| `E-GUARD-003` | GUARD_SHALL_NOT_VIOLATION | ERROR | SHALL NOT 约束被违反 | No |
+| `E-GUARD-004` | GUARD_TEST_IMMUTABILITY | ERROR | 测试用例或套件 hash 不匹配 | No |
+| `E-GUARD-005` | GUARD_HYPERPLAN_NOT_MERGED | ERROR | hyperplan 硬约束未合并到 design.md | No |
+| `E-GUARD-006` | GUARD_HYPERPLAN_OPEN_QUESTIONS | ERROR | hyperplan 开放问题未解决 | No |
+| `E-GUARD-007` | GUARD_PRE_COMMIT_TIMEOUT | WARN | Pre-commit 检查超过 5s | Yes |
+
+### `E-GUARD-001`: GUARD_ARTIFACT_MISSING
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: Phase Guard 检查发现工件缺失
+
+**Fix Steps**:
+1. 查看守卫报告确认缺失工件
+2. 补充缺失工件
+
+### `E-GUARD-002`: GUARD_SHALL_VIOLATION
+
+- **Severity**: ERROR
+- **Forceable**: Yes
+- **Description**: SHALL 约束未满足
+
+**Fix Steps**:
+1. 实现 SHALL 要求
+2. 或调整 spec.md 降低约束
+
+### `E-GUARD-003`: GUARD_SHALL_NOT_VIOLATION
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: SHALL NOT 约束被违反
+
+**Fix Steps**:
+1. 移除违规代码
+2. SHALL NOT 不可通过 --force 跳过
+
+### `E-GUARD-004`: GUARD_TEST_IMMUTABILITY
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 测试用例或套件 hash 不匹配
+
+**Fix Steps**:
+1. 检查文件是否被手动修改
+2. 从 snapshots/ 恢复
+
+### `E-GUARD-005`: GUARD_HYPERPLAN_NOT_MERGED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: hyperplan 硬约束未合并到 design.md
+
+**Fix Steps**:
+1. 将硬约束合并到 design.md 的 SHALL/SHALL NOT
+
+### `E-GUARD-006`: GUARD_HYPERPLAN_OPEN_QUESTIONS
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: hyperplan 开放问题未解决
+
+**Fix Steps**:
+1. 查看开放问题列表
+2. 用户决策后标记为 resolved
+
+### `E-GUARD-007`: GUARD_PRE_COMMIT_TIMEOUT
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: Pre-commit 检查超过 5s
+
+**Fix Steps**:
+1. 考虑缩小检查范围
+2. 优化规则性能
+
+## PONYTAIL Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-PONYTAIL-001` | PONYTAIL_YAGNI_VIOLATION | WARN | 引入了未被请求的抽象层或功能 | Yes |
+| `E-PONYTAIL-002` | PONYTAIL_UNNECESSARY_DEPENDENCY | ERROR | 在标准库/平台特性已满足时引入新依赖 | No |
+| `E-PONYTAIL-003` | PONYTAIL_BOILERPLATE | WARN | 生成未被请求的样板代码 | Yes |
+| `E-PONYTAIL-004` | PONYTAIL_CLEVER_OVER_SIMPLE | WARN | 用复杂方案替代简单方案 | Yes |
+
+### `E-PONYTAIL-001`: PONYTAIL_YAGNI_VIOLATION
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 引入了未被请求的抽象层或功能
+
+**Fix Steps**:
+1. 删除不必要的抽象
+2. 或用 ponytail: 注释标记理由
+
+### `E-PONYTAIL-002`: PONYTAIL_UNNECESSARY_DEPENDENCY
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 在标准库/平台特性已满足时引入新依赖
+
+**Fix Steps**:
+1. 使用标准库/平台特性替代
+2. 或使用已有依赖
+
+### `E-PONYTAIL-003`: PONYTAIL_BOILERPLATE
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 生成未被请求的样板代码
+
+**Fix Steps**:
+1. 删除样板代码
+2. 使用最小可工作实现
+
+### `E-PONYTAIL-004`: PONYTAIL_CLEVER_OVER_SIMPLE
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 用复杂方案替代简单方案
+
+**Fix Steps**:
+1. 简化为 boring 方案
+2. 或用 ponytail: 注释标记理由
+
+## CONTRACT Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-CONTRACT-001` | BOUNDARY_DOC_MISSING | WARN | 有代码的目录缺少 BOUNDARY.md 边界文档 | Yes |
+| `E-CONTRACT-002` | BOUNDARY_EXPORT_NOT_FOUND | ERROR | BOUNDARY.md 声明的对外接口在代码中未找到实现 | No |
+| `E-CONTRACT-003` | BOUNDARY_DEPENDENCY_UNUSED | WARN | BOUNDARY.md 声明的依赖在代码中未发现实际使用 | Yes |
+| `E-CONTRACT-004` | BOUNDARY_CHANGELOG_EMPTY | WARN | BOUNDARY.md 缺少变更日志 | Yes |
+| `E-CONTRACT-005` | CONTRACT_SOURCE_MISSING | ERROR | contracts.yaml 声明的契约源文件不存在 | No |
+| `E-CONTRACT-006` | CONTRACT_DEPRECATED_IN_USE | WARN | 已标记为 deprecated 的契约仍被上游消费者使用 | Yes |
+| `E-CONTRACT-007` | CONTRACT_SCHEMA_MISSING | WARN | 契约缺少 schema 定义 | Yes |
+| `E-CONTRACT-008` | CONTRACT_GRAPH_INCONSISTENT | WARN | 契约依赖图中引用了不存在的契约 ID | Yes |
+| `E-CONTRACT-009` | CONTRACT_BREAKING_CHANGE | ERROR | 检测到破坏性契约变更，但未提供迁移路径 | No |
+| `E-CONTRACT-010` | CONTRACT_LOCK_TIMEOUT | ERROR | 获取契约文件锁超时（5s），另一个进程可能正在修改契约 | No |
+
+### `E-CONTRACT-001`: BOUNDARY_DOC_MISSING
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 有代码的目录缺少 BOUNDARY.md 边界文档
+
+**Fix Steps**:
+1. 创建 BOUNDARY.md 并声明对外接口、依赖、数据契约
+2. 运行 mumuspec drift --fix-auto
+
+### `E-CONTRACT-002`: BOUNDARY_EXPORT_NOT_FOUND
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: BOUNDARY.md 声明的对外接口在代码中未找到实现
+
+**Fix Steps**:
+1. 实现缺失的接口
+2. 或更新 BOUNDARY.md 移除该声明
+
+### `E-CONTRACT-003`: BOUNDARY_DEPENDENCY_UNUSED
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: BOUNDARY.md 声明的依赖在代码中未发现实际使用
+
+**Fix Steps**:
+1. 移除未使用的依赖声明
+2. 或在代码中补充引入该依赖
+
+### `E-CONTRACT-004`: BOUNDARY_CHANGELOG_EMPTY
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: BOUNDARY.md 缺少变更日志
+
+**Fix Steps**:
+1. 在 BOUNDARY.md 中添加变更日志条目
+
+### `E-CONTRACT-005`: CONTRACT_SOURCE_MISSING
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: contracts.yaml 声明的契约源文件不存在
+
+**Fix Steps**:
+1. 创建源文件
+2. 或更新 contracts.yaml 修正 source 路径
+
+### `E-CONTRACT-006`: CONTRACT_DEPRECATED_IN_USE
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 已标记为 deprecated 的契约仍被上游消费者使用
+
+**Fix Steps**:
+1. 提供迁移路径 (migrationPath)
+2. 或通知消费者切换到新契约
+
+### `E-CONTRACT-007`: CONTRACT_SCHEMA_MISSING
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 契约缺少 schema 定义
+
+**Fix Steps**:
+1. 在 contracts.yaml 中为契约添加 schema 字段
+
+### `E-CONTRACT-008`: CONTRACT_GRAPH_INCONSISTENT
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 契约依赖图中引用了不存在的契约 ID
+
+**Fix Steps**:
+1. 修正 outbound_ids / inbound_ids 或补全缺失的契约定义
+
+### `E-CONTRACT-009`: CONTRACT_BREAKING_CHANGE
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 检测到破坏性契约变更，但未提供迁移路径
+
+**Fix Steps**:
+1. 为破坏性变更添加 migrationPath
+2. 执行影响分析并征询用户同意后修改
+
+### `E-CONTRACT-010`: CONTRACT_LOCK_TIMEOUT
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 获取契约文件锁超时（5s），另一个进程可能正在修改契约
+
+**Fix Steps**:
+1. 等待其他 mumuspec 进程完成
+2. 检查并删除陈旧锁目录 .mumuspec/contracts/.lock
+
+## KNOWLEDGE Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-KNOWLEDGE-001` | KNOWLEDGE_PAGE_FORMAT_INVALID | ERROR | 知识页面 YAML frontmatter 格式错误 | No |
+| `E-KNOWLEDGE-002` | KNOWLEDGE_EXTRACTION_FAIL | ERROR | Archive 阶段知识提取失败 | No |
+| `E-KNOWLEDGE-003` | KNOWLEDGE_PAGE_NOT_FOUND | ERROR | PageIndex 引用的知识页面文件不存在 | No |
+
+### `E-KNOWLEDGE-001`: KNOWLEDGE_PAGE_FORMAT_INVALID
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 知识页面 YAML frontmatter 格式错误
+
+**Fix Steps**:
+1. 检查 frontmatter 字段
+2. 运行 mumuspec knowledge verify --id <id>
+
+### `E-KNOWLEDGE-002`: KNOWLEDGE_EXTRACTION_FAIL
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: Archive 阶段知识提取失败
+
+**Fix Steps**:
+1. 检查变更工件完整性
+2. 重新执行 mumuspec knowledge extract <change>
+
+### `E-KNOWLEDGE-003`: KNOWLEDGE_PAGE_NOT_FOUND
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: PageIndex 引用的知识页面文件不存在
+
+**Fix Steps**:
+1. 检查 _index.yaml 条目
+2. 恢复文件或更新索引
+
+## DESIGN Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-DESIGN-001` | COGNITIVE_MAP_MISSING | ERROR | cognitive-map.yaml 不存在 | No |
+| `E-DESIGN-002` | COGNITIVE_Q1_EMPTY | ERROR | Q1 已知的已知为空 | No |
+
+### `E-DESIGN-001`: COGNITIVE_MAP_MISSING
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: cognitive-map.yaml 不存在
+
+**Fix Steps**:
+1. 回退到 Design
+2. 执行认知框架 Step 0
+
+### `E-DESIGN-002`: COGNITIVE_Q1_EMPTY
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: Q1 已知的已知为空
+
+**Fix Steps**:
+1. 检查 proposal.md 和 spec.md 是否已加载
+2. 重新执行 Stage 1 信息采集
+
+## SECURITY Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-SECURITY-001` | SECURITY_PATH_TRAVERSAL | ERROR | CLI 参数路径超出项目根目录 | No |
+| `E-SECURITY-002` | CHANGE_NAME_INVALID | ERROR | 变更名称含非法字符（路径分隔符或 .. 序列） | No |
+| `E-SECURITY-003` | MCP_PATH_REQUIRED | ERROR | MCP 工具调用未提供 path 参数或参数类型错误 | No |
+
+### `E-SECURITY-001`: SECURITY_PATH_TRAVERSAL
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: CLI 参数路径超出项目根目录
+
+**Fix Steps**:
+1. 使用项目内相对路径
+2. 不使用 ../ 等路径逃逸符号
+
+### `E-SECURITY-002`: CHANGE_NAME_INVALID
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 变更名称含非法字符（路径分隔符或 .. 序列）
+
+**Fix Steps**:
+1. 使用字母数字 + . _ - 组合的名称
+2. 名称不能以 . 或 - 开头
+
+### `E-SECURITY-003`: MCP_PATH_REQUIRED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: MCP 工具调用未提供 path 参数或参数类型错误
+
+**Fix Steps**:
+1. 检查调用参数是否包含有效的 path 字符串
+2. 确保 path 为相对路径且非空
+
+## STATE Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-STATE-001` | STATE_PROTECTED_FIELD | ERROR | state set 尝试修改受保护字段（认知/测试/阶段等），且 guard.bypass_audit=false 拒绝绕过 | No |
+
+### `E-STATE-001`: STATE_PROTECTED_FIELD
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: state set 尝试修改受保护字段（认知/测试/阶段等），且 guard.bypass_audit=false 拒绝绕过
+
+**Fix Steps**:
+1. 通过 guard --apply 正规流程推进阶段
+2. 如需绕过请在 config.yaml 设置 guard.bypass_audit: true 并接受审计
+
+## AGENTS Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-AGENTS-001` | AGENTS_SPEC_DRIFT | ERROR | AGENTS.md 与 spec 内容漂移（生成的 rules 基于旧版规范） | No |
+
+### `E-AGENTS-001`: AGENTS_SPEC_DRIFT
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: AGENTS.md 与 spec 内容漂移（生成的 rules 基于旧版规范）
+
+**Fix Steps**:
+1. 重新运行 mumuspec rules generate 同步 AGENTS.md 与 agents-hash.json
+
+## CHECK Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-CHECK-001` | CHECK_ACTION_FAILED | ERROR | mumuspec check 执行过程中发生未预期错误（compliance / drift / glossary 任一子系统抛错） | No |
+
+### `E-CHECK-001`: CHECK_ACTION_FAILED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: mumuspec check 执行过程中发生未预期错误（compliance / drift / glossary 任一子系统抛错）
+
+**Fix Steps**:
+1. 查看下方错误信息定位具体子系统
+2. 修复后重新运行 mumuspec check
+
+## GIT Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-GIT-001` | GIT_SPAWN_FAILED | ERROR | git 命令无法启动（未安装 git 或不在 PATH 中） | No |
+| `E-GIT-002` | GIT_COMMAND_FAILED | ERROR | git 命令执行失败（非零退出码） | No |
+| `E-GIT-003` | GIT_MAIN_BRANCH_NOT_FOUND | ERROR | 未找到 main 或 master 主分支 | No |
+
+### `E-GIT-001`: GIT_SPAWN_FAILED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: git 命令无法启动（未安装 git 或不在 PATH 中）
+
+**Fix Steps**:
+1. 确认已安装 git 且 git --version 可正常执行
+2. 检查 PATH 环境变量包含 git
+
+### `E-GIT-002`: GIT_COMMAND_FAILED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: git 命令执行失败（非零退出码）
+
+**Fix Steps**:
+1. 根据下方输出排查 git 失败原因
+2. 确认当前目录是有效的 git 仓库
+3. 检查分支/提交引用是否存在
+
+### `E-GIT-003`: GIT_MAIN_BRANCH_NOT_FOUND
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 未找到 main 或 master 主分支
+
+**Fix Steps**:
+1. 确认仓库已初始化且存在 main/master 分支
+2. 或手动指定目标分支

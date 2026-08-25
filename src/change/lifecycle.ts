@@ -2,7 +2,7 @@
  * Change lifecycle — create, discard, escalate, snapshot, build-layers, test-cases.
  */
 import { existsSync, readdirSync, renameSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import type { ChangeState, Workflow } from '../core/types.js';
 import type { MumuSpecConfig } from '../core/config.js';
 import { readText, writeText, ensureDir, computeHash, now, appendAuditLog, getMumuSpecDir } from '../core/utils.js';
@@ -87,7 +87,8 @@ export function createChange(
     rollback_limit: config.changes.default_rollback_limit,
     rebuild_limit: config.changes.default_rebuild_limit,
     build_mode: config.changes.default_build_mode,
-    tdd_mode: 'tdd',
+    // CHG-5: tdd_mode 由配置 changes.default_tdd_mode 决定（默认 'tdd'，向后兼容）
+    tdd_mode: config.changes.default_tdd_mode ?? 'tdd',
     isolation: config.changes.default_isolation,
     branch: branchName,
     single_active_change: true,
@@ -224,10 +225,33 @@ export function discardChange(
   const snapshotDir = join(changeDir, 'snapshots', 'discard');
   ensureDir(snapshotDir);
 
+  // P0-1 Fix: Save original phase for rollback on rename failure
+  const originalPhase = state.phase;
+  const discardedDir = getDiscardedDir(projectRoot, changeName, scope);
+
+  // Ensure target parent directory exists before rename
+  ensureDir(dirname(discardedDir));
+
+  try {
+    renameSync(changeDir, discardedDir);
+  } catch (err) {
+    // Rename failed: do NOT update state.phase to terminal
+    // The change remains in its original location and phase
+    appendAuditLog(getMumuSpecDir(projectRoot), {
+      actor: 'user',
+      action: 'change.discard',
+      change: changeName,
+      result: 'failed',
+      error: (err as Error).message,
+    });
+    throw new MumuSpecError('E-CHANGE-010', { cause: (err as Error).message });
+  }
+
+  // Only update state AFTER successful rename
   state.phase = 'discarded';
   state.updated_at = now();
   state.rollback_history.push({
-    from: state.phase,
+    from: originalPhase,
     to: 'discarded',
     reason,
     timestamp: now(),
@@ -236,14 +260,6 @@ export function discardChange(
   });
 
   saveChangeState(projectRoot, changeName, state, scope);
-
-  const discardedDir = getDiscardedDir(projectRoot, changeName, scope);
-
-  try {
-    renameSync(changeDir, discardedDir);
-  } catch {
-    // If rename fails, leave in place
-  }
 
   appendAuditLog(getMumuSpecDir(projectRoot), {
     actor: 'user',

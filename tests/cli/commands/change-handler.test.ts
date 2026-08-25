@@ -174,9 +174,9 @@ describe('change command handlers', () => {
       const program = createProgram();
       await program.parseAsync(['node', 'mumuspec', 'new', 'test-change']);
 
-      expect(mockCreateChange).toHaveBeenCalledWith(
-        FAKE_ROOT, 'test-change', 'full', expect.anything(), []
-      );
+    expect(mockCreateChange).toHaveBeenCalledWith(
+      FAKE_ROOT, 'test-change', 'full', expect.anything(), [], '.'
+    );
       expect(mockSaveChangeState).toHaveBeenCalled();
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('✓ Change "test-change" created'));
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Workflow: full'));

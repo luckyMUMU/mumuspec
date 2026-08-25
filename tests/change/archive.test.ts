@@ -415,9 +415,10 @@ describe('archiveChange', () => {
     });
     mockReaddirSync.mockReturnValue([]);
 
+    // P0-1 Fix: archiveChange now throws on renameSync failure instead of silently ignoring
     expect(() => {
       archiveChange(PROJECT_ROOT, CHANGE_NAME);
-    }).not.toThrow();
+    }).toThrow();
   });
 });
 
@@ -457,8 +458,9 @@ describe('mergeDeltaSpecsToMain', () => {
 
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
-    expect(mockAppendFileSync).toHaveBeenCalled();
-    expect(mockAppendFileSync.mock.calls[0][1]).toContain('delta-merged from');
+    // P0-2 Fix: Now uses writeFileSync + renameSync instead of appendFileSync
+    expect(mockWriteFileSync).toHaveBeenCalled();
+    expect(mockWriteFileSync.mock.calls[0][1]).toContain('delta-merged from');
   });
 
   it('falls back to spec.md when tech.md does not exist in scope', () => {
@@ -474,7 +476,8 @@ describe('mergeDeltaSpecsToMain', () => {
 
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
-    expect(mockAppendFileSync).toHaveBeenCalled();
+    // P0-2 Fix: Now uses writeFileSync + renameSync instead of appendFileSync
+    expect(mockWriteFileSync).toHaveBeenCalled();
   });
 
   it('merges root -prd.md into root prd.md', () => {
@@ -489,7 +492,8 @@ describe('mergeDeltaSpecsToMain', () => {
 
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
-    expect(mockAppendFileSync).toHaveBeenCalled();
+    // P0-2 Fix: Now uses writeFileSync + renameSync instead of appendFileSync
+    expect(mockWriteFileSync).toHaveBeenCalled();
   });
 
   it('falls back to design.md when prd.md not found', () => {
@@ -505,7 +509,8 @@ describe('mergeDeltaSpecsToMain', () => {
 
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
-    expect(mockAppendFileSync).toHaveBeenCalled();
+    // P0-2 Fix: Now uses writeFileSync + renameSync instead of appendFileSync
+    expect(mockWriteFileSync).toHaveBeenCalled();
   });
 
   it('falls back to main spec.md when no scope match', () => {
@@ -530,7 +535,8 @@ describe('mergeDeltaSpecsToMain', () => {
 
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
-    expect(mockAppendFileSync).toHaveBeenCalled();
+    // P0-2 Fix: Now uses writeFileSync + renameSync instead of appendFileSync
+    expect(mockWriteFileSync).toHaveBeenCalled();
   });
 });
 

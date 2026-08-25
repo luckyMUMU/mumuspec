@@ -30,7 +30,7 @@ import { validateAllSpecs } from './spec/validator.js';
 
 // Change
 import { loadChangeState, listActiveChanges, getActiveChange } from './change/manager.js';
-import { getValidTransitions, getNextPhase } from './change/state-machine.js';
+import { getValidTransitions, getNextPhase, activateProjectWorkflow } from './change/state-machine.js';
 
 // Guard
 import { checkCompliance, detectDrift } from './guard/checker.js';
@@ -572,6 +572,8 @@ if (scopeArgName) {
 
     // ── Change ──
     case 'get_change_status': {
+      // CHG-7: 激活项目级 workflow 覆盖（每请求一次 IO，等价 CLI 每次调用语义；不做进程内热更新）
+      activateProjectWorkflow(root);
       const changeName = (args.name as string) || getActiveChange(root);
       if (!changeName) {
         return { error: 'No active change' };
@@ -1021,17 +1023,46 @@ async function startHttp(port: number = 3000): Promise<void> {
     sessionIdGenerator: undefined, // Stateless: no session management
   });
 
+  // P0-5 Fix: CORS and Auth configuration from environment
+  const allowedOrigins = process.env.MUMUSPEC_MCP_CORS_ORIGIN?.split(',').map(s => s.trim()).filter(Boolean) || [];
+  const mcpToken = process.env.MUMUSPEC_MCP_TOKEN;
+
   // Create HTTP server for Streamable HTTP transport
   const httpServer = http.createServer(async (req, res) => {
-    // Handle CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // P0-5 Fix: Handle CORS with configurable origin
+    const requestOrigin = req.headers.origin || '';
+    if (allowedOrigins.length > 0) {
+      // Whitelist mode: only allow configured origins
+      if (allowedOrigins.includes(requestOrigin)) {
+        res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+      }
+    } else {
+      // Default: same-origin only (safe default)
+      res.setHeader('Access-Control-Allow-Origin', requestOrigin || '');
+    }
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, mcp-session-id');
 
     if (req.method === 'OPTIONS') {
       res.writeHead(200);
       res.end();
       return;
+    }
+
+    // P0 Fix: Token authentication with timing-safe comparison
+    if (mcpToken) {
+      const authHeader = req.headers.authorization || '';
+      const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      // Use timing-safe comparison to prevent timing attacks
+      const providedBuf = Buffer.from(providedToken);
+      const expectedBuf = Buffer.from(mcpToken);
+      const isMatch = providedBuf.length === expectedBuf.length && 
+        (await import('node:crypto')).default.timingSafeEqual(providedBuf, expectedBuf);
+      if (!isMatch) {
+        res.writeHead(401);
+        res.end(JSON.stringify({ error: 'Unauthorized: invalid or missing token' }));
+        return;
+      }
     }
 
     // Only accept POST for MCP requests

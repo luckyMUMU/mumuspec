@@ -110,6 +110,22 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     fixSteps: ['检查代码是否满足约束', '或更新 tech.md 移除/调整约束'],
     forceable: false,
   },
+  'E-SPEC-013': {
+    code: 'E-SPEC-013',
+    name: 'UNDEFINED_MUMUSPEC_DIRECTORY',
+    severity: 'ERROR',
+    description: '.mumuspec/ 下存在未定义的目录',
+    fixSteps: ['移除未定义的目录', '或将其内容合并到已定义的目录中'],
+    forceable: false,
+  },
+  'E-SPEC-014': {
+    code: 'E-SPEC-014',
+    name: 'UNDEFINED_MUMUSPEC_FILE',
+    severity: 'ERROR',
+    description: '.mumuspec/ 下存在未定义的文件',
+    fixSteps: ['移除未定义的文件', '或将其内容合并到已定义的 spec 文件中'],
+    forceable: false,
+  },
 
   // CHANGE domain
   'E-CHANGE-001': {
@@ -180,8 +196,35 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     code: 'E-CHANGE-009',
     name: 'CHANGE_BRANCH_CREATE_FAILED',
     severity: 'ERROR',
-    description: '自动创建变更分支失败（已回滚变更目录）',
+    description: '自动创建变更分支失败（已回退变更目录）',
     fixSteps: ['检查 git 仓库状态与分支名冲突', '解决后重新执行 mumuspec new'],
+    forceable: false,
+  },
+  // P0-1 Fix: New error codes for rename and directory move failures
+  'E-CHANGE-010': {
+    code: 'E-CHANGE-010',
+    name: 'CHANGE_DISCARD_MOVE_FAILED',
+    severity: 'ERROR',
+    description: '废弃变更时目录移动失败，变更保留在原位置',
+    fixSteps: ['检查目标目录是否已存在', '手动将变更目录移到 .mumuspec/changes/archive/discarded/'],
+    forceable: false,
+  },
+  'E-CHANGE-011': {
+    code: 'E-CHANGE-011',
+    name: 'CHANGE_ARCHIVE_MOVE_FAILED',
+    severity: 'ERROR',
+    description: '归档变更时目录移动失败，变更保留在原位置',
+    fixSteps: ['检查目标目录是否已存在', '手动将变更目录移到 .mumuspec/changes/archive/'],
+    forceable: false,
+  },
+
+  // HOOK domain (CHG-1 — pre-commit 变更归属校验)
+  'E-HOOK-001': {
+    code: 'E-HOOK-001',
+    name: 'HOOK_CHANGE_OWNERSHIP',
+    severity: 'ERROR',
+    description: '分支上无活跃变更，直接提交将绕过 MumuSpec 流程',
+    fixSteps: ['运行 mumuspec new <name> 创建变更并切换到变更分支', '或将该分支加入 ci.ownership_ci_branches 白名单'],
     forceable: false,
   },
 
@@ -432,6 +475,15 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     fixSteps: ['为破坏性变更添加 migrationPath', '执行影响分析并征询用户同意后修改'],
     forceable: false,
   },
+  // P0-3 Fix: Lock acquisition timeout
+  'E-CONTRACT-010': {
+    code: 'E-CONTRACT-010',
+    name: 'CONTRACT_LOCK_TIMEOUT',
+    severity: 'ERROR',
+    description: '获取契约文件锁超时（5s），另一个进程可能正在修改契约',
+    fixSteps: ['等待其他 mumuspec 进程完成', '检查并删除陈旧锁目录 .mumuspec/contracts/.lock'],
+    forceable: false,
+  },
 
   // KNOWLEDGE domain
   'E-KNOWLEDGE-001': {
@@ -500,6 +552,62 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     severity: 'ERROR',
     description: 'MCP 工具调用未提供 path 参数或参数类型错误',
     fixSteps: ['检查调用参数是否包含有效的 path 字符串', '确保 path 为相对路径且非空'],
+    forceable: false,
+  },
+
+  // STATE domain (CHG-2 — 守卫绕过审计 / 受保护字段)
+  'E-STATE-001': {
+    code: 'E-STATE-001',
+    name: 'STATE_PROTECTED_FIELD',
+    severity: 'ERROR',
+    description: 'state set 尝试修改受保护字段（认知/测试/阶段等），且 guard.bypass_audit=false 拒绝绕过',
+    fixSteps: ['通过 guard --apply 正规流程推进阶段', '如需绕过请在 config.yaml 设置 guard.bypass_audit: true 并接受审计'],
+    forceable: false,
+  },
+
+  // AGENTS domain (CHG-3 — 规范同步 hash)
+  'E-AGENTS-001': {
+    code: 'E-AGENTS-001',
+    name: 'AGENTS_SPEC_DRIFT',
+    severity: 'ERROR',
+    description: 'AGENTS.md 与 spec 内容漂移（生成的 rules 基于旧版规范）',
+    fixSteps: ['重新运行 mumuspec rules generate 同步 AGENTS.md 与 agents-hash.json'],
+    forceable: false,
+  },
+
+  // CHECK domain（spec.ts 统一 `mumuspec check` action — LOOP-4 L2）
+  'E-CHECK-001': {
+    code: 'E-CHECK-001',
+    name: 'CHECK_ACTION_FAILED',
+    severity: 'ERROR',
+    description: 'mumuspec check 执行过程中发生未预期错误（compliance / drift / glossary 任一子系统抛错）',
+    fixSteps: ['查看下方错误信息定位具体子系统', '修复后重新运行 mumuspec check'],
+    forceable: false,
+  },
+
+  // GIT domain（git.ts 统一封装的错误）
+  'E-GIT-001': {
+    code: 'E-GIT-001',
+    name: 'GIT_SPAWN_FAILED',
+    severity: 'ERROR',
+    description: 'git 命令无法启动（未安装 git 或不在 PATH 中）',
+    fixSteps: ['确认已安装 git 且 git --version 可正常执行', '检查 PATH 环境变量包含 git'],
+    forceable: false,
+  },
+  'E-GIT-002': {
+    code: 'E-GIT-002',
+    name: 'GIT_COMMAND_FAILED',
+    severity: 'ERROR',
+    description: 'git 命令执行失败（非零退出码）',
+    fixSteps: ['根据下方输出排查 git 失败原因', '确认当前目录是有效的 git 仓库', '检查分支/提交引用是否存在'],
+    forceable: false,
+  },
+  'E-GIT-003': {
+    code: 'E-GIT-003',
+    name: 'GIT_MAIN_BRANCH_NOT_FOUND',
+    severity: 'ERROR',
+    description: '未找到 main 或 master 主分支',
+    fixSteps: ['确认仓库已初始化且存在 main/master 分支', '或手动指定目标分支'],
     forceable: false,
   },
 };

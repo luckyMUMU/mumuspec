@@ -27,7 +27,6 @@ export function listKnowledgePages(
 
   const pages: KnowledgePage[] = [];
   const typeDirs = ['decisions', 'patterns', 'risks', 'rationales', 'lessons', 'imports'];
-
   for (const typeDir of typeDirs) {
     const dirPath = join(knowledgeDir, typeDir);
     if (!existsSync(dirPath)) continue;

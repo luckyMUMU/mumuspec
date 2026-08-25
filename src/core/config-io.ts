@@ -75,6 +75,7 @@ export function getDefaultConfig(projectName: string = 'my-project'): MumuSpecCo
       branch_prefix: 'mumuspec',
       implementation_strategy: 'bottom-up',
       design_strategy: 'top-down',
+      default_tdd_mode: 'tdd',
     },
     workflow: {
       worktree_isolation: true,
@@ -106,6 +107,11 @@ export function getDefaultConfig(projectName: string = 'my-project'): MumuSpecCo
       test_immutability_check: true,
       full_check_on_push: true,
       drift_detection_on_pr: true,
+      pre_commit_ownership_check: true,
+      ownership_ci_branches: ['main', 'master'],
+    },
+    guard: {
+      bypass_audit: true,
     },
     ai: {
       generate_rules: true,

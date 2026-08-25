@@ -53,7 +53,7 @@
 | 实现计划 | `writing-plans` | true (tasks.md not exists) | 按 build_layers 从叶子到根排序 |
 | 上下文管理 | `context-engineering` | true | 使用渐进式披露加载规范 |
 | 源码验证 | `source-driven-development` | false | 依赖框架的代码必须有文档引用 |
-| TDD 实现 | `test-driven-development` | true | tdd_mode 固定 tdd，不可跳过 |
+| TDD 实现 | `test-driven-development` | true | tdd_mode 遵循配置（默认 tdd） |
 | 执行方式 | `executing-plans` / `subagent-driven-development` | true | 执行方式记录到 .mumuspec.yaml |
 | 调试修复 | `systematic-debugging` | false | 调试不能违反 SHALL NOT |
 | 疑虑驱动 | `doubt-driven-development` | false | 不可逆操作必须经过审查 |
@@ -103,7 +103,7 @@ skill_dispatch:
   on_execute:                      # 阶段执行中按需分发
     - skill: test-driven-development
       purpose: "TDD 循环（红绿重构）"
-      required: true               # tdd_mode 固定，始终 required
+      required: true               # tdd_mode 遵循配置（默认 tdd）
     - skill: source-driven-development
       purpose: "基于官方文档验证"
       required: false
@@ -169,7 +169,7 @@ skill_dispatch:
 | `hard_constraints` | 合并到 design.md 的 SHALL/SHALL NOT；design_to_build 守卫检查已合并 |
 | `decisions` | 记录到 design.md 决策章节 + decisions.md Design 章节 |
 | `risks` | 记录到 design.md 风险章节；test-cases/ 须有对应验证用例 |
-| `open_questions` | 用户输入门禁，阻断 test-cases/ 编写；守卫检查已解决 |
+| `open_questions` | 用户输入门禁，阻断 test-cases/ 编写；阶段守卫检查已解决 |
 
 ### TDD 衔接
 
@@ -210,7 +210,7 @@ skill_dispatch:
 | **归档与发布** | Phase 3 | — | — | — | — | finishing-a-development-branch (req) / ci-cd-and-automation (req) / shipping-and-launch (opt) | — |
 | **上下文管理** | Phase 3 | — | context-engineering (req) | context-engineering (req) | — | — | context-engineering (req) |
 | **工作区隔离** | Phase 3 | using-git-worktrees (req) | — | — | — | — | using-git-worktrees (req) |
-| **测试用例设计** | Phase 3 | — | test-case-design (req) / documentation-and-adrs (req) | red-green-tdd (req, tdd_mode 固定) / documentation-and-adrs (req) | documentation-and-adrs (req) | documentation-and-adrs (req) | — |
+| **测试用例设计** | Phase 3 | — | test-case-design (req) / documentation-and-adrs (req) | red-green-tdd (req, tdd_mode 遵循配置) / documentation-and-adrs (req) | documentation-and-adrs (req) | documentation-and-adrs (req) | — |
 
 > `req` = required: true; `opt` = required: false; `conditional` = 满足条件时触发。
 

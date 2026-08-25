@@ -28,7 +28,7 @@ description: "MumuSpec Phase 3: Build。以 /phase-build 启动。自下向上�
 
 - Design 阶段完成（design.md + cognitive-map.yaml + test-cases/ 已锁定）
 - 活跃变更存在
-- `tdd_mode` 固定为 `tdd`（不可关闭）
+- `tdd_mode` 遵循配置（默认 `tdd`，可配置为 non-tdd）
 
 ---
 
@@ -111,14 +111,14 @@ mumuspec state check <name> build
 | A | `subagent-driven-development` | 独立任务、高复杂度、需两阶段审查 |
 | B | `executing-plans` | 简单任务、无子 agent 环境 |
 
-**TDD 模式**：固定为 `tdd`（MumuSpec 不允许关闭 TDD）
+**TDD 模式**：遵循配置（默认 `tdd`，可配置为 non-tdd）
 
 **必须使用平台用户输入/确认机制暂停等待用户显式选择。** 推荐规则仅供建议，不可替代用户确认。
 
 选择后更新状态：
 ```bash
 mumuspec state set <name> isolation <branch|worktree>
-mumuspec state set <name> tdd_mode tdd
+mumuspec state set <name> tdd_mode tdd   # 默认 tdd，可配置 (default_tdd_mode)
 ```
 
 - 选择 `executing-plans`：`mumuspec state set <name> build_mode executing-plans`
@@ -139,7 +139,7 @@ mumuspec state set <name> tdd_mode tdd
 
 **立即执行**：使用 Skill 工具加载 `test-driven-development` skill。跳过此步骤被禁止。
 
-> **MumuSpec 硬约束**：`tdd_mode` 固定为 `tdd`，不可关闭。即使 hotfix/tweak 也不豁免 TDD。
+> **MumuSpec 约束**：`tdd_mode` 遵循配置（默认 `tdd`，可配置为 non-tdd）。默认下即使 hotfix/tweak 也不豁免 TDD。
 
 #### 每层实现流程
 
@@ -219,7 +219,7 @@ Build 是最长阶段，可能跨多个任务：
 - 项目构建/测试显式运行并通过
 - `isolation` 已写入 `branch` 或 `worktree`
 - `build_mode` 已写入
-- `tdd_mode` 为 `tdd`
+- `tdd_mode` 与配置一致（默认 `tdd`）
 - `build_layers` 全部 `status = done`
 - `build_layers_completed_in_bottom_up_order: true`
 - 每层 Enforcement 检查通过
@@ -246,7 +246,7 @@ Guard 检查项（`build_to_verify`）：
 - build_command passed (if configured)
 - isolation field set
 - build_mode field set
-- tdd_mode == "tdd"
+- tdd_mode matches default_tdd_mode
 - build_layers all status = done
 - build_layers_completed_in_bottom_up_order: true
 - each layer enforcement passed
@@ -289,9 +289,9 @@ mumuspec state check <change-name> build --recover
 
 | Agent 想法 | 实际风险 |
 |-----------|---------|
-| "TDD 太慢，直接写代码" | TDD 不可豁免 — tdd_mode 固定为 tdd |
+| "TDD 太慢，直接写代码" | TDD 不可豁免 — tdd_mode 遵循配置（默认 tdd） |
 | "测试用例可以改一下" | 测试不可变性 — design_locked 后不可改测试 |
-| "Ponytail 检查不重要" | ponytail_compliance_checked 是守卫必检项 |
+| "Ponytail 检查不重要" | ponytail_compliance_checked 是阶段守卫必检项 |
 | "调试时直接改代码" | 根因调查完成前不得修改源码 — 加载 systematic-debugging |
 | "规范不完整，直接改 delta-spec" | 中型变更必须用户确认 — BP-12 |
 | "范围扩大了，继续做" | 超 50% 阈值必须暂停 — BP-13 |

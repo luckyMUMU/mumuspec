@@ -4,7 +4,7 @@
 import type { Command } from 'commander';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { findProjectRoot, readText, computeHash } from '../../core/utils.js';
+import { findProjectRoot, readText, computeHash, getMumuSpecDir, appendAuditLog } from '../../core/utils.js';
 import { loadConfig } from '../../core/config.js';
 import {
   createChange,
@@ -25,7 +25,25 @@ import {
   getWorkflowPhases,
   isTerminal,
   requiresUserConfirmation,
+  activateProjectWorkflow,
 } from '../../change/state-machine.js';
+
+/**
+ * CHG-2: state set 受保护字段前缀（认知/测试/阶段/校验/分支/决策 hash）。
+ * 直写这些字段绕过流程收敛 → 必须审计（bypass_audit=true）或拒绝（bypass_audit=false）。
+ */
+const PROTECTED_FIELD_PREFIXES = [
+  'cognitive_framework',
+  'test_cases',
+  'phase',
+  'verify_result',
+  'branch_status',
+  'decisions_log.content_hash',
+];
+
+function isProtectedField(field: string): boolean {
+  return PROTECTED_FIELD_PREFIXES.some((p) => field === p || field.startsWith(p + '.'));
+}
 
 export function registerStateCommands(program: Command): void {
   // === state ===
@@ -65,6 +83,9 @@ export function registerStateCommands(program: Command): void {
         console.error('Error: Not in a MumuSpec project.');
         process.exit(1);
       }
+      // CHG-7: 激活项目级 workflow 覆盖（无则回退内置）
+      activateProjectWorkflow(root);
+      const config = loadConfig(root);
 
       const state = loadChangeState(root, name);
       if (!state) {
@@ -117,6 +138,26 @@ export function registerStateCommands(program: Command): void {
         process.exit(2);
       }
 
+      // CHG-2: 通过 --confirm 绕过守卫的转换 → 审计（state.confirm_bypass）；
+      // bypass_audit=false 时拒绝绕过。
+      if (blockingInfo.required && options.confirm) {
+        const bypassAudit = config.guard?.bypass_audit !== false;
+        if (!bypassAudit) {
+          console.error(`✗ guard.bypass_audit=false：拒绝通过 state transition --confirm 绕过守卫 (E-STATE-001)`);
+          console.error('  如需绕过请在 config.yaml 设置 guard.bypass_audit: true（绕过操作将被审计）');
+          process.exit(1);
+        }
+        appendAuditLog(getMumuSpecDir(root), {
+          actor: 'user',
+          action: 'state.confirm_bypass',
+          change: name,
+          from: state.phase,
+          to: event,
+          result: 'audited',
+        });
+        console.warn(`  风险提示: 已通过 --confirm 绕过阶段守卫，本次绕过已记录到 audit.log (state.confirm_bypass)`);
+      }
+
       // Normal transition
       const result = executeTransition(state, event as ChangePhase, { userConfirmed: options.confirm });
       if (result.success) {
@@ -152,6 +193,8 @@ export function registerStateCommands(program: Command): void {
         console.error('Error: Not in a MumuSpec project.');
         process.exit(1);
       }
+      // CHG-7: 激活项目级 workflow 覆盖（无则回退内置）
+      activateProjectWorkflow(root);
 
       const state = loadChangeState(root, name);
       if (!state) {
@@ -177,6 +220,8 @@ export function registerStateCommands(program: Command): void {
         console.error('Error: Not in a MumuSpec project.');
         process.exit(1);
       }
+      // CHG-7: 激活项目级 workflow 覆盖（无则回退内置）
+      activateProjectWorkflow(root);
 
       const state = loadChangeState(root, name);
       if (!state) {
@@ -273,6 +318,27 @@ export function registerStateCommands(program: Command): void {
 
       // Support dot notation for nested fields (e.g. cognitive_framework.q1_count)
       const target = state as unknown as Record<string, unknown>;
+
+      // CHG-2: 受保护字段直写 → 审计（state.set_unverified）或拒绝（E-STATE-001）
+      if (isProtectedField(field)) {
+        const bypassAudit = loadConfig(root).guard?.bypass_audit !== false;
+        if (!bypassAudit) {
+          console.error(`✗ 拒绝修改受保护字段 '${field}' (E-STATE-001)：guard.bypass_audit=false`);
+          console.error('  如需绕过请在 config.yaml 设置 guard.bypass_audit: true（绕过操作将被审计）');
+          process.exit(1);
+        }
+        const valueHash = computeHash(JSON.stringify(coerced));
+        appendAuditLog(getMumuSpecDir(root), {
+          actor: 'user',
+          action: 'state.set_unverified',
+          change: name,
+          field,
+          value_hash: valueHash,
+          result: 'audited',
+        });
+        console.warn(`  风险提示: 受保护字段 '${field}' 被直写，已记录审计 (state.set_unverified, value_hash=${valueHash})`);
+      }
+
       const parts = field.split('.');
       let current: Record<string, unknown> = target;
       for (let i = 0; i < parts.length - 1; i++) {

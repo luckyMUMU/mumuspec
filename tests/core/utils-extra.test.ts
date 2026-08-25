@@ -7,6 +7,7 @@ const mockExistsSync = vi.fn();
 const mockReadFileSync = vi.fn();
 const mockWriteFileSync = vi.fn();
 const mockMkdirSync = vi.fn();
+const mockStatSync = vi.fn();
 
 vi.mock('node:fs', () => ({
   existsSync: (...args: unknown[]) => mockExistsSync(...args),
@@ -75,6 +76,7 @@ describe('readYaml', () => {
   beforeEach(() => {
     mockExistsSync.mockReset();
     mockReadFileSync.mockReset();
+    mockStatSync.mockReset();
   });
 
   it('should return undefined when file does not exist', () => {
@@ -85,6 +87,7 @@ describe('readYaml', () => {
 
   it('should parse valid YAML content', () => {
     mockExistsSync.mockReturnValue(true);
+    mockStatSync.mockReturnValue({ size: 100 });
     mockReadFileSync.mockReturnValue('key: value\n');
     const result = readYaml<{ key: string }>('/root/exists.yaml');
     expect(result).toEqual({ key: 'value' });
@@ -92,6 +95,7 @@ describe('readYaml', () => {
 
   it('should parse list YAML', () => {
     mockExistsSync.mockReturnValue(true);
+    mockStatSync.mockReturnValue({ size: 100 });
     mockReadFileSync.mockReturnValue('- item1\n- item2\n');
     const result = readYaml('/root/list.yaml');
     expect(result).toEqual(['item1', 'item2']);

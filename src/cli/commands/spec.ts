@@ -19,8 +19,20 @@ import {
 } from '../../spec/parser.js';
 import { loadSpecContext, searchSpecs, findAllDistributedSpecDirs } from '../../spec/loader.js';
 import { validateAllSpecs } from '../../spec/validator.js';
-import { checkCompliance, detectDrift, autoFixDrift } from '../../guard/checker.js';
+import { validateMumuSpecStructure } from '../../spec/structure-validator.js';
+import { checkCompliance, detectDrift, autoFixDrift, detectDriftWithContracts, detectAgentsDrift } from '../../guard/checker.js';
+import { checkGlossary } from '../../guard/glossary-checker.js';
+import type { GlossaryCheckResult } from '../../guard/glossary-checker.js';
+import type { DriftResult, GuardResult } from '../../core/types-workflow.js';
 import { loadChangeState } from '../../change/state.js';
+
+/** Aggregated `mumuspec check` payload — machine-consumable (LOOP-4 L1). */
+interface CheckJsonPayload {
+  compliance: GuardResult;
+  drift: { errors: DriftResult[]; warnings: DriftResult[] };
+  glossary?: GlossaryCheckResult;
+  exitCode: number;
+}
 
 export function registerSpecCommands(program: Command): void {
   // === context ===
@@ -80,6 +92,42 @@ export function registerSpecCommands(program: Command): void {
         console.log('=== Prohibitions (Inherited) ===');
         for (const p of context.prohibitions) {
           console.log(`  - ${p}`);
+        }
+      }
+
+      // Display knowledge memory context (LLM-Wiki)
+      if (context.knowledge_memory) {
+        const km = context.knowledge_memory;
+        console.log('\n=== Knowledge Memory (LLM-Wiki) ===');
+        console.log(km.project_summary);
+
+        if (km.relevant_decisions.length > 0) {
+          console.log('\n  Relevant Decisions:');
+          for (const d of km.relevant_decisions) {
+            console.log(`    - [${d.id}] ${d.title}`);
+            console.log(`      ${d.summary}`);
+          }
+        }
+        if (km.relevant_patterns.length > 0) {
+          console.log('\n  Relevant Patterns:');
+          for (const p of km.relevant_patterns) {
+            console.log(`    - [${p.id}] ${p.title}`);
+            console.log(`      ${p.summary}`);
+          }
+        }
+        if (km.relevant_risks.length > 0) {
+          console.log('\n  Active Risks:');
+          for (const r of km.relevant_risks) {
+            console.log(`    - [${r.id}] ${r.title}`);
+            console.log(`      ${r.summary}`);
+          }
+        }
+        if (km.recent_lessons.length > 0) {
+          console.log('\n  Recent Lessons:');
+          for (const l of km.recent_lessons) {
+            console.log(`    - [${l.id}] ${l.title}`);
+            console.log(`      ${l.summary}`);
+          }
         }
       }
     });
@@ -164,6 +212,12 @@ export function registerSpecCommands(program: Command): void {
 
       const config = loadConfig(root);
       const result = validateAllSpecs(root, config);
+      const structureResult = validateMumuSpecStructure(root);
+
+      // Merge structure validation errors into the main result
+      result.errors.push(...structureResult.errors);
+      result.warnings.push(...structureResult.warnings);
+      result.passed = result.errors.length === 0;
 
       if (options.json) {
         console.log(JSON.stringify(result, null, 2));
@@ -193,57 +247,125 @@ export function registerSpecCommands(program: Command): void {
     });
 
   // === check ===
+  // ponytail: unified single top-level `check` (was duplicated in check.ts → commander collision / CLI crash)
   program
     .command('check')
-    .description('Full compliance check')
+    .description('Full compliance check: SHALL/SHALL NOT + drift + agents-hash sync (+ --glossary)')
     .option('--shall', 'check SHALL only')
     .option('--shall-not', 'check SHALL NOT only')
     .option('--ponytail', 'check Ponytail compliance')
     .option('--test-immutability', 'check test immutability')
     .option('--staged-only', 'check staged files only')
+    .option('--glossary', 'scan terminology drift against docs/reference/glossary.md (CHG-4)')
+    .option('--strict', 'with --glossary: also report `门禁` in docs/skills (default: src only)')
+    .option('--fix', 'attempt auto-fix for fixable drift (contract registry etc.)')
     .option('--json', 'output as JSON')
-    .action((options) => {
-      const root = findProjectRoot();
-      if (!root) {
-        console.error('Error: Not in a MumuSpec project.');
+    .action((options: {
+      shall?: boolean; shallNot?: boolean; ponytail?: boolean; testImmutability?: boolean;
+      stagedOnly?: boolean; glossary?: boolean; strict?: boolean; fix?: boolean; json?: boolean;
+    }) => {
+      // LOOP-4 L2: any subsystem throw must degrade to a formatted error + exit 1,
+      // never crash the process and mask the remaining conclusions.
+      try {
+        const root = findProjectRoot();
+        if (!root) {
+          console.error('Error: Not in a MumuSpec project. Run `mumuspec init` first.');
+          process.exit(1);
+        }
+
+        const config = loadConfig(root);
+        const result = checkCompliance(root, {
+          shall: options.shall,
+          shallNot: options.shallNot,
+          ponytail: options.ponytail,
+          testImmutability: options.testImmutability,
+          stagedOnly: options.stagedOnly,
+          strength: config.constraint_strength,
+        });
+
+        let exitCode = result.passed ? 0 : 1;
+
+        // Drift (spec + contract + agents-hash sync)
+        const drifts: DriftResult[] = [
+          ...detectDriftWithContracts(root),
+          ...detectAgentsDrift(root),
+        ];
+        const driftErrors = drifts.filter((d) => d.severity === 'ERROR');
+        const driftWarns = drifts.filter((d) => d.severity !== 'ERROR');
+        if (driftErrors.length > 0) exitCode = 1;
+
+        // Glossary terminology scan (CHG-4)
+        let glossaryResult: GlossaryCheckResult | undefined;
+        if (options.glossary) {
+          glossaryResult = checkGlossary(root, { strict: options.strict });
+          if (glossaryResult.count > 0 && options.strict) exitCode = 1;
+        }
+
+        // LOOP-4 L1: --json aggregates the FULL result (compliance + drift + glossary)
+        // into one payload and exits with the real code — no early return, no false green.
+        if (options.json) {
+          const payload: CheckJsonPayload = {
+            compliance: result,
+            drift: { errors: driftErrors, warnings: driftWarns },
+            exitCode,
+          };
+          if (options.glossary && glossaryResult) payload.glossary = glossaryResult;
+          console.log(JSON.stringify(payload, null, 2));
+          if (exitCode !== 0) process.exit(exitCode);
+          return;
+        }
+
+        if (result.passed && result.warnings.length === 0) {
+          console.log('✓ All checks passed');
+        } else {
+          if (result.errors.length > 0) {
+            console.error(`\n✗ ${result.errors.length} error(s):`);
+            for (const err of result.errors) {
+              console.error(`[${err.code}] ${err.message}`);
+              if (err.detail) console.error(`  ${err.detail}`);
+            }
+          }
+          if (result.warnings.length > 0) {
+            console.warn(`\n⚠ ${result.warnings.length} warning(s):`);
+            for (const warn of result.warnings) {
+              console.warn(`[${warn.code}] ${warn.message}`);
+              if (warn.detail) console.warn(`  ${warn.detail}`);
+            }
+          }
+        }
+
+        if (driftErrors.length > 0) {
+          console.log(`\n[drift] ${driftErrors.length} ERROR:`);
+          for (const d of driftErrors) {
+            console.log(`  [${d.code ?? d.type}] ${d.message}${d.file ? ` (${d.file})` : ''}${d.fixHint ? ` — ${d.fixHint}` : ''}`);
+          }
+        } else {
+          console.log('\n[drift] OK');
+        }
+        for (const d of driftWarns) {
+          console.log(`  ⚠ [${d.code ?? d.type}] ${d.message}${d.file ? ` (${d.file})` : ''}`);
+        }
+
+        if (options.glossary && glossaryResult) {
+          if (glossaryResult.count > 0) {
+            console.log(`\n[glossary] ${glossaryResult.count} 术语混用:`);
+            for (const f of glossaryResult.findings) {
+              const loc = f.line ? `${f.file}:${f.line}` : f.file;
+              console.log(`  ⚠ [${f.type}] ${loc} — "${f.pattern}" → 建议 "${f.suggestion}"`);
+            }
+            if (options.strict) {
+              console.log('  (--strict: 术语混用视为失败)');
+            }
+          } else {
+            console.log('\n[glossary] OK');
+          }
+        }
+
+        if (exitCode !== 0) process.exit(exitCode);
+      } catch (err) {
+        console.error(formatError('E-CHECK-001', { message: (err as Error).message }));
         process.exit(1);
       }
-
-      const config = loadConfig(root);
-      const result = checkCompliance(root, {
-        shall: options.shall,
-        shallNot: options.shallNot,
-        ponytail: options.ponytail,
-        testImmutability: options.testImmutability,
-        stagedOnly: options.stagedOnly,
-        strength: config.constraint_strength,
-      });
-
-      if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
-        return;
-      }
-
-      if (result.passed && result.warnings.length === 0) {
-        console.log('✓ All checks passed');
-      } else {
-        if (result.errors.length > 0) {
-          console.error(`\n✗ ${result.errors.length} error(s):`);
-          for (const err of result.errors) {
-            console.error(`[${err.code}] ${err.message}`);
-            if (err.detail) console.error(`  ${err.detail}`);
-          }
-        }
-        if (result.warnings.length > 0) {
-          console.warn(`\n⚠ ${result.warnings.length} warning(s):`);
-          for (const warn of result.warnings) {
-            console.warn(`[${warn.code}] ${warn.message}`);
-            if (warn.detail) console.warn(`  ${warn.detail}`);
-          }
-        }
-      }
-
-      if (!result.passed) process.exit(1);
     });
 
   // === drift ===
@@ -431,5 +553,72 @@ export function registerSpecCommands(program: Command): void {
 
       console.log(`\n✓ Sync complete: ${fixed} fixed, ${errors} errors`);
       if (errors > 0) process.exit(1);
+    });
+
+  // === annotate (P1-1 Fix: SHALL NOT semantic annotation) ===
+  program
+    .command('annotate')
+    .description('Auto-annotate SHALL NOT prohibitions with machine-readable constraints')
+    .option('--dry-run', 'show what would be annotated without writing')
+    .option('--json', 'output as JSON')
+    .action(async (options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project. Run `mumuspec init` first.');
+        process.exit(1);
+      }
+
+      const specPath = join(root, '.mumuspec', 'spec.md');
+      if (!existsSync(specPath)) {
+        console.error('Error: spec.md not found. Run `mumuspec init` first.');
+        process.exit(1);
+      }
+
+      const content = readText(specPath);
+      if (!content) {
+        console.error('Error: Failed to read spec.md');
+        process.exit(1);
+      }
+
+      const spec = parseSpecFile(content, specPath);
+      const frontmatter = spec.frontmatter as import('../../core/types-spec.js').SpecFrontmatter;
+
+      // Generate annotations
+      const { generateAnnotations, mergeAnnotationsIntoFrontmatter } = await import('../../spec/annotation.js');
+      const { annotations, needsManual } = generateAnnotations(
+        spec.requirements,
+        frontmatter.prohibitions || [],
+      );
+
+      if (options.json) {
+        console.log(JSON.stringify({ annotations, needsManual }, null, 2));
+        return;
+      }
+
+      console.log(`\n✓ Found ${annotations.length} annotations (${needsManual.length} need manual)\n`);
+
+      if (annotations.length > 0) {
+        console.log('Auto-detected annotations:');
+        for (const a of annotations) {
+          console.log(`  • "${a.text.substring(0, 50)}..." → ${a.annotation.type} (${a.annotation.scope || 'any'})`);
+        }
+      }
+
+      if (needsManual.length > 0) {
+        console.log('\nNeed manual annotation:');
+        for (const m of needsManual) {
+          console.log(`  • [${m.requirementName}] "${m.prohibitionText.substring(0, 60)}..."`);
+        }
+      }
+
+      if (!options.dryRun && annotations.length > 0) {
+        const updatedFrontmatter = mergeAnnotationsIntoFrontmatter(frontmatter, annotations);
+        const updatedSpec = { ...spec, frontmatter: updatedFrontmatter };
+        const serialized = serializeSpecFile(updatedSpec);
+        writeText(specPath, serialized);
+        console.log(`\n✓ Annotations written to ${specPath}`);
+      } else if (options.dryRun) {
+        console.log('\n(Dry run — no changes written)');
+      }
     });
 }

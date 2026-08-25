@@ -3,7 +3,7 @@
  */
 import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import type {
@@ -39,6 +39,36 @@ function resolvePawCmd(): string {
     if (existsSync(unixPath)) return unixPath;
   }
   return 'paw';
+}
+
+/**
+ * 安全执行 paw 命令，返回 stdout。
+ *
+ * 安全策略：
+ * - 参数一律走数组形式，不经手工字符串拼接
+ * - Windows 上 .cmd 脚本必须经 shell 执行，此时对每个参数做元字符白名单校验，
+ *   杜绝 workspacePath 等用户可控参数的命令注入
+ */
+function runPaw(pawCmd: string, args: string[]): string {
+  const needShell = process.platform === 'win32' && /\.cmd$/i.test(pawCmd);
+  if (needShell) {
+    // shell 模式下 & | ^ < > " 会被解释，正常路径/ID 不含这些字符，出现即拒绝
+    for (const arg of args) {
+      if (/[&|^<>"]/.test(arg)) {
+        throw new Error(`Illegal shell metacharacter in argument: ${arg}`);
+      }
+    }
+  }
+  const result = spawnSync(pawCmd, args, {
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+    ...(needShell ? { shell: true } : {}),
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(result.stderr || `paw exited with status ${result.status}`);
+  }
+  return result.stdout ?? '';
 }
 
 function resolveCatpawDataDir(): string | undefined {
@@ -121,10 +151,21 @@ function getAgentSkillDir(
 
 // ── Manifest queries ────────────────────────────────────────
 
+/**
+ * Get the package manifest for a specific agent type.
+ * @param agent - The agent type (e.g., 'catpaw', 'claude', 'cursor')
+ * @returns Array of package manifest entries available for the agent
+ */
 export function getManifest(agent: AgentType): PackageManifestEntry[] {
   return AGENT_MANIFEST[agent] ?? [];
 }
 
+/**
+ * Search for packages in an agent's manifest by keyword.
+ * @param agent - The agent type to search in
+ * @param keyword - The search term (matches against package name or description)
+ * @returns Filtered array of matching package manifest entries
+ */
 export function searchPackages(agent: AgentType, keyword: string): PackageManifestEntry[] {
   const lower = keyword.toLowerCase();
   return getManifest(agent).filter(
@@ -135,20 +176,43 @@ export function searchPackages(agent: AgentType, keyword: string): PackageManife
   );
 }
 
+/**
+ * Resolve a specific package by name from an agent's manifest.
+ * @param agent - The agent type to search in
+ * @param name - The exact package name to resolve
+ * @returns The matching package manifest entry, or undefined if not found
+ */
 export function resolvePackage(agent: AgentType, name: string): PackageManifestEntry | undefined {
   return getManifest(agent).find((p) => p.name === name);
 }
 
+/**
+ * Get all available MCP presets.
+ * @returns Array of MCP preset entries that can be installed
+ */
 export function getMcpPresets(): McpPresetEntry[] {
   return MCP_PRESETS;
 }
 
+/**
+ * Get all available command presets.
+ * @returns Array of command preset entries that can be installed
+ */
 export function getCommandPresets(): CommandPresetEntry[] {
   return COMMAND_PRESETS;
 }
 
 // ── Core install operations ─────────────────────────────────
 
+/**
+ * Install a package for the specified agent.
+ * @param agent - The agent type to install for (e.g., 'catpaw', 'claude')
+ * @param packageName - The name of the package to install
+ * @param target - The installation target ('user' for global, 'workspace' for project)
+ * @param workspacePath - Required when target is 'workspace'
+ * @param mode - Installation mode ('install' or 'update')
+ * @returns Installation result with success status and details
+ */
 export function installPackage(
   agent: AgentType,
   packageName: string,
@@ -241,7 +305,8 @@ function installCatpawPackage(
       args.push('--target', 'workspace', '--workspace-path', workspacePath);
     }
 
-    const output = execSync(`"${pawCmd}" ${args.join(' ')}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    // 安全执行：统一走 runPaw（spawnSync 数组形式 + 元字符校验）
+    const output = runPaw(pawCmd, args);
 
     let installPath: string | undefined;
     let installSuccess = false;
@@ -306,6 +371,12 @@ function installMumuspecWorkflowSkill(
 
 // ── MCP server install ──────────────────────────────────────
 
+/**
+ * Install an MCP server preset into a workspace.
+ * @param presetName - The name of the MCP preset to install
+ * @param workspacePath - The workspace root path where .mcp.json resides
+ * @returns Installation result with success status and server details
+ */
 export function installCatpawMcp(presetName: string, workspacePath: string): InstallMcpResult {
   const preset = MCP_PRESETS.find((p) => p.name === presetName);
   if (!preset) return { success: false, serverName: presetName, error: `MCP preset "${presetName}" not found.` };
@@ -335,6 +406,11 @@ export function installCatpawMcp(presetName: string, workspacePath: string): Ins
   }
 }
 
+/**
+ * List installed MCP servers in a workspace.
+ * @param workspacePath - The workspace root path where .mcp.json resides
+ * @returns Object containing installed server names and available presets
+ */
 export function listInstalledMcp(workspacePath: string): {
   success: boolean;
   installed: string[];
@@ -358,6 +434,14 @@ export function listInstalledMcp(workspacePath: string): {
 
 // ── Custom command install ──────────────────────────────────
 
+/**
+ * Install a custom command preset for CatPaw agent.
+ * @param presetName - The name of the command preset to install
+ * @param target - The installation target ('user' for global, 'workspace' for project)
+ * @param workspacePath - Required when target is 'workspace'
+ * @param mode - Installation mode ('install' or 'update')
+ * @returns Installation result with success status and command details
+ */
 export function installCatpawCommand(
   presetName: string,
   target: InstallTarget,
@@ -413,6 +497,11 @@ function parseInstalledSkills(output: string): Array<{
   }
 }
 
+/**
+ * List installed skills for CatPaw agent.
+ * @param workspacePath - Optional workspace path to scope the listing
+ * @returns Object containing installed skills and optional error
+ */
 export function listInstalledCatpaw(workspacePath?: string): {
   success: boolean;
   skills: Array<{
@@ -431,10 +520,8 @@ export function listInstalledCatpaw(workspacePath?: string): {
     const args = ['skills', 'list'];
     if (workspacePath) args.push('--workspace-path', workspacePath);
 
-    const output = execSync(`"${pawCmd}" ${args.join(' ')}`, {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    // 安全执行：统一走 runPaw（spawnSync 数组形式 + 元字符校验）
+    const output = runPaw(pawCmd, args);
     return { success: true, skills: parseInstalledSkills(output) };
   } catch (err: unknown) {
     return { success: false, skills: [], error: err instanceof Error ? err.message : String(err) };
@@ -544,10 +631,19 @@ export function formatAgentInstalledSkills(
 
 // ── Validation ──────────────────────────────────────────────
 
+/**
+ * Check if an agent type is supported.
+ * @param agent - The agent identifier to check
+ * @returns True if the agent is supported, false otherwise
+ */
 export function isAgentSupported(agent: string): agent is AgentType {
   return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode'].includes(agent);
 }
 
+/**
+ * Get all supported agent types.
+ * @returns Array of supported agent type identifiers
+ */
 export function getSupportedAgents(): AgentType[] {
   return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode'];
 }

@@ -8,7 +8,6 @@ import type { Command } from 'commander';
 import { findProjectRoot } from '../../core/utils.js';
 import { checkMergeGate, mergeArchivedChange } from '../../change/branch.js';
 import { getCurrentBranch, getMainBranch } from '../../core/git.js';
-import { MumuSpecError } from '../../core/errors.js';
 
 export function registerMergeCommand(program: Command): void {
   program
@@ -68,9 +67,11 @@ export function registerMergeCommand(program: Command): void {
         console.log(`  Commit: ${commitSha}`);
         console.log(`  变更分支已删除（--no-ff）`);
       } catch (e) {
-        if (e instanceof MumuSpecError && e.code === 'E-MERGE-010') {
+        const errCode = (e as any)?.code;
+        const errContext = (e as any)?.context;
+        if (errCode === 'E-MERGE-010') {
           console.error(`✗ 合并冲突，已暂停：`);
-          console.error(`  ${e.context?.['说明'] ?? '请手动解决冲突'}`);
+          console.error(`  ${errContext?.['说明'] ?? '请手动解决冲突'}`);
           console.error(`  解决后执行: git add <files> && git commit && 再次执行 mumuspec merge ${change}`);
         } else {
           console.error(`✗ 合并失败: ${e instanceof Error ? e.message : String(e)}`);

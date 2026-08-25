@@ -48,6 +48,28 @@ MumuSpec 的核心目标是**创建独立于代码的、基于"技术设计 + �
 - **外部兼容** 仍然适用：外部 Skill 不受 MumuSpec 约束强度影响
 - 强度系统只是把"内部强制的程度"从二值变为三档
 
+### 1.3 行为约束 vs 结果约束分层原则（CHG-5）
+
+> 定位：本原则是对现有强度系统的哲学补充，不改变 §3 的强度语义，也不改变 §5 的 `constraints.yaml` 文件格式。它回答的是"在同一约束强度下，哪些应被强制 block、哪些应只给 advisory 建议"。
+
+约束系统误用的根源之一，是把**约束执行过程（HOW）**当作**约束达成的结果（DONE）**来强制。MumuSpec 将约束分为两类：
+
+| 约束类型 | 英文 | 关注点 | 默认处置 | 典型示例 |
+|---------|------|--------|---------|---------|
+| **行为约束** | Behavioral Constraint | HOW — 约束 LLM 的执行过程 | advisory / WARN，给 LLM 执行自由 | tdd_enforced、commit 格式、Ponytail 检查顺序 |
+| **结果约束** | Result Constraint | DONE — 约束最终必须达成的结果 | block 硬门禁 | SHALL 满足性、测试全绿、无 critical drift、工件完备 |
+
+**判定规则**：
+
+1. 结果可客观验证（文件存在、测试通过、hash 匹配）→ 结果约束，阶段守卫硬性 block
+2. 结果不可客观验证、只有过程可观察 → 行为约束，WARN + 记录，不阻断
+3. 行为约束与结果约束冲突时，以结果约束为准（结果正确优先于过程规范）
+4. 行为约束允许随强度降级或跳过；结果约束仅例外清单中可降级
+
+**tdd_mode 的归类**：`tdd_mode` 属行为约束（约束"红绿 TDD"这一执行过程），允许 non-tdd 配置（`config.changes.default_tdd_mode: non-tdd`）。阶段守卫只校验"变更 tdd_mode 与配置值一致"（见 [skills/mumuspec/workflow.yaml](../../skills/mumuspec/workflow.yaml) 的 guard 检查项），而非强制 tdd。真正的结果约束是"测试全绿"（`build_to_verify` 守卫），无论以何种方式达成。
+
+> 相关术语见 [glossary.md 约束强度术语](../reference/glossary.md#约束强度术语)。
+
 ---
 
 ## 2. 双维度约束模型
@@ -566,7 +588,7 @@ function enforceAction(check: GuardCheck, actualStrength: Strength): 'block' | '
 | test-cases/ 至少 layer-0-cases.md | TD | medium | block | block | warn |
 | test_cases.design_locked: true | TD | medium | block | block | warn |
 | test_cases.design_content_hash matches | TD | high | block | warn | info |
-| tdd_mode == "tdd" | TD | high | block | warn | info |
+| tdd_mode matches default_tdd_mode | TD | high | block | warn | info |
 | cognitive_framework.converged: true | TD | high | block | warn | info |
 | cognitive_framework.q4_scans >= 3 | TD | high | block | warn | info |
 | hyperplan_result.hard_constraints merged | TD | high | block | warn | info |
@@ -834,7 +856,7 @@ function rank(s: Strength): number {
 ### 10.2 与 Change Layer 集成
 
 - 每个 Phase Guard 在执行前读取 `constraint_strength` 配置
-- 守卫检查项的 `min_strength` 在 `phase-guards.md` 中标注
+- 阶段守卫检查项的 `min_strength` 在 `phase-guards.md` 中标注
 - 阻塞点 BP-1~BP-18 按 `min_strength` 求值
 - `decisions.md` 记录每次强度变更与降级理由
 

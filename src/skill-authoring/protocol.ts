@@ -1,12 +1,18 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+/**
+ * Result of validating a skill's structure and content.
+ */
 export interface SkillValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
 }
 
+/**
+ * Result of scaffolding a new skill directory.
+ */
 export interface SkillScaffoldResult {
   created: string[];
   errors: string[];
@@ -19,6 +25,12 @@ export const AUTHORING_PROTOCOL = {
   templates: ['phase-skill', 'analysis-skill', 'custom-workflow'],
 };
 
+/**
+ * Validates a skill's directory structure and content.
+ * @param projectRoot - The project root path
+ * @param skillName - The name of the skill to validate
+ * @returns Validation result with validity status, errors, and warnings
+ */
 export function validateSkill(projectRoot: string, skillName: string): SkillValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -47,6 +59,11 @@ export function validateSkill(projectRoot: string, skillName: string): SkillVali
   return { valid: errors.length === 0, errors, warnings };
 }
 
+/**
+ * Lists all custom skills in a project.
+ * @param projectRoot - The project root path
+ * @returns Array of skill info objects with name, path, and validity
+ */
 export function listCustomSkills(projectRoot: string): { name: string; path: string; valid: boolean }[] {
   const skillsDir = join(projectRoot, '.mumuspec', 'skills');
   if (!existsSync(skillsDir)) return [];
@@ -69,6 +86,13 @@ export function listCustomSkills(projectRoot: string): { name: string; path: str
   return skills;
 }
 
+/**
+ * Scaffolds a new skill directory with template files.
+ * @param projectRoot - The project root path
+ * @param skillName - The name of the skill to create
+ * @param options - Scaffolding options (type, description)
+ * @returns Scaffold result with created files and any errors
+ */
 export function scaffoldSkill(
   projectRoot: string,
   skillName: string,
@@ -134,6 +158,11 @@ ${options.description || '[Describe what this skill does]'}
   return { created, errors };
 }
 
+/**
+ * Generates the authoring protocol file for a project.
+ * @param projectRoot - The project root path
+ * @returns Object with path to protocol file and whether it was created
+ */
 export function generateAuthoringProtocol(projectRoot: string): { path: string; created: boolean } {
   const protocolDir = join(projectRoot, '.mumuspec', 'skill-authoring');
   const protocolFile = join(protocolDir, 'protocol.yaml');

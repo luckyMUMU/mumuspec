@@ -21,7 +21,7 @@ MumuSpec vs OpenSpec vs Comet 速查表。三项目关键特性一图速览，�
 | **变更状态机** | 状态机 + 图谱验证 + 可回退 | ✓ | ✓（状态机） |
 | **阶段回退** | Build/Verify 均可回退 Design，带快照与回退计数 | 无 | verify-fail 可回退 build |
 | **预设路径** | hotfix/tweak（增加规范约束） | 无 | hotfix/tweak |
-| **工作流规则 - TDD** | 默认红绿 TDD，固定不可关闭 | 无 | 可选 |
+| **工作流规则 - TDD** | 默认红绿 TDD，遵循配置（默认 tdd） | 无 | 可选 |
 | **工作流规则 - 隔离** | 默认 worktree 物理隔离主分支；单一活跃变更约束 | 无 | branch/worktree 可选；无限制 |
 | **设计-实现方向** | 自顶向下设计 + 自下向上实现 | 无约束 | 无约束 |
 | **测试不可变性** | 测试用例 Design 后锁定，套件 Build 后锁定 | 无 | 无 |

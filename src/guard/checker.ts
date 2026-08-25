@@ -1,10 +1,12 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
+import { parse } from 'yaml';
 import { Logger } from '../core/logger.js';
+import { detectJsxUsage } from './ast-checker.js';
 import type { SpecFile, GuardResult, DriftResult, GuardError, GuardWarning } from '../core/types.js';
 import { parseSpecFile, parsePrdFile, parseTechFile } from '../spec/parser.js';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
-import { readText, writeText } from '../core/utils.js';
+import { readText, writeText, computeHash, getMumuSpecDir, findSpecDirs, normalizePath } from '../core/utils.js';
 import type { ConstraintStrengthField } from '../core/config.js';
 import { evaluateConstraint, type ConstraintCheck } from '../core/constraint-evaluator.js';
 import { detectContractDrift } from '../contract/validator.js';
@@ -157,18 +159,25 @@ export function checkCompliance(
 }
 
 /** Check SHALL NOT violations */
+// P1-1 Fix: Prohibition with annotation for semantic checking
+interface ProhibitionEntry {
+  text: string;
+  source: string;
+  annotation?: import('../core/types-spec.js').MachineReadableAnnotation;
+}
+
 function checkShallNot(
   projectRoot: string,
   sourceFiles: string[],
   errors: { code: string; message: string; detail?: string }[],
   _warnings: { code: string; message: string; detail?: string }[],
 ): void {
-  // Collect all SHALL NOT constraints from all spec files
+  // Collect all SHALL NOT constraints with annotation data
   const prohibitions = collectAllProhibitions(projectRoot);
 
   // Separate file-coexistence constraints from code-level prohibitions
-  const codeProhibitions: { text: string; source: string }[] = [];
-  const coexistenceConstraints: { text: string; source: string }[] = [];
+  const codeProhibitions: ProhibitionEntry[] = [];
+  const coexistenceConstraints: ProhibitionEntry[] = [];
 
   for (const p of prohibitions) {
     if (isCoexistenceConstraint(p.text)) {
@@ -183,24 +192,22 @@ function checkShallNot(
     checkFileCoexistence(projectRoot, coexistenceConstraints, errors);
   }
 
-  // Scan source files for code-level prohibitions only
+  // Scan source files for code-level prohibitions with annotation-aware routing
   for (const filePath of sourceFiles) {
     const content = readText(filePath);
     if (!content) continue;
 
-    for (const { text, source } of codeProhibitions) {
+    for (const prohibition of codeProhibitions) {
       // Scope-aware: only check files within the prohibition's source tree
-      // e.g., a prohibition from demo/.mumuspec/spec.md only applies to demo/ files
-      if (!isFileInScope(filePath, source, projectRoot)) continue;
+      if (!isFileInScope(filePath, prohibition.source, projectRoot)) continue;
 
-      // Simple pattern matching - check if the prohibition text appears in code
-      // This is a basic heuristic; real implementation would use AST analysis
-      const violation = checkProhibitionViolation(content, text, filePath);
+      // P1-1 Fix: Use annotation for semantic checking if available
+      const violation = checkProhibitionViolation(content, prohibition.text, filePath, prohibition.annotation);
       if (violation) {
         errors.push({
           code: 'E-GUARD-003',
-          message: `SHALL NOT 违规: ${text}`,
-          detail: `${filePath}:${violation.line} (source: ${source})`,
+          message: `SHALL NOT 违规: ${prohibition.text}`,
+          detail: `${filePath}:${violation.line} (source: ${prohibition.source})`,
         });
       }
     }
@@ -255,7 +262,7 @@ function isCoexistenceConstraint(text: string): boolean {
  */
 function checkFileCoexistence(
   projectRoot: string,
-  constraints: { text: string; source: string }[],
+  constraints: ProhibitionEntry[],
   errors: { code: string; message: string; detail?: string }[],
 ): void {
   // Extract file pairs from constraints like "X SHALL NOT coexist with Y"
@@ -381,14 +388,16 @@ function checkPonytail(
  */
 function collectAllProhibitions(
   projectRoot: string,
-): { text: string; source: string }[] {
-  const results: { text: string; source: string }[] = [];
+): ProhibitionEntry[] {
+  const results: ProhibitionEntry[] = [];
   const specs = findAllSpecs(projectRoot);
 
   for (const spec of specs) {
     for (const req of spec.requirements) {
       for (const shallNot of req.shallNot) {
-        results.push({ text: shallNot, source: spec.path });
+        // P1-1 Fix: Look up annotation for this prohibition
+        const annotation = getAnnotationFromFrontmatter(spec, shallNot);
+        results.push({ text: shallNot, source: spec.path, annotation });
       }
     }
   }
@@ -399,10 +408,24 @@ function collectAllProhibitions(
   return results;
 }
 
+/** P1-1 Fix: Look up annotation from spec frontmatter */
+function getAnnotationFromFrontmatter(
+  spec: import('../core/types.js').SpecFile,
+  prohibitionText: string,
+): import('../core/types-spec.js').MachineReadableAnnotation | undefined {
+  const frontmatter = spec.frontmatter as import('../core/types-spec.js').SpecFrontmatter;
+  if (!frontmatter.prohibitions) return undefined;
+  
+  const match = frontmatter.prohibitions.find(
+    p => p.text === prohibitionText || prohibitionText.includes(p.text) || p.text.includes(prohibitionText)
+  );
+  return match?.annotation;
+}
+
 /** Recursively collect SHALL NOT from prd.md and tech.md files */
 function collectDistributedProhibitions(
   projectRoot: string,
-  results: { text: string; source: string }[],
+  results: ProhibitionEntry[],
 ): void {
   function scan(dir: string): void {
     const mumuDir = join(dir, '.mumuspec');
@@ -474,10 +497,26 @@ function checkAstViolation(
   content: string,
   prohibition: string,
   filePath: string,
+  annotation?: import('../core/types-spec.js').MachineReadableAnnotation,
 ): { line: number } | null {
   try {
-    // Extract constraint ID (e.g., "ast:no-mutable-state" → "no-mutable-state")
-    const constraintId = prohibition.slice(4);
+    // P1-1 Fix: Derive constraint ID from annotation if available
+    let constraintId: string;
+    if (annotation) {
+      // Map annotation type to AST constraint ID
+      const typeToConstraint: Record<string, string> = {
+        'no-new-dependency': 'no-new-dependency',
+        'no-mutable-state': 'no-mutable-state',
+        'no-side-effect': 'no-side-effect',
+        'pure-function': 'enforce-idempotent',
+        'no-global-state': 'no-global-state',
+        'custom': annotation.ast_constraint || 'custom',
+      };
+      constraintId = typeToConstraint[annotation.type] || annotation.type;
+    } else {
+      // Legacy: Extract constraint ID from prohibition text (e.g., "ast:no-mutable-state" → "no-mutable-state")
+      constraintId = prohibition.slice(4);
+    }
     if (!constraintId) return null;
 
     // Auto-initialize built-in providers on first use
@@ -516,8 +555,20 @@ function checkProhibitionViolation(
   content: string,
   prohibition: string,
   filePath: string,
+  annotation?: import('../core/types-spec.js').MachineReadableAnnotation,
 ): { line: number } | null {
-  // AST-based routing: if prohibition starts with 'ast:', use AST provider
+  // P1-1 Fix: AST routing based on annotation type
+  if (annotation) {
+    const astViolation = checkAstViolation(content, prohibition, filePath, annotation);
+    if (astViolation) return astViolation;
+    // For 'custom' type without specific handler, fall through to regex
+    if (annotation.type !== 'custom') {
+      // AST handler ran but found nothing — skip regex to avoid false positives
+      return null;
+    }
+  }
+
+  // Legacy AST-based routing: if prohibition starts with 'ast:', use AST provider
   if (prohibition.startsWith('ast:')) {
     const astViolation = checkAstViolation(content, prohibition, filePath);
     if (astViolation) return astViolation;
@@ -527,9 +578,13 @@ function checkProhibitionViolation(
   const lower = prohibition.replace(/^ast:/i, '').toLowerCase();
   const isJsxProhibition = lower.includes('jsx') || lower.includes('tsx');
 
-  // JSX/TSX prohibition: detect actual JSX syntax, not the approved htm/h() alternatives.
+  // JSX/TSX prohibition: use AST-based detection (distinguishes JSX from generics/htm).
   if (isJsxProhibition) {
-    return detectJsxSyntax(content, filePath);
+    const result = detectJsxUsage(content, filePath);
+    if (result.hasJsx) {
+      return { line: result.line ?? 1 };
+    }
+    return null;
   }
 
   // Extract patterns like "禁止使用 XXX" or "must not use XXX"
@@ -573,103 +628,6 @@ function checkProhibitionViolation(
   }
 
   return null;
-}
-
-/**
- * Detect JSX syntax patterns in code (angle-bracket component usage).
- * Returns the first line where JSX is detected, or null if no JSX found.
- *
- * Heuristic: looks for patterns like `<Component`, `<div`, or multiline JSX blocks
- * while ignoring comparison operators (`a < b`) and arrow functions (`<T>` generics).
- */
-function detectJsxSyntax(content: string, filePath: string): { line: number } | null {
-  const ext = filePath.split('.').pop()?.toLowerCase();
-
-  // Skip files that use htm tagged templates — they comply with the prohibition
-  // by using the approved alternative (htm + h()) instead of JSX
-  if (usesHtmTemplate(content)) {
-    return null;
-  }
-
-  const lines = content.split('\n');
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-    if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
-      continue;
-    }
-
-    // Strip string content to avoid false positives on HTML strings
-    const stripped = stripStringLiterals(line);
-
-    // Detect JSX: `<Identifier` followed by letter (not `<<` or `<=`)
-    const jsxPattern = /<([A-Z][a-zA-Z0-9_]*|[a-z][a-zA-Z0-9]*)\b/;
-    if (jsxPattern.test(stripped)) {
-      // Filter out generics in TypeScript: `<T>`, `<T extends ...>`
-      const genericPattern = /^\s*<([A-Z])>\s*/;
-      // Filter out comparison: `a < b`
-      const comparisonPattern = /\w\s*<\s*\w/;
-      if (!genericPattern.test(stripped) && !comparisonPattern.test(stripped)) {
-        return { line: i + 1 };
-      }
-    }
-  }
-
-  // Check for .jsx/.tsx file existence if applicable
-  if (ext === 'jsx' || ext === 'tsx') {
-    return { line: 1 };
-  }
-
-  return null;
-}
-
-/**
- * Check if the file uses htm tagged template library (approved JSX alternative).
- * Files using htm are compliant with "no JSX" prohibitions by construction.
- */
-function usesHtmTemplate(content: string): boolean {
-  // Import from htm or htm/preact, or use htm`...` / html`...` pattern
-  return /\bhtm\b\s*[`']/.test(content)
-    || /\bimport\s+.*\bhtm\b/.test(content)
-    || /\bhtml\b\s*[`]/.test(content);
-}
-
-/**
- * Remove content inside string literals (double/single quotes),
- * preserving positions but replacing inner chars with spaces.
- * Simplified: only handles simple string literals (not multi-line templates).
- * For robust multi-line template stripping, use usesHtmTemplate() guard.
- */
-function stripStringLiterals(line: string): string {
-  let result = '';
-  let i = 0;
-  let inString: string | null = null;
-
-  while (i < line.length) {
-    const ch = line[i];
-
-    if (inString) {
-      if (ch === '\\' && i + 1 < line.length) {
-        result += ' ';
-        i++;
-      } else if (ch === inString) {
-        result += ch;
-        i++;
-        inString = null;
-      } else {
-        result += ' ';
-        i++;
-      }
-    } else if (ch === '\'' || ch === '"') {
-      result += ch;
-      i++;
-      inString = ch;
-    } else {
-      result += ch;
-      i++;
-    }
-  }
-  return result;
 }
 
 /** Find all spec files in project */
@@ -767,45 +725,63 @@ export function detectDrift(projectRoot: string): DriftResult[] {
   return results;
 }
 
-/** Check index.yaml freshness */
+/** Check index.yaml freshness — P1-2 Fix: Real directory comparison */
 function checkIndexDrift(
   projectRoot: string,
-  _results: DriftResult[],
+  results: DriftResult[],
 ): void {
-  function scan(dir: string) {
+  const scan = (dir: string) => {
     const mumuDir = join(dir, '.mumuspec');
     const indexPath = join(mumuDir, 'index.yaml');
 
-    if (existsSync(indexPath)) {
-      // Check if children in index match actual directories
-      try {
-        // ponytail: index content parsing deferred — only existence checked
-        readFileSync(indexPath, 'utf8');
-        const actualChildren = readdirSync(dir, { withFileTypes: true })
-          .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules')
-          .filter((e) => existsSync(join(dir, e.name, '.mumuspec')));
-
-        if (actualChildren.length > 0) {
-          // Could do more detailed comparison
-        }
-      } catch (e) {
-        // Ignore — index.yaml may not be readable
-        Logger.debug('guard.checker', 'Failed to read index.yaml during drift check', { error: (e as Error).message });
-      }
-    }
+    if (!existsSync(indexPath)) return;
 
     try {
-      const entries = readdirSync(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-          scan(join(dir, entry.name));
+      const indexContent = readFileSync(indexPath, 'utf8');
+      const indexData = parse(indexContent) as { children?: Array<{ path: string }> };
+
+      // Get actual directories that have .mumuspec subdirectory
+      const actualDirs = readdirSync(dir, { withFileTypes: true })
+        .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules')
+        .filter((e) => existsSync(join(dir, e.name, '.mumuspec')))
+        .map((e) => e.name);
+
+      // Parse index children paths
+      const indexDirs = (indexData.children || [])
+        .map((c) => c.path)
+        .filter((p) => !p.includes('/'));  // Only top-level entries
+
+      // Detect directories missing from index
+      for (const dirName of actualDirs) {
+        if (!indexDirs.includes(dirName)) {
+          results.push({
+            type: 'index_drift',
+            severity: 'WARN',
+            message: `Directory "${dirName}" has .mumuspec but is missing from index.yaml`,
+            file: join(dir, dirName),
+            fixable: true,
+            fixHint: `Run 'mumuspec sync' to update index.yaml`,
+          });
+        }
+      }
+
+      // Detect index entries that no longer exist
+      for (const indexPath of indexDirs) {
+        if (!actualDirs.includes(indexPath)) {
+          results.push({
+            type: 'index_drift',
+            severity: 'WARN',
+            message: `index.yaml references "${indexPath}" but directory no longer has .mumuspec`,
+            file: join(dir, indexPath),
+            fixable: true,
+            fixHint: `Remove stale entry from index.yaml or restore directory`,
+          });
         }
       }
     } catch (e) {
-      // Ignore — directory may not be readable
-      Logger.debug('guard.checker', 'Failed to scan directories during index drift check', { error: (e as Error).message });
+      Logger.debug('guard.checker', 'Failed to read index.yaml during drift check', { error: (e as Error).message });
     }
-  }
+  };
 
   scan(projectRoot);
 }
@@ -852,6 +828,92 @@ export function detectDriftWithContracts(projectRoot: string): DriftResult[] {
   const results = detectDrift(projectRoot);
   const contractDrifts = detectContractGuardDrift(projectRoot);
   return [...results, ...contractDrifts];
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CHG-3 — AGENTS.md ↔ spec 同步 hash（agents-hash.json）
+// ════════════════════════════════════════════════════════════════════
+
+/** spec 组文件（根 .mumuspec/ 与各 findSpecDirs 子层同组） */
+const AGENTS_HASH_SPEC_FILES = ['spec.md', 'prd.md', 'tech.md', 'prohibitions.md'];
+
+/**
+ * Compute the canonical spec content hash (CHG-3).
+ *
+ * 根 .mumuspec/ 下 spec.md/prd.md/tech.md/prohibitions.md + 递归 findSpecDirs
+ * 子层同组文件；仅取存在者，按相对路径排序；contents = relpath + '\n' + content；
+ * 最终 computeHash(join)。
+ */
+export function computeSpecHash(projectRoot: string): string {
+  const entries: Array<{ relpath: string; content: string }> = [];
+  const scopes = [projectRoot, ...findSpecDirs(projectRoot)];
+
+  for (const scope of scopes) {
+    const mumuDir = join(scope, '.mumuspec');
+    if (!existsSync(mumuDir)) continue;
+    const relBase = relative(projectRoot, scope) || '.';
+    for (const name of AGENTS_HASH_SPEC_FILES) {
+      const filePath = join(mumuDir, name);
+      if (!existsSync(filePath)) continue;
+      const relPath = relBase === '.' ? `.mumuspec/${name}` : `${relBase}/.mumuspec/${name}`;
+      entries.push({
+        relpath: normalizePath(relPath),
+        content: readFileSync(filePath, 'utf8'),
+      });
+    }
+  }
+
+  entries.sort((a, b) => a.relpath.localeCompare(b.relpath));
+  const joined = entries.map((e) => `${e.relpath}\n${e.content}`).join('\n');
+  return computeHash(joined);
+}
+
+/**
+ * Detect AGENTS.md ↔ spec drift (CHG-3).
+ *
+ * - agents-hash.json 缺失 → WARN（未生成/无法校验）
+ * - 重新计算 specHash 比对不一致 → ERROR E-AGENTS-001
+ * - 一致 → 无 agents_drift 报告
+ */
+export function detectAgentsDrift(projectRoot: string): DriftResult[] {
+  const hashPath = join(getMumuSpecDir(projectRoot), 'agents-hash.json');
+  if (!existsSync(hashPath)) {
+    return [
+      {
+        type: 'agents_drift',
+        severity: 'WARN',
+        message: 'AGENTS.md↔spec 漂移无法校验：agents-hash.json 未生成',
+        fixHint: '运行 mumuspec rules generate 生成 AGENTS.md 与 agents-hash.json',
+      },
+    ];
+  }
+
+  let recorded: { version?: number; specHash?: string } = {};
+  try {
+    recorded = JSON.parse(readFileSync(hashPath, 'utf8')) as { version?: number; specHash?: string };
+  } catch {
+    return [
+      {
+        type: 'agents_drift',
+        severity: 'WARN',
+        message: 'AGENTS.md↔spec 漂移无法校验：agents-hash.json 解析失败',
+        fixHint: '重新运行 mumuspec rules generate',
+      },
+    ];
+  }
+
+  const current = computeSpecHash(projectRoot);
+  if (recorded.specHash === current) return [];
+
+  return [
+    {
+      type: 'agents_drift',
+      severity: 'ERROR',
+      code: 'E-AGENTS-001',
+      message: 'AGENTS.md↔spec 漂移：spec 内容在 AGENTS.md 生成后发生变化',
+      fixHint: '重新运行 mumuspec rules generate',
+    },
+  ];
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -906,6 +968,10 @@ function applySafeFix(projectRoot: string, drift: DriftResult, dryRun: boolean):
       // Safe fix: add basic enforcement marker
       return fixSpecDrift(projectRoot, drift, dryRun);
 
+    case 'index_drift':
+      // P1-2 Fix: Auto-fix index drift by running sync
+      return fixIndexDrift(projectRoot, drift, dryRun);
+
     case 'contract_summary':
     case 'contract_drift_error':
       // Informational only — nothing to fix
@@ -948,6 +1014,41 @@ function fixSpecDrift(projectRoot: string, drift: DriftResult, dryRun: boolean):
     return true;
   } catch (e) {
     Logger.debug('guard.checker', 'Failed to apply spec drift fix', { error: (e as Error).message });
+    return false;
+  }
+}
+
+/**
+ * P1-2 Fix: Auto-fix index drift by adding missing entry to index.yaml
+ */
+function fixIndexDrift(projectRoot: string, drift: DriftResult, dryRun: boolean): boolean {
+  if (!drift.file) return false;
+
+  try {
+    const indexPath = join(projectRoot, '.mumuspec', 'index.yaml');
+    if (!existsSync(indexPath)) return false;
+
+    const content = readText(indexPath);
+    if (!content) return false;
+
+    // Extract directory name from the drift path
+    const dirName = drift.file.split('/').pop() || drift.file.split('\\').pop();
+    if (!dirName) return false;
+
+    // Check if already in index
+    if (content.includes(`path: ${dirName}`) || content.includes(`path: "${dirName}"`)) return false;
+
+    if (dryRun) {
+      return true; // Would add entry to index
+    }
+
+    // Add entry to index.yaml (simple append to children)
+    const entry = `\n  - path: ${dirName}\n    summary: Auto-fixed index entry\n`;
+    const updatedContent = content.replace(/(\nchildren:\s*)/, `$1${entry}`);
+    writeText(indexPath, updatedContent);
+    return true;
+  } catch (e) {
+    Logger.debug('guard.checker', 'Failed to apply index drift fix', { error: (e as Error).message });
     return false;
   }
 }

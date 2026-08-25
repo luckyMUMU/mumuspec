@@ -46,6 +46,21 @@ layer: 2
 | `parsePonytailMarkers` | `(content, path) => PonytailMarker[]` | 解析 ponytail 标记 |
 | `injectPonytail` | `(spec: SpecFile) => SpecFile` | 注入 ponytail 约束 |
 
+### Structure Validator（structure-validator.ts）
+
+| 函数 | 签名 | 用途 |
+|------|------|------|
+| `validateMumuSpecStructure` | `(projectRoot: string) => GuardResult` | 校验 `.mumuspec/` 目录结构白名单 |
+
+**结构白名单定义**：
+- **合法顶级目录**：`changes`, `knowledge`, `contracts`, `feedback`, `roadmap`, `adr`, `designs-archive`
+- **合法顶级文件**：`config.yaml`, `spec.md`, `prd.md`, `tech.md`, `design.md`, `prohibitions.md`, `goal.md`, `env-spec.md`, `glossary.md`, `index.yaml`, `audit.log`, `agents-hash.json`, `constraints.yaml`, `cognitive-map.yaml`, `BOUNDARY.md`
+- **合法 knowledge 子目录**：`decisions`, `patterns`, `risks`, `rationales`, `lessons`, `imports`
+- **合法 knowledge 文件**：`_index.yaml`, `_reverse-index.yaml`, `_memory.yaml`
+- **合法 changes 子目录**：`archive` + 活跃变更目录（须含 `.mumuspec.yaml`）
+
+**错误码**：`E-SPEC-013`（未定义目录）、`E-SPEC-014`（未定义文件）
+
 ## 依赖声明
 
 ### 内部依赖
@@ -80,4 +95,6 @@ layer: 2
 
 | 日期 | 变更 | 影响 |
 |------|------|------|
+| 2026-08-22 | 新增 `structure-validator.ts` — `.mumuspec/` 目录结构白名单校验 | 新增 `validateMumuSpecStructure` 导出函数，校验未定义目录/文件 |
+| 2026-08-22 | `loader.ts` 新增 `loadKnowledgeMemoryForContext` — 设计时加载 LLM-Wiki 记忆 | `loadSpecContext` 返回新增 `knowledge_memory` 字段 |
 | 2026-08-03 | 删除冗余 spec.md 和 design.md | 无功能影响（Loader 已支持新格式） |

@@ -88,6 +88,8 @@ vi.mock('../../../src/core/utils.js', async (importOriginal) => {
     findProjectRoot: mockFindProjectRoot,
     readText: mockReadText,
     computeHash: mockComputeHash,
+    // CHG-2: 审计写入在此 handler 测试中为 no-op（避免依赖 node:fs 真实写盘）
+    appendAuditLog: vi.fn(),
   };
 });
 
@@ -122,6 +124,7 @@ vi.mock('../../../src/change/state-machine.js', () => ({
   getWorkflowPhases: mockGetWorkflowPhases,
   isTerminal: mockIsTerminal,
   requiresUserConfirmation: mockRequiresUserConfirmation,
+  activateProjectWorkflow: vi.fn(),
 }));
 
 /* ── Helpers ── */

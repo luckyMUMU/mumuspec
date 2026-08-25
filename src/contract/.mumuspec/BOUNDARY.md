@@ -36,6 +36,16 @@ layer: 2
 | `analyzeContractImpact` | `(projectRoot: string, contractId: string, changeType: 'modify' \| 'remove' \| 'deprecate') => ContractImpactAnalysis` | 分析契约变更的上游/下游影响、breaking 标志、风险等级、缓解措施 |
 | `formatImpactReport` | `(analysis: ContractImpactAnalysis) => string` | 将分析结果格式化为人类可读报告 |
 
+### AST Analyzer（ast-analyzer.ts）— 纯 AST 代码分析器
+
+| 函数/类型 | 签名 | 用途 |
+|-----------|------|------|
+| `analyzeExports` | `(dirPath: string) => ExportInfo[]` | AST 扫描目录中的所有导出（支持 function/class/const/interface/type/default/re-export） |
+| `analyzeImports` | `(dirPath: string) => Set<string>` | AST 扫描目录中的所有导入（支持 static/dynamic import/require/re-export） |
+| `ExportInfo` | 接口类型 | `{ name, kind, file?, signature? }` |
+
+> **设计原则**：ast-analyzer.ts 使用 TypeScript Compiler API (`ts.createSourceFile`) 解析，不使用正则。遍历所有 JS/TS 文件扩展名（.ts/.tsx/.js/.jsx/.mjs/.cjs）。
+
 ### Manager（manager.ts）— 写路径操作
 
 | 函数 | 签名 | 用途 |
@@ -45,7 +55,7 @@ layer: 2
 | `removeContract` | `(projectRoot: string, contractId: string, options?: { actor?: string }) => { success: boolean; message: string; impact?: ContractImpactAnalysis }` | 移除契约（有上游消费者时安全阻断，清理 dependency_graph） |
 | `appendContractAuditLog` | `(projectRoot: string, entry: ContractAuditEntry) => { success: boolean }` | 追加审计日志条目（自动创建目录，失败时 console.warn） |
 | `readAuditLog` | `(projectRoot: string) => ContractAuditEntry[]` | 读取审计日志（跳过损坏 JSON 行） |
-| `scaffoldBoundary` | `(dirPath: string): string` | 从代码文件自动分析 export/import 生成 BOUNDARY.md 模板内容 |
+| `scaffoldBoundary` | `(dirPath: string): string` | 基于 AST 分析 export/import 生成 BOUNDARY.md 模板内容 |
 | `writeBoundary` | `(dirPath: string, content: string): string` | 写入 BOUNDARY.md 到指定目录（自动创建目录） |
 
 ### 导出类型（type-contract.ts，通过 barrel re-export）
@@ -76,12 +86,14 @@ layer: 2
 |------|------|
 | `node:fs` | 文件系统读写（readdirSync/readFileSync/writeFileSync/appendFileSync/mkdirSync/existsSync） |
 | `node:path` | 路径解析（join/resolve/dirname） |
+| `typescript` | TypeScript Compiler API（AST 解析、export/import 检测） |
 | `yaml` | YAML 解析与序列化 |
 | `./core/types-contract.js` | 类型定义（Contract/ContractRegistry/BoundaryDocument/DriftReport 等） |
 
 ### 外部依赖
 
 - `yaml`（npm 包，https://eemeli.org/yaml/）
+- `typescript`（npm 包，AST 解析引擎）
 
 ### 反向依赖（谁调用 contract 层）
 
@@ -163,3 +175,5 @@ dependency_graph: {}
 | 2026-08-08 | loader.ts 新增 resolveBoundaryPath + 表格格式解析 | 解析器支持 Markdown 表格，验证有效性从 1/17 提升至全量 |
 | 2026-08-08 | validator.ts 扩展文件类型（.tsx/.jsx/.mjs/.cjs/.vue） | 前端项目目录纳入边界校验覆盖 |
 | 2026-08-08 | manager.ts writeBoundary 写入 .mumuspec/ 子目录 | 新生成的 BOUNDARY.md 自动放入 .mumuspec/ |
+| 2026-08-09 | 新增 ast-analyzer.ts（纯 AST 代码分析器） | 为 contract 层提供无正则回退的 export/import 检测能力 |
+| 2026-08-09 | 引入 typescript 外部依赖 | AST 解析引擎 |

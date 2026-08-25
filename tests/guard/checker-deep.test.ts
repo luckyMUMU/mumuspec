@@ -441,14 +441,14 @@ describe('checkCompliance — JSX / TSX detection', () => {
     expect(result.errors[0].code).toBe('E-GUARD-003');
   });
 
-  it('should detect JSX in .jsx file extension', () => {
+  it('should NOT flag .jsx file with only plain JS content as JSX violation', () => {
     writeSpec(projectDir, '## Requirement: R1\n\n### SHALL NOT\n\n- 禁止使用 JSX/TSX 语法\n');
-    // A file that looks like plain JS but has .jsx extension
+    // A file with .jsx extension but no actual JSX syntax — AST detection should not flag it
     writeFileSync(join(projectDir, 'plain.jsx'), 'const x = 1;\nexport default x;\n');
     const result = checkCompliance(projectDir, { shallNot: true });
-    // The .jsx extension will trigger line:1 detection even without JSX syntax
+    // AST-based detection: no JSX nodes found, extension alone is not sufficient
     const jsxError = result.errors.find(e => e.detail && e.detail.includes('plain.jsx'));
-    expect(jsxError).toBeDefined();
+    expect(jsxError).toBeUndefined();
   });
 
   it('should NOT flag htm template as JSX', () => {

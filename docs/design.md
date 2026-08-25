@@ -40,7 +40,7 @@
 | [漂移检测规则](reference/drift-detection.md) | 12 种漂移检测 (P0/P1/P2) |
 | [认知框架](reference/cognitive-framework.md) | Q1-Q4 乔哈里窗变体 |
 | [错误码参考](reference/error-codes.md) | E-DOMAIN-XXX 统一错误码 |
-| [发布策略](reference/release-strategy.md) | 版本、灰度、回滚 |
+| [发布策略](reference/release-strategy.md) | 版本、灰度、回退 |
 | [术语表](reference/glossary.md) | 核心术语映射 |
 | [Skill 生态](reference/skill-ecosystem.md) | Skill 矩阵 + Hyperplan |
 | [反馈流程](reference/feedback-process.md) | 反馈收集与处理 |

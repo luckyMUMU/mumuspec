@@ -64,6 +64,7 @@ vi.mock('../../../src/change/state-machine.js', () => ({
   getValidTransitionsWithContext: mockGetValidTransitionsWithContext,
   isTerminal: mockIsTerminal,
   findTransitionPath: mockFindTransitionPath,
+  activateProjectWorkflow: vi.fn(),
 }));
 
 // ════════════════════════════════════════════════════════════════════

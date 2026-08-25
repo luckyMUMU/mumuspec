@@ -82,7 +82,7 @@ test_immutability_drift:
     detection: "compute hash of test-cases/ directory and compare with recorded hash"
     severity: ERROR
     auto_fix: false
-    recommendation: "测试用例规格被篡改，需回退到 Design 阶段重新设计"
+    recommendation: "测试用例定义被篡改，需回退到 Design 阶段重新设计"
 
   - check: "Test suite file hash mismatch with suite-map.yaml recorded hash"
     detection: "compute hash of each test suite file and compare with suite-map.yaml"

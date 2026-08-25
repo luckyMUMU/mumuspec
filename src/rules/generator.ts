@@ -1,7 +1,8 @@
 import { join } from 'node:path';
 import type { MumuSpecConfig } from '../core/config.js';
 import type { SpecContext } from '../core/types.js';
-import { writeText } from '../core/utils.js';
+import { writeText, getMumuSpecDir, now } from '../core/utils.js';
+import { computeSpecHash } from '../guard/checker.js';
 import { PONYTAIL_LADDER, NON_LAZY_DOMAINS } from '../spec/ponytail.js';
 
 /** Generate AI Rules files (CLAUDE.md, .cursorrules, AGENTS.md) */
@@ -17,6 +18,22 @@ export function generateRulesFiles(
     const filePath = join(projectRoot, rulesFile);
     writeText(filePath, content);
     generated.push(filePath);
+  }
+
+  // CHG-3: 生成 spec 内容 hash（供 detectAgentsDrift 校验 AGENTS.md↔spec 漂移）
+  try {
+    const hashData = {
+      version: 1,
+      generatedAt: now(),
+      specHash: computeSpecHash(projectRoot),
+      rulesFiles: config.ai.rules_files.map((f) => join(projectRoot, f)),
+    };
+    writeText(
+      join(getMumuSpecDir(projectRoot), 'agents-hash.json'),
+      JSON.stringify(hashData, null, 2) + '\n',
+    );
+  } catch {
+    // Best-effort: hash 写入失败不阻断 rules 生成
   }
 
   return generated;

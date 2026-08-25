@@ -28,7 +28,7 @@ workflow:
         target: phase-build
       - condition: "phase == 'verify'"
         target: phase-verify
-      - condition: "phase == 'archive-inprogress'"
+      - condition: "phase == 'archive-in-progress'"
         target: phase-archive
 
   # ──────────────────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ workflow:
         - mumuspec guard
       required_skills:
         - writing-plans (required)
-        - test-driven-development (required, fixed tdd_mode)
+        - test-driven-development (required, tdd_mode per config)
         - systematic-debugging (on failure)
       optional_skills:
         - executing-plans
@@ -219,7 +219,7 @@ workflow:
         - BP-12: 规范增量更新（中型）
         - BP-13: 范围扩展拆分决策
       on_enter:
-        - 确认 tdd_mode = tdd (固定)
+        - 确认 tdd_mode 与配置一致 (default_tdd_mode)
         - 加载 writing-plans skill
         - 创建 tasks.md (自底向上排序)
         - 选择 isolation/build_mode (BP-10)
@@ -280,7 +280,7 @@ workflow:
       on_exit:
         - 运行 mumuspec archive <name>
         - git_merge.merged: true
-        - delta-specs 合并到主规格
+        - delta-specs 合并到主规范
         - 知识提取完成 (D1-D8)
         - 变更移动到 archive/
         - worktree 清理
@@ -431,7 +431,7 @@ workflow:
       - build_layers defined
       - test-cases/ exists
       - test_cases.design_locked: true
-      - tdd_mode == tdd
+      - tdd_mode matches default_tdd_mode
 
     open_to_build_tweak:
       - proposal.md exists
@@ -439,7 +439,7 @@ workflow:
       - tasks.md exists
       - test-cases/layer-0-cases.md exists
       - test_cases.design_locked: true
-      - tdd_mode == tdd
+      - tdd_mode matches default_tdd_mode
 
     design_to_build:
       - design.md exists and non-empty
@@ -447,7 +447,7 @@ workflow:
       - build_layers defined
       - test_cases.design_locked: true
       - test_cases.design_content_hash matches
-      - tdd_mode == tdd
+      - tdd_mode matches default_tdd_mode
       - cognitive_framework收敛 (若 enabled)
 
     build_to_verify:

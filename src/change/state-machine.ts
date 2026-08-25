@@ -5,6 +5,7 @@ import type {
   GuardResult,
 } from '../core/types.js';
 import { PhaseGraph, DEFAULT_PHASE_GRAPH, type PhaseEdge } from './phase-graph.js';
+import { loadProjectWorkflowConfig, type ProjectWorkflowLoadResult } from './phase-graph-loader.js';
 
 /**
  * State machine implementation using a Directed Cyclic Graph (DCG).
@@ -44,18 +45,49 @@ function resolveRollbackEdge(graph: PhaseGraph, type: RollbackType): PhaseEdge |
 }
 
 /**
- * Get the PhaseGraph instance. Currently uses the default singleton,
- * but allows future injection of custom graphs.
+ * CHG-7 — 模块级可注入 active graph。
+ * - setActivePhaseGraph(graph) 注入项目级图；未注入（undefined）→ DEFAULT_PHASE_GRAPH。
+ * - CLI/MCP 入口调用 activateProjectWorkflow() 完成加载+注入；
+ *   单测可直接 setActivePhaseGraph(new PhaseGraph(cfg)) 注入。
+ * - 全局可变状态的进程模型约束：CLI 每次命令 = 独立进程；MCP 每请求重算 root 并注入；
+ *   测试文件在 afterEach 复位。未调用 setter 时行为与 0.19.1 完全一致（AC-02）。
  */
-function getGraph(): PhaseGraph {
-  return DEFAULT_PHASE_GRAPH;
+let activeGraph: PhaseGraph | undefined;
+
+/**
+ * Inject the phase graph used by all state-machine operations.
+ * Pass undefined to restore the built-in default graph.
+ */
+export function setActivePhaseGraph(graph: PhaseGraph | undefined): void {
+  activeGraph = graph;
 }
 
 /**
- * Get the graph instance (public accessor for advanced usage).
+ * Get the PhaseGraph instance. Uses the injected project-level graph when
+ * present, otherwise the default singleton (0.19.1-identical behavior).
+ */
+function getGraph(): PhaseGraph {
+  return activeGraph ?? DEFAULT_PHASE_GRAPH;
+}
+
+/**
+ * Get the graph instance (public accessor — returns the effective graph,
+ * i.e. injected project graph or default).
  */
 export function getPhaseGraph(): PhaseGraph {
-  return DEFAULT_PHASE_GRAPH;
+  return getGraph();
+}
+
+/**
+ * CHG-7 — load the project-level workflow override and activate it.
+ * - .mumuspec/workflow.yaml 存在且有效 → 注入项目级图（source 'project'）
+ * - 缺失/损坏/非法 → WARN + 回退内置（source 'default'，不注入 → DEFAULT）
+ * 返回 loadProjectWorkflowConfig 的结果，供调用方展示/断言。
+ */
+export function activateProjectWorkflow(projectRoot: string): ProjectWorkflowLoadResult {
+  const result = loadProjectWorkflowConfig(projectRoot);
+  setActivePhaseGraph(result.source === 'project' ? new PhaseGraph(result.config) : undefined);
+  return result;
 }
 
 // ─── Backward-compatible API ──────────────────────────────────────────────
@@ -406,19 +438,11 @@ export function getNextPhase(state: ChangeState): { phase: ChangePhase; descript
 }
 
 /**
- * Get workflow-appropriate phases (preserved for backward compatibility).
+ * Get workflow-appropriate phases (CHG-6: reads from the graph's config —
+ * single source of truth, replaces the former hardcoded switch).
  */
 export function getWorkflowPhases(workflow: Workflow): ChangePhase[] {
-  switch (workflow) {
-    case 'hotfix':
-      return ['open', 'build', 'verify', 'archive-in-progress', 'archive-completed'];
-    case 'tweak':
-      return ['open', 'build', 'verify', 'archive-in-progress', 'archive-completed'];
-    case 'loop':
-      return ['build', 'verify', 'archive-in-progress', 'archive-completed'];
-    case 'full':
-      return ['open', 'design', 'build', 'verify', 'archive-in-progress', 'archive-completed'];
-  }
+  return getGraph().getWorkflowPhases(workflow);
 }
 
 /**

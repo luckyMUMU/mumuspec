@@ -5,6 +5,30 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.1] - 2026-08-22
+
+### Security
+- MCP HTTP 模式新增 Token 认证（`MUMUSPEC_MCP_TOKEN`）和 CORS 白名单（`MUMUSPEC_MCP_CORS_ORIGIN`）
+- YAML 解析启用安全配置（maxAliasCount: 100）防止 YAML 炸弹攻击
+- 归档操作的 appendFileSync 改为原子替换模式，防止重复追加
+
+### Fixed
+- 修复 discardChange/archiveChange 在 renameSync 失败后状态与文件不一致的数据完整性问题
+- 修复 acquireLock 锁超时后静默放行改为抛出错误
+- 修复 mergeDeltaSpecsToMain 幂等性问题（防止重复归档导致内容重复）
+- 修复 readFileSync 读取超大 YAML 文件导致 OOM 的问题（限制 10MB）
+
+### Added
+- `mumuspec spec annotate` 命令：自动为 SHALL NOT 约束生成 machine-readable 注解
+- `mumuspec gen:error-codes` 命令：自动生成错误码文档
+- `mumuspec ci:check` 命令：版本一致性 + 文档漂移检测
+- CI 管道新增版本一致性和错误码文档漂移检查步骤
+
+### Documentation
+- 错误码文档（docs/reference/error-codes.md）改为自动生成
+- 统一版本号四处（package.json / README / STATUS.md / npm）为 0.19.1
+- 修正 README 中未经实证的量化声称
+
 ## [0.16.0-beta.0] - Unreleased
 
 ### Added

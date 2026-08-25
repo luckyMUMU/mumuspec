@@ -4,6 +4,7 @@
 
 import type { Severity } from './types-constraint.js';
 import type { LoopState } from './types-loop.js';
+import type { TeamState } from './types-team.js';
 
 /** Change workflow type */
 export type Workflow = 'full' | 'hotfix' | 'tweak' | 'loop';
@@ -156,6 +157,8 @@ export interface ChangeState {
   };
   /** Loop state for dynamic workflow mode */
   loop_state?: LoopState;
+  /** Team orchestration state for multi-role collaborative mode */
+  team_state?: TeamState;
 }
 
 /** Phase guard check result */
@@ -186,6 +189,10 @@ export interface DriftResult {
   line?: number;
   /** Fix hint — displayed to user when --fix cannot auto-fix */
   fixHint?: string;
+  /** Optional machine-readable error code (e.g. E-AGENTS-001) — CHG-3 */
+  code?: string;
+  /** Whether this drift can be auto-fixed */
+  fixable?: boolean;
 }
 
 // ════════════════════════════════════════════════════════════════════

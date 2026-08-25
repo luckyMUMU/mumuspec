@@ -1,7 +1,7 @@
 ---
 scope: src/spec
 layer: 2
-last_updated: '2026-08-04'
+last_updated: '2026-08-22'
 ---
 
 # Technical Design: spec
@@ -13,6 +13,8 @@ last_updated: '2026-08-04'
 - 规范校验必须检测 SHALL without Enforcement 违规
 - 继承冲突检测必须识别子层放松父层约束的非法行为
 - Ponytail 约束注入必须保留原有需求不丢失
+- 结构白名单校验必须扫描项目中所有 `.mumuspec/` 目录，检测未定义的目录和文件
+- `loadSpecContext` 必须加载 LLM-Wiki 记忆上下文作为 AI 外部记忆
 
 ## SHALL NOT constraints (migrated from spec.md)
 
@@ -20,12 +22,14 @@ last_updated: '2026-08-04'
 - 禁止加载器缓存过期 spec（freshness check_on_load 必须执行）
 - 禁止继承合并时丢失父层 SHALL NOT 约束
 - 不可覆盖手写的需求约束（Ponytail 注入保留用户定义）
+- 禁止在 `.mumuspec/` 下创建未定义的目录和文件（E-SPEC-013/E-SPEC-014）
 
 ## Enforcement (migrated from spec.md)
 
 - SPEC-1: 检查 frontmatter 包含 layer/scope/last_updated
 - SPEC-2: 检查 SHALL 约束有对应 Enforcement
 - SPEC-3: 检查子层不放松父层约束
+- SPEC-4: 检查 `.mumuspec/` 目录结构符合白名单
 
 ## 架构决策 (Architecture decisions)
 
@@ -35,6 +39,8 @@ last_updated: '2026-08-04'
 - **继承规则**：子层 SHALL NOT 不能与父层 SHALL 冲突（子层可收紧但不能放宽）
 - **Ponytail 7 级阶梯**：YAGNI → 复用 → 标准库 → 平台特性 → 已有依赖 → 一行代码 → 最小实现
 - **Ponytail 注入**：injectPonytail 将 PONYTAIL_CONSTRAINTS 注入到根 spec.md，保留原有内容
+- **结构白名单**：`structure-validator.ts` 定义合法目录/文件集合，扫描项目中所有 `.mumuspec/` 目录，未定义条目报 `E-SPEC-013`/`E-SPEC-014`
+- **LLM-Wiki 记忆加载**：`loadSpecContext` 通过 `loadKnowledgeMemoryForContext` 动态加载 `_memory.yaml`，为 AI 提供设计时外部记忆（L3 项目级 + L2 作用域级摘要）
 
 ## 接口契约 (Interface contracts)
 
@@ -50,6 +56,9 @@ function searchSpecs(projectRoot: string, config: MumuSpecConfig, query: string)
 // validator.ts
 function validateAllSpecs(projectRoot: string, config: MumuSpecConfig): GuardResult;
 
+// structure-validator.ts
+function validateMumuSpecStructure(projectRoot: string): GuardResult;
+
 // inheritance.ts
 function checkInheritanceConflicts(parentSpec: SpecFile, childSpec: SpecFile): InheritanceConflict[];
 ```
@@ -57,4 +66,5 @@ function checkInheritanceConflicts(parentSpec: SpecFile, childSpec: SpecFile): I
 ## 依赖关系 (Dependencies)
 
 - **上游**：`src/core/types.js`、`src/core/config.js`、`src/core/utils.js`、`src/core/errors.js`
+- **跨模块**：`src/knowledge/memory.ts`（通过动态 `require` 加载，避免循环依赖）
 - **下游**：被 `src/guard/checker.ts`、`src/rules/generator.ts`、`src/cli/commands/spec.ts`、`src/mcp-server.ts` 调用

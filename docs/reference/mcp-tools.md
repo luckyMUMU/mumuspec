@@ -44,7 +44,7 @@ MumuSpec MCP Server 目前提供 **20 个工具**，覆盖规范、校验、变�
 |------|------|---------|
 | `check_compliance` | 代码合规校验（SHALL / SHALL NOT / Ponytail） | `shall`, `shallNot`, `ponytail` |
 | `detect_drift` | 检测规范与代码的漂移 | —— |
-| `guard_check` | 执行阶段门禁检查 | `change` (必填), `phase` (必填) |
+| `guard_check` | 执行阶段守卫检查 | `change` (必填), `phase` (必填) |
 
 ### 变更管理（2 个）
 

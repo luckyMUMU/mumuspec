@@ -4,8 +4,8 @@
 import type { Command } from 'commander';
 import { join } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { findProjectRoot } from '../../core/utils.js';
-import { loadConfig, saveConfig } from '../../core/config.js';
+import { findProjectRoot, dumpYaml } from '../../core/utils.js';
+import { loadConfig, saveConfig, type MumuSpecConfig } from '../../core/config.js';
 import { generateOnboardingPath } from '../../knowledge/manager.js';
 
 interface OnboardTemplate {
@@ -49,7 +49,6 @@ export function registerOnboardCommands(program: Command): void {
       try {
         mkdirSync(onboardDir, { recursive: true });
         const fileName = `${options.scope.replace(/[/\\]/g, '-')}-${options.role}.yaml`;
-        const { dumpYaml } = require('../../dist/core/utils');
         writeFileSync(join(onboardDir, fileName), dumpYaml(path));
         console.log(`Learning path generated: ${path.total_steps} steps (${path.estimated_minutes} min)`);
       } catch {
@@ -115,14 +114,14 @@ export function registerOnboardCommands(program: Command): void {
   // ── QuickStart: guided 5-question config generation ──
   onboardCmd
     .command('quickstart')
-    .description('Quick-start wizard: answer 5 questions to generate optimized config')
+    .description('Quick-start wizard: generate config and create a sample change')
     .option('--preset <type>', 'Skip questions, use preset template (frontend|backend|fullstack)')
-    .action((options) => {
+    .option('--no-sample', 'Skip sample change creation')
+    .action(async (options) => {
       const root = requireRoot();
 
       let templateType = options.preset;
       if (!templateType) {
-        // Default to frontend when running non-interactively (ponytail: skip interactive readline)
         templateType = 'frontend';
       }
 
@@ -135,13 +134,36 @@ export function registerOnboardCommands(program: Command): void {
       // Merge with existing config if present
       const existing = loadConfig(root);
       const merged = mergeConfigWithTemplate(existing, template);
-      saveConfig(root, merged as Parameters<typeof saveConfig>[1]);
+      saveConfig(root, merged);
 
       console.log(`\n✓ Configuration generated for ${templateType} project`);
       console.log(`  SHALL rules:     ${template.guard_layer.shall.length}`);
       console.log(`  SHALL NOT rules: ${template.guard_layer.shall_not.length}`);
       console.log(`  Default strength: ${template.constraint_strength.default}`);
-      console.log(`\nNext step: mumuspec new <change-name>`);
+
+      // P1-6 Fix: Offer to create a sample change for faster onboarding
+      if (options.sample !== false) {
+        const changeName = `hello-world-${Date.now().toString(36)}`;
+        console.log(`\n→ Creating sample change "${changeName}"...`);
+        
+        // Create the change using existing createChange logic
+        try {
+          const { createChange } = await import('../../change/lifecycle.js');
+          const cfg = loadConfig(root);
+          createChange(root, changeName, 'tweak', cfg);
+          console.log(`✓ Sample change created: ${changeName}`);
+          console.log(`\n🚀 Quick Start Complete! Now run:\n`);
+          console.log(`   cd ${root}`);
+          console.log(`   mumuspec design ${changeName}     # Write your design`);
+          console.log(`   mumuspec build ${changeName}      # Implement your changes`);
+          console.log(`   mumuspec verify ${changeName}     # Verify compliance`);
+          console.log(`   mumuspec archive ${changeName}    # Archive when done`);
+        } catch {
+          console.log(`\nNext step: mumuspec new <change-name>`);
+        }
+      } else {
+        console.log(`\nNext step: mumuspec new <change-name>`);
+      }
     });
 }
 
@@ -159,17 +181,14 @@ function loadTemplate(type: string): OnboardTemplate | null {
 
 /** Merge template guard layer into existing config (preserving existing fields). */
 function mergeConfigWithTemplate(
-  existing: object,
+  existing: MumuSpecConfig,
   template: OnboardTemplate,
-): object {
+): MumuSpecConfig {
   return {
     ...existing,
-    onboard_preset: template.type,
-    constraint_strength: {
-      default: template.constraint_strength.default,
-      overrides: template.constraint_strength.overrides,
-    },
+    constraint_strength: existing.constraint_strength,
     ai: {
+      ...existing.ai,
       generate_rules: template.ai.generate_rules,
     },
   };

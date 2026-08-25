@@ -9,6 +9,7 @@ import type {
   TechFile,
   Requirement,
   InheritanceConflictRef,
+  SpecKnowledgeMemory,
 } from '../core/types.js';
 import {
   parseSpecFile,
@@ -128,13 +129,70 @@ export function loadSpecContext(
   // Process inheritance if parent_prd / parent_tech references exist
   const conflicts = processInheritance(layers, projectRoot);
 
+  // Load knowledge memory context for design-time AI consumption
+  const knowledgeMemory = loadKnowledgeMemoryForContext(projectRoot, config, targetPath);
+
   return {
     targetPath,
     layers,
     prohibitions: [...new Set(prohibitions)],
     index,
     inheritance_conflicts: conflicts.length > 0 ? conflicts : undefined,
+    knowledge_memory: knowledgeMemory,
   };
+}
+
+/**
+ * Load LLM-Wiki knowledge memory for spec context.
+ * Provides AI with relevant historical decisions, patterns, risks, and lessons
+ * as external memory during new design and change creation.
+ */
+function loadKnowledgeMemoryForContext(
+  projectRoot: string,
+  config: MumuSpecConfig,
+  targetPath: string,
+): SpecKnowledgeMemory | undefined {
+  try {
+    // Compute scope from targetPath relative to projectRoot
+    const relPath = relative(projectRoot, targetPath).split(sep).join('/');
+    const scope = relPath || '.';
+
+    // Lazy import to avoid circular dependency
+    // ponytail: dynamic import avoids circular dep between spec → knowledge → spec
+    const { getMemoryContext } = require('../knowledge/memory.js') as typeof import('../knowledge/memory.js');
+    const memory = getMemoryContext(projectRoot, config, scope);
+
+    return {
+      project_summary: memory.project_summary,
+      relevant_decisions: memory.relevant_decisions.map(d => ({
+        id: d.id,
+        title: d.title,
+        summary: d.summary,
+        scope: d.scope,
+      })),
+      relevant_patterns: memory.relevant_patterns.map(p => ({
+        id: p.id,
+        title: p.title,
+        summary: p.summary,
+        scope: p.scope,
+      })),
+      relevant_risks: memory.relevant_risks.map(r => ({
+        id: r.id,
+        title: r.title,
+        summary: r.summary,
+        scope: r.scope,
+      })),
+      recent_lessons: memory.recent_lessons.map(l => ({
+        id: l.id,
+        title: l.title,
+        summary: l.summary,
+      })),
+    };
+  } catch (e) {
+    // Knowledge memory is best-effort — don't block spec loading
+    Logger.debug('spec.loader', 'Failed to load knowledge memory context', { error: (e as Error).message });
+    return undefined;
+  }
 }
 
 /**

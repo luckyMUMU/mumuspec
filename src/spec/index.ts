@@ -7,3 +7,4 @@ export * from './loader.js';
 export * from './parser.js';
 export * from './ponytail.js';
 export * from './validator.js';
+export * from './structure-validator.js';

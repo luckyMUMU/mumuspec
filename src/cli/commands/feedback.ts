@@ -3,6 +3,7 @@
  */
 import type { Command } from 'commander';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { findProjectRoot } from '../../core/utils.js';
 import { loadChangeState } from '../../change/manager.js';
 import { appendFeedbackToChange, getChangeFeedbacks } from '../../change/manager.js';
@@ -46,7 +47,6 @@ export function registerFeedbackCommands(program: Command): void {
       // Read detail from file if specified
       let detail = options.detail;
       if (options.file) {
-        const { readFileSync } = require('node:fs') as typeof import('node:fs');
         const filePath = resolve(options.file);
         detail = readFileSync(filePath, 'utf8');
       }

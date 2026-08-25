@@ -4,9 +4,9 @@
 
 [![npm version](https://img.shields.io/npm/v/mumuspec)](https://www.npmjs.com/package/mumuspec) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-MumuSpec 通过 SHALL（必须做）与 MUST NOT（绝不能做）两套规范树，让 AI 编程工具（Claude Code / Cursor / Codex 等）在项目架构与需求的边界内工作，减少人工审查成本，提升 AI 生成代码的合规性。
+MumuSpec 通过 SHALL（必须做）与 SHALL NOT（绝不能做）两套规范树，让 AI 编程工具（Claude Code / Cursor / Codex 等）在项目架构与需求的边界内工作，减少人工审查成本，提升 AI 生成代码的合规性。
 
-当前版本：**0.16.0-beta.0**（`next` 通道），稳定版 **0.10.0**（`latest`）。设计进度 100%，实现进度约 90%。详细路线图见 [STATUS.md](docs/STATUS.md)。
+当前版本：**0.19.1**。设计进度 100%，实现进度约 60%。详细状态见 [STATUS.md](docs/STATUS.md)。
 
 ---
 
@@ -37,15 +37,15 @@ MumuSpec 围绕四大设计支柱构建，将"AI 该做什么"与"绝不该做�
 
 ### 1. 双向约束（Dual Constraint）
 
-通过 SHALL（必须做）与 SHALL NOT（绝不能做）两套规范树，定义 AI 工作的正负边界。正向约束指明必达目标，反向约束划定不可逾越的红线。每条规范均关联可执行的 Enforcement 条目，通过 Lint / CI / Guard 自动校验，杜绝"摆设文档"。
+通过 SHALL（必须做）与 SHALL NOT（绝不能做）两套规范树，定义 AI 工作的正负边界。正向约束指明必达目标，反向约束划定不可逾越的红线。规范关联可执行的 Enforcement 条目，通过 Lint / CI / Guard 自动校验。
 
 ### 2. 树状分布 + 渐进式披露（Tree Progressive）
 
-规范按项目目录树分层存放，子层自动继承父层约束（可收紧、不可放宽）。AI 只加载当前工作目录的规范链，而非全量加载，token 消耗较全量减少 60% 以上。冲突时高层级优先，保证全局一致性。
+规范按项目目录树分层存放，子层自动继承父层约束（可收紧、不可放宽）。AI 只加载当前工作目录的规范链，而非全量加载，显著降低 token 消耗。冲突时高层级优先，保证全局一致性。
 
 ### 3. 持久化 + 代码绑定（Code-Bound）
 
-规范存储在 `.mumuspec/` 下，版本化管理，不随代码删除而消失。CI/CD 自动校验代码与规范的一致性，漂移检测覆盖 spec、graph、contract、knowledge 等维度。Phase Guard 在每次阶段转换时强制执行门禁检查。
+规范存储在 `.mumuspec/` 下，版本化管理，不随代码删除而消失。CI/CD 自动校验代码与规范的一致性，漂移检测覆盖 spec、graph、contract、knowledge 等维度。Phase Guard 在每次阶段转换时强制执行阶段守卫检查。
 
 ### 4. 双维度动态约束强度（Dynamic Constraint Strength）
 
@@ -59,7 +59,7 @@ MumuSpec 的四条工作流规则按约束强度等级求值，贯穿变更生�
 
 | # | 规则 | 含义 |
 |---|------|------|
-| 1 | **Worktree 隔离** | 每个变更在独立 worktree 中工作，物理隔离主分支，支持零上下文恢复 |
+| 1 | **Worktree 隔离** | 每个变更在独立 worktree 中工作，物理隔离主分支，支持零上下文恢复（当前为配置级推荐，自动 worktree 操作在开发中） |
 | 2 | **单一活跃变更** | 同时只允许一个活跃变更，强制单一任务专注；并行须在跨 scope 目录 |
 | 3 | **自顶向下设计，自底向上实现** | 设计从根到叶逐级细化，实现从叶到根逐级集成 |
 | 4 | **红绿 TDD** | 测试用例是 Design 阶段的产出，Design 锁定后测试不可变更 |
@@ -103,7 +103,7 @@ MumuSpec 提供两条快速预设，可跳过 Design 阶段以加速简单变更
 
 1. 检测是否存在活跃变更，若无则路由至 `phase-open`
 2. 若有活跃变更，按当前 `phase` 字段分发至对应阶段 Skill
-3. 各阶段 Skill 内通过 Phase Guard 门禁校验，通过后方可推进至下一阶段
+3. 各阶段 Skill 内通过 Phase Guard 阶段守卫校验，通过后方可推进至下一阶段
 4. 同时检测预设条件，满足 hotfix/tweak 则走快速路径
 
 社区 Skill（如 Brainstorming、Hyperplan、TDD）通过 Skill Bridge 挂入各阶段，形成完整的 AI 编程流水线。
@@ -185,7 +185,7 @@ mumuspec archive my-first-change
 | **规范树** | 按目录分层存放规范，子层继承父层、可收紧不可放宽 |
 | **渐进式披露** | AI 只加载当前工作目录的规范链，减少 token 消耗 |
 | **变更（Change）** | Open → Design → Build → Verify → Archive 五阶段生命周期 |
-| **Phase Guard** | 阶段转换时自动执行的校验门禁 |
+| **Phase Guard** | 阶段转换时自动执行的阶段守卫校验 |
 | **约束强度** | high / medium / low 三档，按团队成熟度动态调整工作流严格度 |
 | **Ponytail** | 7 级优先级编码约束阶梯（YAGNI → 复用 → 标准库 → 平台特性 → 已有依赖 → 一行代码 → 最小实现） |
 | **Skills** | 阶段编排器，把 AI 工具指引到外部子 Skill（TDD / Code Review / Brainstorming 等） |
@@ -205,7 +205,7 @@ mumuspec archive my-first-change
   "mcpServers": {
     "mumuspec": {
       "command": "npx",
-      "args": ["-y", "mumuspec@next"],
+      "args": ["-y", "mumuspec@0.19.1"],
       "env": { "MUMUSPEC_ROOT": "${workspaceRoot}" }
     }
   }
@@ -230,7 +230,7 @@ mumuspec archive my-first-change
 |------|------|
 | `check_compliance` | 代码合规校验（SHALL/SHALL NOT/Ponytail） |
 | `detect_drift` | 检测规范与代码的漂移 |
-| `guard_check` | 阶段门禁检查 |
+| `guard_check` | 阶段守卫检查 |
 
 **变更管理**
 
@@ -301,7 +301,7 @@ mumuspec status [name]                                     # 变更状态
 mumuspec list                                              # 列出活跃变更
 mumuspec archive <name>                                    # 归档变更
 mumuspec discard <name>                                    # 废弃变更
-mumuspec guard <change> <phase>                            # 阶段门禁检查
+mumuspec guard <change> <phase>                            # 阶段守卫检查
 mumuspec state                                             # 状态机管理
 mumuspec test-cases                                        # 测试用例管理
 mumuspec knowledge                                         # 知识库操作（list/search/context）
@@ -370,9 +370,8 @@ my-project/
 
 | 通道 | dist-tag | 当前版本 | 安装命令 |
 |------|---------|---------|---------|
-| 稳定版 | `latest` | 0.10.0 | `npm install -g mumuspec` |
-| 预发布版 | `next` | 0.16.0-beta.0 | `npm install -g mumuspec@next` |
-| 指定版本 | —— | —— | `npm install -g mumuspec@0.16.0-beta.0` |
+| 稳定版 | `latest` | 0.19.1 | `npm install -g mumuspec` |
+| 指定版本 | —— | —— | `npm install -g mumuspec@0.19.1` |
 
 灰度策略（Canary → Beta → RC → Stable）见 [docs/reference/release-strategy.md](docs/reference/release-strategy.md)。
 
@@ -390,7 +389,7 @@ my-project/
 | [docs/reference/mcp-tools.md](docs/reference/mcp-tools.md) | MCP 工具参考 |
 | [docs/reference/configuration.md](docs/reference/configuration.md) | config.yaml 完整 schema |
 | [docs/reference/packaging-deployment.md](docs/reference/packaging-deployment.md) | 打包、发布、安装 |
-| [docs/reference/release-strategy.md](docs/reference/release-strategy.md) | 灰度与回滚 |
+| [docs/reference/release-strategy.md](docs/reference/release-strategy.md) | 灰度与回退 |
 | [docs/STATUS.md](docs/STATUS.md) | 设计/实现进度权威数据 |
 | [CHANGELOG.md](CHANGELOG.md) | 版本变更日志 |
 | [LICENSE](LICENSE) | MIT 许可证全文 |

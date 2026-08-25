@@ -2,8 +2,9 @@
  * Knowledge analysis subcommands — impact, coverage, gaps, graph-export.
  */
 import type { Command } from 'commander';
-import { join, dirname } from 'node:path';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import type { CoverageGap, KnowledgePage } from '../../core/types.js';
 import { findProjectRoot } from '../../core/utils.js';
 import { loadConfig } from '../../core/config.js';
@@ -13,6 +14,14 @@ import {
   analyzeCoverage,
   readReverseIndex,
 } from '../../knowledge/manager.js';
+
+/** 从 package.json 读取版本号（ESM 下无法 require JSON，参照 mcp-server.ts 模式） */
+function getPkgVersion(): string {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const pkgPath = resolve(__dirname, '..', '..', '..', 'package.json');
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+  return pkg.version;
+}
 
 function requireRoot(): string {
   const root = findProjectRoot();
@@ -179,7 +188,7 @@ export function registerKnowledgeAnalysis(program: Command, knowledgeCmd: Comman
       const graph = {
         version: '1.0',
         generated_at: new Date().toISOString(),
-        generator: `mumuspec@${require('../../../package.json').version}`,
+        generator: `mumuspec@${getPkgVersion()}`,
         nodes: pages.map((p: KnowledgePage) => ({
           id: p.frontmatter.id,
           type: p.frontmatter.type,
