@@ -1,0 +1,57 @@
+name: test-knowledge-extraction
+phase: archive-completed
+workflow: full
+created_at: 2026-08-01T01:36:14.638Z
+updated_at: 2026-08-01T01:45:46.835Z
+affected_scopes:
+  - src/api
+  - src/models
+build_layers:
+  - layer: 0
+    scope: src/api
+    status: done
+  - layer: 1
+    scope: src/models
+    status: done
+test_cases:
+  design_locked: true
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+  design_content_hash: e3b0c44298fc1c14
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: worktree
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts: {}
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 2
+  q2_pending: 1
+  q3_pending: 0
+  q4_scans_completed: 3
+  converged: true
+  rounds_completed: 8
+  cognitive_map_ref: cognitive-map.yaml
+hyperplan_result:
+  triggered: true
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+verify_result: pass
+branch_status: handled
+knowledge_extraction:
+  completed: true
+  pages_created_count: 6
+  graph_bindings_verified: true
+  conflicts_resolved: true

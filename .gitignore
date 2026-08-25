@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Temporary files
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Trae IDE artifacts
+.trae/
+.trae-html-share-packages/
+mumuspec-ecosystem-comparison/
+
+# Environment
+.env
+.env.local
+
+# CatPaw/IDE local tooling
+.meituan-catpaw/
+.workbuddy/
+
+# Coverage output (temporary)
+cov*.txt
+coverage-result.json
+
+# Git status output (temporary)
+git-status.txt
+
+# OMO run continuation (session state, not source)
+.omo/run-continuation/
+
+# MumuSpec temp directory (non-spec artifacts, logs, migration staging)
+.mumuspec/temp/

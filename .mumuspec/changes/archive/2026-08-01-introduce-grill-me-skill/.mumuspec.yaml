@@ -1,0 +1,55 @@
+name: introduce-grill-me-skill
+phase: archived
+workflow: full
+created_at: 2026-08-01T00:47:00.000Z
+updated_at: 2026-08-01T00:47:00.000Z
+affected_scopes:
+  - .mumuspec/bundles/mumuspec-skills/phase-design.md
+  - skills/phase-design.md
+  - .mumuspec/knowledge/patterns/
+build_layers:
+  - layer: 1
+    status: pending
+  - layer: 0
+    status: pending
+test_cases:
+  design_locked: true
+  design_content_hash: "sha256:grill-me-design-v1"
+  suites_locked: true
+  suites_locked_layers: [0, 1]
+  suites_hash: {}
+  ponytail_constraints_defined: true
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: direct
+tdd_mode: tdd
+isolation: worktree
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 5
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 8
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 4
+  converged: true
+  rounds_completed: 1
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: false
+  open_questions_resolved: false
+  degraded: false
+verify_result: pass
+verification_report: verify.md
+branch_status: pending
+archived: true
+feedback_log:
+  entries: []
+  session_links: []
+

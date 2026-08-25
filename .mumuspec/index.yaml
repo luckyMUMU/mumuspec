@@ -1,0 +1,128 @@
+scope: .
+layer: 0
+last_updated: 2026-08-01
+children:
+  - name: mumuspec
+    path: .
+    prd_summary: "产品需求概览: MumuSpec"
+    tech_summary: "技术概览: MumuSpec"
+  - name: demo
+    path: demo
+    prd_summary: "Product Requirements: task-api"
+    tech_summary: "Technical Design: task-api"
+  - name: api
+    path: demo\src\api
+    prd_summary: "Product Requirements: API 层"
+    tech_summary: "Technical Design: API 层"
+  - name: models
+    path: demo\src\models
+    prd_summary: "Product Requirements: 数据模型层"
+    tech_summary: "Technical Design: 数据模型层"
+  - name: storage
+    path: demo\src\storage
+    prd_summary: "Product Requirements: 存储层"
+    tech_summary: "Technical Design: 存储层"
+  - name: docs
+    path: docs
+    prd_summary: "Product Requirements: docs"
+    tech_summary: "Technical Design: docs"
+  - name: appendix
+    path: docs\appendix
+    prd_summary: "Product Requirements: appendix"
+    tech_summary: "Technical Design: appendix"
+  - name: design
+    path: docs\design
+    prd_summary: "Product Requirements: design"
+    tech_summary: "Technical Design: design"
+  - name: reference
+    path: docs\reference
+    prd_summary: "Product Requirements: reference"
+    tech_summary: "Technical Design: reference"
+  - name: docs/reference/skills
+    path: docs\reference\skills
+    prd_summary: "Product Requirements: skills reference"
+    tech_summary: "Technical Design: skills reference"
+  - name: feedback
+    path: feedback
+    prd_summary: "Product Requirements: feedback (top-level)"
+    tech_summary: "Technical Design: feedback (top-level)"
+  - name: scripts
+    path: scripts
+    prd_summary: "Product Requirements: scripts"
+    tech_summary: "Technical Design: scripts"
+  - name: skills
+    path: skills
+    prd_summary: "Product Requirements: skills (top-level)"
+    tech_summary: "Technical Design: skills (top-level)"
+  - name: src
+    path: src
+    prd_summary: "Product Requirements: src (source root)"
+    tech_summary: "Technical Design: src (source root)"
+  - name: bundle
+    path: src\bundle
+    prd_summary: "Product Requirements: bundle"
+    tech_summary: "Technical Design: bundle"
+  - name: change
+    path: src\change
+    prd_summary: "Product Requirements: change"
+    tech_summary: "Technical Design: change"
+  - name: cli
+    path: src\cli
+    prd_summary: "Product Requirements: cli"
+    tech_summary: "Technical Design: cli"
+  - name: commands
+    path: src\cli\commands
+    prd_summary: "Product Requirements: cli/commands"
+    tech_summary: "Technical Design: cli/commands"
+  - name: core
+    path: src\core
+    prd_summary: "Product Requirements: core"
+    tech_summary: "Technical Design: core"
+  - name: eval
+    path: src\eval
+    prd_summary: "Product Requirements: eval"
+    tech_summary: "Technical Design: eval"
+  - name: src/feedback
+    path: src\feedback
+    prd_summary: "Product Requirements: feedback module"
+    tech_summary: "Technical Design: feedback module"
+  - name: guard
+    path: src\guard
+    prd_summary: "Product Requirements: guard"
+    tech_summary: "Technical Design: guard"
+  - name: hooks
+    path: src\hooks
+    prd_summary: "Product Requirements: hooks"
+    tech_summary: "Technical Design: hooks"
+  - name: i18n
+    path: src\i18n
+    prd_summary: "Product Requirements: i18n"
+    tech_summary: "Technical Design: i18n"
+  - name: install
+    path: src\install
+    prd_summary: "Product Requirements: install"
+    tech_summary: "Technical Design: install"
+  - name: knowledge
+    path: src\knowledge
+    prd_summary: "Product Requirements: knowledge"
+    tech_summary: "Technical Design: knowledge"
+  - name: rules
+    path: src\rules
+    prd_summary: "Product Requirements: rules"
+    tech_summary: "Technical Design: rules"
+  - name: skill-authoring
+    path: src\skill-authoring
+    prd_summary: "Product Requirements: skill-authoring"
+    tech_summary: "Technical Design: skill-authoring"
+  - name: spec
+    path: src\spec
+    prd_summary: "Product Requirements: spec"
+    tech_summary: "Technical Design: spec"
+  - name: templates
+    path: templates
+    prd_summary: "Product Requirements: templates"
+    tech_summary: "Technical Design: templates"
+  - name: tests
+    path: tests
+    prd_summary: "Product Requirements: tests"
+    tech_summary: "Technical Design: tests"

@@ -1,0 +1,21 @@
+{
+  "name": "lan-image-share",
+  "version": "1.0.0",
+  "description": "局域网高清图片分享服务 — MumuSpec demo 测试项目",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx src/server.ts",
+    "test": "vitest run"
+  },
+  "keywords": ["image", "share", "lan", "demo"],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}

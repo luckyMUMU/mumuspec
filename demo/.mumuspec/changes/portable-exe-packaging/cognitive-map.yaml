@@ -1,0 +1,28 @@
+entries:
+  - quadrant: Q1
+    category: persistent
+    question: "Node.js SEA 是什么?"
+    answer: "Node.js Single Executable Application，允许将应用打包为单个可执行文件"
+    confidence: high
+    source: node-docs
+
+  - quadrant: Q1
+    category: persistent
+    question: "SEA 有什么限制?"
+    answer: "需要 Node.js >= 20，不能使用原生模块，动态 require 受限"
+    confidence: high
+    source: node-docs
+
+  - quadrant: Q3
+    status: confirmed
+    question: "为什么选择 SEA 而非 pkg/nexe?"
+    answer: "SEA 是 Node.js 官方内置能力，零外部依赖，符合 Ponytail 约束"
+    confidence: high
+    source: design-drill-down
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "SEA 打包静态文件资源如何处理?"
+    answer: "需要使用 --allow-dynamic-modules 或将资源转为 JS 模块内联"
+    confidence: medium
+    source: risk-scan

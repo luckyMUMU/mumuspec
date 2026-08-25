@@ -1,0 +1,48 @@
+name: CI
+
+# Anti-regression gate. R1/R2 audits found the CLI shipped with a broken
+# build artifact (commander 'check' collision crashed on startup) because no
+# gate ever assembled and ran the real command tree. This workflow closes that.
+on:
+  push:
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Smoke — CLI must start (catches R3-style command collisions)
+        run: node dist/cli.js --help
+
+      - name: CI Checks — version consistency & doc drift
+        # P0-6 Fix: Prevent version inconsistencies and documentation drift
+        run: npm run ci:check
+
+      - name: Enforce project rules (strict gate)
+        # Strict: any warning or error reds the build. The 5 known warnings
+        # (false-positive bitwise detection + missing env Detected section)
+        # were cleared in R5, so strict now passes.
+        run: npm run enforce:strict
+
+      - name: Lint (type-check, no emit)
+        run: npm run lint
+
+      - name: Test (+ coverage gate)
+        run: npm run test:coverage
+
+      - name: Dogfood — project checks its own spec
+        run: node dist/cli.js check

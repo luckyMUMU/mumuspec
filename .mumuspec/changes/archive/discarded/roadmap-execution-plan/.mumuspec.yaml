@@ -1,0 +1,50 @@
+name: roadmap-execution-plan
+phase: discarded
+workflow: full
+created_at: 2026-08-07T16:24:58.645Z
+updated_at: 2026-08-08T12:58:29.637Z
+scope: .
+affected_scopes: []
+build_layers: []
+test_cases:
+  design_locked: false
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: worktree
+single_active_change: true
+user_confirmed: false
+decisions_log:
+  counts: {}
+rollback_history:
+  - from: discarded
+    to: discarded
+    reason: 实质工作（sync/review/roadmap 数据修复）已完成并提交 commit 12fdc17，变更跟踪收尾
+    timestamp: 2026-08-08T12:58:29.642Z
+    counted: false
+    event: discard
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md

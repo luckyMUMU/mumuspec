@@ -1,0 +1,30 @@
+:root {
+  --bg-panel: #1a1d2e;
+  --bg-canvas: #141622;
+  --bg-bubble: #232740;
+  --border: #2e3348;
+  --text: #e5e7ee;
+  --text-muted: #8b8fa8;
+  --accent: #4f8cff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  width: 100vw;
+  background: var(--bg-canvas);
+  color: var(--text);
+}
+
+button {
+  font-family: inherit;
+}

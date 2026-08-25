@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mumuspec.dev/schemas/drift-report.schema.json",
+  "title": "MumuSpec DriftReport",
+  "description": "Standardized contract drift detection report format (R-0006)",
+  "type": "object",
+  "required": ["version", "timestamp", "total_contracts", "drift_count", "drifts"],
+  "properties": {
+    "version": { "type": "string", "const": "1.0.0" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "total_contracts": { "type": "integer", "minimum": 0 },
+    "drift_count": { "type": "integer", "minimum": 0 },
+    "drifts": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/ContractDrift" }
+    },
+    "clean_contracts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "scan_duration_ms": { "type": "integer", "minimum": 0 },
+    "has_critical_drifts": { "type": "boolean" }
+  },
+  "definitions": {
+    "ContractDrift": {
+      "type": "object",
+      "required": ["type", "severity", "id", "contract_id", "message"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "unimplemented",
+            "diverged",
+            "deprecated_in_use",
+            "schema_mismatch",
+            "orphaned_consumer",
+            "enforcement_violation"
+          ]
+        },
+        "severity": { "type": "string", "enum": ["ERROR", "WARNING", "INFO"] },
+        "id": { "type": "string" },
+        "contract_id": { "type": "string" },
+        "message": { "type": "string" },
+        "expected": { "type": "string" },
+        "actual": { "type": "string" },
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "suggestion": { "type": "string" },
+        "error_code": {
+          "type": "string",
+          "pattern": "^E-CONTRACT-\\d{3}$"
+        }
+      }
+    }
+  }
+}

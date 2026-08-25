@@ -1,0 +1,497 @@
+import type {
+  ChangePhase,
+  ChangeState,
+  Workflow,
+  GuardResult,
+} from '../core/types.js';
+import { PhaseGraph, DEFAULT_PHASE_GRAPH, type PhaseEdge } from './phase-graph.js';
+import { loadProjectWorkflowConfig, type ProjectWorkflowLoadResult } from './phase-graph-loader.js';
+
+/**
+ * State machine implementation using a Directed Cyclic Graph (DCG).
+ *
+ * The graph explicitly models:
+ * - Forward edges: progress toward completion
+ * - Backward edges: rollback/rework (these create cycles)
+ * - Skip edges: conditional shortcuts (hotfix/tweak)
+ *
+ * All public APIs maintain backward compatibility with the previous flat
+ * transition tables. Internally, all operations delegate to the PhaseGraph.
+ */
+
+/**
+ * Legacy rollback type identifiers — preserved for backward compatibility.
+ * These map to specific backward edges in the DCG.
+ */
+export type RollbackType =
+  | 'build_to_design'
+  | 'verify_to_design'
+  | 'verify_to_build'
+  | 'archive_ci_fail';
+
+/**
+ * Map legacy rollback types to their corresponding graph edges.
+ */
+function resolveRollbackEdge(graph: PhaseGraph, type: RollbackType): PhaseEdge | undefined {
+  const mapping: Record<RollbackType, { from: ChangePhase; to: ChangePhase }> = {
+    'build_to_design': { from: 'build', to: 'design' },
+    'verify_to_design': { from: 'verify', to: 'design' },
+    'verify_to_build': { from: 'verify', to: 'build' },
+    'archive_ci_fail': { from: 'archive-in-progress', to: 'build' },
+  };
+
+  const { from, to } = mapping[type];
+  return graph.getEdge(from, to);
+}
+
+/**
+ * CHG-7 — 模块级可注入 active graph。
+ * - setActivePhaseGraph(graph) 注入项目级图；未注入（undefined）→ DEFAULT_PHASE_GRAPH。
+ * - CLI/MCP 入口调用 activateProjectWorkflow() 完成加载+注入；
+ *   单测可直接 setActivePhaseGraph(new PhaseGraph(cfg)) 注入。
+ * - 全局可变状态的进程模型约束：CLI 每次命令 = 独立进程；MCP 每请求重算 root 并注入；
+ *   测试文件在 afterEach 复位。未调用 setter 时行为与 0.19.1 完全一致（AC-02）。
+ */
+let activeGraph: PhaseGraph | undefined;
+
+/**
+ * Inject the phase graph used by all state-machine operations.
+ * Pass undefined to restore the built-in default graph.
+ */
+export function setActivePhaseGraph(graph: PhaseGraph | undefined): void {
+  activeGraph = graph;
+}
+
+/**
+ * Get the PhaseGraph instance. Uses the injected project-level graph when
+ * present, otherwise the default singleton (0.19.1-identical behavior).
+ */
+function getGraph(): PhaseGraph {
+  return activeGraph ?? DEFAULT_PHASE_GRAPH;
+}
+
+/**
+ * Get the graph instance (public accessor — returns the effective graph,
+ * i.e. injected project graph or default).
+ */
+export function getPhaseGraph(): PhaseGraph {
+  return getGraph();
+}
+
+/**
+ * CHG-7 — load the project-level workflow override and activate it.
+ * - .mumuspec/workflow.yaml 存在且有效 → 注入项目级图（source 'project'）
+ * - 缺失/损坏/非法 → WARN + 回退内置（source 'default'，不注入 → DEFAULT）
+ * 返回 loadProjectWorkflowConfig 的结果，供调用方展示/断言。
+ */
+export function activateProjectWorkflow(projectRoot: string): ProjectWorkflowLoadResult {
+  const result = loadProjectWorkflowConfig(projectRoot);
+  setActivePhaseGraph(result.source === 'project' ? new PhaseGraph(result.config) : undefined);
+  return result;
+}
+
+// ─── Backward-compatible API ──────────────────────────────────────────────
+
+/**
+ * Check if a transition is valid (explicit edge in the DCG, or a
+ * synthesized flexible edge between non-terminal states).
+ * For backward compatibility, this does not check runtime conditions.
+ * Use `canTransitionWithContext` for context-aware checks.
+ */
+export function canTransition(from: ChangePhase, to: ChangePhase): boolean {
+  return getGraph().resolveEdge(from, to) !== undefined;
+}
+
+/**
+ * Context-aware transition check.
+ * Returns true only if an edge exists AND any runtime conditions are satisfied.
+ * Flexible edges (non-terminal to non-terminal) are always available.
+ */
+export function canTransitionWithContext(
+  from: ChangePhase,
+  to: ChangePhase,
+  state: ChangeState,
+): boolean {
+  return getGraph().resolveEdge(from, to, {
+    workflow: state.workflow,
+    ...stateToContext(state),
+  }) !== undefined;
+}
+
+/**
+ * Get all valid transitions from a phase: explicit outgoing edges plus
+ * synthesized flexible targets between non-terminal states.
+ */
+export function getValidTransitions(from: ChangePhase): ChangePhase[] {
+  const graph = getGraph();
+  return [...graph.getOutgoingEdges(from), ...graph.getFlexibleTargets(from)].map((e) => e.to);
+}
+
+/**
+ * Get valid transitions with context awareness (filters conditional edges,
+ * keeps flexible targets).
+ */
+export function getValidTransitionsWithContext(from: ChangePhase, state: ChangeState): ChangePhase[] {
+  const graph = getGraph();
+  const context = { workflow: state.workflow, ...stateToContext(state) };
+  return [...graph.getOutgoingEdges(from, context), ...graph.getFlexibleTargets(from)].map((e) => e.to);
+}
+
+/**
+ * Check if a transition requires user confirmation (has a blocking point).
+ * Flexible edges carry no blocking point, so they never require confirmation.
+ */
+export function requiresUserConfirmation(from: ChangePhase, to: ChangePhase): {
+  required: boolean;
+  bp: string;
+  description: string;
+} {
+  const edge = getGraph().resolveEdge(from, to);
+  if (edge?.blockingPoint) {
+    return {
+      required: edge.blockingPoint.required,
+      bp: edge.blockingPoint.bp,
+      description: edge.blockingPoint.description,
+    };
+  }
+  return { required: false, bp: '', description: '' };
+}
+
+/**
+ * Execute a transition (returns updated state).
+ * Preserves backward-compatible signature.
+ */
+export function executeTransition(
+  state: ChangeState,
+  to: ChangePhase,
+  options?: { userConfirmed?: boolean; reason?: string },
+): { state: ChangeState; success: boolean; error?: string } {
+  const from = state.phase;
+  const graph = getGraph();
+
+  // Check if already in target phase
+  if (from === to) {
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-007: Already in phase '${to}', no transition needed`,
+    };
+  }
+
+  // Check for terminal states
+  if (graph.isTerminalState(from)) {
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: ${from} is terminal`,
+    };
+  }
+
+  // Resolve the edge (explicit or flexible), context-aware
+  const edge = graph.resolveEdge(from, to, {
+    workflow: state.workflow,
+    ...stateToContext(state),
+  });
+
+  if (!edge) {
+    const validTargets = getValidTransitionsWithContext(from, state);
+    const hint = validTargets.length > 0
+      ? `valid targets from ${from}: [${validTargets.join(', ')}]`
+      : `${from} is terminal`;
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: Invalid transition from ${from} to ${to} (${hint})`,
+    };
+  }
+
+  // Enforce rollback/rebuild limits on all backward edges before side effects
+  if (edge.direction === 'backward' && edge.countAs === 'rollback') {
+    if (state.rollback_count >= state.rollback_limit) {
+      return {
+        state,
+        success: false,
+        error: `E-CHANGE-002: rollback_count已达上限 (${state.rollback_count}/${state.rollback_limit})`,
+      };
+    }
+  } else if (edge.direction === 'backward' && edge.countAs === 'rebuild') {
+    if (state.rebuild_count >= state.rebuild_limit) {
+      return {
+        state,
+        success: false,
+        error: `E-CHANGE-003: rebuild_count已达上限 (${state.rebuild_count}/${state.rebuild_limit}), 强制升级为Design回退`,
+      };
+    }
+  }
+
+  // Execute side effects based on edge type
+  const newState: ChangeState = {
+    ...state,
+    phase: to,
+    updated_at: new Date().toISOString(),
+    user_confirmed: options?.userConfirmed ?? state.user_confirmed,
+  };
+
+  // Handle backward edge side effects (rollback/rebuild resets)
+  if (edge.direction === 'backward') {
+    newState.rollback_history = [
+      ...state.rollback_history,
+      {
+        from,
+        to,
+        reason: options?.reason ?? `transition: ${edge.label}`,
+        timestamp: new Date().toISOString(),
+        counted: edge.countAs === 'rollback',
+        event: `${directionToEvent(edge.direction)}-${from}-to-${to}`,
+      },
+    ];
+
+    if (edge.countAs === 'rollback') {
+      newState.rollback_count = state.rollback_count + 1;
+      // Reset build layers and test locks on rollback
+      newState.build_layers = state.build_layers.map((l) => ({ ...l, status: 'pending' as const }));
+      newState.test_cases = {
+        ...state.test_cases,
+        design_locked: false,
+        suites_locked: false,
+        suites_locked_layers: [],
+        suites_hash: {},
+      };
+    } else if (edge.countAs === 'rebuild') {
+      newState.rebuild_count = state.rebuild_count + 1;
+      // Only reset done layers on rebuild
+      newState.build_layers = state.build_layers.map((l) => ({
+        ...l,
+        status: l.status === 'done' ? 'pending' : l.status,
+      }));
+    }
+  }
+
+  return { state: newState, success: true };
+}
+
+/**
+ * Execute a rollback using the legacy rollback type API.
+ * Maps to backward edges in the DCG.
+ */
+export function executeRollback(
+  state: ChangeState,
+  rollbackType: RollbackType,
+  reason: string,
+): { state: ChangeState; success: boolean; error?: string } {
+  const edge = resolveRollbackEdge(getGraph(), rollbackType);
+  if (!edge) {
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: Unknown rollback type: ${rollbackType}`,
+    };
+  }
+
+  // Validate current phase matches edge source
+  if (state.phase !== edge.from) {
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: Cannot rollback from ${state.phase} (expected ${edge.from})`,
+    };
+  }
+
+  // Check limits
+  if (edge.countAs === 'rollback') {
+    if (state.rollback_count >= state.rollback_limit) {
+      return {
+        state,
+        success: false,
+        error: `E-CHANGE-002: rollback_count已达上限 (${state.rollback_count}/${state.rollback_limit})`,
+      };
+    }
+  } else if (edge.countAs === 'rebuild') {
+    if (state.rebuild_count >= state.rebuild_limit) {
+      return {
+        state,
+        success: false,
+        error: `E-CHANGE-003: rebuild_count已达上限 (${state.rebuild_count}/${state.rebuild_limit}), 强制升级为Design回退`,
+      };
+    }
+  }
+
+  // Execute via the general transition function
+  return executeTransition(state, edge.to, { reason });
+}
+
+/**
+ * Execute a rollback by edge (new DCG-style API).
+ */
+export function executeRollbackByEdge(
+  state: ChangeState,
+  to: ChangePhase,
+  reason: string,
+): { state: ChangeState; success: boolean; error?: string } {
+  const edge = getGraph().resolveEdge(state.phase, to);
+  if (!edge || edge.direction !== 'backward') {
+    return {
+      state,
+      success: false,
+      error: `E-CHANGE-006: No backward edge from ${state.phase} to ${to}`,
+    };
+  }
+  return executeTransition(state, to, { reason });
+}
+
+/**
+ * Check if a rollback is valid and within limits (guard-style check).
+ */
+export function canRollback(
+  state: ChangeState,
+  rollbackType: RollbackType,
+): GuardResult {
+  const edge = resolveRollbackEdge(getGraph(), rollbackType);
+  const errors: { code: string; message: string }[] = [];
+  const warnings: { code: string; message: string }[] = [];
+
+  if (!edge) {
+    errors.push({
+      code: 'E-CHANGE-006',
+      message: `Unknown rollback type: ${rollbackType}`,
+    });
+    return { passed: false, errors, warnings };
+  }
+
+  if (state.phase !== edge.from) {
+    errors.push({
+      code: 'E-CHANGE-006',
+      message: `Cannot rollback from ${state.phase} (expected ${edge.from})`,
+    });
+    return { passed: false, errors, warnings };
+  }
+
+  if (edge.countAs === 'rollback') {
+    if (state.rollback_count >= state.rollback_limit) {
+      errors.push({
+        code: 'E-CHANGE-002',
+        message: `rollback_count已达上限 (${state.rollback_count}/${state.rollback_limit})`,
+      });
+      return { passed: false, errors, warnings };
+    }
+  } else if (edge.countAs === 'rebuild') {
+    if (state.rebuild_count >= state.rebuild_limit) {
+      warnings.push({
+        code: 'E-CHANGE-003',
+        message: `rebuild_count已达上限 (${state.rebuild_count}/${state.rebuild_limit}), 强制升级为Design回退`,
+      });
+      return {
+        passed: false,
+        errors,
+        warnings,
+      };
+    }
+  }
+
+  return { passed: true, errors, warnings };
+}
+
+/**
+ * Get the next phase suggestion.
+ *
+ * Strategy:
+ * - For hotfix/tweak workflows: prefer skip edges (conditional shortcuts)
+ * - For full workflow: follow forward edges
+ * - Terminal states return undefined
+ */
+export function getNextPhase(state: ChangeState): { phase: ChangePhase; description: string } | undefined {
+  if (getGraph().isTerminalState(state.phase)) {
+    return undefined;
+  }
+
+  const graph = getGraph();
+  const context = { workflow: state.workflow };
+
+  // For preset workflows (hotfix/tweak), check skip edges first
+  if (state.workflow === 'hotfix' || state.workflow === 'tweak') {
+    const skipEdges = graph.getSkipEdges(state.phase, context).filter(
+      (e) => e.to !== 'discarded', // Don't suggest discard as next phase
+    );
+    if (skipEdges.length > 0) {
+      const edge = skipEdges[0];
+      return { phase: edge.to, description: `跳过阶段（${state.workflow} 预设）→ ${edge.to}` };
+    }
+  }
+
+  // Follow forward edges
+  const forwardEdges = graph.getForwardEdges(state.phase);
+  if (forwardEdges.length > 0) {
+    const edge = forwardEdges[0];
+    return { phase: edge.to, description: edge.label };
+  }
+
+  // Fallback: context-aware skip edges (not discard)
+  const skipEdges = graph.getSkipEdges(state.phase, context).filter(
+    (e) => e.to !== 'discarded',
+  );
+  if (skipEdges.length > 0) {
+    const edge = skipEdges[0];
+    return { phase: edge.to, description: edge.label };
+  }
+
+  return undefined;
+}
+
+/**
+ * Get workflow-appropriate phases (CHG-6: reads from the graph's config —
+ * single source of truth, replaces the former hardcoded switch).
+ */
+export function getWorkflowPhases(workflow: Workflow): ChangePhase[] {
+  return getGraph().getWorkflowPhases(workflow);
+}
+
+/**
+ * Check if a phase is terminal.
+ */
+export function isTerminal(phase: ChangePhase): boolean {
+  return getGraph().isTerminalState(phase);
+}
+
+// ─── New DCG-specific API ─────────────────────────────────────────────────
+
+/**
+ * Find a path from current phase to a target phase.
+ * @param from Starting phase
+ * @param to Target phase
+ * @param state Optional state for context-aware filtering
+ */
+export function findTransitionPath(from: ChangePhase, to: ChangePhase, state?: ChangeState): ChangePhase[] {
+  const context = state ? { workflow: state.workflow } : undefined;
+  return getGraph().findPath(from, to, context);
+}
+
+/**
+ * Detect all cycles in the phase graph.
+ * Useful for debugging and documentation generation.
+ */
+export function detectPhaseCycles(): ChangePhase[][] {
+  return getGraph().detectCycles();
+}
+
+/**
+ * Get all edges in the graph (for inspection/documentation).
+ */
+export function getAllPhaseEdges(): PhaseEdge[] {
+  return getGraph().getAllEdges();
+}
+
+// ─── Internal helpers ─────────────────────────────────────────────────────
+
+function stateToContext(state: ChangeState): Record<string, unknown> {
+  const context: Record<string, unknown> = {};
+  if (state.workflow) context.workflow = state.workflow;
+  return context;
+}
+
+function directionToEvent(direction: 'forward' | 'backward' | 'skip'): string {
+  switch (direction) {
+    case 'forward': return 'forward';
+    case 'backward': return 'rollback';
+    case 'skip': return 'skip';
+  }
+}

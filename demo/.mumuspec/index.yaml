@@ -1,0 +1,15 @@
+scope: "."
+layer: 0
+children:
+  - name: src/models
+    path: src/models/.mumuspec
+    summary: Task 数据模型与验证逻辑
+    shallNotCount: 3
+  - name: src/storage
+    path: src/storage/.mumuspec
+    summary: 内存存储引擎 CRUD 操作
+    shallNotCount: 3
+  - name: src/api
+    path: src/api/.mumuspec
+    summary: HTTP 服务器与路由分发
+    shallNotCount: 3

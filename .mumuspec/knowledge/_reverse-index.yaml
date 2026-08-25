@@ -1,0 +1,42 @@
+- code_node: src/spec/loader.ts
+  knowledge_pages:
+    - KP-0013
+    - KP-0020
+- code_node: src/spec/inheritance.ts
+  knowledge_pages:
+    - KP-0013
+- code_node: src/core/config.ts
+  knowledge_pages:
+    - KP-0013
+- code_node: src/change/manager.ts
+  knowledge_pages:
+    - KP-0014
+- code_node: src/change/state-machine.ts
+  knowledge_pages:
+    - KP-0014
+- code_node: src/cli.ts
+  knowledge_pages:
+    - KP-0014
+    - KP-0032
+- code_node: src/mcp-server.ts
+  knowledge_pages:
+    - KP-0020
+    - KP-0032
+- code_node: src/knowledge/manager.ts
+  knowledge_pages:
+    - KP-0020
+    - KP-0032
+    - KP-0015
+- code_node:
+    node: .mumuspec/bundles/mumuspec-skills/phase-design.md
+    edge: extends
+  knowledge_pages:
+    - KP-0035
+- code_node:
+    node: KP-0007
+    edge: complements
+  knowledge_pages:
+    - KP-0035
+- code_node: src/knowledge/loader.ts
+  knowledge_pages:
+    - KP-0015

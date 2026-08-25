@@ -1,0 +1,52 @@
+name: introduce-ua-design
+phase: archive-completed
+workflow: full
+created_at: 2026-07-30T13:42:44.115Z
+updated_at: 2026-07-31T15:26:20.794Z
+affected_scopes:
+  - src/knowledge/manager.ts
+  - src/cli.ts
+  - src/hooks/guard.ts
+  - src/core/types.ts
+  - src/mcp-server.ts
+  - .mumuspec/config.yaml
+build_layers:
+  - layer: 1
+    status: pending
+  - layer: 0
+    status: pending
+test_cases:
+  design_locked: true
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+  design_content_hash: 579ede9984932882
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: worktree
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts: {}
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  cognitive_map_ref: cognitive-map.yaml
+  q1_count: 15
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 5
+  converged: true
+  rounds_completed: 2
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []

@@ -1,0 +1,49 @@
+change_name: add-priority-field
+rounds_completed: 1
+converged: true
+q1_known_knowns:
+  - id: Q1-001
+    content: Task 接口当前有 id, title, status, createdAt, updatedAt 字段
+    source: src/models/task.ts
+    status: confirmed
+  - id: Q1-002
+    content: validateTask 验证 title 非空且长度不超过200，status 必须是合法值
+    source: src/models/task.ts
+    status: confirmed
+  - id: Q1-003
+    content: storage 层 createTask 接受 { title, status? } 参数
+    source: src/storage/store.ts
+    status: confirmed
+  - id: Q1-004
+    content: API 层 POST /tasks 创建任务，PATCH /tasks/:id 更新任务
+    source: src/api/routes.ts
+    status: confirmed
+q2_known_unknowns:
+  - id: Q2-001
+    content: priority 默认值应该是什么？
+    status: answered
+    reasoning_chain:
+      - 常见优先级系统使用 3 级（低/中/高）
+      - 默认值应为中间值 'medium'，表示不偏不倚
+  - id: Q2-002
+    content: priority 是否应该影响 list 排序？
+    status: answered
+    reasoning_chain:
+      - 本次变更范围是添加字段，不是改变排序逻辑
+      - 排序功能可作为后续变更单独处理
+      - Ponytail: 最小实现原则
+q3_unknown_knowns:
+  - id: Q3-001
+    content: TypeScript 联合类型 'low' | 'medium' | 'high' 天然适合枚举值
+    status: confirmed
+  - id: Q3-002
+    content: validateTask 已有验证模式（VALID_STATUSES 数组），可直接扩展为 VALID_PRIORITIES
+    status: confirmed
+q4_unknown_unknowns:
+  - id: Q4-001
+    content: 无未知风险（简单字段添加，不涉及架构变更）
+    status: confirmed
+    dimensions:
+      - 架构影响: 无
+      - 性能影响: 无
+      - 兼容性: 向后兼容（priority 可选，有默认值）

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "mumuspec": {
+      "command": "npx",
+      "args": [
+        "@mumuspec/mcp-server"
+      ],
+      "env": {
+        "MUMUSPEC_ROOT": "D:\\Code\\AI-coding\\mumuspec"
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+.sidenav {
+  width: 180px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.roleBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.roleBtn:hover {
+  border-color: var(--accent);
+}
+
+.roleBtn[data-active='true'] {
+  border-color: var(--accent);
+  background: rgba(79, 140, 255, 0.15);
+}
+
+.progress {
+  font-size: 11px;
+  color: var(--text-muted);
+}

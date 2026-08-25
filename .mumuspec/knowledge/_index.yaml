@@ -1,0 +1,977 @@
+pages:
+  - id: KE-ast-guard-hyperplan
+    title: Adversarial design review insights from ast-guard
+    type: decision
+    status: confirmed
+    scope: ast-guard
+    file: .mumuspec\knowledge\decisions\KE-ast-guard-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - ast-guard
+  - id: KE-dashboard-onboard-chat-hyperplan
+    title: Adversarial design review insights from dashboard-onboard-chat
+    type: decision
+    status: confirmed
+    scope: dashboard-onboard-chat
+    file: .mumuspec\knowledge\decisions\KE-dashboard-onboard-chat-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - dashboard-onboard-chat
+  - id: KE-onboard-cli-hyperplan
+    title: Adversarial design review insights from onboard-cli
+    type: decision
+    status: confirmed
+    scope: onboard-cli
+    file: .mumuspec\knowledge\decisions\KE-onboard-cli-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - onboard-cli
+  - id: KE-ast-guard-patterns
+    title: Architecture patterns from ast-guard
+    type: pattern
+    status: confirmed
+    scope: ast-guard
+    file: .mumuspec\knowledge\patterns\KE-ast-guard-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - ast-guard
+  - id: KE-dashboard-onboard-chat-patterns
+    title: Architecture patterns from dashboard-onboard-chat
+    type: pattern
+    status: confirmed
+    scope: dashboard-onboard-chat
+    file: .mumuspec\knowledge\patterns\KE-dashboard-onboard-chat-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - dashboard-onboard-chat
+  - id: KE-onboard-cli-patterns
+    title: Architecture patterns from onboard-cli
+    type: pattern
+    status: confirmed
+    scope: onboard-cli
+    file: .mumuspec\knowledge\patterns\KE-onboard-cli-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - onboard-cli
+  - id: KP-0035
+    title: 完整目录结构示例
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0011-docs_appendix_directory-structure.md
+    tags:
+      - imported
+      - docs
+      - directory
+      - structure
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0036
+    title: Agent 安装指南
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0012-docs_reference_agent-install-guide.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0037
+    title: IDE 与 AI 工具集成配置
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0013-docs_reference_ai-tools-setup.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0013
+    title: 渐进式规范加载模式
+    type: pattern
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\patterns\KP-0013-spec-progressive-loading.md
+    tags:
+      - pattern
+      - progressive-loading
+      - context-management
+      - token-saving
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0014
+    title: 变更生命周期模式：五阶段状态机 + 回退机制
+    type: pattern
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\patterns\KP-0014-change-lifecycle.md
+    tags:
+      - pattern
+      - change-lifecycle
+      - state-machine
+      - rollback
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0038
+    title: CLI 命令参考
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0014-docs_reference_cli-commands.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0039
+    title: 配置参考
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0015-docs_reference_configuration.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0040
+    title: 漂移检测规则
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0016-docs_reference_drift-detection.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0041
+    title: 错误码参考
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0017-docs_reference_error-codes.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0042
+    title: FAQ — 常见问题与故障排查
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0018-docs_reference_faq.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0043
+    title: 用户反馈与 Session 摘要流程
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0019-docs_reference_feedback-process.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0044
+    title: 术语表
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0020-docs_reference_glossary.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0020
+    title: MCP Server 工具集设计模式
+    type: pattern
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\patterns\KP-0020-mcp-tool-set.md
+    tags:
+      - mcp
+      - server
+      - tools
+      - search-graph
+      - contract
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0045
+    title: MCP 工具参考
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0021-docs_reference_mcp-tools.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0021
+    title: Skill 生态矩阵：阶段-Skill 映射与分发模式
+    type: pattern
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\patterns\KP-0021-skill-ecosystem-matrix.md
+    tags:
+      - skill
+      - ecosystem
+      - phase
+      - mapping
+      - distribution
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0046
+    title: 打包与部署
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0022-docs_reference_packaging-deployment.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0047
+    title: Phase Guard 规则
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0023-docs_reference_phase-guards.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0048
+    title: 发布与回滚策略
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0024-docs_reference_release-strategy.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0049
+    title: Skill 生态参考
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0025-docs_reference_skill-ecosystem.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0026
+    title: config.yaml 核心配置 Schema 模式
+    type: pattern
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\patterns\KP-0026-config-schema.md
+    tags:
+      - configuration
+      - config-yaml
+      - schema
+      - setup
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0050
+    title: "MumuSpec Phase 5: Archive（归档 — Git 提交 + 合并 + 知识提取）"
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0026-docs_reference_skills_mumuspec-archive.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0051
+    title: "MumuSpec Phase 3: Build（实现 — 自下向上 + 红绿 TDD）"
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0027-docs_reference_skills_mumuspec-build.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0052
+    title: "MumuSpec Phase 2: Design（技术设计 — 自顶向下）"
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0028-docs_reference_skills_mumuspec-design.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0053
+    title: "MumuSpec 预设路径: Hotfix（快速 Bug 修复）"
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0029-docs_reference_skills_mumuspec-hotfix.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0029
+    title: Spec Enforcement 模式：每个 Requirement 必须有内联 Enforcement
+    type: pattern
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\patterns\KP-0029-spec-enforcement-pattern.md
+    tags:
+      - pattern
+      - spec
+      - enforcement
+      - validation
+      - E-SPEC-004
+    verified_at: 2026-07-30T00:00:00Z
+  - id: KP-0054
+    title: "MumuSpec Phase 1: Open（提案）"
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0030-docs_reference_skills_mumuspec-open.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0030
+    title: 零运行时依赖模块设计模式
+    type: pattern
+    status: confirmed
+    scope: src/install, src/bundle, src/i18n, src/skill-authoring
+    file: .mumuspec\knowledge\patterns\KP-0030-zero-dependency-module.md
+    tags:
+      - pattern
+      - zero-dependency
+      - node_modules
+      - infrastructure
+      - ponytail
+    verified_at: 2026-07-30T00:00:00Z
+  - id: KP-0055
+    title: "MumuSpec 预设路径: Tweak（小变更）"
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0031-docs_reference_skills_mumuspec-tweak.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0056
+    title: "MumuSpec Phase 4: Verify（验证 — 自下向上逐层验证）"
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0032-docs_reference_skills_mumuspec-verify.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0032
+    title: Understand-Anything 设计理念借鉴：可交互知识图谱 + Onboarding + Git 知识提取
+    type: pattern
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\patterns\KP-0032-understand-anything-design-borrowing.md
+    tags:
+      - understand-anything
+      - knowledge-graph
+      - onboarding
+      - dashboard
+      - git-knowledge
+      - design-borrowing
+      - roadmap
+    verified_at: 2026-07-30T00:00:00Z
+  - id: KP-0057
+    title: MumuSpec — 规范驱动的 AI 编程工作流主编排器
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0033-docs_reference_skills_mumuspec.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0033
+    title: Understand-Anything 深入分析：可落地的实现方案设计
+    type: pattern
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\patterns\KP-0033-ua-deep-implementation-analysis.md
+    tags:
+      - understand-anything
+      - implementation
+      - knowledge-graph
+      - onboarding
+      - impact-analysis
+      - git-knowledge
+  - id: KP-0034
+    title: MumuSpec Skill 设计优化 — 索引与设计原则
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0034-docs_reference_skills_readme.md
+    tags:
+      - imported
+      - docs
+      - reference
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0035
+    title: grill-me 深度追问机制集成到 Design 阶段
+    type: pattern
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\patterns\KP-0035-grill-me-integration.md
+    tags:
+      - grill-me
+      - design-phase
+      - cognitive-framework
+      - questioning
+      - pressure-test
+    verified_at: 2026-08-01T01:00:00Z
+  - id: KP-0058
+    title: 与参考项目对比
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\patterns\KP-0058-docs_appendix_comparison.md
+    tags:
+      - imported
+      - docs
+      - comparison
+      - pattern
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KE-onboard-cli-q4-risk
+    title: Residual risks from onboard-cli
+    type: risk
+    status: confirmed
+    scope: onboard-cli
+    file: .mumuspec\knowledge\risks\KE-onboard-cli-q4-risk.md
+    tags:
+      - auto-extracted
+      - q4
+      - risk
+      - onboard-cli
+  - id: KP-0015
+    title: Knowledge Layer 后端故障风险与降级策略
+    type: risk
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\risks\KP-0015-knowledge-backend-failure.md
+    tags:
+      - risk
+      - knowledge-layer
+      - graph-backend
+      - degradation
+      - mitigation
+      - roadmap
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0016
+    title: 规范漂移风险与防控策略
+    type: risk
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\risks\KP-0016-spec-drift.md
+    tags:
+      - risk
+      - spec-drift
+      - code-drift
+      - enforcement
+      - blocking
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0022
+    title: Top 3 技术风险验证 Sprint
+    type: risk
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\risks\KP-0022-tech-risk-validation.md
+    tags:
+      - risk
+      - validation
+      - sprint
+      - ast
+      - performance
+      - conflict
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KR-0004
+    title: 实施路线图
+    type: risk
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\risks\KR-0004-docs_appendix_roadmap.md
+    tags:
+      - imported
+      - docs
+      - roadmap
+      - risk
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KR-0005
+    title: MumuSpec 项目状态
+    type: risk
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\risks\KR-0005-docs_status.md
+    tags:
+      - imported
+      - docs
+      - project-status
+      - risk
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KE-ast-guard-lessons
+    title: Lessons from ast-guard decisions
+    type: lesson
+    status: confirmed
+    scope: ast-guard
+    file: .mumuspec\knowledge\lessons\KE-ast-guard-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - ast-guard
+  - id: KE-dashboard-onboard-chat-lessons
+    title: Lessons from dashboard-onboard-chat decisions
+    type: lesson
+    status: confirmed
+    scope: dashboard-onboard-chat
+    file: .mumuspec\knowledge\lessons\KE-dashboard-onboard-chat-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - dashboard-onboard-chat
+  - id: KE-onboard-cli-lessons
+    title: Lessons from onboard-cli decisions
+    type: lesson
+    status: confirmed
+    scope: onboard-cli
+    file: .mumuspec\knowledge\lessons\KE-onboard-cli-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - onboard-cli
+  - id: KL-0006
+    title: 开放问题
+    type: lesson
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\lessons\KL-0006-docs_appendix_open-questions.md
+    tags:
+      - imported
+      - docs
+      - open-questions
+      - research
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KL-0007
+    title: Agent QuickStart — 让 AI 跑通你的第一个 MumuSpec 变更
+    type: lesson
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\lessons\KL-0007-docs_getting-started-agent.md
+    tags:
+      - imported
+      - docs
+      - tutorial
+      - getting-started
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KL-0008
+    title: 用户上手指南 — 安装、初始化、跑通首个变更
+    type: lesson
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\lessons\KL-0008-docs_getting-started.md
+    tags:
+      - imported
+      - docs
+      - tutorial
+      - getting-started
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KL-0009
+    title: 分步教程：使用 MumuSpec + AI 完成第一个 hotfix
+    type: lesson
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\lessons\KL-0009-docs_tutorial.md
+    tags:
+      - imported
+      - docs
+      - tutorial
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0010
+    title: 参考项目调研总结：OpenSpec / Comet / CGC / CBM / Ponytail
+    type: lesson
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\lessons\KP-0010-reference-project-research.md
+    tags:
+      - research
+      - ecosystem
+      - openspec
+      - comet
+      - cgc
+      - cbm
+      - ponytail
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0011
+    title: 项目实施常见陷阱与避坑指南
+    type: lesson
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\lessons\KP-0011-implementation-pitfalls.md
+    tags:
+      - pitfall
+      - lesson
+      - implementation
+      - best-practice
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0023
+    title: 故障排查常见模式与解决方案
+    type: lesson
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\lessons\KP-0023-troubleshooting-patterns.md
+    tags:
+      - troubleshooting
+      - faq
+      - installation
+      - configuration
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0027
+    title: 项目规范实施的最佳实践与变通方案
+    type: lesson
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\lessons\KP-0027-project-conventions.md
+    tags:
+      - convention
+      - best-practice
+      - demo
+      - ponytail
+      - boring-over-clever
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0031
+    title: 规范 Retrofit 经验：为已有代码库补写规范的方法论
+    type: lesson
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\lessons\KP-0031-spec-sync-retrofit.md
+    tags:
+      - lesson
+      - retrofit
+      - spec-creation
+      - reverse-engineering
+      - bootstrap
+    verified_at: 2026-07-30T00:0000Z
+  - id: IMPORT-AGENTS
+    title: Agent Rules
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\agents.md
+    tags:
+      - imported
+      - agents
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-CHANGELOG
+    title: Changelog
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\changelog.md
+    tags:
+      - imported
+      - changelog
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-DEMO__MUMUSPEC_DESIGN
+    title: "Design: task-api"
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\demo_.mumuspec_design.md
+    tags:
+      - imported
+      - demo-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-DEMO__MUMUSPEC_PROHIBITIONS
+    title: Global Prohibitions
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\demo_.mumuspec_prohibitions.md
+    tags:
+      - imported
+      - demo-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-DEMO__MUMUSPEC_SPEC
+    title: spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\demo_.mumuspec_spec.md
+    tags:
+      - imported
+      - demo-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-DEMO_README
+    title: Task API — MumuSpec Demo Project
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\demo_readme.md
+    tags:
+      - imported
+      - demo
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-DOCS_DESIGN
+    title: MumuSpec 设计文档索引
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\docs_design.md
+    tags:
+      - imported
+      - docs
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-DOCS_REORGANIZATION
+    title: 文档整理记录
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\docs_reorganization.md
+    tags:
+      - imported
+      - docs
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-FEEDBACK_README
+    title: MumuSpec 反馈目录
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\feedback_readme.md
+    tags:
+      - imported
+      - feedback
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-FEEDBACK_SESSIONS_2026_07_28_PACKAGING_DEPLOY_FEEDBACK_INFRA
+    title: 打包部署基础设施与反馈机制搭建
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\feedback_sessions_2026-07-28-packaging-deploy-feedback-infra.md
+    tags:
+      - imported
+      - feedback
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-FEEDBACK__TEMPLATE_SESSION_SUMMARY_TEMPLATE
+    title: Session Summary Template
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\feedback__template_session-summary-template.md
+    tags:
+      - imported
+      - feedback-template
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-FEEDBACK__TEMPLATE_USER_FEEDBACK_TEMPLATE
+    title: User Feedback Template
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\feedback__template_user-feedback-template.md
+    tags:
+      - imported
+      - feedback-template
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-LICENSE
+    title: LICENSE
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\license.md
+    tags:
+      - imported
+      - license
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_BUNDLE__MUMUSPEC_SPEC
+    title: bundle spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_bundle_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_CHANGE__MUMUSPEC_SPEC
+    title: change spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_change_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_CORE__MUMUSPEC_SPEC
+    title: core spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_core_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_EVAL__MUMUSPEC_SPEC
+    title: eval spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_eval_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_FEEDBACK__MUMUSPEC_SPEC
+    title: feedback spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_feedback_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_GUARD__MUMUSPEC_SPEC
+    title: guard spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_guard_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_HOOKS__MUMUSPEC_SPEC
+    title: hooks spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_hooks_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_I18N__MUMUSPEC_SPEC
+    title: i18n spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_i18n_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_INSTALL__MUMUSPEC_SPEC
+    title: install spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_install_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_KNOWLEDGE__MUMUSPEC_SPEC
+    title: knowledge spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_knowledge_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_RULES__MUMUSPEC_SPEC
+    title: rules spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_rules_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_SKILL_AUTHORING__MUMUSPEC_SPEC
+    title: skill-authoring spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_skill-authoring_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: IMPORT-SRC_SPEC__MUMUSPEC_SPEC
+    title: spec spec
+    type: pattern
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\imports\src_spec_.mumuspec_spec.md
+    tags:
+      - imported
+      - src-spec
+    verified_at: 2026-07-31T16:19:01.701Z

@@ -1,0 +1,99 @@
+# Design Schema Template
+# Defines required sections for design.md based on workflow type
+#
+# Usage: guard checks design.md sections against this schema
+# Missing required sections trigger E-DESIGN-009
+
+version: "1.0"
+description: "Design doc section requirements per workflow"
+
+# Section definitions with regex patterns for matching
+sections:
+  - name: "API Contracts"
+    patterns:
+      - '^#{1,3}.*API.*'
+      - '^#{1,3}.*接口.*'
+      - '^#{1,3}.*Endpoint.*'
+      - '^#{1,3}.*Contract.*'
+    required_for:
+      - full
+
+  - name: "Data Flow"
+    patterns:
+      - '^#{1,3}.*Data Flow.*'
+      - '^#{1,3}.*数据流.*'
+    required_for:
+      - full
+
+  - name: "Error Specification"
+    patterns:
+      - '^#{1,3}.*Error.*'
+      - '^#{1,3}.*错误.*'
+      - '^#{1,3}.*Exception.*'
+    required_for:
+      - full
+
+  - name: "Architecture Overview"
+    patterns:
+      - '^#{1,3}.*Architecture.*'
+      - '^#{1,3}.*架构.*'
+    required_for:
+      - full
+      - tweak
+
+  - name: "Implementation Layers"
+    patterns:
+      - '^#{1,3}.*Implementation.*'
+      - '^#{1,3}.*Layer.*'
+      - '^#{1,3}.*实现.*'
+    required_for:
+      - full
+      - hotfix
+      - tweak
+
+  - name: "Constraints Analysis"
+    patterns:
+      - '^#{1,3}.*Constraint.*'
+      - '^#{1,3}.*约束.*'
+      - '^#{1,3}.*Performance.*'
+      - '^#{1,3}.*性能.*'
+    required_for:
+      - full
+
+  - name: "Risk Mitigation"
+    patterns:
+      - '^#{1,3}.*Risk.*'
+      - '^#{1,3}.*风险.*'
+      - '^#{1,3}.*Mitigation.*'
+      - '^#{1,3}.*缓解.*'
+    required_for:
+      - full
+
+  - name: "Test Strategy"
+    patterns:
+      - '^#{1,3}.*Test.*'
+      - '^#{1,3}.*测试.*'
+      - '^#{1,3}.*验证.*'
+    required_for:
+      - full
+      - hotfix
+      - tweak
+
+# Cross-artifact consistency check rules
+consistency_checks:
+  - name: "plan_coverage"
+    description: "proposal Plan步骤应在design Layers中有对应"
+    severity: error
+
+  - name: "fr_satisfaction"
+    description: "proposal FR应在design中被满足"
+    severity: error
+
+  - name: "risk_coverage"
+    description: "cognitive-map Q4 risk应在mitigation中有对应"
+    severity: major
+
+# Task granularity limits (minutes)
+task_granularity:
+  max_minutes: 15
+  warning_code: "W-DESIGN-001"

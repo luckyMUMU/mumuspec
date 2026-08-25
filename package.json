@@ -1,0 +1,97 @@
+{
+  "name": "mumuspec",
+  "version": "0.19.1",
+  "description": "MumuSpec — Tree-distributed dual-constraint specification system for AI-assisted development",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "mumuspec": "dist/cli.js",
+    "mumuspec-mcp": "dist/mcp-server.js"
+  },
+  "files": [
+    "dist/",
+    "skills/",
+    "docs/overview.md",
+    "docs/STATUS.md",
+    "docs/reference/cli-commands.md",
+    "docs/reference/configuration.md",
+    "docs/reference/packaging-deployment.md",
+    "docs/reference/release-strategy.md",
+    "docs/reference/feedback-process.md",
+    "docs/reference/agent-install-guide.md",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "build:clean": "rimraf dist && tsc && node scripts/copy-assets.mjs",
+    "dev": "tsx src/cli.ts",
+    "mcp": "tsx src/mcp-server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit",
+    "enforce": "node scripts/enforcement-check.mjs",
+    "enforce:strict": "node scripts/enforcement-check.mjs --strict",
+    "smoke": "node dist/cli.js --help && node dist/cli.js check",
+    "gen:error-codes": "node scripts/gen-error-codes-doc.mjs",
+    "ci:check": "node scripts/ci-check.mjs",
+    "prebuild": "node scripts/prebuild-check.mjs && node scripts/gen-error-codes-doc.mjs",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run build && npm run enforce:strict && npm run test",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
+    "version:alpha": "node scripts/bump-prerelease.mjs alpha",
+    "version:beta": "node scripts/bump-prerelease.mjs beta",
+    "version:rc": "node scripts/bump-prerelease.mjs rc",
+    "release:next": "npm publish --tag next",
+    "release:latest": "npm publish --tag latest",
+    "release:dry": "npm publish --dry-run --tag next",
+    "dist-tag:next": "npm dist-tag add mumuspec@$(node -p \"require('./package.json').version\") next",
+    "dist-tag:latest": "npm dist-tag add mumuspec@$(node -p \"require('./package.json').version\") latest"
+  },
+  "keywords": [
+    "specification",
+    "ai-coding",
+    "mcp",
+    "cli",
+    "shall",
+    "shall-not",
+    "ponytail",
+    "spec-driven",
+    "constraint-driven",
+    "ai-agent"
+  ],
+  "license": "MIT",
+  "author": "MumuSpec Contributors",
+  "homepage": "https://github.com/mumuspec/mumuspec",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mumuspec/mumuspec.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mumuspec/mumuspec/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "commander": "^13.1.0",
+    "yaml": "^2.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

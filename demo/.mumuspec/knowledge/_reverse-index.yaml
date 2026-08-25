@@ -1,0 +1,13 @@
+- code_node: src/api/server.ts
+  knowledge_pages:
+    - KP-001
+- code_node: src/models/task.ts
+  knowledge_pages:
+    - KP-002
+- code_node: src/storage/store.ts
+  knowledge_pages:
+    - KP-003
+- code_node: src/api/routes.ts
+  knowledge_pages:
+    - KP-004
+    - KP-005
