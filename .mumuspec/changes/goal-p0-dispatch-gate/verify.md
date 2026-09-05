@@ -114,3 +114,17 @@ Layer 2 盘点发现 `src/rules/generator.ts`（CHG-3 存量）与新建 `src/in
 - **热修**：`mumuspec status` 对旧 schema（缺 build_layers）崩溃容错（D3 已列热修级小单）
 - **W1 收尾**：loop-auto-evaluate / meta-spec-evolution 两个存量变更归档
 - 本文档为 build 完成证据；`verification_report` 字段与 `branch_status` 在 Phase Verify 执行 `mumuspec state set` 后落库
+
+---
+
+## 6. SHALL / SHALL NOT 校验记录（对齐 §4 红线核验）
+
+| # | 约束 | 类型 | 核验方式 | 结果 |
+|---|------|------|----------|------|
+| 1 | SHALL NOT 生成 legacy 规则文件（.cursorrules/.windsurfrules） | SHALL NOT | config 默认值移除 + `LEGACY_RULE_FILES` 硬过滤 + e2e 全树 grep（TC-A2） | ✅ |
+| 2 | SHALL NOT 允许 strength 降级绕过完备性门禁 | SHALL NOT | `always_enforce: true` 注册 + `tests/guard/completeness-gate.test.ts` 降级无效用例 | ✅ |
+| 3 | SHALL NOT 破坏 hotfix/tweak 轻量语义 | SHALL NOT | assumptions 门禁仅 `workflow === 'full'` 触发（分层用例覆盖） | ✅ |
+| 4 | SHALL NOT 静默覆盖用户手写文件 | SHALL NOT | 三态 skip 计划不携带 content + e2e 内容未变断言 | ✅ |
+| 5 | SHALL 非法工件 fail-closed（E-CHANGE-020/021 恒 block） | SHALL | artifact-validator 26 用例（含 YAML 语法错误路径） | ✅ |
+| 6 | SHALL copilot 分发即 AGENTS.md 且不污染 `.github/` | SHALL | `installRuleFilesAsResult` e2e 零额外文件断言 | ✅ |
+| 7 | SHALL 完备性门禁逃生门必须人签收 | SHALL | 声明 + decisions.md 签收条目 > 0 才放行（`tests/tdd-mode-config.test.ts` TC-5-1b 验证声明路径） | ✅ |
