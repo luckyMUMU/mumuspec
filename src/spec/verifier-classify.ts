@@ -83,22 +83,27 @@ export function isRegexCheckable(text: string): boolean {
 }
 
 /**
+ * Extract quoted terms from a constraint text (single source of truth shared
+ * by extractRegexPatterns and guard/checker.ts's per-term affinity rules).
+ */
+export function extractQuotedTerms(text: string): string[] {
+  const quoted = text.match(/[`'"]([^`'"]+)[`'"]/g) ?? [];
+  return quoted.map((q) => q.replace(/[`'"]/g, '')).filter((t) => t.length > 2);
+}
+
+/**
  * Build the regex fallback patterns for a prohibition text. Single source of
  * truth shared with guard/checker.ts (prevents classifier/linter regex drift).
  */
 export function extractRegexPatterns(text: string): RegExp[] {
   const lower = text.replace(/^ast:/i, '').toLowerCase();
   const patterns: RegExp[] = [];
-  const quoted = text.match(/[`'"]([^`'"]+)[`'"]/g) ?? [];
-  for (const q of quoted) {
-    const term = q.replace(/[`'"]/g, '');
-    if (term.length > 2) {
-      const escaped = escapeRegExp(term);
-      // Word boundary for short identifiers to avoid substring false positives
-      patterns.push(
-        term.length <= 4 ? new RegExp(`\\b${escaped}\\b`, 'i') : new RegExp(escaped, 'i'),
-      );
-    }
+  for (const term of extractQuotedTerms(text)) {
+    const escaped = escapeRegExp(term);
+    // Word boundary for short identifiers to avoid substring false positives
+    patterns.push(
+      term.length <= 4 ? new RegExp(`\\b${escaped}\\b`, 'i') : new RegExp(escaped, 'i'),
+    );
   }
   if (lower.includes('eval') || lower.includes('动态执行')) {
     patterns.push(/eval\s*\(/, /new\s+Function\s*\(/);

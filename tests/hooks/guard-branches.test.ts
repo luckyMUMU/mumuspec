@@ -241,23 +241,23 @@ describe('runCommitMsg — edge cases', () => {
   });
 
   it('returns passed when args array is empty', () => {
-    const result = runHook('commit-msg', [], '/tmp');
+    const result = runHook('commit-msg', [], tmpdir());
     expect(result.passed).toBe(true);
     expect(result.errors).toEqual([]);
   });
 
   it('returns passed when message file does not exist', () => {
-    const result = runHook('commit-msg', ['/nonexistent/file.txt'], '/tmp');
+    const result = runHook('commit-msg', ['/nonexistent/file.txt'], tmpdir());
     expect(result.passed).toBe(true);
     expect(result.errors).toEqual([]);
   });
 
   it('handles Knowledge-Impact with only SUPERSEDES (no IMPLEMENTS or AFFECTS)', () => {
-    const msgPath = '/tmp/test-ki-supersedes-only.txt';
+    const msgPath = join(tmpdir(), 'test-ki-supersedes-only.txt');
     const msg = 'feat: remove old feature\n\nKnowledge-Impact:\n  SUPERSEDES: [KP-0001]\n';
     writeFileSync(msgPath, msg);
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(false);
       expect(result.errors.some((e) => e.includes('SUPERSEDES'))).toBe(true);
     } finally {
@@ -266,11 +266,11 @@ describe('runCommitMsg — edge cases', () => {
   });
 
   it('handles Knowledge-Impact with only AFFECTS (no IMPLEMENTS or SUPERSEDES)', () => {
-    const msgPath = '/tmp/test-ki-affects-only.txt';
+    const msgPath = join(tmpdir(), 'test-ki-affects-only.txt');
     const msg = 'feat: update docs\n\nKnowledge-Impact:\n  AFFECTS: [KP-0010]\n';
     writeFileSync(msgPath, msg);
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(true);
       expect(result.warnings.some((w) => w.includes('affected'))).toBe(true);
     } finally {
@@ -279,11 +279,11 @@ describe('runCommitMsg — edge cases', () => {
   });
 
   it('handles Knowledge-Impact with empty arrays', () => {
-    const msgPath = '/tmp/test-ki-empty-arrays.txt';
+    const msgPath = join(tmpdir(), 'test-ki-empty-arrays.txt');
     const msg = 'feat: trivial change\n\nKnowledge-Impact:\n  IMPLEMENTS: []\n  AFFECTS: []\n  SUPERSEDES: []\n';
     writeFileSync(msgPath, msg);
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(true);
     } finally {
       try { unlinkSync(msgPath); } catch { /* ignore */ }
@@ -356,13 +356,13 @@ describe('runHook — post-checkout with .mumuspec directory', () => {
 
 describe('runHook — commit-msg with Knowledge-Impact context write failure', () => {
   it('handles write failure for commit context gracefully', () => {
-    const msgPath = '/tmp/test-ctx-write-fail.txt';
+    const msgPath = join(tmpdir(), 'test-ctx-write-fail.txt');
     const msg = 'feat: implement pattern\n\nKnowledge-Impact:\n  IMPLEMENTS: [KP-0001]\n  AFFECTS: [KP-0002]\n';
     writeFileSync(msgPath, msg);
     try {
       // The write might fail if .mumuspec/knowledge doesn't exist
       // but the catch block should handle it
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(true);
     } finally {
       try { unlinkSync(msgPath); } catch { /* ignore */ }

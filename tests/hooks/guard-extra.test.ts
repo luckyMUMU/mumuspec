@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 // ─── Mock guard/checker.js ───
 const mockCheckCompliance = vi.fn();
@@ -204,21 +205,21 @@ describe('runHook commit-msg handler (message validation)', () => {
   });
 
   it('should return passed when no args provided', () => {
-    const result = runHook('commit-msg', [], '/tmp');
+    const result = runHook('commit-msg', [], tmpdir());
     expect(result.passed).toBe(true);
     expect(result.errors).toEqual([]);
   });
 
   it('should return passed when message file does not exist', () => {
-    const result = runHook('commit-msg', ['/nonexistent/file.txt'], '/tmp');
+    const result = runHook('commit-msg', ['/nonexistent/file.txt'], tmpdir());
     expect(result.passed).toBe(true);
   });
 
   it('should return passed for valid-length message file', () => {
-    const msgPath = '/tmp/test-commit-msg.txt';
+    const msgPath = join(tmpdir(), 'test-commit-msg.txt');
     writeFileSync(msgPath, 'feat: add new authentication module');
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(true);
       expect(result.errors).toEqual([]);
     } finally {
@@ -227,10 +228,10 @@ describe('runHook commit-msg handler (message validation)', () => {
   });
 
   it('should return error for short commit message file', () => {
-    const msgPath = '/tmp/test-short-msg.txt';
+    const msgPath = join(tmpdir(), 'test-short-msg.txt');
     writeFileSync(msgPath, 'fix');
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(false);
       expect(result.errors.some(e => e.includes('too short'))).toBe(true);
     } finally {
@@ -239,11 +240,11 @@ describe('runHook commit-msg handler (message validation)', () => {
   });
 
   it('should detect SUPERSEDES and produce error', () => {
-    const msgPath = '/tmp/test-supersedes-msg.txt';
+    const msgPath = join(tmpdir(), 'test-supersedes-msg.txt');
     const msg = 'feat: new feature\n\nKnowledge-Impact:\n  SUPERSEDES: [KP-0001]\n';
     writeFileSync(msgPath, msg);
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(false);
       expect(result.errors.some(e => e.includes('SUPERSEDES'))).toBe(true);
     } finally {
@@ -252,11 +253,11 @@ describe('runHook commit-msg handler (message validation)', () => {
   });
 
   it('should warn about AFFECTS pages', () => {
-    const msgPath = '/tmp/test-affects-msg.txt';
+    const msgPath = join(tmpdir(), 'test-affects-msg.txt');
     const msg = 'feat: update docs\n\nKnowledge-Impact:\n  AFFECTS: [KP-0010, KP-0020]\n';
     writeFileSync(msgPath, msg);
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.warnings.some(w => w.includes('affected'))).toBe(true);
     } finally {
       try { unlinkSync(msgPath); } catch { /* ignore */ }
@@ -264,19 +265,19 @@ describe('runHook commit-msg handler (message validation)', () => {
   });
 
   it('should write commit context when IMPLEMENTS or AFFECTS found', () => {
-    const msgPath = '/tmp/test-ctx-msg.txt';
+    const msgPath = join(tmpdir(), 'test-ctx-msg.txt');
     const msg = 'feat: implement pattern\n\nKnowledge-Impact:\n  IMPLEMENTS: [KP-0001]\n  AFFECTS: [KP-0002]\n';
     writeFileSync(msgPath, msg);
     try {
-      runHook('commit-msg', [msgPath], '/tmp');
-      const ctxPath = join('/tmp', '.mumuspec', 'knowledge', '.commit-context.json');
+      runHook('commit-msg', [msgPath], tmpdir());
+      const ctxPath = join(tmpdir(), '.mumuspec', 'knowledge', '.commit-context.json');
       if (existsSync(ctxPath)) {
         const ctx = JSON.parse(readFileSync(ctxPath, 'utf8'));
         expect(ctx.implements).toContain('KP-0001');
         expect(ctx.affects).toContain('KP-0002');
         try { unlinkSync(ctxPath); } catch { /* ignore */ }
-        try { unlinkSync(join('/tmp', '.mumuspec', 'knowledge')); } catch { /* ignore */ }
-        try { unlinkSync(join('/tmp', '.mumuspec')); } catch { /* ignore */ }
+        try { unlinkSync(join(tmpdir(), '.mumuspec', 'knowledge')); } catch { /* ignore */ }
+        try { unlinkSync(join(tmpdir(), '.mumuspec')); } catch { /* ignore */ }
       }
     } finally {
       try { unlinkSync(msgPath); } catch { /* ignore */ }
@@ -299,7 +300,7 @@ describe('runHook unknown type handler', () => {
 
   it('should return passed with warning for unknown hook type', () => {
     // @ts-expect-error testing unknown hook type
-    const result = runHook('unknown-hook', [], '/tmp');
+    const result = runHook('unknown-hook', [], tmpdir());
     expect(result.passed).toBe(true);
     expect(result.warnings.some(w => w.includes('Unknown hook type'))).toBe(true);
   });
@@ -323,7 +324,7 @@ describe('runHook post-commit handler', () => {
   });
 
   it('should complete without errors when post-commit hook runs', () => {
-    const result = runHook('post-commit', [], '/tmp');
+    const result = runHook('post-commit', [], tmpdir());
     // post-commit doesn't push to errors/warnings arrays
     expect(result.hook).toBe('post-commit');
     expect(result.passed).toBe(true);
@@ -334,7 +335,7 @@ describe('runHook post-commit handler', () => {
       knowledge: { commit_update: { enabled: false } },
     });
     mockReadReverseIndex.mockReturnValue([]);
-    const result = runHook('post-commit', [], '/tmp');
+    const result = runHook('post-commit', [], tmpdir());
     expect(result.hook).toBe('post-commit');
     expect(result.passed).toBe(true);
   });
