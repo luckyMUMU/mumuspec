@@ -23,10 +23,9 @@ const KNOWN_PATTERNS: Array<{
     pattern: /禁止.*可变状态|禁止.*修改.*外部|不得.*副作用/,
     annotation: { type: 'no-mutable-state', scope: 'function', rationale: 'Matches no-side-effect prohibition' },
   },
-  {
-    pattern: /禁止.*样板代码|禁止.*重复代码|DRY/,
-    annotation: { type: 'no-side-effect', scope: 'module', rationale: 'Matches boilerplate prohibition' },
-  },
+  // P0 F8 fix (2026-08-29): removed the boilerplate/DRY → no-side-effect mapping.
+  // Boilerplate ≠ side effect — the mismatch produced false enforced-strong
+  // coverage. Such prohibitions now classify manual/unverifiable honestly.
   {
     pattern: /禁止.*全局变量|禁止.*全局状态/,
     annotation: { type: 'no-global-state', scope: 'file', rationale: 'Matches no-global-state prohibition' },

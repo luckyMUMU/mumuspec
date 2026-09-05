@@ -1,6 +1,10 @@
 # Constraint Strength — 动态约束强度系统
 
 > 层级: Level 1 设计文档 | 所属层: 横切所有层（Spec / Change / Guard / AI Integration）
+>
+> **LLM 自由度增强 (0.20.0+)**: 认知框架 Q1-Q4、测试不可变性 hash、TDD 红绿循环
+> 从 block 降级为 advisory (WARN)，给予 LLM 更多"怎么做"的自由度。
+> 仅保留"做到什么"的结果约束为 block（测试全绿、工件完备、SHALL NOT 不违反）。
 
 ---
 
@@ -778,6 +782,27 @@ mumuspec constraints preset minimal      # TD=low, RG=low
 ---
 
 ## 9. 求值流程
+
+### 9.0 可验证性前置判定（0.20.0+ P0，verifier 语义收紧）
+
+> 实现参考：`review/proposal-verifier-semantics-2026-08-29.md`；分类器：`src/spec/verifier-classify.ts`。
+
+**可验证性与强度正交**：强度回答「违规时多重」，可验证性回答「这条约束算不算数」。一条 SHALL / SHALL NOT 首先按固定顺序分类（首中即停）：
+
+| 序 | 类别 | 判定 |
+|---|---|---|
+| R1 | `enforced-strong` | SHALL NOT 有非 custom 的 frontmatter annotation，或 `ast:` 前缀（AST 通道真实执行） |
+| R2 | `enforced-weak` | SHALL NOT 文本可被正则兜底提取（引号词 / eval / 动态执行 / jsx） |
+| R3 | `manual` | Enforcement 声明存在（显式 `manual(原因)` 或存量自由文本，均负 verify 阶段 evidence 义务） |
+| R4 | `unverifiable` | 以上皆无 → 格式缺陷 |
+
+求值前置规则（先于 §9.1 的强度讨论）：
+
+- **SHALL NOT + unverifiable → 恒 block**（E-SPEC-015，格式不变量，不可强制越过；门控 `constraint_strength.enforcement_strict`，默认 false 时降为 warning 观察态）
+- **SHALL + unverifiable → 恒 warn**（E-SPEC-004，`always_enforce`，不被低强度折叠丢弃）
+- **manual 缺 verify evidence → 恒 block**（E-VERIFY-003，仅 strict 门控开启；结果门禁，随 BP-17 入例外清单语义）
+
+代码中该前置判定通过 `GUARD_CHECK_METADATA` 的 `always_enforce: true` 注解实现（与 §9.1 例外清单同通道），无需独立求值分支。
 
 ### 9.1 强度求值顺序
 

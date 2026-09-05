@@ -22,26 +22,6 @@ children:
     path: demo\src\storage
     prd_summary: "Product Requirements: 存储层"
     tech_summary: "Technical Design: 存储层"
-  - name: docs
-    path: docs
-    prd_summary: "Product Requirements: docs"
-    tech_summary: "Technical Design: docs"
-  - name: appendix
-    path: docs\appendix
-    prd_summary: "Product Requirements: appendix"
-    tech_summary: "Technical Design: appendix"
-  - name: design
-    path: docs\design
-    prd_summary: "Product Requirements: design"
-    tech_summary: "Technical Design: design"
-  - name: reference
-    path: docs\reference
-    prd_summary: "Product Requirements: reference"
-    tech_summary: "Technical Design: reference"
-  - name: docs/reference/skills
-    path: docs\reference\skills
-    prd_summary: "Product Requirements: skills reference"
-    tech_summary: "Technical Design: skills reference"
   - name: feedback
     path: feedback
     prd_summary: "Product Requirements: feedback (top-level)"
@@ -50,10 +30,6 @@ children:
     path: scripts
     prd_summary: "Product Requirements: scripts"
     tech_summary: "Technical Design: scripts"
-  - name: skills
-    path: skills
-    prd_summary: "Product Requirements: skills (top-level)"
-    tech_summary: "Technical Design: skills (top-level)"
   - name: src
     path: src
     prd_summary: "Product Requirements: src (source root)"

@@ -39,6 +39,10 @@ import { runPhaseGuard } from './guard/phase-guard.js';
 // Knowledge
 import { getKnowledgePage, searchKnowledge, getKnowledgeContext, verifyKnowledge, analyzeImpact, generateOnboardingPath, analyzeCoverage, answerQuery } from './knowledge/manager.js';
 
+// Code Graph
+import { buildCodeGraph } from './knowledge/graph-builder.js';
+import { searchNodes, tracePath, getStructure, getGraphStats } from './knowledge/code-graph.js';
+
 // Contract Layer
 import { loadAllContracts, findAllBoundaryDocuments } from './contract/loader.js';
 import { detectContractDrift, validateBoundaries } from './contract/validator.js';
@@ -434,6 +438,46 @@ const TOOLS = [
   },
 
   // ═══════════════════════════════════════════════════════════════
+  // Code Graph (NEW — 0.20.0+)
+  // ═══════════════════════════════════════════════════════════════
+  {
+    name: 'code_graph_search',
+    description: 'Search the code graph for symbols (functions, classes, files) by name',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Symbol name or file path to search for' },
+        limit: { type: 'number', description: 'Max results (default 20)', default: 20 },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'code_graph_trace',
+    description: 'Trace a call chain from a starting symbol (BFS traversal of CALLS edges)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        symbol: { type: 'string', description: 'Starting symbol name' },
+        file_path: { type: 'string', description: 'File path to disambiguate (optional)' },
+        max_depth: { type: 'number', description: 'Max traversal depth (default 5)', default: 5 },
+      },
+      required: ['symbol'],
+    },
+  },
+  {
+    name: 'code_graph_structure',
+    description: 'Get directory-level structure summary from the code graph',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: { type: 'string', description: 'Directory path relative to project root' },
+      },
+      required: ['dir'],
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════
   // Validate
   // ═══════════════════════════════════════════════════════════════
   {
@@ -457,6 +501,16 @@ function validateToolPath(root: string, path: string): string | null {
   return null;
 }
 
+// Code Graph cache — avoids rebuilding on every MCP call (per-project-root)
+let _graphCache: { root: string; graph: import('./core/types-knowledge.js').CodeGraph } | null = null;
+
+function getCachedGraph(root: string): import('./core/types-knowledge.js').CodeGraph {
+  if (!_graphCache || _graphCache.root !== root) {
+    _graphCache = { root, graph: buildCodeGraph(root) };
+  }
+  return _graphCache.graph;
+}
+
 /** Handle tool calls */
 async function handleToolCall(name: string, args: Record<string, unknown>): Promise<unknown> {
   const root = getRoot();
@@ -471,6 +525,7 @@ const PATH_TOOLS: Record<string, string> = {
   list_boundaries: 'dir',
   check_boundaries: 'dir',
   scaffold_boundary: 'dir',
+  code_graph_structure: 'dir',
 };
 const pathArgName = PATH_TOOLS[name];
 if (pathArgName) {
@@ -933,6 +988,71 @@ if (scopeArgName) {
 
       const filePath = writeBoundary(dirPath, content);
       return { filePath, directory: dirPath };
+    }
+
+    // ── Code Graph ──
+    case 'code_graph_search': {
+      const graph = getCachedGraph(root);
+      const query = args.query as string;
+      const limit = (args.limit as number) ?? 20;
+      const results = searchNodes(graph, query, limit);
+      return {
+        results: results.map((r) => ({
+          name: r.node.name,
+          label: r.node.label,
+          file: r.node.filePath,
+          line: r.node.startLine,
+          score: r.score,
+        })),
+        stats: getGraphStats(graph),
+      };
+    }
+
+    case 'code_graph_trace': {
+      const graph = getCachedGraph(root);
+      const symbolName = args.symbol as string;
+      const filePath = args.file_path as string | undefined;
+      const maxDepth = (args.max_depth as number) ?? 5;
+
+      // Find the starting node
+      const candidates = searchNodes(graph, symbolName, 10);
+      if (candidates.length === 0) {
+        return { error: `Symbol not found: ${symbolName}` };
+      }
+
+      // If file_path given, try to find exact match
+      let startNode = candidates[0];
+      if (filePath) {
+        const exact = candidates.find((c) => c.node.filePath?.includes(filePath));
+        if (exact) startNode = exact;
+      }
+
+      const path = tracePath(graph, startNode.node.id, maxDepth);
+      return {
+        start: { name: startNode.node.name, label: startNode.node.label, file: startNode.node.filePath },
+        chain: path.map((n) => ({
+          name: n.name,
+          label: n.label,
+          file: n.filePath,
+          line: n.startLine,
+        })),
+        depth: path.length,
+      };
+    }
+
+    case 'code_graph_structure': {
+      const graph = getCachedGraph(root);
+      const dir = resolve(root, args.dir as string);
+      const relDir = dir.replace(root, '').replace(/^[\\/]/, '').replace(/\\/g, '/');
+      const structure = getStructure(graph, relDir);
+      return {
+        dir: relDir,
+        modules: structure.modules.map((m) => ({ name: m.name, path: m.filePath })),
+        files: structure.files.map((f) => ({ name: f.name, path: f.filePath, language: f.language })),
+        functions: structure.functions.map((f) => ({ name: f.name, file: f.filePath, line: f.startLine })),
+        classes: structure.classes.map((c) => ({ name: c.name, file: c.filePath, line: c.startLine })),
+        stats: getGraphStats(graph),
+      };
     }
 
     case 'validate_specs': {

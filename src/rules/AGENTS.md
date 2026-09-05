@@ -1,6 +1,8 @@
 # src/rules — Rules Generator
 
-> Generates AI-facing rules files (CLAUDE.md, AGENTS.md, .cursorrules).
+> Orchestrates AI-facing rules files (AGENTS.md canonical + CLAUDE.md/GEMINI.md thin shells).
+> Content rendering and three-state conflict decisions live in src/install/rules-generator.ts;
+> .cursorrules/.windsurfrules are never generated (C3/D2, goal-p0-dispatch-gate).
 
 ## Where to Look
 

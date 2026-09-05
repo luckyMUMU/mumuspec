@@ -52,6 +52,8 @@ mumuspec state check <name> design
 ### Step 2: 认知框架启动（乔哈里窗变体）— MumuSpec 独有
 
 > **详细规范**：模板见 `.mumuspec/templates/cognitive-map-template.yaml`，格式规范见 `.mumuspec/templates/cognitive-map-schema.md`
+>
+> **初始化**：运行 `mumuspec cognitive-map init <name>` 从模板生成变更的 cognitive-map.yaml（--force 覆盖）；条目内容由 Agent 撰写（Q1-Q4 推理属决策域），写完后运行 `mumuspec cognitive-map sync <name>` 重算 `.mumuspec.yaml` 的 cognitive_framework 计数
 
 #### ⚠️ cognitive-map.yaml 格式注意
 
@@ -197,6 +199,8 @@ AND has_undesignated_decisions(cognitive-map.yaml)
 #### 执行协议
 
 ```
+首选载体: mumuspec grill-me run --phase design --change <name>
+  （结果自动写回 .mumuspec.yaml 的 grill_me_result；交互模式 --interactive）
 输入: cognitive-map.yaml (Q1 锚定 + Q3 确认约束 + Q4 残留)
 输出: grill-me 共识记录 + cognitive-map.yaml 更新
 
@@ -321,6 +325,7 @@ cognitive-map.yaml grill-me 条目格式（追加到 entries 列表中）：
 基于 Q1 锚定 + Q3 确认约束 + grill-me 共识记录 + Hyperplan 幸存硬约束设计测试用例：
 
 - 按 layer 组织：`test-cases/layer-0-cases.md`, `layer-1-cases.md`, ...
+- 骨架生成：`mumuspec test-cases init <name> --layers 3,2,1,0`（按 build_layers 深度优先序）
 - Q4 兜底策略中的测试兜底项须有对应测试用例
 - Hyperplan `risks` 须有对应测试用例验证缓解措施
 
@@ -359,7 +364,7 @@ mumuspec test-cases lock --change <name>
 记录认知框架决策 + grill-me 共识记录 + Hyperplan 幸存洞察 + 设计选择：
 
 ```bash
-mumuspec decisions append --phase design --change <name>
+mumuspec decisions append --phase design --change <name> --text "<本组决策要点（单行摘要）>"
 ```
 
 记录内容：

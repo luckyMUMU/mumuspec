@@ -1,6 +1,6 @@
 ---
 name: mumuspec
-description: "MumuSpec — 规范驱动的 AI 编程工作流。以 /mumuspec 启动，自动检测阶段并分发到子命令。五阶段：open → design → build → verify → archive。"
+description: "MumuSpec — Spec 即 DSL，人工编写规范不写代码。以 /mumuspec 启动，自动检测阶段并分发到子命令。五阶段：open → design → build → verify → archive。"
 ---
 
 # MumuSpec 工作流编排器
@@ -97,26 +97,22 @@ Step 3: 阶段判定（按序检查，首个匹配生效）
 
 ## Guard 与 State 一致性说明
 
-> **当前限制**：`mumuspec guard <change> <phase> --apply` 和 `mumuspec state transition <change> <next-phase> --confirm` 使用**不同的校验标准**。
+> **0.20 起两者的差异已收窄**：`state transition --confirm` 不再是"宽松通道"——它校验目标阶段合法性、同样强制阻塞点 `--confirm`，且**绕过守卫的转换会被写入审计**（`guard.bypass_audit: false` 时直接拒绝并报 E-STATE-001）。
 
-| 维度 | guard --apply | state transition --confirm |
-|------|--------------|--------------------------|
-| 严格程度 | 严格（检查所有必填字段） | 宽松（仅检查用户确认标记） |
-| cognitive_framework | 必须在 `.mumuspec.yaml` 中设置 count 值 | 不直接校验 |
-| 错误修复 | 修改后重新运行 guard | 无法修复，只能跳过 |
+| 维度 | guard <phase> --apply | state transition <next-phase> --confirm |
+|------|----------------------|----------------------------------------|
+| 校验 | 完整 Phase Guard（工件/锁/hash/计数） | 仅目标阶段合法性 + BP 确认标记 |
+| 阻塞点 | BP 未确认时拒绝 | BP 未确认时拒绝（需 --confirm） |
+| 绕过审计 | —（guard 本身即校验） | 写 audit-log `state.confirm_bypass` |
+| 适用 | **标准路径（推荐）** | 明确要跳过守卫的例外路径（被审计） |
 
 **推荐工作流**：
 
 ```
-方式 A（推荐）：使用 guard
-  mumuspec guard <name> <phase> --apply
-  → 若失败 → 修复错误 → 重新运行
-  → 直到通过
-
-方式 B（快速）：使用 state transition
-  mumuspec state transition <name> <next-phase> --confirm
-  → 立即生效，但跳过严格校验
-  → 适用于已知状态正确但 guard 报错的情况
+标准：mumuspec guard <name> <phase> --apply
+  → 失败 → 按错误码修复 → 重跑直到通过
+例外：mumuspec state transition <name> <next-phase> --confirm
+  → 仅当确知状态正确而 guard 误报时使用；操作被审计
 ```
 
 **常见 guard 错误速查表：**
@@ -132,16 +128,8 @@ Step 3: 阶段判定（按序检查，首个匹配生效）
 **快速修复命令模板**：
 
 ```bash
-# 在 .mumuspec.yaml 中设置 cognitive_framework 计数
-# 读取 cognitive-map.yaml 中各 quadrant 的条目数
-Q1_COUNT=$(grep -c "quadrant: Q1" .mumuspec/changes/<name>/cognitive-map.yaml)
-Q2_COUNT=$(grep -c "quadrant: Q2" .mumuspec/changes/<name>/cognitive-map.yaml)
-Q3_COUNT=$(grep -c "quadrant: Q3" .mumuspec/changes/<name>/cognitive-map.yaml)
-Q4_COUNT=$(grep -c "quadrant: Q4" .mumuspec/changes/<name>/cognitive-map.yaml)
-
-# 更新 .mumuspec.yaml 中的 cognitive_framework
-mumuspec state set <name> cognitive_framework.q1_count $Q1_COUNT
-mumuspec state set <name> cognitive_framework.q4_scans_completed $Q4_COUNT
+# 从 cognitive-map.yaml 重算 .mumuspec.yaml 的 cognitive_framework 计数（确定性）
+mumuspec cognitive-map sync <name>
 ```
 
 ---

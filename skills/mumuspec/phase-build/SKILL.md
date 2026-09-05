@@ -46,7 +46,7 @@ description: "MumuSpec Phase 3: Build。以 /phase-build 启动。自下向上�
 mumuspec state check <name> build
 ```
 
-**幂等性**：读取 `.mumuspec.yaml` 的 `phase` 确认仍在 build，读取 `base-ref.txt`，使用 `grep -n '\- \[ \]' tasks.md | head -1` 找到第一个未完成任务。已提交的任务不重复提交。
+**幂等性**：读取 `.mumuspec.yaml` 的 `phase` 确认仍在 build，读取 `base-ref.txt`，使用 `mumuspec tasks next <name>` 定位第一个未完成任务（行号 + 剩余计数）。已提交的任务不重复提交。
 
 ### Step 2: 创建实现计划
 
@@ -146,13 +146,13 @@ mumuspec state set <name> tdd_mode tdd   # 默认 tdd，可配置 (default_tdd_m
 ```
 a. 加载该层规范 + test-cases/layer-N/cases.md
 b. RED: 依据 cases.md 编写测试套件 → 验证测试失败
-c. 锁定该层测试套件（计算 hash，写入 suite-map.yaml）
+c. 锁定该层测试套件：`mumuspec test-cases lock-suite <name> --layer N`（确定性写入 state.suites_hash）
 d. GREEN: 编写实现代码使所有测试通过
 e. REFACTOR: 重构优化（不改测试）
 f. 运行该层 Enforcement 检查（SHALL + SHALL NOT）
 g. Ponytail 合规检查（见 Step 5b）
 h. 代码图谱增量更新
-i. 标记 build_layers[layer=N].status = done
+i. `mumuspec state layer <name> N done`
 j. 提交代码（worktree 内 git commit）
 k. 勾选 tasks.md 对应任务
 ```

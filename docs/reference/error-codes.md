@@ -3,27 +3,29 @@
 > **Auto-generated** from `src/core/errors.ts`. Do not edit manually.
 > Run `node scripts/gen-error-codes-doc.mjs` to regenerate.
 
-Last updated: 2026-08-22
+Last updated: 2026-09-02
 
 ## Summary
 
 | Domain | Count |
 |--------|-------|
-| SPEC | 14 |
-| CHANGE | 11 |
+| SPEC | 15 |
+| CHANGE | 13 |
+| VERIFY | 3 |
+| FINAL | 1 |
 | HOOK | 1 |
 | MERGE | 10 |
-| GUARD | 7 |
+| GUARD | 8 |
 | PONYTAIL | 4 |
 | CONTRACT | 10 |
 | KNOWLEDGE | 3 |
-| DESIGN | 2 |
+| DESIGN | 4 |
 | SECURITY | 3 |
 | STATE | 1 |
 | AGENTS | 1 |
 | CHECK | 1 |
 | GIT | 3 |
-| **Total** | **71** |
+| **Total** | **81** |
 
 ## SPEC Domain
 
@@ -32,7 +34,7 @@ Last updated: 2026-08-22
 | `E-SPEC-001` | SPEC_FORMAT_INVALID | ERROR | spec.md YAML frontmatter 格式错误 | No |
 | `E-SPEC-002` | SPEC_LAYER_EXCEED_MAX | ERROR | 规范层级超过 max_layer_depth | No |
 | `E-SPEC-003` | SPEC_INHERITANCE_CONFLICT | ERROR | 子层 SHALL NOT 与父层 SHALL 矛盾 | No |
-| `E-SPEC-004` | SPEC_ENFORCEMENT_MISSING | WARN | SHALL/SHALL NOT 无对应 Enforcement | Yes |
+| `E-SPEC-004` | SPEC_ENFORCEMENT_MISSING | WARN | SHALL 无验证声明（无 Enforcement、无 annotation，P0 语义收窄：仅指 SHALL；SHALL NOT 走 E-SPEC-015） | No |
 | `E-SPEC-005` | SPEC_DRIFT_DETECTED | ERROR | spec.md 声明的 Requirement 在代码中无实现 | No |
 | `E-SPEC-006` | SPEC_DESIGN_DOC_MISSING | ERROR | 有 spec.md 但无 design.md | No |
 | `E-SPEC-007` | SPEC_INDEX_OUTDATED | WARN | index.yaml 与实际目录结构不一致 | Yes |
@@ -43,6 +45,7 @@ Last updated: 2026-08-22
 | `E-SPEC-012` | DIST_SPEC_SHALL_UNIMPLEMENTED | ERROR | tech.md 中声明的 SHALL 约束在代码中找不到实现 | No |
 | `E-SPEC-013` | UNDEFINED_MUMUSPEC_DIRECTORY | ERROR | .mumuspec/ 下存在未定义的目录 | No |
 | `E-SPEC-014` | UNDEFINED_MUMUSPEC_FILE | ERROR | .mumuspec/ 下存在未定义的文件 | No |
+| `E-SPEC-015` | SPEC_SHALL_NOT_UNVERIFIABLE | ERROR | SHALL NOT 红线无可验证通道（无 annotation、正则兜底不可提取、无 manual 声明） | No |
 
 ### `E-SPEC-001`: SPEC_FORMAT_INVALID
 
@@ -77,12 +80,13 @@ Last updated: 2026-08-22
 ### `E-SPEC-004`: SPEC_ENFORCEMENT_MISSING
 
 - **Severity**: WARN
-- **Forceable**: Yes
-- **Description**: SHALL/SHALL NOT 无对应 Enforcement
+- **Forceable**: No
+- **Description**: SHALL 无验证声明（无 Enforcement、无 annotation，P0 语义收窄：仅指 SHALL；SHALL NOT 走 E-SPEC-015）
 
 **Fix Steps**:
 1. 为该约束补充 Enforcement 检查规则
-2. 或标记为 enforcement: manual
+2. 或标记为 enforcement: manual(原因)
+3. 或补充 frontmatter annotation
 
 ### `E-SPEC-005`: SPEC_DRIFT_DETECTED
 
@@ -182,6 +186,17 @@ Last updated: 2026-08-22
 1. 移除未定义的文件
 2. 或将其内容合并到已定义的 spec 文件中
 
+### `E-SPEC-015`: SPEC_SHALL_NOT_UNVERIFIABLE
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: SHALL NOT 红线无可验证通道（无 annotation、正则兜底不可提取、无 manual 声明）
+
+**Fix Steps**:
+1. 补充 frontmatter annotation（enforced-strong）
+2. 或改写文本使引号词可被正则兜底提取（enforced-weak）
+3. 或声明 Enforcement `- ID: manual(原因)`
+
 ## CHANGE Domain
 
 | Code | Name | Severity | Description | Forceable |
@@ -197,6 +212,8 @@ Last updated: 2026-08-22
 | `E-CHANGE-009` | CHANGE_BRANCH_CREATE_FAILED | ERROR | 自动创建变更分支失败（已回退变更目录） | No |
 | `E-CHANGE-010` | CHANGE_DISCARD_MOVE_FAILED | ERROR | 废弃变更时目录移动失败，变更保留在原位置 | No |
 | `E-CHANGE-011` | CHANGE_ARCHIVE_MOVE_FAILED | ERROR | 归档变更时目录移动失败，变更保留在原位置 | No |
+| `E-CHANGE-020` | CHANGE_ARTIFACT_SCHEMA_INVALID | ERROR | 完备性工件 schema 非法（open-questions.yaml / assumptions.yaml 违反 schema v1） | No |
+| `E-CHANGE-021` | CHANGE_RESOLUTION_CHAIN_BROKEN | ERROR | 工件 resolution 链断裂（decision_ref 在 decisions.md 中无对应条目，或 deferred 缺 note） | No |
 
 ### `E-CHANGE-001`: CHANGE_ALREADY_ACTIVE
 
@@ -306,6 +323,73 @@ Last updated: 2026-08-22
 **Fix Steps**:
 1. 检查目标目录是否已存在
 2. 手动将变更目录移到 .mumuspec/changes/archive/
+
+### `E-CHANGE-020`: CHANGE_ARTIFACT_SCHEMA_INVALID
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 完备性工件 schema 非法（open-questions.yaml / assumptions.yaml 违反 schema v1）
+
+### `E-CHANGE-021`: CHANGE_RESOLUTION_CHAIN_BROKEN
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 工件 resolution 链断裂（decision_ref 在 decisions.md 中无对应条目，或 deferred 缺 note）
+
+## VERIFY Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-VERIFY-001` | VERIFY_RESULT_NOT_PASS | ERROR | verify_result 不为 pass（验证未通过不等于通过；偏差须走 accept-deviations 旁路） | No |
+| `E-VERIFY-002` | BRANCH_STATUS_UNHANDLED | ERROR | 变更分支状态未处理（branch_status 未标记 handled） | No |
+| `E-VERIFY-003` | MANUAL_EVIDENCE_MISSING | ERROR | verify.md 缺少 manual 类约束的验证记录（按 Enforcement ID 或约束文本锚定） | Yes |
+
+### `E-VERIFY-001`: VERIFY_RESULT_NOT_PASS
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: verify_result 不为 pass（验证未通过不等于通过；偏差须走 accept-deviations 旁路）
+
+**Fix Steps**:
+1. 修复验证失败项后重新验证
+2. 或走 accept-deviations 旁路并记录偏差
+
+### `E-VERIFY-002`: BRANCH_STATUS_UNHANDLED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 变更分支状态未处理（branch_status 未标记 handled）
+
+**Fix Steps**:
+1. 合并或清理变更分支
+2. 更新 state.branch_status 为 handled
+
+### `E-VERIFY-003`: MANUAL_EVIDENCE_MISSING
+
+- **Severity**: ERROR
+- **Forceable**: Yes
+- **Description**: verify.md 缺少 manual 类约束的验证记录（按 Enforcement ID 或约束文本锚定）
+
+**Fix Steps**:
+1. 在 verify.md 中为每条 manual 约束补充验证记录（引用其 Enforcement ID 或原文）
+2. 或将约束的 Enforcement 改为可自动执行的通道后重新验证
+3. 或走 accept-deviations 旁路并记录偏差
+
+## FINAL Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-FINAL-001` | FINALIZE_STATE_INVALID | ERROR | finalize 前置状态不满足（变更未归档或 phase 非 archive-completed） | No |
+
+### `E-FINAL-001`: FINALIZE_STATE_INVALID
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: finalize 前置状态不满足（变更未归档或 phase 非 archive-completed）
+
+**Fix Steps**:
+1. 先运行 mumuspec state transition <name> archive 完成归档流程
+2. 再执行 finalize
 
 ## HOOK Domain
 
@@ -445,6 +529,7 @@ Last updated: 2026-08-22
 | `E-GUARD-005` | GUARD_HYPERPLAN_NOT_MERGED | ERROR | hyperplan 硬约束未合并到 design.md | No |
 | `E-GUARD-006` | GUARD_HYPERPLAN_OPEN_QUESTIONS | ERROR | hyperplan 开放问题未解决 | No |
 | `E-GUARD-007` | GUARD_PRE_COMMIT_TIMEOUT | WARN | Pre-commit 检查超过 5s | Yes |
+| `E-GUARD-008` | GUARD_COMPLETENESS_GATE_BLOCK | ERROR | 完备性门禁阻塞（工件缺失 / 存在未消解 open 项 / 工件为空 / 声明路径缺人工签收） | No |
 
 ### `E-GUARD-001`: GUARD_ARTIFACT_MISSING
 
@@ -514,6 +599,16 @@ Last updated: 2026-08-22
 **Fix Steps**:
 1. 考虑缩小检查范围
 2. 优化规则性能
+
+### `E-GUARD-008`: GUARD_COMPLETENESS_GATE_BLOCK
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 完备性门禁阻塞（工件缺失 / 存在未消解 open 项 / 工件为空 / 声明路径缺人工签收）
+
+**Fix Steps**:
+1. 起草并消解 open-questions.yaml / assumptions.yaml（resolution.decision_ref 指向 decisions.md 条目）
+2. 或在 design.md 声明 <!-- no-open-questions --> / <!-- no-assumptions --> 并先落 decisions.md 签收条目
 
 ## PONYTAIL Domain
 
@@ -719,6 +814,8 @@ Last updated: 2026-08-22
 | Code | Name | Severity | Description | Forceable |
 |------|------|----------|-------------|-----------|
 | `E-DESIGN-001` | COGNITIVE_MAP_MISSING | ERROR | cognitive-map.yaml 不存在 | No |
+| `E-DESIGN-009` | DESIGN_SCHEMA_SECTION_MISSING | ERROR | design.md 缺少 templates/design-schema.yaml 要求的必填 section | No |
+| `E-DESIGN-010` | CROSS_ARTIFACT_INCONSISTENCY | ERROR | proposal 与 design 跨工件不一致（Plan 步骤未映射到 Layers、FR 未被 design 引用） | No |
 | `E-DESIGN-002` | COGNITIVE_Q1_EMPTY | ERROR | Q1 已知的已知为空 | No |
 
 ### `E-DESIGN-001`: COGNITIVE_MAP_MISSING
@@ -730,6 +827,26 @@ Last updated: 2026-08-22
 **Fix Steps**:
 1. 回退到 Design
 2. 执行认知框架 Step 0
+
+### `E-DESIGN-009`: DESIGN_SCHEMA_SECTION_MISSING
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: design.md 缺少 templates/design-schema.yaml 要求的必填 section
+
+**Fix Steps**:
+1. 按 schema 补充缺失的 section
+2. 运行 mumuspec guard <change> design --verbose 查看匹配规则
+
+### `E-DESIGN-010`: CROSS_ARTIFACT_INCONSISTENCY
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: proposal 与 design 跨工件不一致（Plan 步骤未映射到 Layers、FR 未被 design 引用）
+
+**Fix Steps**:
+1. 在 design.md 中补充对应 Layer 或 FR 引用
+2. 或修正 proposal.md 使步骤与设计对齐
 
 ### `E-DESIGN-002`: COGNITIVE_Q1_EMPTY
 

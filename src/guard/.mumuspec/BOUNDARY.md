@@ -30,6 +30,12 @@ layer: 2
 
 > **设计原则**：ast-checker.ts 不使用任何正则匹配，所有检测基于 TypeScript Compiler API 的 AST 节点。
 
+### Ponytail Linter（ponytail-linter.ts）
+
+| 函数 | 签名 | 用途 |
+|------|------|------|
+| `lintPonytail` | `(projectRoot) => PonytailLintResult[]` | Ponytail 7 级阶梯 lint 检查 |
+
 ### Phase Guard（phase-guard.ts）
 
 | 函数 | 签名 | 用途 |
@@ -74,6 +80,13 @@ layer: 2
 
 | 日期 | 变更 | 影响 |
 |------|------|------|
+| 2026-08-29 | **CHG-5: LLM 自主性增强**：`E-GUARD-001` 从 RG high 降为 TD medium（过程约束）；`E-DESIGN-009` 从 ERROR 降为 W-DESIGN-009（设计模板检查）；hotfix 路径 proposal.md/build_layers/test-cases 从 ERROR 降为 WARNING；full workflow build_layers 从 ERROR 降为 WARNING；新增 `E-DESIGN-010`（TD medium）；默认 TD 强度从 high 降为 medium | 过程约束全面降级为 advisory，LLM 可自主选择实现路径；结果约束（SHALL NOT / verify pass / all layers done）仍 block |
+| 2026-08-29 | `checkIndexDrift` 修复：此前将 index 子项 path（如 `src\core`）与目录名（`core`）互比——永不相交导致每个条目都产生假漂移警告；改为按 path 探测 `.mumuspec` 存在性 + name/path 双向覆盖比较 | index_drift 警告从全员误报变为真实陈旧项 |
+| 2026-08-29 | **M2 门控默认翻转**：E-SPEC-015 / E-VERIFY-003 门控默认 ON（`enforcement_strict !== false`），显式 `false` 才退回观察态 | `mumuspec check` 与 archive 守卫默认执行红线门禁 |
+| 2026-08-29 | **Verifier 语义收紧（P0）**：`GUARD_CHECK_METADATA` 中 `E-SPEC-004` 加 `always_enforce: true`（任何强度保留为 warning，不再被 TD=low 折叠丢弃）；新增 `E-SPEC-015`（requirement_goals/high/always_enforce）与 `E-VERIFY-003`（同）注解；`checkShall` 改用共享分类器（`spec/verifier-classify.ts`）判定，正则提取与 `checkProhibitionViolation` 共享 `extractRegexPatterns`；`checkVerifyToArchive` 新增 manual 约束 evidence 逐条检查（E-VERIFY-003，门控 `enforcement_strict`） | `mumuspec check` 行为变化：E-SPEC-004 恒可见；门控开启时新增红线门禁 |
+| 2026-08-28 | 新增 `ponytail-linter.ts` — Ponytail lint 规则检查器 | 集成到 `checkCompliance` 中，输出 E/W-PONYTAIL-001 |
+| 2026-08-28 | `E-DESIGN-*` 和 `E-GUARD-004` 约束强度从 high 降级为 medium | 行为约束降级为 advisory，增强 LLM 自由度 |
+| 2026-08-28 | `ILanguageProvider` 新增 `extractSymbols?()` 方法 | TypeScript Provider 实现 AST 符号提取 |
 | 2026-08-03 | 修复文件共存约束检测（避免代码模式匹配误报） | 减少误报 128+ 个错误 |
 | 2026-08-03 | 排除系统行为约束的模式匹配 | 减少误报 |
 | 2026-08-09 | 新增 ast-checker.ts（纯 AST 检测器） | 为 guard 层提供无正则回退的检测能力 |

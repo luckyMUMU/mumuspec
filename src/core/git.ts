@@ -5,6 +5,8 @@
  * Windows: strip trailing \r from output lines.
  */
 import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { MumuSpecError } from './errors.js';
 
 export interface GitResult {
@@ -152,3 +154,41 @@ export function isGitRepo(cwd: string): boolean {
     return false;
   }
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Worktree operations — physical isolation for changes (0.20.0+)
+// ════════════════════════════════════════════════════════════════════
+
+/** Default worktree directory under .mumuspec/ */
+export function getWorktreePath(projectRoot: string, changeName: string): string {
+  return resolve(projectRoot, '.mumuspec', '.worktrees', changeName);
+}
+
+// ponytail: createWorktree and mergeWorktree removed — not yet called by any code path (YAGNI Level 1).
+// They will be re-added when worktree creation is wired into the change lifecycle.
+
+/** Remove a git worktree and its branch (cleanup on archive/discard). */
+export function removeWorktree(projectRoot: string, changeName: string): void {
+  const worktreePath = getWorktreePath(projectRoot, changeName);
+  const branch = `mumuspec/${changeName}`;
+
+  // Remove worktree (force, ignore errors if not exists)
+  git(projectRoot, ['worktree', 'remove', worktreePath, '--force'], { allowFail: true });
+
+  // Delete branch (force, ignore errors if not exists)
+  git(projectRoot, ['branch', '-D', branch], { allowFail: true });
+}
+
+/** Check if a worktree exists for a change. */
+export function hasWorktree(projectRoot: string, changeName: string): boolean {
+  const worktreePath = getWorktreePath(projectRoot, changeName);
+  try {
+    if (!existsSync(worktreePath)) return false;
+    const r = git(projectRoot, ['worktree', 'list', '--porcelain'], { allowFail: true });
+    return r.stdout.includes(worktreePath.replace(/\\/g, '/'));
+  } catch {
+    return false;
+  }
+}
+
+

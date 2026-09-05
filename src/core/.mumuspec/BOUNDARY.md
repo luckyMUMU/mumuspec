@@ -12,9 +12,9 @@ layer: 2
 | 文件 | 主要类型 | 用途 |
 |------|----------|------|
 | `types.ts` | `ChangeInfo`, `ChangeStatus`, `Phase` | 变更相关核心类型 |
-| `types-spec.ts` | `SpecFile`, `Requirement`, `Enforcement` | 规范文件类型 |
-| `types-constraint.ts` | `ConstraintStrengthField` | 约束强度类型 |
-| `types-workflow.ts` | `WorkflowRules` | 工作流规则类型 |
+| `types-spec.ts` | `SpecFile`, `Requirement`, `Enforcement`, `EnforcementRule.kind`（`'manual' \| 'implicit-manual'`） | 规范文件类型 |
+| `types-constraint.ts` | `ConstraintStrengthField`（含 `enforcement_strict?: boolean` 门控，默认 false） | 约束强度类型 |
+| `types-workflow.ts` | `WorkflowRules`, `GuardResult.coverage?: EnforcementCoverage` | 工作流规则类型 |
 | `types-env.ts` | `DetectedTool`, `DetectionResult` | 环境检测类型 |
 | `types-contract.ts` | `Contract`, `ContractRegistry`, `ContractDrift`, `DriftReport`, `BoundaryDocument`, `BoundaryExport`, `ContractImpactAnalysis`, `ImpactEntry` | 契约层核心类型 |
 | `types-knowledge.ts` | `KnowledgePage`, `PageIndex` | 知识库类型 |
@@ -64,6 +64,9 @@ layer: 2
 | `branchExists` | `(cwd, name) => boolean` | `git rev-parse --verify --quiet` |
 | `deleteBranch` | `(cwd, name) => GitResult` | `git branch -d <name>`（仅已合并） |
 | `getHeadSha` | `(cwd) => string` | `git rev-parse HEAD` |
+| `getWorktreePath` | `(projectRoot, changeName) => string` | Worktree 默认路径 |
+| `hasWorktree` | `(projectRoot, changeName) => boolean` | 检查 worktree 是否存在 |
+| `removeWorktree` | `(projectRoot, changeName) => void` | 清理 worktree 和分支 |
 
 ### 项目分析
 
@@ -112,6 +115,11 @@ layer: 2
 
 | 日期 | 变更 | 影响 |
 |------|------|------|
+| 2026-08-29 | 错误码注册表补全：登记 5 个有发射点但未注册的码（E-VERIFY-001/002、E-DESIGN-009/010、E-FINAL-001，新增 FINAL 域，78 码/16 域）；E-DESIGN-003~006 为无发射点的元数据残留，不补登记 | `docs/reference/error-codes.md` 再生 |
+| 2026-08-29 | **M2 门控默认翻转**：`ConstraintStrengthField.enforcement_strict` 默认 `true`（opt-out 语义，`!== false` 判定），用户明确接受 | E-SPEC-015 默认以 ERROR 发射；E-VERIFY-003 默认生效 |
+| 2026-08-29 | **Verifier 语义收紧（P0）**：`errors.ts` 新增 `E-SPEC-015 SPEC_SHALL_NOT_UNVERIFIABLE`（ERROR，forceable: false）与 `E-VERIFY-003 MANUAL_EVIDENCE_MISSING`（ERROR，forceable: true）；`E-SPEC-004` 修订（语义收窄为 SHALL 无验证声明，forceable: false）；`ConstraintStrengthField` 新增 `enforcement_strict` 门控（默认 false）；`EnforcementRule` 新增 `kind` 字段；`GuardResult` 新增可选 `coverage` | 对外错误码面变化（`docs/reference/error-codes.md` 自动再生成）；MCP/CLI 返回体纯新增字段，向后兼容 |
+| 2026-08-28 | `git.ts` 新增 worktree 函数（getWorktreePath, hasWorktree, removeWorktree） | 变更归档/废弃时自动清理 worktree |
+| 2026-08-28 | `types-knowledge.ts` 新增 Code Graph 类型（GraphNode, GraphEdge, CodeGraph 等） | 为轻量级代码图谱提供类型基础 |
 | 2026-08-08 | 新增 `git.ts` 统一 git 封装（12 个函数，spawnSync 安全调用） | 新外部接口：git 分支/合并操作；新依赖 node:child_process |
 | 2026-08-08 | 新增 `logger.ts`（4 级结构化日志）、`validateChangeName` 函数 | 奠定空捕获替换 + 路径穿越防护基础 |
 | 2026-08-04 | Contract Layer 实现（loader/validator/impact-analyzer/manager） | 新增类型、目录边界、漂移检测、影响分析 |

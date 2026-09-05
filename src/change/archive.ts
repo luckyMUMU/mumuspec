@@ -10,6 +10,7 @@ import { MumuSpecError } from '../core/errors.js';
 import { createKnowledgePage, getKnowledgeDir } from '../knowledge/manager.js';
 import { getChangeDir, getArchiveDir } from './paths.js';
 import { loadChangeState, saveChangeState } from './state.js';
+import { hasWorktree, removeWorktree } from '../core/git.js';
 
 /**
  * Auto-bump project version during archive.
@@ -151,6 +152,21 @@ export function archiveChange(
     knowledge_extracted: !isTweak,
     result: 'success',
   });
+
+  // Clean up worktree if physical isolation was used (0.20.0+)
+  try {
+    if (hasWorktree(projectRoot, changeName)) {
+      removeWorktree(projectRoot, changeName);
+      appendAuditLog(getMumuSpecDir(projectRoot), {
+        actor: 'system',
+        action: 'worktree.cleanup',
+        change: changeName,
+        result: 'success',
+      });
+    }
+  } catch {
+    // Worktree cleanup failure is non-fatal — change is already archived
+  }
 }
 
 // Local imports needed only by archive sub-processes

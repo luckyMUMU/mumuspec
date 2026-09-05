@@ -18,6 +18,13 @@ const DEFINED_DIRECTORIES = new Set([
   'roadmap',
   'adr',
   'designs-archive',
+  // Drive-by fix (2026-08-29): `mumuspec init` creates .mumuspec/skills/ and
+  // bundle packager consumes it — the whitelist omitted it (E-SPEC-013 false
+  // positive on freshly-initialized projects).
+  'skills',
+  // Drive-by fix (2026-08-29): cognitive-map lookup reads
+  // .mumuspec/templates/ (cognitive-map.ts, config custom_dir) — legit dir.
+  'templates',
 ]);
 
 /** Defined top-level files under .mumuspec/ */
@@ -52,6 +59,9 @@ const DEFINED_KNOWLEDGE_DIRS = new Set([
 /** Defined changes subdirectories */
 const DEFINED_CHANGES_DIRS = new Set([
   'archive',
+  // Drive-by fix (2026-08-29): `mumuspec discard` moves terminated changes to
+  // changes/discarded/ — the whitelist omitted the feature's own destination.
+  'discarded',
 ]);
 
 /**

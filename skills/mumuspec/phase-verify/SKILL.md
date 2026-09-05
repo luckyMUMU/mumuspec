@@ -170,7 +170,7 @@ mumuspec knowledge verify --all
 **不确定性原则**：严重性不明确时降级（SUGGESTION > WARNING > CRITICAL）。
 
 **用户选项**：
-- **全部修复**：运行 `mumuspec state transition <name> verify-fail`，调用 `phase-build` 修复
+- **全部修复**：运行 `mumuspec state transition <name> build --reason "<失败根因>"`（verify→build rebuild 回退），调用 `phase-build` 修复
 - **逐项处理**：CRITICAL 必须修复；非 CRITICAL 可接受偏差但须记录理由
 
 **重试限制**：连续 3 次 verify-fail 后，第 4 次失败时**必须暂停**，仅提供两个选项："接受所有偏差并记录"或"继续修复"。

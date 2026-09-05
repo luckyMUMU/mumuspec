@@ -41,6 +41,13 @@ export interface EnforcementRule {
   id: string;
   description: string;
   check?: string;
+  /**
+   * Verifier semantics (P0, 2026-08-29): how this enforcement is discharged.
+   * - 'manual'          — explicit `manual(reason)` declaration
+   * - 'implicit-manual' — legacy free-text line (never machine-executed; honest class)
+   * No automated kind exists yet by design (proposal N1: no new engines).
+   */
+  kind?: 'manual' | 'implicit-manual';
   severity: Severity;
   /** P1-1 Fix: Machine-readable annotation for semantic checking */
   machine_readable?: MachineReadableAnnotation;

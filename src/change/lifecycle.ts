@@ -7,7 +7,7 @@ import type { ChangeState, Workflow } from '../core/types.js';
 import type { MumuSpecConfig } from '../core/config.js';
 import { readText, writeText, ensureDir, computeHash, now, appendAuditLog, getMumuSpecDir } from '../core/utils.js';
 import { MumuSpecError } from '../core/errors.js';
-import { getCurrentBranch, isGitRepo } from '../core/git.js';
+import { getCurrentBranch, isGitRepo, hasWorktree, removeWorktree } from '../core/git.js';
 import { ensureFeedbackStructure, getChangeFeedbackDir } from '../feedback/manager.js';
 import { getChangeDir, getDiscardedDir } from './paths.js';
 import { loadChangeState, saveChangeState } from './state.js';
@@ -267,6 +267,15 @@ export function discardChange(
     change: changeName,
     result: 'success',
   });
+
+  // Clean up worktree if physical isolation was used (0.20.0+)
+  try {
+    if (hasWorktree(projectRoot, changeName)) {
+      removeWorktree(projectRoot, changeName);
+    }
+  } catch {
+    // Worktree cleanup failure is non-fatal — change is already discarded
+  }
 }
 
 /** Validate that affected_scopes are within the given scope's subtree. */
@@ -476,4 +485,85 @@ export function updateBuildLayerStatus(
   layerDef.status = status;
   state.updated_at = now();
   saveChangeState(projectRoot, changeName, state);
+}
+
+/**
+ * Lock a single layer's test suite hash (0.20 CLI-first).
+ *
+ * Replaces the skill-instructed hand-step "compute hash, write suite-map.yaml"
+ * with a deterministic command. Writes into `state.test_cases.suites_hash`
+ * (keyed by layer number per types-workflow.ts) and marks `suites_locked`
+ * once every `test-cases/layer-N-cases.md` file has a locked hash.
+ */
+export function lockTestSuite(
+  projectRoot: string,
+  changeName: string,
+  layer: number,
+): { hash: string; allLocked: boolean; pendingLayers: number[] } {
+  const changeDir = getChangeDir(projectRoot, changeName);
+  const suitePath = join(changeDir, 'test-cases', `layer-${layer}-cases.md`);
+  if (!existsSync(suitePath)) {
+    throw new MumuSpecError('E-GUARD-001', {
+      message: `Test suite not found: test-cases/layer-${layer}-cases.md (run 'mumuspec test-cases init ${changeName} --layers ${layer}' first)`,
+    });
+  }
+
+  const hash = computeHash(readText(suitePath) ?? '');
+
+  const state = loadChangeState(projectRoot, changeName);
+  if (!state) throw new Error(`Change not found: ${changeName}`);
+
+  state.test_cases.suites_hash[layer] = hash;
+  if (!state.test_cases.suites_locked_layers.includes(layer)) {
+    state.test_cases.suites_locked_layers.push(layer);
+  }
+
+  // suites_locked = every suite file present on disk has a locked hash
+  const testCasesDir = join(changeDir, 'test-cases');
+  const suiteLayers = existsSync(testCasesDir)
+    ? readdirSync(testCasesDir)
+        .map((f) => f.match(/^layer-(\d+)-cases\.md$/))
+        .filter((m): m is RegExpMatchArray => !!m)
+        .map((m) => parseInt(m[1], 10))
+    : [];
+  const pendingLayers = suiteLayers.filter((l) => !state.test_cases.suites_locked_layers.includes(l));
+  state.test_cases.suites_locked = suiteLayers.length > 0 && pendingLayers.length === 0;
+  state.updated_at = now();
+  saveChangeState(projectRoot, changeName, state);
+
+  return { hash, allLocked: state.test_cases.suites_locked, pendingLayers };
+}
+
+/**
+ * Find the first unchecked task in tasks.md (read-only, 0.20 CLI-first).
+ *
+ * Replaces the skill-instructed `grep -n '\- \[ \]' tasks.md | head -1` hand-step.
+ */
+export function getNextTask(
+  projectRoot: string,
+  changeName: string,
+): { firstUnchecked: { line: number; text: string } | null; remaining: number; total: number } {
+  const changeDir = getChangeDir(projectRoot, changeName);
+  const tasksPath = join(changeDir, 'tasks.md');
+  if (!existsSync(tasksPath)) {
+    throw new MumuSpecError('E-GUARD-001', { message: `tasks.md not found: ${tasksPath}` });
+  }
+
+  const content = readText(tasksPath) ?? '';
+  const lines = content.split('\n');
+  const itemRe = /^\s*- \[( |x|X)\] (.*)$/;
+  let firstUnchecked: { line: number; text: string } | null = null;
+  let remaining = 0;
+  let total = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(itemRe);
+    if (!m) continue;
+    total++;
+    if (m[1].toLowerCase() === 'x') continue;
+    remaining++;
+    if (!firstUnchecked) firstUnchecked = { line: i + 1, text: m[2].trim() };
+  }
+
+  return { firstUnchecked, remaining, total };
 }

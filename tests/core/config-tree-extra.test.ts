@@ -71,12 +71,12 @@ describe('WORKFLOW_STRENGTH_MATRIX', () => {
   });
 
   it('medium strength should relax some workflows', () => {
-    const med = WORKFLOW_STRENGTH_MATRIX.medium;
-    expect(med.worktree_isolation).toBe(true);
-    expect(med.single_active_change).toBe(false);
-    expect(med.top_down_design).toBe(false);
-    expect(med.tdd_enforced).toBe(true);
-  });
+const med = WORKFLOW_STRENGTH_MATRIX.medium;
+expect(med.worktree_isolation).toBe(true);
+expect(med.single_active_change).toBe(false);
+expect(med.top_down_design).toBe(false);
+expect(med.tdd_enforced).toBe(false); // 0.20.0+: tdd_enforced relaxed at medium for LLM freedom
+});
 
   it('low strength should relax most workflows', () => {
     const low = WORKFLOW_STRENGTH_MATRIX.low;

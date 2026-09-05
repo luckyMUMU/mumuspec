@@ -5,6 +5,7 @@
  * for the R-0003 AST Guard upgrade. Language providers implement this interface
  * to offer semantic constraint detection for specific programming languages.
  */
+import type { ExtractedSymbol } from './types-knowledge.js';
 
 /** Result of parsing source code into an AST. */
 export interface ASTResult {
@@ -93,6 +94,13 @@ export interface ILanguageProvider {
    * If not provided, a default format is used.
    */
   formatMessage?(violation: ConstraintViolation): string;
+
+  /**
+   * Extract symbols (functions, classes, interfaces) from source code.
+   * Used by the Code Graph builder to construct the in-memory graph.
+   * Returns empty array if not supported.
+   */
+  extractSymbols?(source: string, filename: string): ExtractedSymbol[];
 }
 
 /** Regex-based constraint (backward compatibility). */

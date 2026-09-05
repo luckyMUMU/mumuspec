@@ -72,7 +72,7 @@ export const WORKFLOW_STRENGTH_MATRIX: Readonly<
     worktree_isolation: true,
     single_active_change: false,
     top_down_design: false,
-    tdd_enforced: true,
+    tdd_enforced: false,
   },
   low: {
     worktree_isolation: false,

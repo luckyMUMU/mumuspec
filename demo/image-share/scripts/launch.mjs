@@ -21,6 +21,19 @@ function setupEnvironment() {
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   }
 
+  // Auto-generate default config.json if not exists
+  const configFilePath = join(CONFIG_DIR, 'config.json');
+  if (!existsSync(configFilePath)) {
+    const defaultConfig = {
+      port: 3100,
+      host: '0.0.0.0',
+      uploadDir: UPLOADS_DIR,
+      maxFileSize: 52428800,
+      autoScan: false,
+    };
+    writeFileSync(configFilePath, JSON.stringify(defaultConfig, null, 2));
+  }
+
   // Detect package source (bundled alongside exe)
   const srcDist = join(EXE_DIR, 'dist');
   if (existsSync(join(srcDist, 'server.js'))) {
@@ -63,12 +76,14 @@ async function main() {
   const nodeBin = process.execPath;
 
   // Prepare environment
+  const configFileCandidate = join(CONFIG_DIR, 'config.json');
   const env = {
     ...process.env,
     PORT: process.env.PORT ?? '3100',
     HOST: process.env.HOST ?? '0.0.0.0',
     DATA_DIR,
     UPLOAD_DIR: UPLOADS_DIR,
+    CONFIG_FILE: existsSync(configFileCandidate) ? configFileCandidate : undefined,
     NODE_ENV: 'production',
   };
 

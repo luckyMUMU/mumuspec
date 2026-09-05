@@ -58,7 +58,7 @@ mumuspec state check <name> archive
 
 **选项**：
 - "确认归档" — 立即运行归档脚本
-- "需要调整或重新验证" — 运行 `mumuspec state transition <name> archive-reopen` 回到 `phase: verify`
+- "需要调整或重新验证" — 运行 `mumuspec state transition <name> build --reason "<原因>"`（archive-in-progress→build 回退，图中无直达 verify 的边）
 - "暂不归档" — 保持当前 `phase: archive` 状态
 
 **只有用户选择"确认归档"后才可继续 Step 3。**
@@ -68,7 +68,7 @@ mumuspec state check <name> archive
 运行归档脚本自动完成所有步骤：
 
 ```bash
-mumuspec archive <change-name>
+mumuspec archive <change-name> --confirm
 ```
 
 #### 子流程 A: Git 合并流程
@@ -152,7 +152,7 @@ brainstorming → delta-spec → 认知框架 → 设计 → TDD 实现 → 验�
 
 ## Phase Guard 调用
 
-归档由 `mumuspec archive <change-name>` 脚本一次性完成所有步骤，包括 guard 检查。
+归档由 `mumuspec archive <change-name> --confirm` 脚本一次性完成所有步骤，包括 guard 检查。
 
 `archive_complete` 守卫检查项：
 - git_merge.merged: true

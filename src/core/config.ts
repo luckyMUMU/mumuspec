@@ -39,6 +39,18 @@ export interface ConstraintStrengthField {
   requirement_goals: ConstraintStrength;
   /** Read-only exception list — always block regardless of strength */
   exceptions: string[];
+  /**
+   * Verifier strict gate (P0, 2026-08-29; M2 default flip same day).
+   * When true (default), a SHALL NOT with no verification channel emits
+   * E-SPEC-015 as ERROR (red-line gate) and the verify stage requires
+   * per-item evidence for manual constraints (E-VERIFY-003).
+   * Opt out with `enforcement_strict: false` — unverifiable SHALL NOT then
+   * surface as warnings only.
+   *
+   * ponytail: root-level gate only; per-layer tightening deferred until a
+   * real project needs scoped strictness (YAGNI).
+   */
+  enforcement_strict?: boolean;
   /** Explicit overrides — priority above strength levels */
   overrides?: {
     workflow?: {

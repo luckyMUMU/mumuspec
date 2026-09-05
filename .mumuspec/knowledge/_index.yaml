@@ -975,3 +975,17 @@ pages:
       - imported
       - src-spec
     verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0059
+    title: 持久化 spec 是 DSL，不是字节码：一门带 verifier 的领域特定语言
+    type: decision
+    status: confirmed
+    scope: global
+    file: .mumuspecknowledgedecisionsglobalKP-0059-spec-as-dsl-not-bytecode.md
+    tags:
+      - dsl
+      - verifier
+      - spec-language
+      - design-philosophy
+      - bytecode-analogy
+      - goal
+    verified_at: 2026-08-29T00:00:00Z

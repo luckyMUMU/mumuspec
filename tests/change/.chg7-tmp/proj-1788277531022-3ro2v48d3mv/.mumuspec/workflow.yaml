@@ -1,0 +1,134 @@
+version: 1
+phases:
+  - open
+  - design
+  - build
+  - verify
+  - archive-in-progress
+  - archive-completed
+  - discarded
+terminal:
+  - archive-completed
+  - discarded
+edges:
+  - from: open
+    to: design
+    direction: forward
+    countAs: none
+    label: open→design（完整工作流）
+    bp:
+      id: BP-3
+      description: 工件审查与确认
+      required: true
+  - from: design
+    to: build
+    direction: forward
+    countAs: none
+    label: design→build
+    bp:
+      id: BP-4
+      description: 设计方案确认
+      required: true
+  - from: build
+    to: verify
+    direction: forward
+    countAs: none
+    label: build→verify
+  - from: verify
+    to: archive-in-progress
+    direction: forward
+    countAs: none
+    label: verify→archive-in-progress
+    bp:
+      id: BP-17
+      description: 归档最终确认
+      required: true
+  - from: open
+    to: build
+    direction: skip
+    countAs: none
+    label: open→build（hotfix/tweak 跳过 design）
+    bp:
+      id: BP-3
+      description: 工件审查与确认（预设路径）
+      required: true
+    condition:
+      workflow_in:
+        - hotfix
+        - tweak
+  - from: build
+    to: design
+    direction: backward
+    countAs: rollback
+    label: build→design（回退重设）
+  - from: verify
+    to: design
+    direction: backward
+    countAs: rollback
+    label: verify→design（设计层面重做）
+  - from: verify
+    to: build
+    direction: backward
+    countAs: rebuild
+    label: verify→build（仅修复/重建）
+  - from: archive-in-progress
+    to: build
+    direction: backward
+    countAs: rollback
+    label: archive→build（CI 失败回退）
+  - from: open
+    to: discarded
+    direction: skip
+    countAs: none
+    label: open→discarded（废弃变更）
+  - from: design
+    to: discarded
+    direction: skip
+    countAs: none
+    label: design→discarded（废弃变更）
+  - from: build
+    to: discarded
+    direction: skip
+    countAs: none
+    label: build→discarded（废弃变更）
+  - from: verify
+    to: discarded
+    direction: skip
+    countAs: none
+    label: verify→discarded（废弃变更）
+  - from: archive-in-progress
+    to: discarded
+    direction: skip
+    countAs: none
+    label: archive→discarded（废弃变更）
+workflows:
+  full:
+    phases:
+      - open
+      - design
+      - build
+      - verify
+      - archive-in-progress
+      - archive-completed
+  hotfix:
+    phases:
+      - open
+      - build
+      - verify
+      - archive-in-progress
+      - archive-completed
+    skip_design: true
+  tweak:
+    phases:
+      - open
+      - build
+      - verify
+      - archive-in-progress
+      - archive-completed
+    skip_design: true
+  loop:
+    phases:
+      - build
+      - verify
+      - archive-in-progress
+      - archive-completed

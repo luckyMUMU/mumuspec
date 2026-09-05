@@ -1,0 +1,15 @@
+{
+  "port": 3100,
+  "host": "0.0.0.0",
+  "uploadDir": "./uploads",
+  "maxFileSize": 52428800,
+  "autoScan": false,
+  "allowedTypes": {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/bmp": ".bmp",
+    "image/svg+xml": ".svg"
+  }
+}

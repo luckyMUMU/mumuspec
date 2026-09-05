@@ -1,0 +1,58 @@
+version: "0.2.0"
+last_updated: "2026-08-29"
+# CHG-5 (0.20): TD=medium — process constraints are advisory (warn);
+# RG=high — result constraints (SHALL NOT, verify pass, artifacts) keep blocking.
+# This gives LLM freedom in HOW while keeping WHAT non-negotiable.
+strength:
+  technical_design: medium
+  requirement_goals: high
+forward:
+  technical_design:
+    - id: TD-F-001
+      content: "确定性工作流步骤（阶段转换/guard 校验/hash 锁定/决策登记/套件锁定/layer 状态）必须通过 CLI 命令执行，LLM 只承担复杂规则决策（需求澄清、设计创作、对抗审查、偏差建议、用户确认组织）"
+      min_strength: high
+      enforcement: "V-3/F-3: tasks next + test-cases lock-suite + state layer + state-machine 边校验（0.20 CLI-first）"
+      category: workflow-execution
+      source_specs: [".mumuspec/spec.md#流程执行载体"]
+    - id: TD-F-002
+      content: "skill 指令引用的 CLI 命令必须与命令注册表一致（目标阶段、参数签名、--confirm 要求）"
+      min_strength: medium
+      enforcement: "manual(P1 候选：从命令注册表清单化生成校验；当前由 review 流程人工核对)"
+      category: workflow-execution
+      source_specs: [".mumuspec/spec.md#流程执行载体"]
+  requirement_goals:
+    - id: RG-F-001
+      content: "manual 类约束归档前必须持有 verify.md 验证记录（按 Enforcement ID 或约束原文锚定）"
+      min_strength: high
+      enforcement: "E-VERIFY-003 MANUAL_EVIDENCE_MISSING（ERROR，forceable: true，accept-deviations 旁路）"
+      category: verifier
+      source_specs: [".mumuspec/spec.md#verifier-语义与可验证性"]
+reverse:
+  technical_design:
+    - id: TD-R-001
+      content: "禁止手工编辑 CLI 管理的审计与状态工件（decisions.md 追加、.mumuspec.yaml 状态字段、suite hash）"
+      min_strength: high
+      enforcement: "E-CHANGE-007 content_hash 篡改检测 + E-STATE-001 受保护字段审计"
+      category: workflow-execution
+      source_specs: [".mumuspec/spec.md#流程执行载体"]
+    - id: TD-R-002
+      content: "禁止 LLM 自行计算或手写 hash 类字段（design_content_hash / suites_hash）"
+      min_strength: high
+      enforcement: "F-3: test-cases lock-suite / test-cases lock 确定性命令"
+      category: workflow-execution
+      source_specs: [".mumuspec/spec.md#流程执行载体"]
+  requirement_goals:
+    - id: RG-R-001
+      content: "SHALL NOT 红线无可验证通道时不得进入生效规范（unverifiable 恒 block，任何强度组合）"
+      min_strength: high
+      enforcement: "E-SPEC-015 SPEC_SHALL_NOT_UNVERIFIABLE（ERROR, forceable: false, always_enforce）"
+      always_enforce: true
+      category: verifier
+      source_specs: [".mumuspec/spec.md#verifier-语义与可验证性"]
+    - id: RG-R-002
+      content: "禁止无 enforcement 声明的 SHALL 进入强制面（恒可见，不得被低强度折叠丢弃）"
+      min_strength: high
+      enforcement: "E-SPEC-004（WARN, always_enforce，可验证性 ⊥ 强度 §9.0）"
+      always_enforce: true
+      category: verifier
+      source_specs: [".mumuspec/spec.md#verifier-语义与可验证性"]

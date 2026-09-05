@@ -17,7 +17,7 @@ version: "v2"
 |------|------|------|
 | `spec.md` | 规范文档 | Roadmap 规则定义（当前 v2） |
 | `template/item.md` | 模板文件 | Roadmap Item 的标准模板 |
-| `items/*.md` | 目标条目 | 当前活跃目标条目集合（R-0001~R-0007） |
+| `items/*.md` | 目标条目 | 当前活跃目标条目集合（R-0001~R-0007 沿革 + R-0008~R-0013 CLI-first/DSL 批次） |
 | `archive/*/` | 归档 | 已完成的旧版本 Item（按批次分组） |
 
 ## 对外符号 / 类型
@@ -36,7 +36,7 @@ version: "v2"
 |------|------|------|
 | 主规范 | `./spec.md` | Roadmap 规范定义（v2） |
 | 模板 | `./template/item.md` | Item 模板 |
-| 目标条目 | `./items/R-0001.md` .. `R-0007.md` | 当前活跃 Items |
+| 目标条目 | `./items/R-0001.md` .. `R-0013.md` | 当前活跃 Items |
 | v1 归档 | `./archive/2026-Q3/R-0001.md` .. `R-0005.md` | 2026-Q3 完成的 Items |
 
 ---
@@ -90,6 +90,8 @@ R-0007 (Model-Tier) — 独立，无依赖
 ## 变更日志
 
 | 日期 | 变更描述 | 影响范围 |
+|------|----------|----------|
+| 2026-08-29 | **新增 R-0008~R-0013 批次**（CLI-first 与 DSL 规范路线，来源 review/pipeline-cli-first-analysis-2026-08-29.md §二 D + nl-bytecode-gap-analysis P1/P2）：R-0008 next 编排命令、R-0009 skill↔CLI 一致性校验、R-0010 统一 DSL 语言规范 v1、R-0011 spec↔实现漂移清偿（depends R-0009）、R-0012 工作流薄封装、R-0013 JIT 加载与反向通道 | items/ +6 条目；spec.md 架构图同步 |
 |------|---------|---------|
 | 2026-08-09 | **v2 重设计**：归档 v1 完成的 R-0001~R-0005 至 archive/2026-Q3/；重编 R-0001~R-0007（原 R-0006~R-0012）；解决 R-0006 scope 被低估、R-0007↔R-0008 隐性耦合、R-0009 与现有 onboarding 重叠、互斥不对称等冲突；新增归档管理机制（ROADMAP-80/81） | 全部 Items 重写 + spec.md 版本升级 + BOUNDARY.md 更新 |
 | 2026-08-08 | 新增 R-0012（已归档至 archive/2026-Q3/） | 历史记录 |

@@ -480,11 +480,11 @@ describe('edge cases', () => {
     expect(state.name).toBe(longName);
   });
 
-  it('sets tdd_mode correctly', () => {
+  it('sets tdd_mode correctly (CHG-5: default non-tdd for LLM autonomy)', () => {
     // Arrange & Act
     const state = createChange(projectDir, 'tdd-test', 'full', config);
 
-    // Assert
-    expect(state.tdd_mode).toBe('tdd');
+    // Assert — CHG-5 (0.20): default_tdd_mode changed to 'non-tdd'
+    expect(state.tdd_mode).toBe('non-tdd');
   });
 });

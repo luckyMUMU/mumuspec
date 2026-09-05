@@ -162,21 +162,24 @@ describe('isAgentSupported and getSupportedAgents', () => {
     expect(isAgentSupported('opencode')).toBe(true);
   });
 
+  it('returns true for the 4 new dispatch-gate agents', () => {
+    expect(isAgentSupported('codex')).toBe(true);
+    expect(isAgentSupported('windsurf')).toBe(true);
+    expect(isAgentSupported('gemini')).toBe(true);
+    expect(isAgentSupported('copilot')).toBe(true);
+  });
+
   it('returns false for unknown agent strings', () => {
-    expect(isAgentSupported('windsurf')).toBe(false);
-    expect(isAgentSupported('copilot')).toBe(false);
+    expect(isAgentSupported('unknown-agent')).toBe(false);
     expect(isAgentSupported('')).toBe(false);
   });
 
-  it('getSupportedAgents returns all 6 agent types', () => {
+  it('getSupportedAgents returns all 10 agent types', () => {
     const agents = getSupportedAgents();
-    expect(agents).toHaveLength(6);
-    expect(agents).toContain('catpaw');
-    expect(agents).toContain('claude');
-    expect(agents).toContain('cursor');
-    expect(agents).toContain('trae');
-    expect(agents).toContain('workbuddy');
-    expect(agents).toContain('opencode');
+    expect(agents).toHaveLength(10);
+    for (const a of ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode', 'codex', 'windsurf', 'gemini', 'copilot']) {
+      expect(agents).toContain(a);
+    }
   });
 });
 

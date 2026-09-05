@@ -284,7 +284,14 @@ program
 
     // ── Step 10: Generate Rules files ──
     if (config.ai.generate_rules) {
-      generateRulesFiles(projectRoot, config);
+      // goal-p0-dispatch-gate (C2/D1): consume { written, skipped } — skip 仅诊断，不写盘
+      const rulesResult = generateRulesFiles(projectRoot, config);
+      if (rulesResult.written.length === 0 && rulesResult.skipped.length === 0) {
+        console.log('  ⚠ No rule files generated (none configured).');
+      }
+      for (const f of rulesResult.skipped) {
+        console.log(`  ⚠ Skipped user-owned rule file: ${f.path}${f.diagnostic ? ` (${f.diagnostic})` : ''}`);
+      }
     }
 
     // ── Step 11: Audit log ──

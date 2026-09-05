@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
-import { join, extname } from "node:path";
+import { join, extname, basename } from "node:path";
 import type { ImageRecord } from "./types.js";
-import { ALLOWED_TYPES, MAX_FILE_SIZE } from "./types.js";
+import { ALLOWED_TYPES as DEFAULT_ALLOWED_TYPES, MAX_FILE_SIZE as DEFAULT_MAX_FILE_SIZE } from "./types.js";
 
 const METADATA_FILE = "metadata.json";
 
@@ -13,6 +13,28 @@ interface MetadataStore {
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const SAFE_FILENAME_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i;
+
+/** 扩展名到 MIME 类型的反向映射（用于扫描导入时推断） */
+const EXT_TO_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+  ".svg": "image/svg+xml",
+};
+
+export interface ImageManagerOptions {
+  allowedTypes?: Map<string, string>;
+  maxFileSize?: number;
+}
+
+export interface ScanResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
 
 export function isValidUuid(id: string): boolean {
   return UUID_V4_REGEX.test(id);
@@ -26,10 +48,14 @@ export class ImageManager {
   private uploadDir: string;
   private metadataPath: string;
   private cache: ImageRecord[] | null = null;
+  private allowedTypes: Map<string, string>;
+  private maxFileSize: number;
 
-  constructor(uploadDir: string) {
+  constructor(uploadDir: string, options?: ImageManagerOptions) {
     this.uploadDir = uploadDir;
     this.metadataPath = join(uploadDir, METADATA_FILE);
+    this.allowedTypes = options?.allowedTypes ?? DEFAULT_ALLOWED_TYPES;
+    this.maxFileSize = options?.maxFileSize ?? DEFAULT_MAX_FILE_SIZE;
   }
 
   async initialize(): Promise<void> {
@@ -65,7 +91,7 @@ export class ImageManager {
     mimeType: string
   ): Promise<ImageRecord> {
     const id = randomUUID();
-    const ext = ALLOWED_TYPES.get(mimeType) ?? extname(originalName) ?? "";
+    const ext = this.allowedTypes.get(mimeType) ?? extname(originalName) ?? "";
     const filename = `${id}${ext}`;
     const filePath = join(this.uploadDir, filename);
 
@@ -117,13 +143,108 @@ export class ImageManager {
   }
 
   validateFile(size: number, mimeType: string): string | null {
-    if (size > MAX_FILE_SIZE) {
-      return `文件大小超过限制 (${Math.floor(MAX_FILE_SIZE / 1024 / 1024)}MB)`;
+    if (size > this.maxFileSize) {
+      return `文件大小超过限制 (${Math.floor(this.maxFileSize / 1024 / 1024)}MB)`;
     }
-    if (!ALLOWED_TYPES.has(mimeType)) {
+    if (!this.allowedTypes.has(mimeType)) {
       return `不支持的文件类型: ${mimeType}`;
     }
     return null;
+  }
+
+  /**
+   * 扫描上传目录，将未在 metadata.json 中登记的图片文件自动导入管理。
+   *
+   * 判定逻辑：
+   * 1. 读取目录中所有文件
+   * 2. 跳过 metadata.json 本身
+   * 3. 跳过已在缓存中登记的文件（按 filename 匹配）
+   * 4. 根据扩展名判断是否为支持的图片类型
+   * 5. 读取文件内容，解析尺寸，生成 ImageRecord 并加入缓存
+   *
+   * @returns 导入/跳过/错误统计
+   */
+  async scanAndImport(): Promise<ScanResult> {
+    if (!this.cache) {
+      await this.initialize();
+    }
+
+    const result: ScanResult = { imported: 0, skipped: 0, errors: [] };
+    const knownFilenames = new Set((this.cache ?? []).map((r) => r.filename));
+
+    let entries: string[];
+    try {
+      entries = await fs.readdir(this.uploadDir);
+    } catch {
+      return result;
+    }
+
+    for (const entry of entries) {
+      // 跳过元数据文件
+      if (entry === METADATA_FILE) continue;
+
+      // 跳过已登记文件
+      if (knownFilenames.has(entry)) {
+        result.skipped++;
+        continue;
+      }
+
+      // 根据扩展名推断 MIME 类型
+      const ext = extname(entry).toLowerCase();
+      const mimeType = EXT_TO_MIME[ext];
+      if (!mimeType) {
+        // 非图片文件，跳过
+        result.skipped++;
+        continue;
+      }
+
+      // 检查是否在允许的类型白名单中
+      if (!this.allowedTypes.has(mimeType)) {
+        result.skipped++;
+        continue;
+      }
+
+      try {
+        const filePath = join(this.uploadDir, entry);
+        const stat = await fs.stat(filePath);
+        if (!stat.isFile()) {
+          result.skipped++;
+          continue;
+        }
+
+        const buffer = await fs.readFile(filePath);
+        const dimensions = decodeImageDimensions(buffer, mimeType);
+
+        // 对于已存在的 UUID 命名文件，提取其 UUID 作为 id；
+        // 否则生成新 UUID
+        const baseName = basename(entry, ext);
+        const id = UUID_V4_REGEX.test(baseName) ? baseName : randomUUID();
+
+        const record: ImageRecord = {
+          id,
+          filename: entry,
+          originalName: entry,
+          mimeType,
+          size: stat.size,
+          width: dimensions?.width ?? null,
+          height: dimensions?.height ?? null,
+          uploadedAt: stat.mtime.toISOString(),
+        };
+
+        this.cache!.push(record);
+        result.imported++;
+      } catch (err) {
+        result.errors.push(
+          `${entry}: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }
+
+    if (result.imported > 0) {
+      await this.persist();
+    }
+
+    return result;
   }
 }
 

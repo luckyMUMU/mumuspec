@@ -54,7 +54,7 @@ describe('installPackage — extended error paths', () => {
   });
 
   it('returns error for unknown agent type', () => {
-    const result = installPackage('codex' as AgentType, 'mumuspec-workflow', 'workspace', testWorkspace);
+    const result = installPackage('unknown-agent' as AgentType, 'mumuspec-workflow', 'workspace', testWorkspace);
     expect(result.success).toBe(false);
     expect(result.error).toContain('Unknown agent');
   });

@@ -230,7 +230,13 @@ mumuspec contract compat-check --change <name>
 
 ### Step 7: 追加 decisions.md Open 章节
 
-记录关键决策到 `decisions.md`：
+通过 CLI 追加（**禁止手工编辑**——手工编辑会破坏 content_hash 审计链，guard 将报 E-CHANGE-007）：
+
+```bash
+mumuspec decisions append --phase open --change <name> --text "<决策摘要：拆分判定/scope 理由/workflow 选择/降级记录/知识加载摘要>"
+```
+
+记录要点（组织进 --text 或多条追加）：
 - 是否拆分变更的决策
 - `affected_scopes` 判定理由
 - `workflow` 选择（full）

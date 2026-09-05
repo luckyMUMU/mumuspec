@@ -1,6 +1,9 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import type { SpecFile, GuardResult } from '../core/types.js';
+import type { ProhibitionAnnotation } from '../core/types-spec.js';
+import type { ClassifiedItem } from './verifier-classify.js';
+import { classifyRequirements, computeEnforcementCoverage } from './verifier-classify.js';
 import { parseSpecFile, parsePrdFile, parseTechFile } from './parser.js';
 import { checkInheritanceConflicts } from './inheritance.js';
 import type { MumuSpecConfig } from '../core/config.js';
@@ -19,6 +22,10 @@ export function validateAllSpecs(
   const errors: { code: string; message: string; detail?: string }[] = [];
   const warnings: { code: string; message: string; detail?: string }[] = [];
 
+  // P0 verifier gate (M2): strict mode promotes unverifiable SHALL NOT to ERROR.
+  // Default ON since M2 — opt out with `enforcement_strict: false`.
+  const strict = config?.constraint_strength?.enforcement_strict !== false;
+
   const specDirs = findAllSpecDirs(projectRoot);
 
   // Collect all distributed spec file paths
@@ -32,14 +39,17 @@ export function validateAllSpecs(
     }
   }
 
+  // P0: classifier items collected across all files → enforcement coverage
+  const allItems: ClassifiedItem[] = [];
+
   // Validate each spec file based on its type
   for (const { dir, file, path: specPath } of allSpecFiles) {
     if (file === 'spec.md') {
-      validateSpecMd(specPath, dir, config, errors, warnings);
+      validateSpecMd(specPath, dir, config, strict, allItems, errors, warnings);
     } else if (file === 'prd.md') {
       validatePrdFile(specPath, dir, errors, warnings);
     } else if (file === 'tech.md') {
-      validateTechFile(specPath, dir, errors, warnings);
+      validateTechFile(specPath, dir, strict, allItems, errors, warnings);
     }
   }
 
@@ -65,7 +75,43 @@ export function validateAllSpecs(
     passed: errors.length === 0,
     errors,
     warnings,
+    coverage: computeEnforcementCoverage(allItems),
   };
+}
+
+/**
+ * P0 verifier semantics (proposal §3.3): emit gate-aware findings for one
+ * classified item.
+ *   - SHALL NOT + unverifiable → E-SPEC-015 (strict: ERROR / else WARN)
+ *   - SHALL + unverifiable     → E-SPEC-004 (always WARN, never folded away —
+ *                                GUARD_CHECK_METADATA marks it always_enforce)
+ */
+function emitVerifiabilityFindings(
+  items: ClassifiedItem[],
+  strict: boolean,
+  errors: { code: string; message: string; detail?: string }[],
+  warnings: { code: string; message: string; detail?: string }[],
+): void {
+  for (const item of items) {
+    if (item.cls !== 'unverifiable') continue;
+    if (item.polarity === 'shall-not') {
+      const message = `SHALL NOT 无可验证通道 (Requirement "${item.requirement}"): "${item.text}"`;
+      const finding = strict
+        ? errors
+        : warnings;
+      finding.push({
+        code: 'E-SPEC-015',
+        message: strict ? message : `${message} [enforcement_strict=false — 将在 strict 模式下阻断]`,
+        detail: item.source,
+      });
+    } else {
+      warnings.push({
+        code: 'E-SPEC-004',
+        message: `SHALL 无验证声明 (Requirement "${item.requirement}"): "${item.text}"`,
+        detail: item.source,
+      });
+    }
+  }
 }
 
 /** Validate a spec.md file (original format) */
@@ -73,6 +119,8 @@ function validateSpecMd(
   specPath: string,
   dirPath: string,
   config: MumuSpecConfig,
+  strict: boolean,
+  collectedItems: ClassifiedItem[],
   errors: { code: string; message: string; detail?: string }[],
   warnings: { code: string; message: string; detail?: string }[],
 ): void {
@@ -103,18 +151,11 @@ function validateSpecMd(
       }
     }
 
-    // Check for enforcement on SHALL/SHALL NOT
-    for (const req of spec.requirements) {
-      const hasConstraints = req.shall.length > 0 || req.shallNot.length > 0;
-      const hasEnforcement = req.enforcement.length > 0;
-      if (hasConstraints && !hasEnforcement) {
-        warnings.push({
-          code: 'E-SPEC-004',
-          message: `Requirement "${req.name}" has constraints but no Enforcement`,
-          detail: specPath,
-        });
-      }
-    }
+    // P0 verifier semantics: classify every SHALL/SHALL NOT item
+    const prohibitions: ProhibitionAnnotation[] = spec.frontmatter.prohibitions ?? [];
+    const items = classifyRequirements(spec.requirements, prohibitions, specPath);
+    collectedItems.push(...items);
+    emitVerifiabilityFindings(items, strict, errors, warnings);
   } catch (err) {
     errors.push({
       code: 'E-SPEC-001',
@@ -359,6 +400,8 @@ function validatePrdFile(
 function validateTechFile(
   techPath: string,
   _dirPath: string,
+  strict: boolean,
+  collectedItems: ClassifiedItem[],
   errors: { code: string; message: string; detail?: string }[],
   warnings: { code: string; message: string; detail?: string }[],
 ): void {
@@ -377,18 +420,12 @@ function validateTechFile(
 
     const tech = parseTechFile(content, techPath);
 
-    // Check enforcement on SHALL/SHALL NOT (similar to spec.md)
-    for (const req of tech.requirements) {
-      const hasConstraints = req.shall.length > 0 || req.shallNot.length > 0;
-      const hasEnforcement = req.enforcement.length > 0;
-      if (hasConstraints && !hasEnforcement) {
-        warnings.push({
-          code: 'E-SPEC-004',
-          message: `Requirement "${req.name}" has constraints but no Enforcement`,
-          detail: techPath,
-        });
-      }
-    }
+    // P0 verifier semantics: classify every SHALL/SHALL NOT item.
+    // tech.md frontmatter carries no prohibitions annotations today (the
+    // annotate command writes spec.md only) — honest empty channel set.
+    const items = classifyRequirements(tech.requirements, [], techPath);
+    collectedItems.push(...items);
+    emitVerifiabilityFindings(items, strict, errors, warnings);
 
     // Warn if no Requirement blocks at all
     const reqBlockCount = (content.match(/^##\s+Requirement:/gm) || []).length;
