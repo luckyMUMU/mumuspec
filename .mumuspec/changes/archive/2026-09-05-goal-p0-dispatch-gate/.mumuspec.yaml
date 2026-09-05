@@ -1,8 +1,8 @@
 name: goal-p0-dispatch-gate
-phase: verify
+phase: archive-completed
 workflow: full
 created_at: 2026-09-01T13:33:54.166Z
-updated_at: 2026-09-05 08:40:09
+updated_at: 2026-09-05T08:41:40.889Z
 scope: .
 affected_scopes: []
 build_layers:
@@ -67,3 +67,4 @@ dist_spec:
   prd: .mumuspec/prd.md
   tech: .mumuspec/tech.md
 verify_result: pass
+branch_status: handled

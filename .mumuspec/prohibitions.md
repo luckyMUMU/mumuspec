@@ -49,3 +49,9 @@
 - ~~禁止在 single_active_change 模式下同时存在多个活跃变更~~ → advisory（medium 强度自动关闭）
 - ~~禁止跳过设计阶段执行 full workflow 的 build~~ → advisory（LLM 可自主选择设计深度）
 - ~~禁止 design.md 为空模板~~ → advisory（结果约束为 verify 通过）
+
+
+<!-- from finalize-archive -->
+# New SHALL NOT Constraints
+
+

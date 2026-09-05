@@ -21,6 +21,17 @@ pages:
       - hyperplan
       - decision
       - dashboard-onboard-chat
+  - id: KE-goal-p0-dispatch-gate-hyperplan
+    title: Adversarial design review insights from goal-p0-dispatch-gate
+    type: decision
+    status: confirmed
+    scope: goal-p0-dispatch-gate
+    file: .mumuspec\knowledge\decisions\KE-goal-p0-dispatch-gate-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - goal-p0-dispatch-gate
   - id: KE-onboard-cli-hyperplan
     title: Adversarial design review insights from onboard-cli
     type: decision
@@ -54,6 +65,17 @@ pages:
       - pattern
       - architecture
       - dashboard-onboard-chat
+  - id: KE-goal-p0-dispatch-gate-patterns
+    title: Architecture patterns from goal-p0-dispatch-gate
+    type: pattern
+    status: confirmed
+    scope: goal-p0-dispatch-gate
+    file: .mumuspec\knowledge\patterns\KE-goal-p0-dispatch-gate-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - goal-p0-dispatch-gate
   - id: KE-onboard-cli-patterns
     title: Architecture patterns from onboard-cli
     type: pattern
@@ -570,6 +592,56 @@ pages:
       - project-status
       - risk
     verified_at: 2026-07-31T16:19:01.701Z
+  - id: KP-0012
+    title: 为什么规范独立于代码：约束应描述行为而非实现
+    type: rationale
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\rationales\KP-0012-why-spec-not-code.md
+    tags:
+      - rationale
+      - spec-design
+      - abstraction
+      - independent
+      - vision
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KP-0024
+    title: 设计哲学：内部强制、外部兼容
+    type: rationale
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\rationales\KP-0024-design-philosophy.md
+    tags:
+      - philosophy
+      - boundary
+      - internal
+      - external
+      - compatible
+    verified_at: 2026-07-29T00:00:00Z
+  - id: KRA-0003
+    title: MumuSpec — 全局概览
+    type: rationale
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\rationales\KRA-0003-docs_overview.md
+    tags:
+      - imported
+      - docs
+      - overview
+      - philosophy
+    verified_at: 2026-07-31T16:19:01.701Z
+  - id: KRA-0004
+    title: MumuSpec
+    type: rationale
+    status: confirmed
+    scope: imported
+    file: .mumuspec\knowledge\rationales\KRA-0004-readme.md
+    tags:
+      - imported
+      - readme
+      - overview
+      - introduction
+    verified_at: 2026-07-31T16:19:01.701Z
   - id: KE-ast-guard-lessons
     title: Lessons from ast-guard decisions
     type: lesson
@@ -592,6 +664,17 @@ pages:
       - lesson
       - decisions
       - dashboard-onboard-chat
+  - id: KE-goal-p0-dispatch-gate-lessons
+    title: Lessons from goal-p0-dispatch-gate decisions
+    type: lesson
+    status: confirmed
+    scope: goal-p0-dispatch-gate
+    file: .mumuspec\knowledge\lessons\KE-goal-p0-dispatch-gate-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - goal-p0-dispatch-gate
   - id: KE-onboard-cli-lessons
     title: Lessons from onboard-cli decisions
     type: lesson
@@ -975,17 +1058,3 @@ pages:
       - imported
       - src-spec
     verified_at: 2026-07-31T16:19:01.701Z
-  - id: KP-0059
-    title: 持久化 spec 是 DSL，不是字节码：一门带 verifier 的领域特定语言
-    type: decision
-    status: confirmed
-    scope: global
-    file: .mumuspecknowledgedecisionsglobalKP-0059-spec-as-dsl-not-bytecode.md
-    tags:
-      - dsl
-      - verifier
-      - spec-language
-      - design-philosophy
-      - bytecode-analogy
-      - goal
-    verified_at: 2026-08-29T00:00:00Z

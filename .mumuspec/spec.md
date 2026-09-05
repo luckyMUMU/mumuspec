@@ -239,3 +239,119 @@ prohibitions:
 - F-3: `mumuspec tasks next` / `test-cases lock-suite --layer` / `state layer`（0.20 CLI-first 命令）
 - F-4: 状态机边校验（无效目标阶段即拒绝，含 verify-fail/archive-reopen 类历史误写）
 - F-5: manual(由 review 流程核对 skill 引用的命令与注册表一致——P1 候选：清单化生成校验)
+
+
+<!-- delta-merged from goal-p0-dispatch-gate/completeness-gate.md -->
+# Delta Spec: 完备性门禁 v1
+
+## Requirement: 结构化完备性工件
+
+设计完备性判定必须产出机器可读的结构化工件，而非自由文本结论。
+
+### SHALL
+
+- Design 与 Verify 阶段产出 `open-questions.yaml`（未决问题清单）与 `assumptions.yaml`（未确认假设清单），均带 `version:` 字段。
+- 每条未决问题 / 假设携带状态（open / resolved / accepted / deferred）与消解去向（决策日志条目 id）。
+- 工件写入变更目录并纳入变更状态管理。
+
+### SHALL NOT
+
+- 禁止以自由文本形式声明"设计完备"（完备性结论必须可由工件状态推导）。
+- 禁止把"完备"与"正确"混同：完备性工件不得包含正确性断言（正确性由 test-cases 锁定与 Verify 承担）。
+
+### Enforcement
+
+- ENF-1: enforced-strong(schema 校验：字段、状态枚举、version 存在)
+- ENF-2: enforced-strong(工件状态与 decisions 日志交叉断言：resolved 条目必有决策去向)
+
+## Requirement: 双签门禁
+
+完备性门禁 = LLM 判定（advisory）+ 人工签收（放行条件），机械校验保持一票否决。
+
+### SHALL
+
+- design→build 转换时，phase-guard 校验：存在 open 状态未决问题且未经人工签收（accept/defer 带理由）时返回 block。
+- LLM 完备性判定仅以 advisory 身份进入 guard 结果，不得单独放行。
+- 机械四分类校验（enforced-strong / enforced-weak / manual / unverifiable）保持既有 block 语义不变。
+
+### SHALL NOT
+
+- 禁止在无人工签收记录的情况下因 LLM 判定"完备"而放行阶段转换。
+- 禁止降级或绕过机械四分类的一票否决。
+
+### Enforcement
+
+- ENF-3: enforced-strong(guard 单元测试：无签收 + LLM 判完备 → 断言 block)
+- ENF-4: enforced-strong(guard 单元测试：机械校验失败 → 断言 block 优先于任何 advisory 结论)
+- ENF-5: manual(真实变更中人工签收流程可用性走查，evidence 记入 verify.md)
+
+
+
+<!-- delta-merged from goal-p0-dispatch-gate/dispatch-layer.md -->
+# Delta Spec: 分发层 canonical-first
+
+## Requirement: AGENTS.md canonical 生成
+
+MumuSpec 必须能生成 AGENTS.md 作为唯一权威 Rules 文件，并通过薄壳桥接覆盖全部主流 agent。
+
+### SHALL
+
+- 提供 AGENTS.md 生成器，产出内容包含：规范链摘要、Ponytail 约束、CLI 命令速查、MCP 调用入口指引。
+- 生成 CLAUDE.md 薄壳，首行为 `@AGENTS.md`。
+- 生成 GEMINI.md 薄壳，并提示用户在 settings.json 的 context.fileName 中加入 AGENTS.md。
+- installer-registry 新增 codex、windsurf、gemini、copilot 四个 AgentType，且各自完成 install 后具有可用的入口文件。
+
+### SHALL NOT
+
+- 禁止生成 `.cursorrules` 与 `.windsurfrules`（遗留格式）。
+- 禁止在 Rules 文件中内联全量规范上下文（渐进式披露职责归 MCP，Rules 文件受 32KiB 容量预算约束）。
+- 禁止在目标位置已存在用户手写的 AGENTS.md / CLAUDE.md 时静默覆盖。
+
+### Enforcement
+
+- ENF-1: enforced-strong(install/init 落盘断言：AGENTS.md 存在且含四要素；CLAUDE.md 首行 `@AGENTS.md`)
+- ENF-2: enforced-strong(源码级断言：生成路径中不出现 .cursorrules / .windsurfrules)
+- ENF-3: enforced-strong(容量断言：生成产物 ≤ 32KiB)
+- ENF-4: manual(薄壳在真实 Claude Code 会话中被加载，evidence 记入 verify.md)
+
+## Requirement: phase skill 分发平权
+
+阶段 Skill 对所有支持的 agent 可用，不因 agent 而缺失。
+
+### SHALL
+
+- phase-open / phase-design / phase-build / phase-verify / phase-archive 以目录式 SKILL.md 分发给全部已注册 agent。
+
+### Enforcement
+
+- ENF-5: enforced-strong(对每个 AgentType 执行 install 后断言五个 phase skill 文件存在)
+
+
+
+<!-- delta-merged from goal-p0-dispatch-gate/rule-driven-implementation.md -->
+# Delta Spec: 规则-实现分离（Rule-Driven Implementation）
+
+> 依据 KP-0060。归档时合并进根 spec.md，与「流程执行载体（CLI-first）」块同构，作为其一般化上位原则。
+
+## Requirement: 规则-实现分离
+
+### SHALL
+
+- 凡给定规则后可由工具确定性实现的相对固定部分，必须由代码实现；LLM 仅创建声明式规则（spec、delta-specs、workflow yaml、结构化工件、模板填充内容）。
+- 代码在消费 LLM 创建的规则前必须执行校验（schema + 语义），校验失败必须拒绝执行并产出诊断错误码。
+- 新增确定性能力的实现顺序必须为：先规则 schema 与校验器，再引擎消费，最后 skill / LLM 指引。
+- LLM 决策域保留为：规则创作、歧义澄清（grill-me 问答）、设计创作、对抗审查、偏差接受建议。
+
+### SHALL NOT
+
+- 禁止将相对固定的执行逻辑以 LLM 现场发挥方式实现（LLM 不充当引擎）。
+- 禁止在无对应校验器的情况下引入新的 LLM 结构化产出物（先校验器后消费者）。
+- 禁止代码静默消费校验失败的规则（fail-open）。
+
+### Enforcement
+
+- F-1: 既有实例——可验证性四分类校验器（verifier-classify）+ E-SPEC-015 红线未声明验证方式恒 block
+- F-2: 既有实例——状态机边校验拒绝无效目标阶段（E-CHANGE-006）与受保护字段审计（E-STATE-001）
+- F-3: 本变更新增实例——分发层生成器以声明式配置为输入、生成物经代码校验；完备性门禁 schema 校验器拒绝非法 open-questions / assumptions 工件（见 delta-specs/completeness-gate.md ENF-1/ENF-2）
+- F-4: drift / CI 校验覆盖新增规则 schema，防止规则与校验器漂移
+
