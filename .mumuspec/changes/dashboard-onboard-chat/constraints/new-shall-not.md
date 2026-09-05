@@ -1,2 +1,0 @@
-# New SHALL NOT Constraints
-
