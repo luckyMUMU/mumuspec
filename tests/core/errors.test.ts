@@ -85,12 +85,13 @@ describe('core/config', () => {
     expect(cfg.skills.enabled).toBe(true);
   });
 
-  it('has workflow rules', () => {
+  it('has workflow rules (CHG-5: top_down_design and tdd_enforced relaxed)', () => {
     const cfg = getDefaultConfig();
     expect(cfg.workflow.worktree_isolation).toBe(true);
     expect(cfg.workflow.single_active_change).toBe(true);
-    expect(cfg.workflow.top_down_design).toBe(true);
-    expect(cfg.workflow.tdd_enforced).toBe(true);
+    // CHG-5 (0.20): process constraints relaxed for LLM autonomy
+    expect(cfg.workflow.top_down_design).toBe(false);
+    expect(cfg.workflow.tdd_enforced).toBe(false);
   });
 
   it('has ponytail enabled by default', () => {

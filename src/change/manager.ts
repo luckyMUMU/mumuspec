@@ -47,6 +47,8 @@ export {
   computeTestCasesHash,
   initBuildLayers,
   updateBuildLayerStatus,
+  lockTestSuite,
+  getNextTask,
 } from './lifecycle.js';
 
 // ── Archive sub-processes ──

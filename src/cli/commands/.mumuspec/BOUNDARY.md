@@ -113,6 +113,8 @@ advise.ts, audit-log.ts, bundle.ts, change.ts, cognitive-map.ts, constraints.ts,
 
 | 日期 | 变更说明 |
 |------|----------|
+| 2026-08-29 | **CLI-first（0.20）**：state.ts 新增 `test-cases lock-suite <name> --layer N`、`tasks next <name>`、`state layer <name> <N> <status>` 三个命令 | 替代 skill 手工步骤（hash 计算/grep 定位/手编 .mumuspec.yaml）；单元测试 tests/change/cli-first-helpers.test.ts |
+| 2026-08-29 | **Verifier 语义收紧（P0）**：`spec.ts` `validate` 命令输出末段新增 `Enforcement Coverage` 报告（五桶计数 + `declared_ratio`/`strong_ratio` + unverifiable 明细清单），`--json` 输出含 `coverage` 字段 | `mumuspec validate` 人类可读输出新增段落；JSON 面纯新增，向后兼容 |
 | 2026-08-22 | 与 `index.ts` 逐一核对：注册函数列表 24→31（补录 grill-me/audit-log/trace/graph/tutorial/meta-evolve），文件清单 33→41；明确 `check` 命令归属 `spec.ts`（非 guard.ts），记录 `--json` 聚合契约与 E-CHECK-001 |
 | 2026-08-08 | 新增 `merge.ts`（`mumuspec merge <change>` 命令：归档后合并变更分支到主分支，--no-ff + 冲突暂停） |
 | 2025-07-09 | 首次创建，记录 src/cli/commands/ 对外接口、依赖与数据契约 |

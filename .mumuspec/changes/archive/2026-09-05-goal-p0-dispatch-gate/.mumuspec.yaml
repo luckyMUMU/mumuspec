@@ -1,0 +1,70 @@
+name: goal-p0-dispatch-gate
+phase: archive-completed
+workflow: full
+created_at: 2026-09-01T13:33:54.166Z
+updated_at: 2026-09-05T08:41:40.889Z
+scope: .
+affected_scopes: []
+build_layers:
+  - layer: 0
+    scope: artifact-validator
+    status: done
+  - layer: 1
+    scope: guard-completeness-gate
+    status: done
+  - layer: 2
+    scope: rules-render-dispatch
+    status: done
+  - layer: 3
+    scope: installer-e2e
+    status: done
+test_cases:
+  design_locked: true
+  suites_locked: true
+  suites_locked_layers:
+    - 0
+    - 1
+    - 2
+    - 3
+  suites_hash:
+    "0": ada2ff67041321ac
+    "1": 7edf472c2ca4d57c
+    "2": 872aec8524b7b3a3
+    "3": 1fb1d8c86fc1500f
+  design_content_hash: c37b3cc5cf0f8035
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/goal-p0-dispatch-gate
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 4
+  content_hash: 0b60f53e3dc3796e
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+verify_result: pass
+branch_status: handled

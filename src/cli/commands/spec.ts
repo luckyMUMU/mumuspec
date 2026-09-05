@@ -243,6 +243,26 @@ export function registerSpecCommands(program: Command): void {
         }
       }
 
+      // P0 verifier semantics: enforcement coverage report (proposal §3.5)
+      if (result.coverage && result.coverage.total > 0) {
+        const c = result.coverage;
+        console.log(`\nEnforcement Coverage (${c.total} constraints):`);
+        console.log(
+          `  enforced-strong: ${c.enforced_strong}  enforced-weak: ${c.enforced_weak}` +
+          `  manual: ${c.manual}  unverifiable: ${c.unverifiable}`,
+        );
+        console.log(
+          `  declared_ratio: ${(c.declared_ratio * 100).toFixed(1)}%` +
+          `  strong_ratio: ${(c.strong_ratio * 100).toFixed(1)}%`,
+        );
+        if (c.unverifiable_items && c.unverifiable_items.length > 0) {
+          console.log('  Unverifiable (migration checklist):');
+          for (const item of c.unverifiable_items) {
+            console.log(`    - [${item.polarity}] ${item.text} (${item.source})`);
+          }
+        }
+      }
+
       if (!result.passed) process.exit(1);
     });
 

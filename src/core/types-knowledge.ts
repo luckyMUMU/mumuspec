@@ -285,6 +285,57 @@ export interface KnowledgeSearchResult {
   excerpt: string;
 }
 
+// ========== Code Graph Types (0.20.0+ — lightweight in-memory graph) ==========
+
+/** Node labels in the code graph */
+export type GraphNodeLabel = 'File' | 'Function' | 'Class' | 'Module' | 'Spec';
+
+/** A node in the code graph */
+export interface GraphNode {
+  id: string;
+  label: GraphNodeLabel;
+  name: string;
+  filePath?: string;
+  language?: string;
+  startLine?: number;
+  endLine?: number;
+  hash?: string;
+  scope?: string;
+  specType?: 'SHALL' | 'SHALL_NOT';
+}
+
+/** Edge types in the code graph */
+export type GraphEdgeType = 'DEFINES' | 'CALLS' | 'GOVERNED_BY' | 'CONTAINS';
+
+/** A directed edge in the code graph */
+export interface GraphEdge {
+  from: string;
+  to: string;
+  type: GraphEdgeType;
+}
+
+/** The in-memory code graph */
+export interface CodeGraph {
+  nodes: Map<string, GraphNode>;
+  edges: GraphEdge[];
+  fileIndex: Map<string, string[]>;
+  builtAt: string;
+}
+
+/** A symbol extracted from source code by a language provider */
+export interface ExtractedSymbol {
+  name: string;
+  kind: 'function' | 'class' | 'interface';
+  startLine: number;
+  endLine: number;
+}
+
+/** Search result from the code graph */
+export interface GraphSearchResult {
+  node: GraphNode;
+  score: number;
+}
+
 /** Export/import operation result */
 export interface SyncOperationResult {
   operation: 'export' | 'import' | 'tell' | 'absorb';

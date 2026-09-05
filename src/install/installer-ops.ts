@@ -20,7 +20,10 @@ import {
   AGENT_MANIFEST,
   MCP_PRESETS,
   COMMAND_PRESETS,
+  AGENT_RULE_TARGETS,
 } from './installer-registry.js';
+import { renderRuleFiles, buildRuleGenContext } from './rules-generator.js';
+import type { MumuSpecConfig } from '../core/config.js';
 
 export type InstallMode = 'install' | 'update';
 
@@ -142,6 +145,11 @@ function getAgentSkillDir(
     trae: { subDir: '.trae/skills', ext: 'SKILL.md' },
     workbuddy: { subDir: '.workbuddy/skills', ext: 'SKILL.md' },
     opencode: { subDir: '.opencode/skills', ext: 'SKILL.md' },
+    // goal-p0-dispatch-gate (C1): directory-style SKILL.md for the new agents.
+    // copilot deliberately absent — no custom-skill mechanism, .github untouched.
+    codex: { subDir: '.codex/skills', ext: 'SKILL.md' },
+    windsurf: { subDir: '.windsurf/skills', ext: 'SKILL.md' },
+    gemini: { subDir: '.gemini/skills', ext: 'SKILL.md' },
   };
 
   const conv = conventions[agent];
@@ -229,6 +237,29 @@ export function installPackage(
     case 'workbuddy':
     case 'opencode':
       return installGenericAgentPackage(agent, packageName, target, workspacePath, mode);
+    case 'codex':
+    case 'windsurf':
+    case 'gemini': {
+      const result = installGenericAgentPackage(agent, packageName, target, workspacePath, mode);
+      // goal-p0-dispatch-gate (C2): rules generation rides on workspace-scope installs
+      if (result.success && target === 'workspace' && workspacePath) {
+        installRuleFiles(agent, workspacePath, { forceRules: mode === 'update' });
+      }
+      return result;
+    }
+    case 'copilot':
+      // C2/D1: copilot distribution IS the canonical rules file (no skill files —
+      // TC-A1x forbids extra files under .github/)
+      if (target === 'workspace' && workspacePath) {
+        return installRuleFilesAsResult(agent, packageName, target, workspacePath, mode === 'update');
+      }
+      return {
+        success: false,
+        packageName,
+        agent,
+        target,
+        error: 'Copilot rules are workspace-scoped; use --target workspace --workspace-path <dir>.',
+      };
     default:
       return { success: false, packageName, agent, target, error: `Unknown agent: ${agent}` };
   }
@@ -282,6 +313,101 @@ function installGenericAgentPackage(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return { success: false, packageName, agent, target, error: `Failed to install "${packageName}" for ${agent}: ${message}` };
+  }
+}
+
+// ── Rule files distribution (goal-p0-dispatch-gate C2/D1) ─────────
+
+export interface InstallRulesResult {
+  written: string[];
+  skipped: Array<{ path: string; diagnostic?: string }>;
+}
+
+/**
+ * 尝试从 workspace 读取 .mumuspec/config.json 的 project 段，用于渲染 AGENTS.md
+ * 的项目信息。init 之前可能不存在 → undefined，回退到静态默认内容。
+ */
+function tryLoadInstallConfig(workspacePath: string): MumuSpecConfig | undefined {
+  try {
+    const configPath = join(workspacePath, '.mumuspec', 'config.json');
+    if (!existsSync(configPath)) return undefined;
+    const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as { project?: MumuSpecConfig['project'] };
+    if (!parsed.project) return undefined;
+    // ponytail: 仅 project 段参与渲染（buildRuleGenContext 只消费 project 字段）
+    return { project: parsed.project } as MumuSpecConfig;
+  } catch {
+    return undefined;
+  }
+}
+
+/** 内存快照：目标规则文件（canonical + bridges）的当前磁盘内容，absent = undefined */
+function snapshotRuleFiles(agent: AgentType, workspacePath: string): Record<string, string | undefined> {
+  const target = AGENT_RULE_TARGETS[agent];
+  const snapshot: Record<string, string | undefined> = {};
+  if (!target) return snapshot;
+  for (const file of [target.rulesFile, ...Object.values(target.bridges).map((b) => b.file)]) {
+    const filePath = join(workspacePath, file);
+    snapshot[file] = existsSync(filePath) ? readFileSync(filePath, 'utf8') : undefined;
+  }
+  return snapshot;
+}
+
+/**
+ * 渲染并落盘某 agent 的 canonical AGENTS.md（及薄壳桥接文件）。
+ * 先读现有文件（内存快照）→ renderRuleFiles 三态判定（absent→create /
+ * managed→update / user→skip）→ 执行写盘；skip 只收集诊断，不写盘。
+ * `forceRules`（--force-rules）接管用户手写文件（D1）。
+ */
+export function installRuleFiles(
+  agent: AgentType,
+  workspacePath: string,
+  opts: { forceRules?: boolean } = {},
+): InstallRulesResult {
+  const plans = renderRuleFiles(agent, buildRuleGenContext(tryLoadInstallConfig(workspacePath)), {
+    existingFiles: snapshotRuleFiles(agent, workspacePath),
+    forceRules: opts.forceRules === true,
+  });
+  const written: string[] = [];
+  const skipped: Array<{ path: string; diagnostic?: string }> = [];
+  for (const plan of plans) {
+    const filePath = join(workspacePath, plan.path);
+    if (plan.action === 'skip') {
+      skipped.push({ path: filePath, diagnostic: plan.diagnostic });
+      continue;
+    }
+    mkdirSync(dirname(filePath), { recursive: true });
+    writeFileSync(filePath, plan.content ?? '', 'utf8');
+    written.push(filePath);
+  }
+  return { written, skipped };
+}
+
+/** 包装 installRuleFiles 为 InstallResult（copilot 分发路径：分发即 AGENTS.md） */
+function installRuleFilesAsResult(
+  agent: AgentType,
+  packageName: string,
+  target: InstallTarget,
+  workspacePath: string,
+  forceRules: boolean,
+): InstallResult {
+  try {
+    const { written, skipped } = installRuleFiles(agent, workspacePath, { forceRules });
+    if (written.length > 0) {
+      return { success: true, packageName, agent, target, path: written[0] };
+    }
+    const skipDiag = skipped.map((s) => `${s.path}${s.diagnostic ? ` (${s.diagnostic})` : ''}`).join('; ');
+    return {
+      success: false,
+      packageName,
+      agent,
+      target,
+      error: skipDiag
+        ? `规则文件未写入（MumuSpec 不覆盖用户手写文件）：${skipDiag}。确认后可用 --force 接管。`
+        : 'No rule files written.',
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, packageName, agent, target, error: `Failed to write rule files: ${message}` };
   }
 }
 
@@ -571,6 +697,11 @@ export function listInstalledAgentSkills(
     const dirInfo = getAgentSkillDir(agent, target, workspacePath);
     const skillsDir = join(dirInfo.baseDir, dirInfo.skillsSubDir);
 
+    // copilot 等无自定义 skill 机制的 agent（skillsSubDir 为空）：无可列技能
+    if (!dirInfo.skillsSubDir) {
+      return { success: true, skills: [] };
+    }
+
     if (!existsSync(skillsDir)) {
       return { success: true, skills: [] };
     }
@@ -637,7 +768,7 @@ export function formatAgentInstalledSkills(
  * @returns True if the agent is supported, false otherwise
  */
 export function isAgentSupported(agent: string): agent is AgentType {
-  return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode'].includes(agent);
+  return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode', 'codex', 'windsurf', 'gemini', 'copilot'].includes(agent);
 }
 
 /**
@@ -645,5 +776,5 @@ export function isAgentSupported(agent: string): agent is AgentType {
  * @returns Array of supported agent type identifiers
  */
 export function getSupportedAgents(): AgentType[] {
-  return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode'];
+  return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode', 'codex', 'windsurf', 'gemini', 'copilot'];
 }

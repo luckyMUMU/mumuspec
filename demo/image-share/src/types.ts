@@ -20,6 +20,10 @@ export interface ListResult {
   total: number;
 }
 
+/**
+ * 默认允许的文件类型映射：mimeType -> 扩展名
+ * 可通过配置文件或环境变量覆盖（见 config.ts）
+ */
 export const ALLOWED_TYPES: Map<string, string> = new Map([
   ["image/jpeg", ".jpg"],
   ["image/png", ".png"],
@@ -29,4 +33,5 @@ export const ALLOWED_TYPES: Map<string, string> = new Map([
   ["image/svg+xml", ".svg"],
 ]);
 
-export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB — 高清图片支持
+/** 默认最大文件大小：50MB */
+export const MAX_FILE_SIZE = 50 * 1024 * 1024;

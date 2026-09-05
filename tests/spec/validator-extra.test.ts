@@ -116,6 +116,9 @@ function makeConfig(specsOverrides?: Partial<MumuSpecConfig['specs']>): MumuSpec
       technical_design: 'high',
       requirement_goals: 'high',
       exceptions: [],
+      // M2 default is strict (E-SPEC-015 as ERROR); this file's fixtures predate
+      // the gate and target OTHER validator behaviors — pin observation mode.
+      enforcement_strict: false,
     },
     ci: {
       pre_commit_check: 'all',

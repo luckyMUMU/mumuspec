@@ -51,7 +51,8 @@ describe('CLI end-to-end', () => {
     expect(existsSync(join(projectDir, '.mumuspec', 'prohibitions.md'))).toBe(true);
     expect(existsSync(join(projectDir, '.mumuspec', 'index.yaml'))).toBe(true);
     expect(existsSync(join(projectDir, 'CLAUDE.md'))).toBe(true);
-    expect(existsSync(join(projectDir, '.cursorrules'))).toBe(true);
+    // D2（goal-p0-dispatch-gate）：.cursorrules/.windsurfrules 遗留格式已停止生成
+    expect(existsSync(join(projectDir, '.cursorrules'))).toBe(false);
     expect(existsSync(join(projectDir, 'AGENTS.md'))).toBe(true);
 
     // Check knowledge base was populated

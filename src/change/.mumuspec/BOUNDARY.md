@@ -92,6 +92,10 @@ layer: 2
 
 ## 变更日志
 
+| 日期 | 变更 | 影响 |
+|------|------|------|
+| 2026-08-29 | **CLI-first（0.20）**：lifecycle.ts 新增 `lockTestSuite`（逐层套件 hash 锁定→state.suites_hash，suites_locked 全锁定判定）与 `getNextTask`（tasks.md 首个未完成任务定位）；manager.ts 同步 re-export | 新对外函数 ×2；配套 `test-cases lock-suite` / `tasks next` CLI（见 cli/commands 边界）；替代 skill 手工 hash/grep 步骤 |
+
 | 日期 | 变更 | 原因/影响 |
 |------|------|-----------|
 | 2026-08-22 | 新增 `mergeChangeArtifacts` 归档归并函数 — 将 constraints/ 和变更级 .mumuspec/ spec 幂等归并到目标作用域 | 归档时自动归并约束和 spec，通过 Marker 注释确保幂等性 |

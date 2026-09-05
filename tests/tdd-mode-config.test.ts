@@ -66,9 +66,18 @@ function lockTestCasesFor(name: string): void {
   saveChangeState(root, name, state);
 }
 
-/** 为 full workflow 补齐 design.md（design→build 需要） */
+/** 为 full workflow 补齐 design.md（design→build 需要）。
+ *  完备性门禁（goal-p0-dispatch-gate）落地后，full build 还要求结构化工件或
+ *  声明+签收；本测试主体是 tdd_mode 配置而非门禁，故走声明路径（双签不可省略）。 */
 function writeDesign(name: string): void {
-  writeText(join(getChangeDir(root, name), 'design.md'), '# Design\n\n## Overview\nSimple design\n');
+  writeText(
+    join(getChangeDir(root, name), 'design.md'),
+    '# Design\n\n## Overview\nSimple design\n\n<!-- no-open-questions -->\n'
+  );
+  writeText(
+    join(getChangeDir(root, name), 'decisions.md'),
+    '## [design] 2026-09-05T00:00:00Z no-open-questions declared for tdd-mode guard test\n'
+  );
 }
 
 describe('CHG-5 tdd_mode 配置化', () => {

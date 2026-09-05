@@ -41,9 +41,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     code: 'E-SPEC-004',
     name: 'SPEC_ENFORCEMENT_MISSING',
     severity: 'WARN',
-    description: 'SHALL/SHALL NOT 无对应 Enforcement',
-    fixSteps: ['为该约束补充 Enforcement 检查规则', '或标记为 enforcement: manual'],
-    forceable: true,
+    description: 'SHALL 无验证声明（无 Enforcement、无 annotation，P0 语义收窄：仅指 SHALL；SHALL NOT 走 E-SPEC-015）',
+    fixSteps: ['为该约束补充 Enforcement 检查规则', '或标记为 enforcement: manual(原因)', '或补充 frontmatter annotation'],
+    forceable: false,
   },
   'E-SPEC-005': {
     code: 'E-SPEC-005',
@@ -124,6 +124,18 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     severity: 'ERROR',
     description: '.mumuspec/ 下存在未定义的文件',
     fixSteps: ['移除未定义的文件', '或将其内容合并到已定义的 spec 文件中'],
+    forceable: false,
+  },
+  'E-SPEC-015': {
+    code: 'E-SPEC-015',
+    name: 'SPEC_SHALL_NOT_UNVERIFIABLE',
+    severity: 'ERROR',
+    description: 'SHALL NOT 红线无可验证通道（无 annotation、正则兜底不可提取、无 manual 声明）',
+    fixSteps: [
+      '补充 frontmatter annotation（enforced-strong）',
+      '或改写文本使引号词可被正则兜底提取（enforced-weak）',
+      '或声明 Enforcement `- ID: manual(原因)`',
+    ],
     forceable: false,
   },
 
@@ -215,6 +227,72 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     severity: 'ERROR',
     description: '归档变更时目录移动失败，变更保留在原位置',
     fixSteps: ['检查目标目录是否已存在', '手动将变更目录移到 .mumuspec/changes/archive/'],
+    forceable: false,
+  },
+  // Completeness gate artifacts (goal-p0-dispatch-gate, C4) — KP-0060 axiom 3:
+  // guard refuses to consume invalid artifacts, never degrades.
+  'E-CHANGE-020': {
+    code: 'E-CHANGE-020',
+    name: 'CHANGE_ARTIFACT_SCHEMA_INVALID',
+    severity: 'ERROR',
+    description: '完备性工件 schema 非法（open-questions.yaml / assumptions.yaml 违反 schema v1）',
+    fixSteps: [
+      '按 schema v1 修正工件：version: 1、change 匹配当前变更、items[] 字段齐全',
+      'status 使用合法枚举 open | resolved | accepted | deferred',
+      'status != open 时补充 resolution.decision_ref（decisions.md 条目时间戳）',
+    ],
+    forceable: false,
+  },
+  'E-CHANGE-021': {
+    code: 'E-CHANGE-021',
+    name: 'CHANGE_RESOLUTION_CHAIN_BROKEN',
+    severity: 'ERROR',
+    description: '工件 resolution 链断裂（decision_ref 在 decisions.md 中无对应条目，或 deferred 缺 note）',
+    fixSteps: [
+      '将 decision_ref 指向 decisions.md 中实存条目的时间戳（## [<phase>] <时间戳>）',
+      '或先在 decisions.md 落签收条目，再回填工件 decision_ref',
+      'status=deferred 时补充 resolution.note 说明理由',
+    ],
+    forceable: false,
+  },
+
+  // VERIFY domain (P0 verifier semantics — manual evidence gate)
+  'E-VERIFY-001': {
+    code: 'E-VERIFY-001',
+    name: 'VERIFY_RESULT_NOT_PASS',
+    severity: 'ERROR',
+    description: 'verify_result 不为 pass（验证未通过不等于通过；偏差须走 accept-deviations 旁路）',
+    fixSteps: ['修复验证失败项后重新验证', '或走 accept-deviations 旁路并记录偏差'],
+    forceable: false,
+  },
+  'E-VERIFY-002': {
+    code: 'E-VERIFY-002',
+    name: 'BRANCH_STATUS_UNHANDLED',
+    severity: 'ERROR',
+    description: '变更分支状态未处理（branch_status 未标记 handled）',
+    fixSteps: ['合并或清理变更分支', '更新 state.branch_status 为 handled'],
+    forceable: false,
+  },
+  'E-VERIFY-003': {
+    code: 'E-VERIFY-003',
+    name: 'MANUAL_EVIDENCE_MISSING',
+    severity: 'ERROR',
+    description: 'verify.md 缺少 manual 类约束的验证记录（按 Enforcement ID 或约束文本锚定）',
+    fixSteps: [
+      '在 verify.md 中为每条 manual 约束补充验证记录（引用其 Enforcement ID 或原文）',
+      '或将约束的 Enforcement 改为可自动执行的通道后重新验证',
+      '或走 accept-deviations 旁路并记录偏差',
+    ],
+    forceable: true,
+  },
+
+  // FINAL domain (finalize-archive — 归档收尾命令)
+  'E-FINAL-001': {
+    code: 'E-FINAL-001',
+    name: 'FINALIZE_STATE_INVALID',
+    severity: 'ERROR',
+    description: 'finalize 前置状态不满足（变更未归档或 phase 非 archive-completed）',
+    fixSteps: ['先运行 mumuspec state transition <name> archive 完成归档流程', '再执行 finalize'],
     forceable: false,
   },
 
@@ -367,6 +445,17 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     fixSteps: ['考虑缩小检查范围', '优化规则性能'],
     forceable: true,
   },
+  'E-GUARD-008': {
+    code: 'E-GUARD-008',
+    name: 'GUARD_COMPLETENESS_GATE_BLOCK',
+    severity: 'ERROR',
+    description: '完备性门禁阻塞（工件缺失 / 存在未消解 open 项 / 工件为空 / 声明路径缺人工签收）',
+    fixSteps: [
+      '起草并消解 open-questions.yaml / assumptions.yaml（resolution.decision_ref 指向 decisions.md 条目）',
+      '或在 design.md 声明 <!-- no-open-questions --> / <!-- no-assumptions --> 并先落 decisions.md 签收条目',
+    ],
+    forceable: false,
+  },
 
   // PONYTAIL domain
   'E-PONYTAIL-001': {
@@ -518,6 +607,22 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     severity: 'ERROR',
     description: 'cognitive-map.yaml 不存在',
     fixSteps: ['回退到 Design', '执行认知框架 Step 0'],
+    forceable: false,
+  },
+  'E-DESIGN-009': {
+    code: 'E-DESIGN-009',
+    name: 'DESIGN_SCHEMA_SECTION_MISSING',
+    severity: 'ERROR',
+    description: 'design.md 缺少 templates/design-schema.yaml 要求的必填 section',
+    fixSteps: ['按 schema 补充缺失的 section', '运行 mumuspec guard <change> design --verbose 查看匹配规则'],
+    forceable: false,
+  },
+  'E-DESIGN-010': {
+    code: 'E-DESIGN-010',
+    name: 'CROSS_ARTIFACT_INCONSISTENCY',
+    severity: 'ERROR',
+    description: 'proposal 与 design 跨工件不一致（Plan 步骤未映射到 Layers、FR 未被 design 引用）',
+    fixSteps: ['在 design.md 中补充对应 Layer 或 FR 引用', '或修正 proposal.md 使步骤与设计对齐'],
     forceable: false,
   },
   'E-DESIGN-002': {

@@ -65,7 +65,7 @@ export function getDefaultConfig(projectName: string = 'my-project'): MumuSpecCo
     },
     changes: {
       default_workflow: 'full',
-      require_brainstorming: true,
+      require_brainstorming: false,
       auto_transition: true,
       default_rollback_limit: 3,
       default_rebuild_limit: 5,
@@ -75,17 +75,20 @@ export function getDefaultConfig(projectName: string = 'my-project'): MumuSpecCo
       branch_prefix: 'mumuspec',
       implementation_strategy: 'bottom-up',
       design_strategy: 'top-down',
-      default_tdd_mode: 'tdd',
+      default_tdd_mode: 'non-tdd',
     },
     workflow: {
       worktree_isolation: true,
       single_active_change: true,
-      top_down_design: true,
-      tdd_enforced: true,
+      top_down_design: false,
+      tdd_enforced: false,
       max_active_changes: 3,
     },
+    // CHG-5 (0.20): TD=medium — process constraints downgraded to advisory;
+    // RG=high — result constraints (SHALL NOT, verify pass, artifacts) keep blocking.
+    // This gives LLM freedom in HOW while keeping WHAT non-negotiable.
     constraint_strength: {
-      technical_design: 'high',
+      technical_design: 'medium',
       requirement_goals: 'high',
       exceptions: [...BUILTIN_CONSTRAINT_EXCEPTIONS],
       overrides: {
@@ -116,7 +119,9 @@ export function getDefaultConfig(projectName: string = 'my-project'): MumuSpecCo
     ai: {
       generate_rules: true,
       mcp_server: true,
-      rules_files: ['CLAUDE.md', '.cursorrules', 'AGENTS.md'],
+      // C3 (goal-p0-dispatch-gate, D2): .cursorrules/.windsurfrules removed —
+      // legacy formats are never generated; AGENTS.md is the canonical rules file.
+      rules_files: ['AGENTS.md', 'CLAUDE.md'],
     },
     skills: {
       enabled: true,

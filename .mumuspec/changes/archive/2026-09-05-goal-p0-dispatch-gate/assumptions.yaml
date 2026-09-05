@@ -1,0 +1,37 @@
+# Assumptions: goal-p0-dispatch-gate
+# LLM-drafted; each resolution cites a human-signed decision entry in decisions.md.
+version: 1
+change: goal-p0-dispatch-gate
+items:
+  - id: AS-01
+    assumption: >-
+      AGENTS.md 是跨 agent 规则分发的 canonical 事实标准；Claude Code 经 CLAUDE.md
+      薄壳桥接；托管判定以 Auto-generated 标记头为准（标记分路三态：create/update/skip）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-01T14:27:28.783Z"
+      note: D1/C2 裁决确认标记分路策略；Layer 2/3 按 canonical+薄壳实现并通过 e2e 用例。
+  - id: AS-02
+    assumption: >-
+      停止生成 .cursorrules/.windsurfrules 遗留格式（D2），不建迁移命令；存量文件永不自动删除，
+      doctor 仅一次性迁移提示，沟通由 release note 承担。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-01T14:27:31.932Z"
+      note: D2/C3 裁决；rules-generator 无 legacy 字符串断言（tests/rules/generator-deep.test.ts）与 doctor legacy 检测均已落地。
+  - id: AS-03
+    assumption: >-
+      渲染与三态的唯一权威在 install/rules-generator；rules/generator 降为胶水层；
+      依赖方向 rules→install 单向无环。
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-01T23:41:01.000Z"
+      note: D5 build 期设计裁决（双渲染器漂移风险消除），层 2/3 测试证据见 verify.md §2。
+  - id: AS-04
+    assumption: >-
+      存量变更（loop-auto-evaluate / meta-spec-evolution）与 W0 影响域零交集，
+      挂起容忍并存至 W0 归档；旧 schema 容错列为热修级小单。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-01T14:27:34.687Z"
+      note: D3 裁决；本变更未触碰存量变更目录，验证于 build 期一致性审计。

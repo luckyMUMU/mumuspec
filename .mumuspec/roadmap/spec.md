@@ -20,7 +20,7 @@ type: roadmap
 ├── roadmap/                          # 全局 Roadmap 入口
 │   ├── spec.md                       # 本文档：规则定义 + 跨模块冲突检测
 │   ├── items/                        # 当前活跃目标条目
-│   │   └── R-0001.md .. R-0007.md
+│   │   └── R-0001.md .. R-0013.md
 │   ├── template/                     # Item 模板目录
 │   │   └── item.md
 │   ├── archive/                      # 已归档的历史版本

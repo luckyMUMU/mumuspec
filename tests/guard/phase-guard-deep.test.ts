@@ -23,6 +23,20 @@ vi.mock('../../src/change/manager.js', () => ({
   verifyTestCases: (...args: unknown[]) => mockVerifyTestCases(...args),
 }));
 
+// Completeness gate validator is mocked out in these hermetic phase-guard
+// unit tests — the real gate chain (validator + fs) is covered by
+// tests/guard/completeness-gate.test.ts (goal-p0-dispatch-gate).
+vi.mock('../../src/change/artifact-validator.js', () => ({
+  validateArtifact: vi.fn(() => ({
+    exists: true,
+    isValid: true,
+    errors: [],
+    openItemIds: [],
+    items: [{ id: 'OQ-1', status: 'resolved' }],
+  })),
+  extractDecisionRefs: vi.fn(() => []),
+}));
+
 vi.mock('../../src/guard/checker.js', () => ({
   applyStrengthToGuardResult: (result: unknown, strength?: unknown) =>
     mockApplyStrengthToGuardResult(result, strength),
@@ -324,8 +338,9 @@ sections:
     });
 
     const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
-    expect(result.passed).toBe(false);
-    expect(result.errors.some((e: any) => e.code === 'E-DESIGN-009')).toBe(true);
+    // CHG-5 (0.20): design template check downgraded from error to warning
+    expect(result.passed).toBe(true);
+    expect(result.warnings.some((w: any) => w.code === 'W-DESIGN-009')).toBe(true);
   });
 });
 

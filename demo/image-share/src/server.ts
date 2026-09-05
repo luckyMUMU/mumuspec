@@ -1,17 +1,14 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { promises as fs } from "node:fs";
-import { join, normalize, basename } from "node:path";
+import { join, normalize } from "node:path";
 import { networkInterfaces } from "node:os";
 import { ImageManager } from "./image-manager.js";
 import { parseMultipart } from "./uploader.js";
+import { loadConfig, type ServerConfig } from "./config.js";
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const METADATA_FILENAME = "metadata.json";
 
-const PORT = parseInt(process.env.PORT ?? "3100", 10);
-const HOST = "0.0.0.0";
-const UPLOAD_DIR = join(process.cwd(), "uploads");
-const PUBLIC_DIR = join(process.cwd(), "public");
+const config: ServerConfig = loadConfig();
 
 let imageManager: ImageManager;
 
@@ -33,7 +30,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
   try {
     if (method === "GET" && pathname === "/") {
-      await serveStatic(res, join(PUBLIC_DIR, "index.html"), "text/html; charset=utf-8");
+      await serveStatic(res, join(config.publicDir, "index.html"), "text/html; charset=utf-8");
     } else if (method === "GET" && pathname.startsWith("/images/")) {
       await serveImage(res, pathname.slice(8));
     } else if (method === "POST" && pathname === "/api/upload") {
@@ -44,6 +41,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       await handleGetImage(res, pathname.slice(12));
     } else if (method === "DELETE" && pathname.startsWith("/api/images/")) {
       await handleDelete(res, pathname.slice(12));
+    } else if (method === "POST" && pathname === "/api/scan") {
+      await handleScan(res);
     } else if (method === "GET" && pathname === "/api/info") {
       handleInfo(res);
     } else {
@@ -154,14 +153,24 @@ async function handleDelete(res: ServerResponse, rawId: string): Promise<void> {
   res.end(JSON.stringify({ success: true }));
 }
 
+async function handleScan(res: ServerResponse): Promise<void> {
+  const result = await imageManager.scanAndImport();
+  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify({ success: true, ...result }));
+}
+
 function handleInfo(res: ServerResponse): void {
   res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
   res.end(
     JSON.stringify({
       service: "LAN Image Share",
-      version: "1.0.0",
+      version: "1.1.0",
       lanIp: getLocalIp(),
-      port: PORT,
+      port: config.port,
+      uploadDir: config.uploadDir,
+      maxFileSize: config.maxFileSize,
+      allowedTypes: Object.fromEntries(config.allowedTypes),
+      autoScan: config.autoScan,
       endpoints: {
         "GET /": "Web UI",
         "GET /api/images": "List all images",
@@ -169,6 +178,7 @@ function handleInfo(res: ServerResponse): void {
         "GET /api/images/:id": "Get image metadata",
         "DELETE /api/images/:id": "Delete image",
         "GET /images/:id": "Serve image file",
+        "POST /api/scan": "Scan upload dir and import unmanaged images",
       },
     })
   );
@@ -209,8 +219,19 @@ function getLocalIp(): string {
 }
 
 export async function createApp() {
-  imageManager = new ImageManager(UPLOAD_DIR);
+  imageManager = new ImageManager(config.uploadDir, {
+    allowedTypes: config.allowedTypes,
+    maxFileSize: config.maxFileSize,
+  });
   await imageManager.initialize();
+
+  // 启动时自动扫描（如果配置开启）
+  if (config.autoScan) {
+    const result = await imageManager.scanAndImport();
+    if (result.imported > 0) {
+      console.log(`📊 自动扫描完成: 导入 ${result.imported} 个文件, 跳过 ${result.skipped} 个`);
+    }
+  }
 
   return createServer((req, res) => {
     handleRequest(req, res).catch((err) => {
@@ -222,19 +243,21 @@ export async function createApp() {
 
 async function main(): Promise<void> {
   const server = await createApp();
-  server.listen(PORT, HOST, () => {
+  server.listen(config.port, config.host, () => {
     const ip = getLocalIp();
     console.log("");
-    console.log("╔══════════════════════════════════════════════╗");
-    console.log("║       🖼️  局域网高清图片分享服务  🖼️         ║");
-    console.log("╠══════════════════════════════════════════════╣");
-    console.log(`║  本机访问:  http://localhost:${PORT}            ║`);
-    console.log(`║  局域网:    http://${ip}:${PORT}          ║`);
-    console.log("╠══════════════════════════════════════════════╣");
-    console.log("║  上传目录:  uploads/                         ║");
-    console.log("║  支持格式:  JPG / PNG / GIF / WebP / BMP / SVG ║");
-    console.log("║  最大文件:  50MB                              ║");
-    console.log("╚══════════════════════════════════════════════╝");
+    console.log("╔══════════════════════════════════════════════════╗");
+    console.log("║       🖼️  局域网高清图片分享服务  🖼️              ║");
+    console.log("╠══════════════════════════════════════════════════╣");
+    console.log(`║  本机访问:  http://localhost:${config.port}              ║`);
+    console.log(`║  局域网:    http://${ip}:${config.port}            ║`);
+    console.log("╠══════════════════════════════════════════════════╣");
+    console.log(`║  管理目录:  ${config.uploadDir.slice(0, 37).padEnd(37)}║`);
+    console.log(`║  最大文件:  ${Math.floor(config.maxFileSize / 1024 / 1024)}MB                                  ║`);
+    console.log(`║  自动扫描:  ${config.autoScan ? "开启" : "关闭"}                                    ║`);
+    console.log("╠══════════════════════════════════════════════════╣");
+    console.log("║  扫描导入:  POST /api/scan                        ║");
+    console.log("╚══════════════════════════════════════════════════╝");
     console.log("");
   });
 }

@@ -165,6 +165,9 @@ describe('Distributed Spec V2 — E2E Integration', () => {
       const config = {
         specs: { max_layer_depth: 5, require_design_doc: false },
         project: { name: 'test' },
+        // M2 default is strict (E-SPEC-015 as ERROR); this test targets V2
+        // format acceptance, not the verifiability gate.
+        constraint_strength: { enforcement_strict: false },
       } as any;
 
       const result = validateAllSpecs(projectDir, config);

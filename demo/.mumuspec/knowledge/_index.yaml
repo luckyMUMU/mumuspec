@@ -180,7 +180,7 @@ pages:
     type: rationale
     status: confirmed
     scope: src/api
-    file: .mumuspec\knowledge\rationale\KP-005.md
+    file: .mumuspec\knowledge\rationales\KP-005.md
     tags:
       - routing
       - ponytail

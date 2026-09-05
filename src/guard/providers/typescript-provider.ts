@@ -18,6 +18,7 @@ import type {
   SemanticConstraint,
   ILanguageProvider,
 } from '../../core/types-constraint-ast.ts';
+import type { ExtractedSymbol } from '../../core/types-knowledge.ts';
 
 export const typescriptProvider: ILanguageProvider = {
   language: 'typescript',
@@ -61,6 +62,43 @@ export const typescriptProvider: ILanguageProvider = {
 
   formatMessage(v: ConstraintViolation): string {
     return `[${v.ruleId}] ${v.message} at ${v.location.file}:${v.location.line}:${v.location.column}`;
+  },
+
+  extractSymbols(source: string, filename: string): ExtractedSymbol[] {
+    const sf = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true);
+    const symbols: ExtractedSymbol[] = [];
+
+    function visit(node: ts.Node): void {
+      if (ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node)) {
+        const name = ts.isArrowFunction(node)
+          ? (node.parent && ts.isVariableDeclaration(node.parent) ? node.parent.name.getText() : 'anonymous')
+          : node.name?.text ?? 'anonymous';
+        symbols.push({
+          name,
+          kind: 'function',
+          startLine: sf.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+          endLine: sf.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
+        });
+      } else if (ts.isClassDeclaration(node) && node.name) {
+        symbols.push({
+          name: node.name.text,
+          kind: 'class',
+          startLine: sf.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+          endLine: sf.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
+        });
+      } else if (ts.isInterfaceDeclaration(node) && node.name) {
+        symbols.push({
+          name: node.name.text,
+          kind: 'interface',
+          startLine: sf.getLineAndCharacterOfPosition(node.getStart()).line + 1,
+          endLine: sf.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
+        });
+      }
+      node.forEachChild(visit);
+    }
+
+    visit(sf);
+    return symbols;
   },
 };
 

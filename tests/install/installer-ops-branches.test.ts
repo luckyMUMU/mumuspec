@@ -181,11 +181,13 @@ describe('getAgentSkillDir — USERPROFILE path and agent not in conventions', (
     }
   });
 
-  it('returns default for agent not in conventions', () => {
-    // Use an agent that's not in the conventions map
-    const result = installPackage('codex' as AgentType, 'mumuspec-workflow', 'workspace', testRoot);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Unknown agent');
+  it('installs codex via dispatch-gate path (skills + canonical AGENTS.md)', () => {
+    // goal-p0-dispatch-gate (C1/C2): codex is a first-class agent —
+    // directory-style SKILL.md + AGENTS.md rules ride along on workspace installs
+    const result = installPackage('codex', 'mumuspec-workflow', 'workspace', testRoot);
+    expect(result.success).toBe(true);
+    expect(result.path).toMatch(/\.codex[\\/]skills[\\/]mumuspec-workflow[\\/]SKILL\.md$/);
+    expect(existsSync(join(testRoot, 'AGENTS.md'))).toBe(true);
   });
 });
 

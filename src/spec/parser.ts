@@ -10,6 +10,7 @@ import type {
 } from '../core/types.js';
 import { parseFrontmatter } from '../core/utils.js';
 import { MumuSpecError } from '../core/errors.js';
+import { stringify as stringifyYaml } from 'yaml';
 
 /** Parse a spec.md file into structured data */
 export function parseSpecFile(content: string, filePath: string): SpecFile {
@@ -111,16 +112,30 @@ function parseRequirementBlock(block: string, name: string): Requirement {
         case 'enforcement': {
           // Parse: - SHALL-1: description
           const enforcementMatch = item.match(/^(\S+):\s*(.+)$/);
+          let id: string;
+          let description: string;
           if (enforcementMatch) {
+            id = enforcementMatch[1];
+            description = enforcementMatch[2];
+          } else {
+            id = `ENF-${enforcement.length + 1}`;
+            description = item;
+          }
+          // P0 verifier semantics: manual(...) reserved word — explicit human
+          // verification declaration. Legacy free text → implicit-manual.
+          const manualMatch = description.match(/^manual\((.*)\)$/s);
+          if (manualMatch) {
             enforcement.push({
-              id: enforcementMatch[1],
-              description: enforcementMatch[2],
+              id,
+              description: manualMatch[1].trim(),
+              kind: 'manual',
               severity: 'ERROR',
             });
           } else {
             enforcement.push({
-              id: `ENF-${enforcement.length + 1}`,
-              description: item,
+              id,
+              description,
+              kind: 'implicit-manual',
               severity: 'ERROR',
             });
           }
@@ -138,15 +153,23 @@ export function serializeSpecFile(spec: SpecFile): string {
   const lines: string[] = [];
 
   // Frontmatter
-  const fm: SpecFrontmatter = spec.frontmatter;
+  // P0 fidelity fix (2026-08-29): the previous serializer wrote only the known
+  // fields and silently DROPPED any other frontmatter keys on round-trip
+  // (e.g. doc_type, parent_prd). Preserve them after the known fields.
+  const fm = spec.frontmatter as unknown as Record<string, unknown>;
+  const knownKeys = new Set(['layer', 'scope', 'last_updated', 'prohibitions']);
+  const extras: Record<string, unknown> = {};
+  for (const key of Object.keys(fm)) {
+    if (!knownKeys.has(key) && fm[key] !== undefined) extras[key] = fm[key];
+  }
   lines.push('---');
   lines.push(`layer: ${fm.layer}`);
   lines.push(`scope: "${fm.scope}"`);
   lines.push(`last_updated: "${fm.last_updated}"`);
   // P1-1 Fix: Serialize prohibitions annotations
-  if (fm.prohibitions && fm.prohibitions.length > 0) {
+  if (fm.prohibitions && (fm.prohibitions as unknown[]).length > 0) {
     lines.push('prohibitions:');
-    for (const p of fm.prohibitions) {
+    for (const p of fm.prohibitions as NonNullable<SpecFrontmatter['prohibitions']>) {
       lines.push(`  - text: "${p.text}"`);
       lines.push('    annotation:');
       lines.push(`      type: ${p.annotation.type}`);
@@ -154,6 +177,17 @@ export function serializeSpecFile(spec: SpecFile): string {
       if (p.annotation.target) lines.push(`      target: "${p.annotation.target}"`);
       if (p.annotation.ast_constraint) lines.push(`      ast_constraint: "${p.annotation.ast_constraint}"`);
       if (p.annotation.rationale) lines.push(`      rationale: "${p.annotation.rationale}"`);
+    }
+  }
+  if (Object.keys(extras).length > 0) {
+    // Deterministic order (not object order) keeps round-trips stable
+    for (const key of Object.keys(extras).sort()) {
+      const value = extras[key];
+      if (typeof value === 'string') {
+        lines.push(`${key}: "${value}"`);
+      } else {
+        lines.push(...stringifyYaml({ [key]: value }).trimEnd().split('\n'));
+      }
     }
   }
   lines.push('---');
@@ -191,7 +225,9 @@ export function serializeSpecFile(spec: SpecFile): string {
     if (req.enforcement.length > 0) {
       lines.push('### Enforcement');
       for (const e of req.enforcement) {
-        lines.push(`- ${e.id}: ${e.description}`);
+        // P0: re-wrap explicit manual declarations so the marker round-trips
+        const text = e.kind === 'manual' ? `manual(${e.description})` : e.description;
+        lines.push(`- ${e.id}: ${text}`);
       }
       lines.push('');
     }
@@ -392,7 +428,9 @@ export function serializeTechFile(tech: TechFile): string {
     if (req.enforcement.length > 0) {
       lines.push('### Enforcement');
       for (const e of req.enforcement) {
-        lines.push(`- ${e.id}: ${e.description}`);
+        // P0: re-wrap explicit manual declarations so the marker round-trips
+        const text = e.kind === 'manual' ? `manual(${e.description})` : e.description;
+        lines.push(`- ${e.id}: ${text}`);
       }
       lines.push('');
     }

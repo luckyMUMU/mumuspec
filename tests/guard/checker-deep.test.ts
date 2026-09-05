@@ -66,40 +66,44 @@ function writeSpec(projectDir: string, body: string): void {
 // ─── applyStrengthToGuardResult — downgrade & every metadata code ───────────
 
 describe('applyStrengthToGuardResult — error downgrade to warn', () => {
-  it('should downgrade E-SPEC-004 from error to warn when TD strength is MEDIUM (action=warn)', () => {
+  // P0 (2026-08-29): E-SPEC-004 is now always_enforce (verifiability ⊥
+  // strength — always visible). E-PONYTAIL-001 (TD/medium, foldable) replaces
+  // it as the fixture for generic strength folding below.
+  it('should downgrade E-PONYTAIL-001 from error to warn when TD strength is MEDIUM (action=warn)', () => {
     const result: GuardResult = {
       passed: false,
-      errors: [{ code: 'E-SPEC-004', message: 'SHALL without enforcement' }],
+      errors: [{ code: 'E-PONYTAIL-001', message: 'ponytail violation' }],
       warnings: [],
     };
-    // E-SPEC-004: dimension=technical_design. medium TD → action=warn → downgrade to warning
+    // E-PONYTAIL-001: dimension=technical_design. medium TD → action=warn → downgrade to warning
     const output = applyStrengthToGuardResult(result, STRENGTH_MED);
     expect(output.errors).toHaveLength(0);
     expect(output.warnings).toHaveLength(1);
-    expect(output.warnings[0].code).toBe('E-SPEC-004');
+    expect(output.warnings[0].code).toBe('E-PONYTAIL-001');
     expect(output.warnings[0].message).toContain('[downgraded from error]');
     expect(output.warnings[0].detail).toContain('reason:');
   });
 
-  it('should keep E-SPEC-004 as error when TD strength is HIGH (action=block)', () => {
-    const result: GuardResult = {
-      passed: false,
-      errors: [{ code: 'E-SPEC-004', message: 'SHALL without enforcement' }],
-      warnings: [],
-    };
-    // E-SPEC-004: high TD → action=block → stays as error
-    const output = applyStrengthToGuardResult(result, STRENGTH_HIGH);
-    expect(output.errors).toHaveLength(1);
-    expect(output.warnings).toHaveLength(0);
+  it('should keep E-SPEC-004 as error at ANY strength (P0 always_enforce — red-line visibility)', () => {
+    for (const strength of [STRENGTH_LOW, STRENGTH_MED, STRENGTH_HIGH]) {
+      const result: GuardResult = {
+        passed: false,
+        errors: [{ code: 'E-SPEC-004', message: 'SHALL without enforcement' }],
+        warnings: [],
+      };
+      const output = applyStrengthToGuardResult(result, strength);
+      expect(output.errors).toHaveLength(1);
+      expect(output.warnings).toHaveLength(0);
+    }
   });
 
-  it('should drop E-SPEC-004 at LOW strength (action=info)', () => {
+  it('should drop E-PONYTAIL-001 at LOW strength (action=info)', () => {
     const result: GuardResult = {
       passed: false,
-      errors: [{ code: 'E-SPEC-004', message: 'SHALL without enforcement' }],
+      errors: [{ code: 'E-PONYTAIL-001', message: 'ponytail violation' }],
       warnings: [],
     };
-    // E-SPEC-004: low TD → action=info → dropped (removed from both errors and warnings)
+    // E-PONYTAIL-001: low TD → action=info → dropped (removed from both errors and warnings)
     const output = applyStrengthToGuardResult(result, STRENGTH_LOW);
     expect(output.errors).toHaveLength(0);
     expect(output.warnings).toHaveLength(0);
@@ -248,26 +252,29 @@ describe('applyStrengthToGuardResult — every code in GUARD_CHECK_METADATA', ()
     expect(output.errors).toHaveLength(1);
   });
 
-  it('E-GUARD-001: RG high, blocked at high RG', () => {
+  it('E-GUARD-001: TD medium, blocked at high TD (CHG-5: process constraint)', () => {
     const result: GuardResult = {
       passed: false,
       errors: [{ code: 'E-GUARD-001', message: 'proposal.md missing' }],
       warnings: [],
     };
     const output = applyStrengthToGuardResult(result, STRENGTH_HIGH);
+    // CHG-5 (0.20): E-GUARD-001 moved from RG high to TD medium
+    // At TD=high, medium min_strength → action=block (high ≥ medium)
     expect(output.errors).toHaveLength(1);
   });
 
-  it('E-GUARD-001: RG high, downgraded at medium RG', () => {
+  it('E-GUARD-001: TD medium, downgraded at low TD (CHG-5: process constraint)', () => {
     const result: GuardResult = {
       passed: false,
       errors: [{ code: 'E-GUARD-001', message: 'proposal.md missing' }],
       warnings: [],
     };
-    // medium RG → action=warn → downgrade to warning
-    const strength: ConstraintStrengthField = { technical_design: 'high', requirement_goals: 'medium' };
+    // CHG-5 (0.20): E-GUARD-001 is now TD medium, not RG high
+    // TD=low → action=info → dropped from output
+    const strength: ConstraintStrengthField = { technical_design: 'low', requirement_goals: 'high' };
     const output = applyStrengthToGuardResult(result, strength);
-    expect(output.warnings).toHaveLength(1);
+    expect(output.errors).toHaveLength(0);
   });
 });
 
@@ -276,20 +283,32 @@ describe('applyStrengthToGuardResult — warning processing', () => {
     const result: GuardResult = {
       passed: true,
       errors: [],
-      warnings: [{ code: 'E-SPEC-004', message: 'SHALL without enforcement' }],
+      warnings: [{ code: 'E-PONYTAIL-001', message: 'ponytail marker' }],
     };
-    // TD=low, E-SPEC-004 min_strength=medium, dimension=TD → info → dropped
+    // TD=low, E-PONYTAIL-001 min_strength=medium, dimension=TD → info → dropped
     const output = applyStrengthToGuardResult(result, STRENGTH_LOW);
     expect(output.warnings).toHaveLength(0);
+  });
+
+  it('should keep E-SPEC-004 warning at ANY strength (P0 always_enforce — verifiability ⊥ strength)', () => {
+    for (const strength of [STRENGTH_LOW, STRENGTH_MED]) {
+      const result: GuardResult = {
+        passed: true,
+        errors: [],
+        warnings: [{ code: 'E-SPEC-004', message: 'SHALL without enforcement' }],
+      };
+      const output = applyStrengthToGuardResult(result, strength);
+      expect(output.warnings.some((w) => w.code === 'E-SPEC-004')).toBe(true);
+    }
   });
 
   it('should keep warning when strength evaluates to warn', () => {
     const result: GuardResult = {
       passed: true,
       errors: [],
-      warnings: [{ code: 'E-SPEC-004', message: 'SHALL without enforcement' }],
+      warnings: [{ code: 'E-PONYTAIL-001', message: 'ponytail marker' }],
     };
-    // TD=medium, E-SPEC-004 min_strength=medium → warn → keep
+    // TD=medium, E-PONYTAIL-001 min_strength=medium → warn → keep
     const output = applyStrengthToGuardResult(result, STRENGTH_MED);
     expect(output.warnings).toHaveLength(1);
   });
@@ -310,11 +329,11 @@ describe('applyStrengthToGuardResult — warning processing', () => {
       passed: false,
       errors: [
         { code: 'E-GUARD-003', message: 'always block' },
-        { code: 'E-SPEC-004', message: 'downgrade me' },
+        { code: 'E-PONYTAIL-001', message: 'downgrade me' },
       ],
       warnings: [
         { code: 'E-GUARD-003', message: 'warn always' },
-        { code: 'E-SPEC-004', message: 'warn downgrade' },
+        { code: 'E-PONYTAIL-001', message: 'warn downgrade' },
       ],
     };
     const output = applyStrengthToGuardResult(result, STRENGTH_LOW);
@@ -322,9 +341,9 @@ describe('applyStrengthToGuardResult — warning processing', () => {
     expect(output.errors).toHaveLength(1);
     expect(output.errors[0].code).toBe('E-GUARD-003');
     // E-GUARD-003 warning stays (always_enforce→block→keep as warn)
-    // E-SPEC-004 warning dropped (TD=low, min_medium→info→drop)
+    // E-PONYTAIL-001 warning dropped (TD=low, min_medium→info→drop)
     expect(output.warnings.some(w => w.code === 'E-GUARD-003')).toBe(true);
-    expect(output.warnings.some(w => w.code === 'E-SPEC-004')).toBe(false);
+    expect(output.warnings.some(w => w.code === 'E-PONYTAIL-001')).toBe(false);
   });
 });
 
@@ -718,14 +737,23 @@ describe('checkCompliance — strength + violation interaction', () => {
     expect(result.errors[0].code).toBe('E-GUARD-003');
   });
 
-  it('non-always-enforce E-SPEC-004 dropped at low TD strength', () => {
+  it('E-SPEC-004 kept as warning at low TD strength (P0 always_enforce — verifiability ⊥ strength)', () => {
     writeSpec(projectDir, '## Requirement: R1\n\n### SHALL\n\n- should have enforcement\n');
-    // E-SPEC-004 at low TD → info → dropped
+    // P0: E-SPEC-004 never folds away — visible even at low TD
     const result = checkCompliance(projectDir, { strength: STRENGTH_LOW });
-    expect(result.warnings.filter(w => w.code === 'E-SPEC-004')).toHaveLength(0);
+    expect(result.warnings.filter(w => w.code === 'E-SPEC-004').length).toBeGreaterThan(0);
   });
 
-  it('non-always-enforce E-SPEC-004 kept as warning at medium TD strength', () => {
+  it('non-always-enforce E-PONYTAIL-001 dropped at low TD strength', () => {
+    // Foldable codes still fold — E-SPEC-004 is the exception, not the rule
+    const result = applyStrengthToGuardResult(
+      { passed: true, errors: [], warnings: [{ code: 'E-PONYTAIL-001', message: 'x' }] },
+      STRENGTH_LOW,
+    );
+    expect(result.warnings.filter(w => w.code === 'E-PONYTAIL-001')).toHaveLength(0);
+  });
+
+  it('E-SPEC-004 kept as warning at medium TD strength', () => {
     writeSpec(projectDir, '## Requirement: R1\n\n### SHALL\n\n- should have enforcement\n');
     // E-SPEC-004 at medium TD → warn → kept as warning
     const result = checkCompliance(projectDir, { strength: STRENGTH_MED });

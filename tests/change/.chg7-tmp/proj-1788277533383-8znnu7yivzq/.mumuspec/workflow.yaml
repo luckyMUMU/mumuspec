@@ -1,0 +1,49 @@
+version: 1
+phases:
+  - open
+  - design
+  - build
+  - verify
+  - archive-in-progress
+  - archive-completed
+  - discarded
+terminal:
+  - archive-completed
+  - discarded
+edges:
+  - from: open
+    to: nirvana
+    direction: forward
+    countAs: none
+    label: bad
+workflows:
+  full:
+    phases:
+      - open
+      - design
+      - build
+      - verify
+      - archive-in-progress
+      - archive-completed
+  hotfix:
+    phases:
+      - open
+      - build
+      - verify
+      - archive-in-progress
+      - archive-completed
+    skip_design: true
+  tweak:
+    phases:
+      - open
+      - build
+      - verify
+      - archive-in-progress
+      - archive-completed
+    skip_design: true
+  loop:
+    phases:
+      - build
+      - verify
+      - archive-in-progress
+      - archive-completed

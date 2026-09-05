@@ -5,7 +5,9 @@ import { Logger } from '../core/logger.js';
 import { detectJsxUsage } from './ast-checker.js';
 import type { SpecFile, GuardResult, DriftResult, GuardError, GuardWarning } from '../core/types.js';
 import { parseSpecFile, parsePrdFile, parseTechFile } from '../spec/parser.js';
+import { classifyRequirements, computeEnforcementCoverage, extractQuotedTerms, type ClassifiedItem } from '../spec/verifier-classify.js';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
+import { lintPonytail } from './ponytail-linter.js';
 import { readText, writeText, computeHash, getMumuSpecDir, findSpecDirs, normalizePath } from '../core/utils.js';
 import type { ConstraintStrengthField } from '../core/config.js';
 import { evaluateConstraint, type ConstraintCheck } from '../core/constraint-evaluator.js';
@@ -27,27 +29,45 @@ import { getLanguageProvider, registerBuiltInProviders, getProviderCount } from 
 const GUARD_CHECK_METADATA: Record<string, Omit<ConstraintCheck, 'id'>> = {
   // SHALL NOT violations — always block (CI invariant)
   'E-GUARD-003': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
-  // SHALL without enforcement — TD rigor
-  'E-SPEC-004': { dimension: 'technical_design', min_strength: 'medium' },
+  // SHALL without verification declaration — verifiability is orthogonal to
+  // strength (P0): always visible, never folded away at low strength.
+  'E-SPEC-004': { dimension: 'technical_design', min_strength: 'medium', always_enforce: true },
+  // SHALL NOT unverifiable (P0 E-SPEC-015) — red-line format invariant, always block
+  'E-SPEC-015': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
+  // Manual constraint missing verify evidence (P0 E-VERIFY-003) — result gate
+  'E-VERIFY-003': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
   // Ponytail markers — TD
   'E-PONYTAIL-001': { dimension: 'technical_design', min_strength: 'medium' },
-  // Test immutability hash mismatch — TD
-  'E-GUARD-004': { dimension: 'technical_design', min_strength: 'high' },
-  // Build layers not done — RG (delivery completeness)
+  // Test immutability hash mismatch — TD (behavior constraint, downgraded for LLM freedom)
+  'E-GUARD-004': { dimension: 'technical_design', min_strength: 'medium' },
+  // Build layers not done — RG (delivery completeness, result constraint — keep block)
   'E-GUARD-002': { dimension: 'requirement_goals', min_strength: 'high' },
-  // Cognitive framework checks — TD
-  'E-DESIGN-001': { dimension: 'technical_design', min_strength: 'high' },
-  'E-DESIGN-002': { dimension: 'technical_design', min_strength: 'high' },
-  'E-DESIGN-003': { dimension: 'technical_design', min_strength: 'high' },
-  'E-DESIGN-004': { dimension: 'technical_design', min_strength: 'high' },
-  'E-DESIGN-005': { dimension: 'technical_design', min_strength: 'high' },
-  'E-DESIGN-006': { dimension: 'technical_design', min_strength: 'high' },
+  // Cognitive framework checks — TD (behavior constraints, downgraded for LLM freedom)
+  'E-DESIGN-001': { dimension: 'technical_design', min_strength: 'medium' },
+  'E-DESIGN-002': { dimension: 'technical_design', min_strength: 'medium' },
+  'E-DESIGN-003': { dimension: 'technical_design', min_strength: 'medium' },
+  'E-DESIGN-004': { dimension: 'technical_design', min_strength: 'medium' },
+  'E-DESIGN-005': { dimension: 'technical_design', min_strength: 'medium' },
+  'E-DESIGN-006': { dimension: 'technical_design', min_strength: 'medium' },
   // decisions.md hash mismatch — RG (audit integrity, always block)
   'E-CHANGE-007': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
+  // Completeness gate artifacts invalid / resolution chain broken — RG high
+  // (goal-p0-dispatch-gate ENF-1/2/4: gate must never be degraded or bypassed)
+  'E-CHANGE-020': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
+  'E-CHANGE-021': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
+  // Completeness gate block (missing artifact / open items / empty artifact /
+  // unsigned declaration path) — RG high, always_enforce (ENF-3/ENF-4 red line)
+  'E-GUARD-008': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
   // Invalid phase transition — workflow control (always block)
   'E-CHANGE-006': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
-  // Generic guard error (proposal.md missing, etc.) — defaults to RG high
-  'E-GUARD-001': { dimension: 'requirement_goals', min_strength: 'high' },
+  // Generic guard error (proposal.md missing, etc.) — TD medium (process artifact check)
+  // CHG-5 (0.20): downgraded from RG high to TD medium — artifact existence is a
+  // process constraint; the result constraint (verify pass) catches missing artifacts.
+  'E-GUARD-001': { dimension: 'technical_design', min_strength: 'medium' },
+  // Design template check — TD (process constraint, design structure is HOW)
+  'E-DESIGN-009': { dimension: 'technical_design', min_strength: 'medium' },
+  // Cross-artifact consistency — TD (process constraint, advisory for LLM freedom)
+  'E-DESIGN-010': { dimension: 'technical_design', min_strength: 'medium' },
 };
 
 /** Default metadata for unmapped error codes. */
@@ -111,6 +131,8 @@ export function applyStrengthToGuardResult(
     passed: newErrors.length === 0,
     errors: newErrors,
     warnings: newWarnings,
+    // P0: preserve enforcement coverage through strength folding
+    coverage: result.coverage,
   };
 }
 
@@ -128,25 +150,40 @@ export function checkCompliance(
 ): GuardResult {
   const errors: { code: string; message: string; detail?: string }[] = [];
   const warnings: { code: string; message: string; detail?: string }[] = [];
+  const fullCheck = !options.shall && !options.shallNot && !options.ponytail && !options.testImmutability;
 
   // Merge source file scans: compute once, share across checks (IO optimization)
-  const needsSourceFiles = options.shallNot || options.ponytail ||
-    (!options.shall && !options.shallNot && !options.ponytail && !options.testImmutability);
+  const needsSourceFiles = options.shallNot || options.ponytail || fullCheck;
   const sourceFiles = needsSourceFiles ? findSourceFiles(projectRoot) : [];
 
   // SHALL NOT check
-  if (options.shallNot || (!options.shall && !options.shallNot && !options.ponytail && !options.testImmutability)) {
+  if (options.shallNot || fullCheck) {
     checkShallNot(projectRoot, sourceFiles, errors, warnings);
   }
 
-  // SHALL check
-  if (options.shall || (!options.shall && !options.shallNot && !options.ponytail && !options.testImmutability)) {
-    checkShall(projectRoot, errors, warnings);
+  // SHALL check — P0: also returns classified items for coverage (full check only)
+  let classifiedItems: ClassifiedItem[] = [];
+  if (options.shall || fullCheck) {
+    classifiedItems = checkShall(projectRoot, errors, warnings, options.strength?.enforcement_strict !== false);
   }
 
   // Ponytail check
   if (options.ponytail) {
     checkPonytail(projectRoot, sourceFiles, errors, warnings);
+    // Run ponytail linter rules (0.20.0+)
+    const lintResults = lintPonytail(projectRoot);
+    for (const result of lintResults) {
+      const entry = {
+        code: result.severity === 'error' ? 'E-PONYTAIL-001' : 'W-PONYTAIL-001',
+        message: result.message,
+        detail: `${result.file}:${result.line}${result.suggestion ? ' — ' + result.suggestion : ''}`,
+      };
+      if (result.severity === 'error') {
+        errors.push(entry);
+      } else {
+        warnings.push(entry);
+      }
+    }
   }
 
   const rawResult: GuardResult = {
@@ -154,6 +191,12 @@ export function checkCompliance(
     errors,
     warnings,
   };
+
+  // P0 (C2): full checks report enforcement coverage (partial flags would
+  // yield a misleading subset, so coverage is attached only then).
+  if (fullCheck) {
+    rawResult.coverage = computeEnforcementCoverage(classifiedItems);
+  }
 
   return applyStrengthToGuardResult(rawResult, options.strength);
 }
@@ -193,13 +236,25 @@ function checkShallNot(
   }
 
   // Scan source files for code-level prohibitions with annotation-aware routing
+  const isSelfTool = isMumuSpecSelfRepo(projectRoot);
   for (const filePath of sourceFiles) {
+    // Behavioral SHALL NOTs target agents operating the tool, not the test
+    // harness — tests legitimately exercise forbidden paths to verify the CLI.
+    if (isTestFile(filePath)) continue;
+
     const content = readText(filePath);
     if (!content) continue;
 
     for (const prohibition of codeProhibitions) {
       // Scope-aware: only check files within the prohibition's source tree
       if (!isFileInScope(filePath, prohibition.source, projectRoot)) continue;
+
+      // Dogfooding carve-out (goal-p0-dispatch-gate): agent-behavioral
+      // prohibitions ("禁止手工编辑...状态工件", "禁止以 --force 越过 E-SPEC-015")
+      // target agents operating the tool. In the tool's own repo, src/ IS the
+      // sanctioned implementer of those gates, so these constraints do not
+      // scan the implementation module.
+      if (isSelfTool && isAgentBehaviorConstraint(prohibition.text) && /(^|[\\/])src[\\/]/.test(filePath)) continue;
 
       // P1-1 Fix: Use annotation for semantic checking if available
       const violation = checkProhibitionViolation(content, prohibition.text, filePath, prohibition.annotation);
@@ -228,6 +283,37 @@ function isFileInScope(filePath: string, prohibitionSource: string, projectRoot:
   // Subproject spec only applies to files under that subproject
   const relPath = filePath.replace(projectRoot, '').replace(/^\\/, '');
   return relPath.startsWith(scopeRoot);
+}
+
+/** Test harness files — behavioral SHALL NOTs do not scan these (they
+ *  legitimately exercise forbidden paths to verify the CLI itself). */
+function isTestFile(filePath: string): boolean {
+  const norm = filePath.split('\\').join('/');
+  if (/(^|\/)(tests?|__tests__)\//.test(norm)) return true;
+  return /\.(test|spec)\.[cm]?[jt]sx?$/.test(norm);
+}
+
+/** Whether the checked project is the MumuSpec tool itself (dogfooding). */
+function isMumuSpecSelfRepo(projectRoot: string): boolean {
+  try {
+    const pkg = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
+    return pkg?.name === 'mumuspec';
+  } catch {
+    return false;
+  }
+}
+
+/** Agent-behavioral prohibitions whose lexical channel cannot express intent:
+ *  - "禁止手工编辑由 CLI 管理的审计与状态工件…" (any artifact/command mention matches)
+ *  - "禁止以 `--force` 越过 E-SPEC-015…" (flag definitions, git ops, remedy prose match)
+ *  In the tool's own repo (dogfooding), src/ is the sanctioned implementer of
+ *  these very gates, so the constraint exempts the implementation module. */
+function isAgentBehaviorConstraint(text: string): boolean {
+  const lower = text.toLowerCase();
+  if (lower.includes('手工编辑') && (lower.includes('状态工件') || lower.includes('.mumuspec.yaml') || lower.includes('decisions.md'))) {
+    return true;
+  }
+  return lower.includes('--force') && (lower.includes('e-spec-015') || lower.includes('forceable'));
 }
 
 /** Check if a constraint is a file-coexistence rule or system-behavior rule (not a code pattern) */
@@ -284,8 +370,9 @@ function checkFileCoexistence(
     if (existsSync(mumuDir)) {
       const isRoot = dir === projectRoot;
       for (const { fileA, fileB, source } of filePairs) {
-        // Root directory is allowed to retain spec.md + tech.md + prd.md coexistence
-        if (isRoot && (fileA === 'spec.md' || fileB === 'spec.md')) {
+        // Root directory is allowed to retain the legacy full spec layout
+        // (spec.md + tech.md + prd.md + design.md coexistence)
+        if (isRoot) {
           continue;
         }
         const pathA = join(mumuDir, fileA);
@@ -303,7 +390,9 @@ function checkFileCoexistence(
     try {
       const entries = readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
-        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules' && entry.name !== 'dist') {
+        // demo/examples trees are intentional fixtures that may showcase legacy
+        // spec layouts — exempt from the coexistence gate (goal-p0-dispatch-gate)
+        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules' && entry.name !== 'dist' && entry.name !== 'demo' && entry.name !== 'examples') {
           scanDirs(join(dir, entry.name));
         }
       }
@@ -316,31 +405,41 @@ function checkFileCoexistence(
   scanDirs(projectRoot);
 }
 
-/** Check SHALL requirements */
+/** Check SHALL requirements (P0: classifier-driven verifiability; returns classified items) */
 function checkShall(
   projectRoot: string,
-  _errors: { code: string; message: string; detail?: string }[],
+  errors: { code: string; message: string; detail?: string }[],
   warnings: { code: string; message: string; detail?: string }[],
-): void {
-  // For now, check that SHALL requirements have corresponding code
-  // Real implementation would verify code patterns match requirements
+  strict: boolean,
+): ClassifiedItem[] {
   const specs = findAllSpecs(projectRoot);
+  const allItems: ClassifiedItem[] = [];
 
   for (const spec of specs) {
-    for (const req of spec.requirements) {
-      for (const shall of req.shall) {
-        // Check if there's any enforcement rule
-        const hasEnforcement = req.enforcement.length > 0;
-        if (!hasEnforcement) {
-          warnings.push({
-            code: 'E-SPEC-004',
-            message: `SHALL without enforcement: "${shall}"`,
-            detail: spec.path,
-          });
-        }
+    const prohibitions = spec.frontmatter.prohibitions ?? [];
+    const items = classifyRequirements(spec.requirements, prohibitions, spec.path);
+    allItems.push(...items);
+    for (const item of items) {
+      if (item.cls !== 'unverifiable') continue;
+      if (item.polarity === 'shall') {
+        warnings.push({
+          code: 'E-SPEC-004',
+          message: `SHALL without enforcement: "${item.text}"`,
+          detail: spec.path,
+        });
+      } else {
+        // P0 E-SPEC-015 — red-line gate; strict promotes to ERROR (always block)
+        const message = `SHALL NOT 无可验证通道 (Requirement "${item.requirement}"): "${item.text}"`;
+        const target = strict ? errors : warnings;
+        target.push({
+          code: 'E-SPEC-015',
+          message: strict ? message : `${message} [enforcement_strict=false — 将在 strict 模式下阻断]`,
+          detail: spec.path,
+        });
       }
     }
   }
+  return allItems;
 }
 
 /** Check Ponytail compliance */
@@ -587,41 +686,47 @@ function checkProhibitionViolation(
     return null;
   }
 
-  // Extract patterns like "禁止使用 XXX" or "must not use XXX"
-  const patterns: RegExp[] = [];
-
-  // Extract quoted identifiers — use word boundary for short terms to avoid
-  // false positives (e.g. "htm" matching inside "text/html" or "index.html")
-  const quoted = prohibition.match(/[`'"]([^`'"]+)[`'"]/g);
-  if (quoted) {
-    for (const q of quoted) {
-      const term = q.replace(/[`'"]/g, '');
-      if (term.length > 2) {
-        // Use word-boundary matching for short identifiers (<=4 chars)
-        const escaped = escapeRegExp(term);
-        if (term.length <= 4) {
-          patterns.push(new RegExp(`\\b${escaped}\\b`, 'i'));
-        } else {
-          patterns.push(new RegExp(escaped, 'i'));
-        }
+  // P0: shared lexical-channel extraction (single source of truth with the
+  // verifier classifier — quoted terms + eval/动态执行 patterns)
+  // Per-term affinity rules suppress structural false positives: a matched
+  // line must plausibly *perform* the prohibited act, not merely mention it.
+  const terms = extractQuotedTerms(prohibition);
+  for (const term of terms) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = term.length <= 4 ? new RegExp(`\\b${escaped}\\b`, 'i') : new RegExp(escaped, 'i');
+    const isFlagTerm = term.startsWith('--');
+    const isFileTerm = /\.(md|ya?ml|json|txt|log)$/i.test(term);
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      // Skip comments (including block-comment continuation lines)
+      const trimmed = lines[i].trim();
+      if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+        continue;
+      }
+      if (pattern.test(lines[i])) {
+        // CLI-flag terms (--force etc.): flag *definitions* (.option('--force')),
+        // other tools' invocations (git worktree remove --force) and remedy
+        // prose are not violations — require the mumuspec CLI on the line
+        // (as a standalone word, so "non-mumuspec hooks" doesn't count).
+        if (isFlagTerm && !/(^|[^-\w])mumuspec([^-\w]|$)/i.test(lines[i])) continue;
+        // File-artifact terms (.mumuspec.yaml, decisions.md): a mention is not
+        // an edit — require an actual write/remove call on the line.
+        if (isFileTerm && !/writeFileSync|appendFileSync|rmSync|unlinkSync|createWriteStream|writeFile\(|appendFile\(/.test(lines[i])) continue;
+        return { line: i + 1 };
       }
     }
   }
 
-  // Check for eval/Function constructor (common security prohibition)
-  if (lower.includes('eval') || lower.includes('动态执行')) {
-    patterns.push(/eval\s*\(/, /new\s+Function\s*\(/);
-  }
-
-  for (const pattern of patterns) {
+  // eval/动态执行 lexical channel (mirrors extractRegexPatterns)
+  const lowerText = prohibition.replace(/^ast:/i, '').toLowerCase();
+  if (lowerText.includes('eval') || lowerText.includes('动态执行')) {
     const lines = content.split('\n');
     for (let i = 0; i < lines.length; i++) {
-      // Skip comments
       const trimmed = lines[i].trim();
-      if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*')) {
+      if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
         continue;
       }
-      if (pattern.test(lines[i])) {
+      if (/eval\s*\(/.test(lines[i]) || /new\s+Function\s*\(/.test(lines[i])) {
         return { line: i + 1 };
       }
     }
@@ -694,10 +799,6 @@ function findSourceFiles(projectRoot: string): string[] {
   return results;
 }
 
-function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 /** Detect drift between specs and code */
 export function detectDrift(projectRoot: string): DriftResult[] {
   const results: DriftResult[] = [];
@@ -738,7 +839,7 @@ function checkIndexDrift(
 
     try {
       const indexContent = readFileSync(indexPath, 'utf8');
-      const indexData = parse(indexContent) as { children?: Array<{ path: string }> };
+      const indexData = parse(indexContent) as { children?: Array<{ name?: string; path?: string }> };
 
       // Get actual directories that have .mumuspec subdirectory
       const actualDirs = readdirSync(dir, { withFileTypes: true })
@@ -746,14 +847,21 @@ function checkIndexDrift(
         .filter((e) => existsSync(join(dir, e.name, '.mumuspec')))
         .map((e) => e.name);
 
-      // Parse index children paths
-      const indexDirs = (indexData.children || [])
-        .map((c) => c.path)
-        .filter((p) => !p.includes('/'));  // Only top-level entries
+      // P1-2 fix (2026-08-29): index children carry a `name` and a relative
+      // `path` (e.g. "src\core"). The previous comparison matched paths
+      // against bare directory names — they never intersected, so EVERY
+      // entry produced a spurious "no longer has .mumuspec" warning.
+      const indexEntries = indexData.children || [];
 
-      // Detect directories missing from index
+      // Detect directories missing from index (compare names against both
+      // the entry name and its path basename/whole path)
       for (const dirName of actualDirs) {
-        if (!indexDirs.includes(dirName)) {
+        const covered = indexEntries.some((c) => {
+          if (c.name === dirName || c.path === dirName) return true;
+          const base = c.path?.split(/[\\/]/).pop();
+          return base === dirName;
+        });
+        if (!covered) {
           results.push({
             type: 'index_drift',
             severity: 'WARN',
@@ -765,14 +873,16 @@ function checkIndexDrift(
         }
       }
 
-      // Detect index entries that no longer exist
-      for (const indexPath of indexDirs) {
-        if (!actualDirs.includes(indexPath)) {
+      // Detect index entries whose target no longer has .mumuspec on disk
+      for (const entry of indexEntries) {
+        if (!entry.path) continue;
+        const childMumuDir = join(dir, entry.path, '.mumuspec');
+        if (!existsSync(childMumuDir)) {
           results.push({
             type: 'index_drift',
             severity: 'WARN',
-            message: `index.yaml references "${indexPath}" but directory no longer has .mumuspec`,
-            file: join(dir, indexPath),
+            message: `index.yaml references "${entry.path}" but directory no longer has .mumuspec`,
+            file: join(dir, entry.path),
             fixable: true,
             fixHint: `Remove stale entry from index.yaml or restore directory`,
           });

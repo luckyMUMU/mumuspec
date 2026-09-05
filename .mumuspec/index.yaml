@@ -1,6 +1,6 @@
 scope: .
 layer: 0
-last_updated: 2026-08-01
+last_updated: 2026-09-05
 children:
   - name: mumuspec
     path: .
@@ -22,38 +22,14 @@ children:
     path: demo\src\storage
     prd_summary: "Product Requirements: 存储层"
     tech_summary: "Technical Design: 存储层"
-  - name: docs
-    path: docs
-    prd_summary: "Product Requirements: docs"
-    tech_summary: "Technical Design: docs"
-  - name: appendix
-    path: docs\appendix
-    prd_summary: "Product Requirements: appendix"
-    tech_summary: "Technical Design: appendix"
-  - name: design
-    path: docs\design
-    prd_summary: "Product Requirements: design"
-    tech_summary: "Technical Design: design"
-  - name: reference
-    path: docs\reference
-    prd_summary: "Product Requirements: reference"
-    tech_summary: "Technical Design: reference"
-  - name: docs/reference/skills
-    path: docs\reference\skills
-    prd_summary: "Product Requirements: skills reference"
-    tech_summary: "Technical Design: skills reference"
   - name: feedback
     path: feedback
-    prd_summary: "Product Requirements: feedback (top-level)"
-    tech_summary: "Technical Design: feedback (top-level)"
+    prd_summary: "Product Requirements: feedback"
+    tech_summary: "Technical Design: feedback"
   - name: scripts
     path: scripts
     prd_summary: "Product Requirements: scripts"
     tech_summary: "Technical Design: scripts"
-  - name: skills
-    path: skills
-    prd_summary: "Product Requirements: skills (top-level)"
-    tech_summary: "Technical Design: skills (top-level)"
   - name: src
     path: src
     prd_summary: "Product Requirements: src (source root)"
@@ -74,6 +50,10 @@ children:
     path: src\cli\commands
     prd_summary: "Product Requirements: cli/commands"
     tech_summary: "Technical Design: cli/commands"
+  - name: contract
+    path: src\contract
+    prd_summary: "产品需求: Contract Layer"
+    tech_summary: "技术规格: Contract Layer"
   - name: core
     path: src\core
     prd_summary: "Product Requirements: core"
@@ -82,10 +62,10 @@ children:
     path: src\eval
     prd_summary: "Product Requirements: eval"
     tech_summary: "Technical Design: eval"
-  - name: src/feedback
+  - name: feedback
     path: src\feedback
-    prd_summary: "Product Requirements: feedback module"
-    tech_summary: "Technical Design: feedback module"
+    prd_summary: "Product Requirements: feedback"
+    tech_summary: "Technical Design: feedback"
   - name: guard
     path: src\guard
     prd_summary: "Product Requirements: guard"

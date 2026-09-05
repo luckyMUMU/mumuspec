@@ -272,6 +272,13 @@ export function registerInstallCommands(program: Command): void {
   // OpenCode commands install
   createAgentInstallSubcommand(installCmd, 'opencode', 'opencode', 'Install OpenCode skills');
 
+  // goal-p0-dispatch-gate (C1): new agents — installs skills AND canonical AGENTS.md rules
+  createAgentInstallSubcommand(installCmd, 'codex', 'codex', 'Install Codex skills + canonical AGENTS.md rules');
+  createAgentInstallSubcommand(installCmd, 'windsurf', 'windsurf', 'Install Windsurf skills + canonical AGENTS.md rules');
+  createAgentInstallSubcommand(installCmd, 'gemini', 'gemini', 'Install Gemini skills + GEMINI.md bridge + AGENTS.md rules');
+  // copilot: distribution IS the canonical rules file (TC-A1x — no .github extras)
+  createAgentInstallSubcommand(installCmd, 'copilot', 'copilot', 'Install GitHub Copilot AGENTS.md rules (workspace-scoped)');
+
   // Default: show help when no subcommand given
   installCmd.action(() => {
     console.log('Install skills, MCP servers, and commands for AI coding agents.\n');
@@ -282,6 +289,10 @@ export function registerInstallCommands(program: Command): void {
     console.log('  mumuspec install trae [packages...]          Install Trae AI skills');
     console.log('  mumuspec install workbuddy [packages...]     Install WorkBuddy skills');
     console.log('  mumuspec install opencode [packages...]      Install OpenCode skills');
+    console.log('  mumuspec install codex [packages...]         Install Codex skills + AGENTS.md rules');
+    console.log('  mumuspec install windsurf [packages...]      Install Windsurf skills + AGENTS.md rules');
+    console.log('  mumuspec install gemini [packages...]        Install Gemini skills + GEMINI.md bridge');
+    console.log('  mumuspec install copilot <pkg>               Install Copilot AGENTS.md rules (workspace only)');
     console.log('  mumuspec install mcp <server>                Install MCP server config to workspace');
     console.log('  mumuspec install command <name>              Install custom slash command (CatPaw)');
     console.log('\nCommon options (per agent):');
@@ -290,6 +301,7 @@ export function registerInstallCommands(program: Command): void {
     console.log('  --target user         Install to user scope (default)');
     console.log('  --target workspace    Install to workspace scope');
     console.log('  --workspace-path      Path for workspace installation');
+    console.log('  --force               Force update (overwrites managed rule files)');
     console.log('\nMCP options:');
     console.log('  --list                List available MCP presets');
     console.log('  --installed           Show workspace MCP configs');

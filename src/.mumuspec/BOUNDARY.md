@@ -85,5 +85,6 @@ Vitest、TypeScript、tsx（均在 `devDependencies`）
 
 | 日期 | 变更说明 |
 |------|----------|
+| 2026-08-29 | **Verifier 语义收紧（P0）**：`mcp-server.ts` `validate_specs`/`check_compliance` 返回体新增可选 `coverage`（`EnforcementCoverage` 五桶计量，纯新增字段向后兼容）；`EnforcementCoverage` 类型定义于 `core/types-workflow.ts` | 
 | 2025-07-09 | 首次创建，记录 src/ 对外接口与数据契约 |
 | 2026-08-22 | 新增 `structure-validator.js`（Spec Layer）和 `memory.js`（Knowledge Layer）到 barrel export |

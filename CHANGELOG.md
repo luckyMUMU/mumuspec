@@ -5,6 +5,46 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Verifier 语义收紧（P0）+ Spec 即 DSL 定位修正 + CHG-5 LLM 自主性增强
+
+设计提案：`review/proposal-verifier-semantics-2026-08-29.md`（含影响分析 C1-C7 与开放问题裁决 Q1-Q6）。
+定位修正：`review/nl-bytecode-gap-analysis-2026-08-29.md` §定位修正，决策页 KP-0059。
+
+### Added
+- **CLI-first 三命令（0.20）**：`tasks next <name>`（tasks.md 首个未完成任务定位，替代 grep 手工步骤）、`test-cases lock-suite <name> --layer N`（逐层套件 hash 确定性写入 state.suites_hash，替代手写 suite-map.yaml）、`state layer <name> <N> <status>`（build_layers 状态确定性更新，替代手编 .mumuspec.yaml）
+- 约束可验证性四分类（`enforced-strong` / `enforced-weak` / `manual` / `unverifiable`）：新增 `src/spec/verifier-classify.ts` 纯函数分类器，正则兜底提取逻辑与 guard 共享（消除双份正则漂移）
+- `E-SPEC-015 SPEC_SHALL_NOT_UNVERIFIABLE`（ERROR，forceable: false）：SHALL NOT 红线无可验证通道时发射
+- `E-VERIFY-003 MANUAL_EVIDENCE_MISSING`（ERROR，forceable: true）：verify_to_archive 逐条检查 manual 约束的验证记录（按 Enforcement ID 或约束原文锚定）
+- `mumuspec validate` / MCP `validate_specs` 返回 `enforcement_coverage`（五桶计数 + `declared_ratio` / `strong_ratio` + unverifiable 迁移清单）；CLI 人类可读输出新增 Coverage 报告
+- Enforcement 节新增 `manual(原因)` 保留字（parser 解析 + 序列化回写 round-trip）；`EnforcementRule.kind` 字段（`manual` / `implicit-manual`）
+
+### Changed
+- **CHG-5: LLM 自主性增强（过程约束全面降级）**：
+  - 默认约束强度 `technical_design` 从 `high` 降为 `medium`（过程约束 advisory，结果约束仍 block）
+  - 默认工作流规则 `top_down_design` / `tdd_enforced` 改为 `false`（LLM 可自主选择实现路径）
+  - 默认 `require_brainstorming` 改为 `false`，`default_tdd_mode` 改为 `non-tdd`
+  - `E-GUARD-001`（proposal.md 缺失等）从 RG high 降为 TD medium
+  - `E-DESIGN-009`（设计模板缺失）从 ERROR 降为 WARNING（W-DESIGN-009）
+  - hotfix 路径的 proposal.md/build_layers/test-cases 检查从 ERROR 降为 WARNING
+  - full workflow 的 build_layers 检查从 ERROR 降为 WARNING
+  - 核心原则：**Spec 只约束 WHAT（验收标准、红线），不约束 HOW（执行路径）**
+- **M2 红线门禁默认启用（行为变更）**：`constraint_strength.enforcement_strict` 默认 `true`——SHALL NOT 无可验证通道即 ERROR（阻断 validate/check），manual 约束归档前必须有 verify evidence。**opt-out**：设 `enforcement_strict: false` 退回观察态（仅 warning）。经用户 2026-08-29 明确接受，随本次一并发布
+- **E-SPEC-004 语义收窄与恒可见**：仅指 SHALL 无验证声明；`always_enforce` 注解使其不再被 TD=low 强度折叠丢弃（可验证性 ⊥ 强度，constraint-strength.md 新增 §9.0）；forceable 改为 false
+- F8 修复：自动注解移除「样板/DRY → no-side-effect」语义错配（此前制造虚假的 enforced-strong 覆盖）
+
+### Fixed
+- **skill 指令与 CLI 实现一致性修复（6 处）**：verify-fail/archive-reopen 两个无效状态机目标改为 `transition <name> build --reason`；`mumuspec archive` 补 `--confirm`；`decisions append` 补 `--text`；编排器 Guard/State 说明重写为当前审计语义；skill 接线既有命令（cognitive-map init/sync、grill-me run、test-cases init、decisions append）。分析见 `review/pipeline-cli-first-analysis-2026-08-29.md`
+- `checkIndexDrift` 对比逻辑修复：此前将 index 子项 path（`src\core`）与目录名（`core`）互比，永不相交导致每个索引条目都产生假漂移警告；现按 path 探测 `.mumuspec` 存在性，仅报告真实陈旧项
+- `serializeSpecFile` frontmatter 保真修复：此前 round-trip 会静默丢弃未知 frontmatter 字段（如 doc_type、parent_prd）；现按序保留（`mumuspec annotate` 等回写命令不再有数据丢失风险）
+- 错误码注册表补全：登记 5 个有发射点但未注册的码（E-VERIFY-001/002、E-DESIGN-009/010、E-FINAL-001，新增 FINAL 域，共 78 码/16 域）
+- 结构白名单补 `templates`（cognitive-map 查找路径、config `custom_dir`）与 `discarded`（discard 终态目的地）
+- `mumuspec init` 创建的 `knowledge/rationale` 目录更正为 `rationales`（并补 `imports`）——修复新初始化项目立即报 E-SPEC-013 的自相矛盾（预存在缺陷）
+
+### Documentation
+- `docs/design/constraint-strength.md` 新增 §9.0 可验证性前置判定
+- `docs/reference/error-codes.md` 自动再生（71 → 73 码，新增 VERIFY 域）
+- README.md、overview.md、design.md、STATUS.md 全面更新：对齐 "Spec 即 DSL" 核心定位（KP-0059），"人工编写 spec 而不编写代码"
+
 ## [0.19.1] - 2026-08-22
 
 ### Security

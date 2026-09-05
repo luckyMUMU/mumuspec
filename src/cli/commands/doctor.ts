@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { findProjectRoot, getMumuSpecDir } from '../../core/utils.js';
 import { loadConfig } from '../../core/config.js';
 import { getActiveChange } from '../../change/manager.js';
+import { LEGACY_RULE_FILES } from '../../rules/generator.js';
 
 export function registerDoctorCommand(program: Command): void {
   program
@@ -72,6 +73,15 @@ export function registerDoctorCommand(program: Command): void {
           const rulesPath = join(root, rulesFile);
           console.log(`Rules (${rulesFile}): ${existsSync(rulesPath) ? '✓' : '✗'}`);
         }
+      }
+
+      // Legacy rule files (TC-A4x / C3): 只提示迁移，不删除存量
+      const legacyFound = LEGACY_RULE_FILES.filter((f) => existsSync(join(root, f)));
+      if (legacyFound.length > 0) {
+        console.log('');
+        console.log(`⚠ Legacy rule files: ${legacyFound.join(', ')}`);
+        console.log('  MumuSpec 不再生成 .cursorrules / .windsurfrules（C3 红线）。现有文件不受影响；');
+        console.log('  建议将内容迁移到 AGENTS.md（canonical）后手动删除这些遗留文件。');
       }
 
       console.log('');

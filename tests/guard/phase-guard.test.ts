@@ -28,6 +28,20 @@ vi.mock('../../src/change/manager.js', () => ({
   verifyTestCases: (...args: unknown[]) => mockVerifyTestCases(...args),
 }));
 
+// Completeness gate validator is mocked out in these hermetic phase-guard
+// unit tests — the real gate chain (validator + fs) is covered by
+// tests/guard/completeness-gate.test.ts (goal-p0-dispatch-gate).
+vi.mock('../../src/change/artifact-validator.js', () => ({
+  validateArtifact: vi.fn(() => ({
+    exists: true,
+    isValid: true,
+    errors: [],
+    openItemIds: [],
+    items: [{ id: 'OQ-1', status: 'resolved' }],
+  })),
+  extractDecisionRefs: vi.fn(() => []),
+}));
+
 vi.mock('../../src/guard/checker.js', () => ({
   applyStrengthToGuardResult: (result: unknown, strength?: unknown) =>
     mockApplyStrengthToGuardResult(result, strength),
@@ -409,7 +423,7 @@ describe('runPhaseGuard', () => {
       expect(result.errors.some((e) => e.message.includes('design.md'))).toBe(true);
     });
 
-    it('should fail when build_layers is empty', () => {
+    it('should warn (not fail) when build_layers is empty (CHG-5: process constraint)', () => {
       const state = makeChangeState({
         phase: 'design',
         workflow: 'full',
@@ -426,57 +440,58 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.passed).toBe(false);
-      expect(result.errors.some((e) => e.message.includes('build_layers'))).toBe(true);
+      // CHG-5 (0.20): process constraint downgraded to warning
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.message.includes('build_layers'))).toBe(true);
     });
 
-    it('should fail when test_cases is not locked', () => {
-      const state = makeChangeState({
-        phase: 'design',
-        workflow: 'full',
-        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
-        test_cases: {
-          design_locked: false,
-          suites_locked: false,
-          suites_locked_layers: [],
-          suites_hash: {},
-        },
-      });
-      mockLoadChangeState.mockReturnValue(state);
-      mockReadText.mockReturnValue('# Design\n\nSome detailed design content here.');
+it('should warn when test_cases is not locked (behavior constraint — downgraded for LLM freedom)', () => {
+const state = makeChangeState({
+phase: 'design',
+workflow: 'full',
+build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+test_cases: {
+design_locked: false,
+suites_locked: false,
+suites_locked_layers: [],
+suites_hash: {},
+},
+});
+mockLoadChangeState.mockReturnValue(state);
+mockReadText.mockReturnValue('# Design\n\nSome detailed design content here.');
 
-      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.passed).toBe(false);
-      expect(result.errors.some((e) => e.message.includes('未锁定'))).toBe(true);
-    });
+// Behavior constraint downgraded: passes with warning, not blocked
+expect(result.warnings.some((e) => e.message.includes('未锁定'))).toBe(true);
+});
 
-    it('should fail when test-cases hash does not match', () => {
-      const state = makeChangeState({
-        phase: 'design',
-        workflow: 'full',
-        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
-        test_cases: {
-          design_locked: true,
-          design_content_hash: 'expected-hash',
-          suites_locked: false,
-          suites_locked_layers: [],
-          suites_hash: {},
-        },
-      });
-      mockLoadChangeState.mockReturnValue(state);
-      mockReadText.mockReturnValue('# Design\n\nSome detailed design content here.');
-      mockVerifyTestCases.mockReturnValue({
-        valid: false,
-        expectedHash: 'expected-hash',
-        actualHash: 'actual-hash',
-      });
+it('should warn when test-cases hash does not match (behavior constraint — downgraded for LLM freedom)', () => {
+const state = makeChangeState({
+phase: 'design',
+workflow: 'full',
+build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+test_cases: {
+design_locked: true,
+design_content_hash: 'expected-hash',
+suites_locked: false,
+suites_locked_layers: [],
+suites_hash: {},
+},
+});
+mockLoadChangeState.mockReturnValue(state);
+mockReadText.mockReturnValue('# Design\n\nSome detailed design content here.');
+mockVerifyTestCases.mockReturnValue({
+valid: false,
+expectedHash: 'expected-hash',
+actualHash: 'actual-hash',
+});
 
-      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.passed).toBe(false);
-      expect(result.errors.some((e) => e.code === 'E-GUARD-004')).toBe(true);
-    });
+// Behavior constraint downgraded: passes with warning, not blocked
+expect(result.warnings.some((e) => e.code === 'W-GUARD-004')).toBe(true);
+});
 
     it('should fail when tdd_mode is not tdd', () => {
       const state = makeChangeState({
@@ -523,7 +538,7 @@ describe('runPhaseGuard', () => {
       expect(result.warnings.some((w) => w.message.includes('constraints'))).toBe(true);
     });
 
-    it('should fail with E-DESIGN-009 when design schema has missing required sections', () => {
+    it('should warn (not fail) with W-DESIGN-009 when design schema has missing required sections (CHG-5: process constraint)', () => {
       const state = makeChangeState({
         phase: 'design',
         workflow: 'full',
@@ -552,7 +567,8 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.errors.some((e) => e.code === 'E-DESIGN-009')).toBe(true);
+      // CHG-5 (0.20): design template check downgraded from error to warning
+      expect(result.warnings.some((w) => w.code === 'W-DESIGN-009')).toBe(true);
     });
   });
 
@@ -582,7 +598,7 @@ describe('runPhaseGuard', () => {
       expect(result.passed).toBe(true);
     });
 
-    it('should fail when proposal.md is missing for hotfix', () => {
+    it('should warn (not fail) when proposal.md is missing for hotfix (CHG-5: process constraint)', () => {
       const state = makeChangeState({
         phase: 'open',
         workflow: 'hotfix',
@@ -600,11 +616,12 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.passed).toBe(false);
-      expect(result.errors.some((e) => e.message.includes('proposal.md'))).toBe(true);
+      // CHG-5 (0.20): process constraint downgraded to warning
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.message.includes('proposal.md'))).toBe(true);
     });
 
-    it('should fail when test-cases dir is missing for hotfix', () => {
+    it('should warn (not fail) when test-cases dir is missing for hotfix (CHG-5: process constraint)', () => {
       const state = makeChangeState({
         phase: 'open',
         workflow: 'hotfix',
@@ -622,8 +639,9 @@ describe('runPhaseGuard', () => {
 
       const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
 
-      expect(result.passed).toBe(false);
-      expect(result.errors.some((e) => e.message.includes('test-cases'))).toBe(true);
+      // CHG-5 (0.20): process constraint downgraded to warning
+      expect(result.passed).toBe(true);
+      expect(result.warnings.some((w) => w.message.includes('test-cases'))).toBe(true);
     });
 
     it('should fail when tdd_mode is not tdd for hotfix', () => {
@@ -718,25 +736,25 @@ describe('runPhaseGuard', () => {
       expect(result.errors.some((e) => e.code === 'E-GUARD-002')).toBe(true);
     });
 
-    it('should fail when test cases design lock was reset', () => {
-      const state = makeChangeState({
-        phase: 'build',
-        workflow: 'full',
-        build_layers: [{ layer: 1, scope: 'src/core', status: 'done' }],
-        test_cases: {
-          design_locked: false,
-          suites_locked: false,
-          suites_locked_layers: [],
-          suites_hash: {},
-        },
-      });
-      mockLoadChangeState.mockReturnValue(state);
+it('should warn when test cases design lock was reset (behavior constraint — downgraded for LLM freedom)', () => {
+const state = makeChangeState({
+phase: 'build',
+workflow: 'full',
+build_layers: [{ layer: 1, scope: 'src/core', status: 'done' }],
+test_cases: {
+design_locked: false,
+suites_locked: false,
+suites_locked_layers: [],
+suites_hash: {},
+},
+});
+mockLoadChangeState.mockReturnValue(state);
 
-      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'verify');
+const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'verify');
 
-      expect(result.passed).toBe(false);
-      expect(result.errors.some((e) => e.code === 'E-GUARD-004')).toBe(true);
-    });
+// Behavior constraint downgraded: passes with warning, not blocked
+expect(result.warnings.some((e) => e.code === 'W-GUARD-004')).toBe(true);
+});
 
     it('should warn when suites not locked', () => {
       const state = makeChangeState({
@@ -878,29 +896,29 @@ describe('runPhaseGuard', () => {
       expect(result.errors.some((e) => e.code === 'E-VERIFY-002')).toBe(true);
     });
 
-    it('should fail when test immutability check fails', () => {
-      const state = makeChangeState({
-        phase: 'verify',
-        workflow: 'full',
-        build_layers: [{ layer: 1, scope: 'src/core', status: 'done' }],
-        test_cases: {
-          design_locked: true,
-          suites_locked: false,
-          suites_locked_layers: [],
-          suites_hash: {},
-        },
-        verify_result: 'pass',
-        branch_status: 'handled',
-      });
-      mockLoadChangeState.mockReturnValue(state);
-      mockExistsSync.mockReturnValue(true);
-      mockVerifyTestCases.mockReturnValue({ valid: false });
+it('should warn when test immutability check fails (behavior constraint — downgraded for LLM freedom)', () => {
+const state = makeChangeState({
+phase: 'verify',
+workflow: 'full',
+build_layers: [{ layer: 1, scope: 'src/core', status: 'done' }],
+test_cases: {
+design_locked: true,
+suites_locked: false,
+suites_locked_layers: [],
+suites_hash: {},
+},
+verify_result: 'pass',
+branch_status: 'handled',
+});
+mockLoadChangeState.mockReturnValue(state);
+mockExistsSync.mockReturnValue(true);
+mockVerifyTestCases.mockReturnValue({ valid: false });
 
-      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'archive-in-progress');
+const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'archive-in-progress');
 
-      expect(result.passed).toBe(false);
-      expect(result.errors.some((e) => e.code === 'E-GUARD-004')).toBe(true);
-    });
+// Behavior constraint downgraded: passes with warning, not blocked
+expect(result.warnings.some((e) => e.code === 'W-GUARD-004')).toBe(true);
+});
 
     it('should pass with pass-with-deviations verify_result', () => {
       const state = makeChangeState({

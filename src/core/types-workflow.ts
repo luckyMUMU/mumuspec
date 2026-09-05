@@ -166,6 +166,34 @@ export interface GuardResult {
   passed: boolean;
   errors: GuardError[];
   warnings: GuardWarning[];
+  /**
+   * Verifier semantics (P0, 2026-08-29): enforcement coverage计量.
+   * Present on results produced by the spec verifier (validateAllSpecs).
+   */
+  coverage?: EnforcementCoverage;
+}
+
+/**
+ * Enforcement coverage over constraint items (each SHALL / SHALL NOT bullet).
+ * Verifier semantics P0 — proposal §3.5. Pure新增字段, backward compatible.
+ */
+export interface EnforcementCoverage {
+  total: number;
+  enforced_strong: number;
+  enforced_weak: number;
+  manual: number;
+  unverifiable: number;
+  /** (total - unverifiable) / total — the primary quality metric */
+  declared_ratio: number;
+  /** enforced_strong / total — annotation coverage observation */
+  strong_ratio: number;
+  /** Unverifiable item details (capped) — direct migration checklist */
+  unverifiable_items?: Array<{
+    requirement: string;
+    polarity: 'shall' | 'shall-not';
+    text: string;
+    source: string;
+  }>;
 }
 
 export interface GuardError {

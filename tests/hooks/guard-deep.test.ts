@@ -299,7 +299,7 @@ describe('runHook pre-commit branch', () => {
   });
 
   it('passes when compliance and drift are clean', () => {
-    const result = runHook('pre-commit', [], '/tmp');
+    const result = runHook('pre-commit', [], tmpdir());
     expect(result.passed).toBe(true);
     expect(result.errors).toEqual([]);
   });
@@ -316,7 +316,7 @@ describe('runHook pre-commit branch', () => {
       shallNotViolations: [],
     });
 
-    const result = runHook('pre-commit', [], '/tmp');
+    const result = runHook('pre-commit', [], tmpdir());
     expect(result.passed).toBe(false);
     expect(result.errors).toHaveLength(2);
     expect(result.errors[0]).toContain('TD-SHALL-001');
@@ -331,7 +331,7 @@ describe('runHook pre-commit branch', () => {
       { type: 'scope', message: 'Scope mismatch', severity: 'WARN' },
     ]);
 
-    const result = runHook('pre-commit', [], '/tmp');
+    const result = runHook('pre-commit', [], tmpdir());
     expect(result.passed).toBe(false);
     expect(result.errors.some((e) => e.includes('[DRIFT]') && e.includes('Tech spec outdated'))).toBe(true);
     expect(result.warnings.some((w) => w.includes('[DRIFT]') && w.includes('Scope mismatch'))).toBe(true);
@@ -358,7 +358,7 @@ describe('runHook post-merge branch', () => {
       { type: 'code', message: 'Orphaned code reference', severity: 'WARN' },
     ]);
 
-    const result = runHook('post-merge', [], '/tmp');
+    const result = runHook('post-merge', [], tmpdir());
     expect(result.hook).toBe('post-merge');
     expect(result.passed).toBe(false);
     expect(result.errors.some((e) => e.includes('Stale knowledge'))).toBe(true);
@@ -366,7 +366,7 @@ describe('runHook post-merge branch', () => {
   });
 
   it('passes when no drift detected after merge', () => {
-    const result = runHook('post-merge', [], '/tmp');
+    const result = runHook('post-merge', [], tmpdir());
     expect(result.passed).toBe(true);
   });
 });
@@ -381,11 +381,11 @@ describe('runHook commit-msg boundary conditions', () => {
   });
 
   it('flags message exceeding 200 chars as too long', () => {
-    const msgPath = '/tmp/test-long-boundary.txt';
+    const msgPath = join(tmpdir(), 'test-long-boundary.txt');
     const longMsg = 'a'.repeat(201);
     writeFileSync(msgPath, longMsg);
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(false);
       expect(result.errors.some((e) => e.includes('too long'))).toBe(true);
     } finally {
@@ -394,11 +394,11 @@ describe('runHook commit-msg boundary conditions', () => {
   });
 
   it('accepts message at exactly 200 chars', () => {
-    const msgPath = '/tmp/test-200chars.txt';
+    const msgPath = join(tmpdir(), 'test-200chars.txt');
     const msg = 'b'.repeat(200);
     writeFileSync(msgPath, msg);
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(true);
     } finally {
       try { unlinkSync(msgPath); } catch { /* ignore */ }
@@ -406,10 +406,10 @@ describe('runHook commit-msg boundary conditions', () => {
   });
 
   it('flags message shorter than 10 chars', () => {
-    const msgPath = '/tmp/test-short-boundary.txt';
+    const msgPath = join(tmpdir(), 'test-short-boundary.txt');
     writeFileSync(msgPath, '123456789');
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(false);
       expect(result.errors.some((e) => e.includes('too short'))).toBe(true);
     } finally {
@@ -418,10 +418,10 @@ describe('runHook commit-msg boundary conditions', () => {
   });
 
   it('accepts message at exactly 10 chars', () => {
-    const msgPath = '/tmp/test-10chars.txt';
+    const msgPath = join(tmpdir(), 'test-10chars.txt');
     writeFileSync(msgPath, '1234567890');
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       expect(result.passed).toBe(true);
     } finally {
       try { unlinkSync(msgPath); } catch { /* ignore */ }
@@ -429,11 +429,11 @@ describe('runHook commit-msg boundary conditions', () => {
   });
 
   it('handles message containing Knowledge-Impact with only IMPLEMENTS (no SUPERSEDES)', () => {
-    const msgPath = '/tmp/test-ki-impl.txt';
+    const msgPath = join(tmpdir(), 'test-ki-impl.txt');
     const msg = 'feat: implement caching\n\nKnowledge-Impact:\n  IMPLEMENTS: [KP-0001]\n';
     writeFileSync(msgPath, msg);
     try {
-      const result = runHook('commit-msg', [msgPath], '/tmp');
+      const result = runHook('commit-msg', [msgPath], tmpdir());
       // No SUPERSEDES means no error — should pass (no AFFECTS warning either)
       expect(result.passed).toBe(true);
     } finally {

@@ -3,9 +3,92 @@ import { join } from 'node:path';
 import type { ChangeState, GuardResult } from '../core/types.js';
 import { readText, computeHash } from '../core/utils.js';
 import { getChangeDir, loadChangeState, verifyTestCases } from '../change/manager.js';
+import { validateArtifact, extractDecisionRefs, type ArtifactKind } from '../change/artifact-validator.js';
 import { applyStrengthToGuardResult } from './checker.js';
+import { parseSpecFile, parseTechFile } from '../spec/parser.js';
+import { classifyRequirements, missingManualEvidence, type ClassifiedItem } from '../spec/verifier-classify.js';
 import type { ConstraintStrengthField } from '../core/config.js';
 import { parse as parseYaml } from 'yaml';
+
+/**
+ * Completeness gate v1 (goal-p0-dispatch-gate, ENF-1..4).
+ *
+ * Double-sign semantics: LLM drafts the artifact (open-questions.yaml /
+ * assumptions.yaml) + human signs off via decisions.md (resolution.decision_ref
+ * anchors). LLM advisory fields (free-text "complete" markers) never enter this
+ * decision path — ENF-3 red line.
+ *
+ * Fail-closed (KP-0060 axiom 3): schema-invalid artifacts are refused via
+ * E-CHANGE-020/021 (always_enforce), never degraded to warnings.
+ *
+ * Missing-artifact escape hatch (design.md §2.3): an explicit declaration
+ * marker in design.md is accepted ONLY with a human signoff entry in
+ * decisions.md (≥1 `## [<phase>] <timestamp>` heading).
+ */
+function checkCompletenessGate(
+  projectRoot: string,
+  changeName: string,
+  kind: ArtifactKind,
+  errors: { code: string; message: string; detail?: string }[],
+): void {
+  const changeDir = getChangeDir(projectRoot, changeName);
+  const result = validateArtifact(projectRoot, changeName, kind);
+
+  if (!result.exists) {
+    const marker = kind === 'open-questions' ? '<!-- no-open-questions -->' : '<!-- no-assumptions -->';
+    const designPath = join(changeDir, 'design.md');
+    const declared = existsSync(designPath) && (readText(designPath) || '').includes(marker);
+    if (declared) {
+      // Declaration path still requires human signoff (双签不可省略)
+      const decisionsPath = join(changeDir, 'decisions.md');
+      const signoffCount = existsSync(decisionsPath)
+        ? extractDecisionRefs(readText(decisionsPath) || '').length
+        : 0;
+      if (signoffCount === 0) {
+        errors.push({
+          code: 'E-GUARD-008',
+          message: `${kind}.yaml 缺失且 design.md 已声明${marker}，但 decisions.md 无签收条目`,
+          detail: '声明路径仍需人工签收：先 mumuspec decisions append 落签收条目',
+        });
+      }
+      return;
+    }
+    errors.push({
+      code: 'E-GUARD-008',
+      message: `${kind}.yaml 缺失（完备性门禁要求结构化工件）`,
+      detail: `起草工件，或在 design.md 声明 ${marker} 后经 decisions.md 签收`,
+    });
+    return;
+  }
+
+  if (!result.isValid) {
+    // Fail-closed: refuse to consume invalid artifacts (TC-B2f)
+    for (const e of result.errors) {
+      errors.push({ code: e.code, message: `${kind}: ${e.message}`, detail: e.path });
+    }
+    return;
+  }
+
+  if (result.openItemIds.length > 0) {
+    // Unresolved open items with no signoff → block (TC-B2a); advisory
+    // completeness markers are ignored by construction (TC-B2b)
+    errors.push({
+      code: 'E-GUARD-008',
+      message: `${kind}: ${result.openItemIds.length} 个未消解 open 项（无人工签收不放行）`,
+      detail: result.openItemIds.join(', '),
+    });
+    return;
+  }
+
+  if (result.items.length === 0) {
+    // Empty artifact = no resolution chain = no signoff record → block
+    errors.push({
+      code: 'E-GUARD-008',
+      message: `${kind}.yaml items 为空（无 resolution 链即无签收记录）`,
+      detail: '起草真实 items，或删除工件改用 design.md 声明路径',
+    });
+  }
+}
 
 /**
  * Load design schema from templates/design-schema.yaml
@@ -96,7 +179,7 @@ export function runPhaseGuard(
       rawResult = checkBuildToVerify(state, projectRoot, changeName);
       break;
     case 'archive-in-progress':
-      rawResult = checkVerifyToArchive(state, projectRoot, changeName);
+      rawResult = checkVerifyToArchive(state, projectRoot, changeName, options.strength?.enforcement_strict !== false);
       break;
     default:
       rawResult = {
@@ -200,10 +283,11 @@ function checkOpenToBuildHotfix(
   const warnings: { code: string; message: string; detail?: string }[] = [];
   const changeDir = getChangeDir(projectRoot, changeName);
 
-  // Check proposal.md
+  // Check proposal.md — CHG-5 (0.20): downgraded to warning for hotfix/tweak.
+  // Process constraint; result constraint (verify pass) catches missing artifacts.
   const proposalPath = join(changeDir, 'proposal.md');
   if (!existsSync(proposalPath)) {
-    errors.push({ code: 'E-GUARD-001', message: 'proposal.md 不存在' });
+    warnings.push({ code: 'W-GUARD-001', message: 'proposal.md 不存在（hotfix 可省略，结果约束为 verify 通过）' });
   }
 
   // Check workflow
@@ -214,18 +298,21 @@ function checkOpenToBuildHotfix(
     });
   }
 
-  // Check build_layers defined
+  // Check build_layers defined — CHG-5 (0.20): downgraded to warning for hotfix/tweak.
+  // LLM may choose its own implementation strategy.
   if (state.build_layers.length === 0) {
-    errors.push({ code: 'E-GUARD-001', message: 'build_layers 未定义' });
+    warnings.push({ code: 'W-GUARD-001', message: 'build_layers 未定义（行为约束 — 允许 LLM 自主选择实现策略）' });
   }
 
-  // Check test-cases exists and locked
+  // Check test-cases exists and locked — CHG-5 (0.20): downgraded to warning
+  // for hotfix/tweak paths. Test existence is a process constraint; the result
+  // constraint (build_to_verify: all tests green) catches actual failures.
   const testCasesDir = join(changeDir, 'test-cases');
   if (!existsSync(testCasesDir)) {
-    errors.push({ code: 'E-GUARD-001', message: 'test-cases/ 目录不存在' });
+    warnings.push({ code: 'W-GUARD-001', message: 'test-cases/ 目录不存在（hotfix 可无测试用例，结果约束为 build→verify 全绿）' });
   } else {
     if (!state.test_cases.design_locked) {
-      errors.push({ code: 'E-GUARD-001', message: 'test_cases.design_locked 未设置为 true' });
+      warnings.push({ code: 'W-GUARD-001', message: 'test_cases.design_locked 未设置（行为约束 — 允许 hotfix 灵活实现）' });
     }
   }
 
@@ -264,22 +351,23 @@ function checkDesignToBuild(
     warnings.push({ code: 'E-GUARD-001', message: 'constraints/ 下无 new-shall.md 或 new-shall-not.md' });
   }
 
-  // Check build_layers defined
+  // Check build_layers defined — CHG-5 (0.20): downgraded to warning.
+  // Process constraint; result constraint (build_to_verify: all layers done) catches this.
   if (state.build_layers.length === 0) {
-    errors.push({ code: 'E-GUARD-001', message: 'build_layers 未定义' });
+    warnings.push({ code: 'W-GUARD-001', message: 'build_layers 未定义（行为约束 — LLM 可自主选择实现分层，结果约束为 build→verify 全部完成）' });
   }
 
-  // Check test-cases locked
+  // Check test-cases locked — behavior constraint, downgraded to WARN for LLM freedom
   if (!state.test_cases.design_locked) {
-    errors.push({ code: 'E-GUARD-001', message: 'test_cases 未锁定' });
+    warnings.push({ code: 'W-GUARD-001', message: 'test_cases 未锁定（行为约束 — 允许 LLM 自主选择实现策略）' });
   }
 
-  // Verify test-cases hash
+  // Verify test-cases hash — behavior constraint, downgraded to WARN for LLM freedom
   const testVerify = verifyTestCases(projectRoot, changeName);
   if (!testVerify.valid) {
-    errors.push({
-      code: 'E-GUARD-004',
-      message: 'test-cases hash 不匹配',
+    warnings.push({
+      code: 'W-GUARD-004',
+      message: 'test-cases hash 不匹配（行为约束 — 允许 Build 阶段迭代调整测试）',
       detail: `expected: ${testVerify.expectedHash}, actual: ${testVerify.actualHash}`,
     });
   }
@@ -288,16 +376,18 @@ function checkDesignToBuild(
   checkTddMode(state, expectedTddMode, errors, warnings);
 
   // DS-001: Structured Design Template check (E-DESIGN-009)
+  // CHG-5 (0.20): downgraded from error to warning — design structure is a
+  // process constraint (HOW), not a result constraint. LLM may design freely.
   if (existsSync(designPath)) {
     const designContent = readText(designPath) || '';
     const schema = loadDesignSchema(projectRoot);
     if (schema) {
       const missingSections = checkRequiredSections(designContent, state.workflow, schema);
       if (missingSections.length > 0) {
-        errors.push({
-          code: 'E-DESIGN-009',
-          message: `Design 文档缺少必填字段: ${missingSections.join(', ')}`,
-          detail: `请补充以下 section 后重试: ${missingSections.join(', ')}。可使用 \`mumuspec guard X design --verbose\` 查看匹配规则。`,
+        warnings.push({
+          code: 'W-DESIGN-009',
+          message: `Design 文档建议补充字段: ${missingSections.join(', ')}`,
+          detail: `可使用 \`mumuspec guard X design --verbose\` 查看匹配规则。此为建议，不阻塞转换。`,
         });
       }
     }
@@ -359,6 +449,10 @@ function checkDesignToBuild(
       }
     }
   }
+
+  // Completeness gate v1 (ENF-3/ENF-4) — hard gate: errors, not warnings.
+  // LLM drafts open-questions.yaml; human signs off via decisions.md.
+  checkCompletenessGate(projectRoot, changeName, 'open-questions', errors);
 
   return { passed: errors.length === 0, errors, warnings };
 }
@@ -497,8 +591,8 @@ function extractListItems(sectionContent: string): string[] {
 /** build_to_verify guard */
 function checkBuildToVerify(
   state: ChangeState,
-  _projectRoot: string,
-  _changeName: string,
+  projectRoot: string,
+  changeName: string,
 ): GuardResult {
   const errors: { code: string; message: string; detail?: string }[] = [];
   const warnings: { code: string; message: string; detail?: string }[] = [];
@@ -513,14 +607,14 @@ function checkBuildToVerify(
     });
   }
 
-  // Check test cases still locked
+  // Check test cases locked — behavior constraint, downgraded to WARN for LLM freedom
   if (!state.test_cases.design_locked) {
-    errors.push({ code: 'E-GUARD-004', message: 'test_cases 设计锁定被重置' });
+    warnings.push({ code: 'W-GUARD-004', message: 'test_cases 设计锁定被重置（行为约束 — 结果约束为测试全绿）' });
   }
 
-  // Check suites locked
+  // Check suites locked — behavior constraint, downgraded to WARN
   if (!state.test_cases.suites_locked) {
-    warnings.push({ code: 'E-GUARD-004', message: 'test suites 未锁定' });
+    warnings.push({ code: 'W-GUARD-004', message: 'test suites 未锁定（行为约束 — 结果约束为测试全绿）' });
   }
 
   // DS-005: Task granularity warning (W-DESIGN-001)
@@ -536,6 +630,13 @@ function checkBuildToVerify(
     void taskLayers;
   }
 
+  // Completeness gate v1 (ENF-3/ENF-4) — hard gate, full workflow only:
+  // hotfix/tweak keep their lightweight semantics (只增不改 — no new hard
+  // gates on the hotfix path, preserving CHG-5's LLM-freedom decision).
+  if (state.workflow === 'full') {
+    checkCompletenessGate(projectRoot, changeName, 'assumptions', errors);
+  }
+
   return { passed: errors.length === 0, errors, warnings };
 }
 
@@ -544,6 +645,7 @@ function checkVerifyToArchive(
   state: ChangeState,
   projectRoot: string,
   changeName: string,
+  strict = false,
 ): GuardResult {
   const errors: { code: string; message: string; detail?: string }[] = [];
   const warnings: { code: string; message: string; detail?: string }[] = [];
@@ -564,10 +666,10 @@ function checkVerifyToArchive(
     });
   }
 
-  // Check test immutability
+  // Check test immutability — behavior constraint, downgraded to WARN for LLM freedom
   const testVerify = verifyTestCases(projectRoot, changeName);
   if (!testVerify.valid) {
-    errors.push({ code: 'E-GUARD-004', message: 'test immutability 校验失败' });
+    warnings.push({ code: 'W-GUARD-004', message: 'test immutability 校验失败（行为约束 — 结果约束为 verify_result=pass）' });
   }
 
   // Check verify_result is pass
@@ -595,7 +697,53 @@ function checkVerifyToArchive(
         message: 'verify.md 未包含 SHALL/SHALL NOT 校验记录',
       });
     }
+
+    // P0 verifier semantics (E-VERIFY-003, strict gate only): every manual-
+    // class constraint in the affected scopes must have a verification record
+    // anchored by its Enforcement ID or verbatim constraint text. This is a
+    // result gate — it does not degrade with strength (always_enforce).
+    if (strict) {
+      const manualItems = collectManualItems(projectRoot, state.affected_scopes ?? []);
+      const missing = missingManualEvidence(verifyContent, manualItems);
+      for (const item of missing) {
+        errors.push({
+          code: 'E-VERIFY-003',
+          message: `manual 约束缺少验证记录 (Requirement "${item.requirement}"): "${item.text}"`,
+          detail: `${item.source} — 在 verify.md 中引用 Enforcement ID "${item.enforcementId ?? 'N/A'}" 或约束原文`,
+        });
+      }
+    }
   }
 
   return { passed: errors.length === 0, errors, warnings };
+}
+
+/**
+ * Collect manual-class constraint items from the affected scopes' specs
+ * (spec.md + tech.md per scope). Silent on unreadable/missing files —
+ * verifier findings belong to `mumuspec validate`, not the phase gate.
+ */
+function collectManualItems(projectRoot: string, scopes: string[]): ClassifiedItem[] {
+  const items: ClassifiedItem[] = [];
+  for (const scope of scopes) {
+    const scopeDir = !scope || scope === '.' ? projectRoot : join(projectRoot, scope);
+    for (const fileName of ['spec.md', 'tech.md'] as const) {
+      const specPath = join(scopeDir, '.mumuspec', fileName);
+      if (!existsSync(specPath)) continue;
+      try {
+        const content = readText(specPath);
+        if (!content) continue;
+        if (fileName === 'spec.md') {
+          const spec = parseSpecFile(content, specPath);
+          items.push(...classifyRequirements(spec.requirements, spec.frontmatter.prohibitions ?? [], specPath));
+        } else {
+          const tech = parseTechFile(content, specPath);
+          items.push(...classifyRequirements(tech.requirements, [], specPath));
+        }
+      } catch {
+        // Skip unreadable files
+      }
+    }
+  }
+  return items.filter((i) => i.cls === 'manual');
 }

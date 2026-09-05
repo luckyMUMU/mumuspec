@@ -78,7 +78,10 @@ export function scaffoldKnowledgeBase(
   const knowledgeDir = join(projectRoot, config.knowledge.wiki.dir);
 
   // Create directories
-  const dirs = ['decisions', 'patterns', 'risks', 'rationale', 'lessons'];
+  // Drive-by fix (2026-08-29): 'rationale' → 'rationales' to match the
+  // structure whitelist and knowledge/pages.ts typeDirs (E-SPEC-013 false
+  // positive on freshly-initialized projects).
+  const dirs = ['decisions', 'patterns', 'risks', 'rationales', 'lessons', 'imports'];
   for (const dir of dirs) {
     ensureDir(join(knowledgeDir, dir));
   }

@@ -15,6 +15,9 @@ import {
   verifyTestCases,
   computeTestCasesHash,
   getChangeDir,
+  lockTestSuite,
+  getNextTask,
+  updateBuildLayerStatus,
 } from '../../change/manager.js';
 import type { ChangePhase } from '../../core/types.js';
 import {
@@ -589,6 +592,92 @@ export function registerStateCommands(program: Command): void {
         console.error(`✗ Test cases verification failed for ${name}`);
         console.error(`  Expected: ${result.expectedHash}`);
         console.error(`  Actual:   ${result.actualHash}`);
+        process.exit(1);
+      }
+    });
+
+  // 0.20 CLI-first: deterministic per-layer suite hash locking (replaces the
+  // skill-instructed hand-step of computing hashes into suite-map.yaml)
+  testCmd
+    .command('lock-suite')
+    .description('Lock a single layer test suite hash into state.suites_hash')
+    .argument('<name>', 'change name')
+    .requiredOption('--layer <layer>', 'layer number', (v: string) => parseInt(v, 10))
+    .action((name, options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+      try {
+        const { hash, allLocked, pendingLayers } = lockTestSuite(root, name, options.layer);
+        console.log(`✓ Layer ${options.layer} suite locked for ${name}`);
+        console.log(`  Hash: ${hash}`);
+        if (allLocked) {
+          console.log('  ✓ All suite files locked (suites_locked = true)');
+        } else {
+          console.log(`  Pending layers: ${pendingLayers.join(', ') || '(none on disk)'}`);
+        }
+      } catch (err) {
+        console.error(`✗ ${(err as Error).message}`);
+        process.exit(1);
+      }
+    });
+
+  // 0.20 CLI-first: read-only first-unchecked-task locator (replaces the
+  // skill-instructed grep hand-step in build Step 1)
+  const tasksCmd = program.command('tasks').description('tasks.md helpers');
+  tasksCmd
+    .command('next')
+    .description('Locate the first unchecked task in tasks.md (read-only)')
+    .argument('<name>', 'change name')
+    .action((name) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+      try {
+        const { firstUnchecked, remaining, total } = getNextTask(root, name);
+        if (total === 0) {
+          console.log(`(no checklist items in tasks.md for ${name})`);
+          return;
+        }
+        if (!firstUnchecked) {
+          console.log(`✓ All ${total} tasks checked`);
+          return;
+        }
+        console.log(`Next task (line ${firstUnchecked.line}, ${remaining}/${total} remaining):`);
+        console.log(`  - [ ] ${firstUnchecked.text}`);
+      } catch (err) {
+        console.error(`✗ ${(err as Error).message}`);
+        process.exit(1);
+      }
+    });
+
+  // 0.20 CLI-first: deterministic build-layer status update (replaces hand-
+  // editing .mumuspec.yaml build_layers entries)
+  stateCmd
+    .command('layer')
+    .description('Set a build layer status (pending|in-progress|done)')
+    .argument('<name>', 'change name')
+    .argument('<layer>', 'layer number', (v: string) => parseInt(v, 10))
+    .argument('<status>', 'pending | in-progress | done')
+    .action((name, layer, status) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+      if (!['pending', 'in-progress', 'done'].includes(status)) {
+        console.error(`Error: invalid status "${status}" (expected pending | in-progress | done)`);
+        process.exit(1);
+      }
+      try {
+        updateBuildLayerStatus(root, name, layer, status as 'pending' | 'in-progress' | 'done');
+        console.log(`✓ Layer ${layer} → ${status}`);
+      } catch (err) {
+        console.error(`✗ ${(err as Error).message}`);
         process.exit(1);
       }
     });

@@ -51,13 +51,15 @@ describe('applyStrengthToGuardResult', () => {
   });
 
   it('should downgrade errors when strength below min_strength', () => {
+    // P0: E-SPEC-004 is now always_enforce (verifiability ⊥ strength) — use
+    // E-PONYTAIL-001 (TD/medium, foldable) for the downgrade scenario.
     const result: GuardResult = {
       passed: false,
-      errors: [{ code: 'E-SPEC-004', message: 'SHALL without enforcement' }],
+      errors: [{ code: 'E-PONYTAIL-001', message: 'ponytail violation' }],
       warnings: [],
     };
     const strength: ConstraintStrengthField = {
-      technical_design: 'low',
+      technical_design: 'medium',
       requirement_goals: 'high',
     };
     const output = applyStrengthToGuardResult(result, strength);

@@ -807,10 +807,10 @@ describe('constraint helpers', () => {
     expect(STRENGTH_ACTION_MAP.low).toBe('info');
   });
 
-  it('WORKFLOW_STRENGTH_MATRIX enforces all rules at high, relaxes two at medium, all at low', () => {
+  it('WORKFLOW_STRENGTH_MATRIX enforces all rules at high, relaxes some at medium, all at low', () => {
     expect(Object.values(WORKFLOW_STRENGTH_MATRIX.high).every(Boolean)).toBe(true);
     expect(WORKFLOW_STRENGTH_MATRIX.medium.worktree_isolation).toBe(true);
-    expect(WORKFLOW_STRENGTH_MATRIX.medium.tdd_enforced).toBe(true);
+    expect(WORKFLOW_STRENGTH_MATRIX.medium.tdd_enforced).toBe(false); // 0.20.0+: relaxed for LLM freedom
     expect(WORKFLOW_STRENGTH_MATRIX.medium.single_active_change).toBe(false);
     expect(WORKFLOW_STRENGTH_MATRIX.medium.top_down_design).toBe(false);
     expect(Object.values(WORKFLOW_STRENGTH_MATRIX.low).every((v) => v === false)).toBe(true);

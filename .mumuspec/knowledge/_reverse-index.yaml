@@ -40,3 +40,9 @@
 - code_node: src/knowledge/loader.ts
   knowledge_pages:
     - KP-0015
+- code_node: src/spec/types.ts
+  knowledge_pages:
+    - KP-0012
+- code_node: src/core/types.ts
+  knowledge_pages:
+    - KP-0012
