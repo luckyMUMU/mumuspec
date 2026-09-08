@@ -81,9 +81,9 @@ CHANGELOG.md
 
 | 通道 | 标签格式 | 触发条件 | 目标用户 | npm dist-tag |
 |------|---------|---------|---------|--------------|
-| 内部测试 | `0.12.1-alpha.N` | 早期功能验证 | 核心团队 2-3 人 | `next` |
-| 邀请测试 | `0.12.1-beta.N` | 邀请早期采用者 | 5-10 个项目 | `next` |
-| 发布候选 | `0.12.1-rc.N` | 功能冻结,公开测试 | 任意愿意尝试者 | `next` |
+| 内部测试 | `0.x.y-alpha.N` | 早期功能验证 | 核心团队 2-3 人 | `next` |
+| 邀请测试 | `0.x.y-beta.N` | 邀请早期采用者 | 5-10 个项目 | `next` |
+| 发布候选 | `0.x.y-rc.N` | 功能冻结,公开测试 | 任意愿意尝试者 | `next` |
 | 稳定 | `0.12.1` | 灰度通过,正式发布 | 所有人 | `latest` |
 
 > 详细灰度标准、回退阈值见 [release-strategy.md](release-strategy.md) §3 灰度策略。
@@ -131,6 +131,18 @@ npm run dist-tag:latest  # 把当前 package.json 版本提升为 latest
 |---------|------|------|
 | `0.12.1-rc.2` | `npm run version:patch` | `0.12.2` |
 | `0.12.1-rc.2` | `npm run version:minor` | `0.13.0` |
+
+### 3.4 归档自动升版（archive auto-bump）
+
+`mumuspec archive` 在 `archive-in-progress → archive-completed` 时自动升版（`bumpVersionForArchive`）：
+
+| 当前版本 | 工作流 | 结果 | 规则 |
+|---------|--------|------|------|
+| `0.19.2-alpha.10` | full | `0.20.0-alpha.0` | minor+1，prerelease 计数重置 |
+| `1.2.3`（无 prerelease） | full | `1.2.4-alpha.0` | patch+1 转 alpha 基线 |
+| `0.19.2-alpha.10` | tweak/hotfix | `0.19.2-alpha.11` | prerelease 计数 +1，基线不动 |
+
+升版同时自动完成三件事：同步 `src/cli.ts` 的版本字符串；在 `CHANGELOG.md` 顶部插入 `## [<newVersion>] — archive auto-bump (<date>)` 条目（幂等，该版本标题已存在则跳过）；写入 audit log（`version.bump`）。缺 package.json / cli.ts / CHANGELOG.md 时对应步骤静默跳过，不阻断归档。该行为经裁决保留（2026-09-07）：归档即视为产出新的可发布基线，版本增量由工具保证一致性，人工不回滚。
 
 ---
 

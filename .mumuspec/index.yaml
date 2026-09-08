@@ -1,6 +1,6 @@
 scope: .
 layer: 0
-last_updated: 2026-09-05
+last_updated: 2026-09-07
 children:
   - name: mumuspec
     path: .
@@ -54,6 +54,10 @@ children:
     path: src\contract
     prd_summary: "产品需求: Contract Layer"
     tech_summary: "技术规格: Contract Layer"
+  - name: contract-formatter
+    path: src\contract\formatter
+    prd_summary: "Boundary: src/contract/formatter"
+    tech_summary: "Boundary: src/contract/formatter"
   - name: core
     path: src\core
     prd_summary: "Product Requirements: core"
@@ -86,6 +90,10 @@ children:
     path: src\knowledge
     prd_summary: "Product Requirements: knowledge"
     tech_summary: "Technical Design: knowledge"
+  - name: knowledge-scanners
+    path: src\knowledge\scanners
+    prd_summary: "Boundary: src/knowledge/scanners"
+    tech_summary: "Boundary: src/knowledge/scanners"
   - name: rules
     path: src\rules
     prd_summary: "Product Requirements: rules"
@@ -98,6 +106,18 @@ children:
     path: src\spec
     prd_summary: "Product Requirements: spec"
     tech_summary: "Technical Design: spec"
+  - name: mcp
+    path: src\mcp
+    prd_summary: "Product Requirements: mcp"
+    tech_summary: "Technical Design: mcp"
+  - name: meta-evolution
+    path: src\meta-evolution
+    prd_summary: "Product Requirements: meta-evolution"
+    tech_summary: "Technical Design: meta-evolution"
+  - name: team
+    path: src\team
+    prd_summary: "Product Requirements: team"
+    tech_summary: "Technical Design: team"
   - name: templates
     path: templates
     prd_summary: "Product Requirements: templates"

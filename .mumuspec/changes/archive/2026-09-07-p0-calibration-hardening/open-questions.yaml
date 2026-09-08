@@ -1,0 +1,33 @@
+# Open Questions: p0-calibration-hardening
+# 完备性门禁结构化工件。design 阶段经 grill-me BP 决策后无遗留 open 问题。
+version: 1
+change: p0-calibration-hardening
+items:
+  - id: OQ-01
+    question: >-
+      P0-A Capability Tier 的实现范围：完整实现（含全局 dry-run 框架、不可逆名称二次确认）还是最小版？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-06T16:00:51.613Z"
+      note: >-
+        用户签收最小版：仅 CommandMetadata + `mumuspec capability` 查询命令；
+        dry-run 框架与名称二次确认列二期，非本变更范围。
+  - id: OQ-02
+    question: >-
+      P0-B loader 层数语义：保留固定 3 层（改写为常量+有意注释），还是改为使用
+      config.specs.max_layer_depth（默认 5）？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-06T16:00:53.232Z"
+      note: >-
+        用户签收使用 max_layer_depth（默认 5）；保留 root + target，中间层按
+        (max_layer_depth - 2) 上限截断，对齐 spec「SHALL NOT hardcode fixed layers」。
+  - id: OQ-03
+    question: >-
+      P0-D 防重跑标记实现方式：以归档目录 .finalized 标记实现（幂等拦截）？
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-06T16:00:54.670Z"
+      note: >-
+        proposal 建议以 finalize-completed 标记实现；采用归档目录 .finalized 文件
+        （含时间戳），重复运行幂等跳过，--force 覆盖。

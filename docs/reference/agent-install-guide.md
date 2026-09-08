@@ -9,16 +9,17 @@
 MumuSpec 采用 **全局 1 份 Skill + 多 Agent 分发** 的架构:
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│  npm install -g mumuspec                                  │
-│  (全局安装 CLI + skills/ 资源目录)                         │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-         mumuspec install <agent>
-                      │
-    ┌─────────┬───────┼───────┬──────────┐
-    ▼         ▼       ▼       ▼          ▼
-  CatPaw   Claude  Cursor   Trae    WorkBuddy  OpenCode
+┌──────────────────────────────────────────────────────────────────────┐
+│  npm install -g mumuspec                                             │
+│  (全局安装 CLI + skills/ 资源目录)                                    │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               │
+                  mumuspec install <agent>
+                               │
+   ┌────────┬────────┬───────┼───────┬───────────┬────────┬─────────┬─────────┬─────────┐
+   ▼        ▼        ▼       ▼       ▼           ▼        ▼         ▼         ▼
+ CatPaw  Claude   Cursor   Trae  WorkBuddy  OpenCode   Codex   Windsurf  Gemini  Copilot
+                                                          └──── 4 个新 agent（canonical AGENTS.md + 目录式 SKILL.md）────┘
 ```
 
 **原则**:
@@ -142,20 +143,25 @@ mumuspec install trae mumuspec-workflow --target workspace --workspace-path .
 
 ### 3.5 WorkBuddy
 
-WorkBuddy 使用 `~/.workbuddy/skills/<skill>/SKILL.md` 格式.
+WorkBuddy 使用 `~/.workbuddy/skills/<skill>/SKILL.md` 格式（目录式 SKILL.md）。
 
 **安装**:
 ```bash
-# 全局安装
+# 安装工作流编排器
 mumuspec install workbuddy mumuspec-workflow
+
+# 安装全部 7 个包（编排器 + 五阶段 + 预设）
+mumuspec install workbuddy mumuspec-workflow phase-open phase-design phase-build phase-verify phase-archive workflow-presets
 
 # 工作区安装
 mumuspec install workbuddy mumuspec-workflow --target workspace --workspace-path .
 ```
 
+**可用包**: `mumuspec-workflow`、`phase-open`、`phase-design`、`phase-build`、`phase-verify`、`phase-archive`、`workflow-presets`。
+
 **安装后位置**:
-- 用户级: `~/.workbuddy/skills/mumuspec-workflow/SKILL.md`
-- 工作区级: `<project>/.workbuddy/skills/mumuspec-workflow/SKILL.md`
+- 用户级: `~/.workbuddy/skills/<skill>/SKILL.md`
+- 工作区级: `<project>/.workbuddy/skills/<skill>/SKILL.md`
 
 ---
 
@@ -175,6 +181,32 @@ mumuspec install opencode mumuspec-workflow --target workspace --workspace-path 
 **安装后位置**:
 - 用户级: `~/.opencode/skills/mumuspec-workflow/SKILL.md`
 - 工作区级: `<project>/.opencode/skills/mumuspec-workflow/SKILL.md`
+
+---
+
+### 3.7 Codex / Windsurf / Gemini / GitHub Copilot（新 agent）
+
+四个新 agent 采用 **canonical AGENTS.md 规则 + 目录式 SKILL.md** 分发（goal-p0-dispatch-gate）：
+
+| Agent | Rules 文件 | 桥接 | Skills 目录 |
+|-------|-----------|------|------------|
+| Codex | `AGENTS.md`（canonical） | — | `.codex/skills/` |
+| Windsurf | `AGENTS.md`（canonical） | — | `.windsurf/skills/` |
+| Gemini | `AGENTS.md`（canonical） | `GEMINI.md` 薄壳（`@AGENTS.md`） | `.gemini/skills/` |
+| Copilot | `AGENTS.md`（canonical） | — | 无（TC-A1x：不写 `.github`） |
+
+**安装**（以 Codex 为例，其余同理）:
+```bash
+# 用户级安装 skills + canonical 规则
+mumuspec install codex mumuspec-workflow
+
+# 工作区安装
+mumuspec install codex mumuspec-workflow --target workspace --workspace-path .
+```
+
+**可用包**: 每个 agent 均含 `mumuspec-workflow` + 五阶段 + 预设（Copilot 仅规则分发，用 `mumuspec install copilot --list` 确认）。
+
+> **遗留格式禁令（C3）**: `.cursorrules` / `.windsurfrules` 属遗留格式，MumuSpec 已停止生成。Cursor / Windsurf 用户请以 canonical `AGENTS.md` 为规则来源。生成文件带 MumuSpec managed 标记，重装用 `--force` 覆盖。
 
 ---
 

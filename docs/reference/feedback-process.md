@@ -137,7 +137,7 @@ date: 2026-07-28
 submitter: <github-username or "anonymous">
 type: bug | feature-request | improvement | question
 severity: critical | major | minor | info
-version: 0.12.1-alpha.0
+version: 0.19.2-alpha.10
 environment:
   os: <windows|macos|linux>
   node: <20.x>
@@ -289,7 +289,7 @@ date: 2026-07-28
 session_id: <uuid 或简短 hash>
 agent: <claude-code|cursor|codex|opencode|custom>
 agent_version: <1.x.x>
-mumuspec_version: 0.12.1-alpha.0
+mumuspec_version: 0.19.2-alpha.10
 project_type: <greenfield|brownfield|legacy|demo>
 change_type: <feature|hotfix|tweak|build|archive>
 duration_minutes: <估算>

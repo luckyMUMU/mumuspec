@@ -61,15 +61,17 @@ cp ../../docs/reference/skills/*.md .claude/skills/mumuspec/
 
 ## 2. Cursor
 
-### 2.1 Rules 文件（.cursorrules）
+### 2.1 Rules 文件（AGENTS.md canonical）
 
-Cursor 自动加载项目根 `.cursorrules`。生成方式：
+> **0.20 起（C3 遗留格式禁令）：MumuSpec 已停止生成 `.cursorrules`。** AGENTS.md 是唯一 canonical 规则文件（AAIF 托管事实标准），Cursor 请通过读取 AGENTS.md 或 MCP 加载规则。
+
+MumuSpec 生成 canonical 规则文件的方式：
 
 ```bash
-mumuspec init . --generate-rules
+mumuspec init .        # 或 mumuspec install cursor
 ```
 
-如果你希望多层级规则，创建 `.cursorrules` 指向子目录（留空时 Cursor 自动向上查找）。
+多层级规则由 MumuSpec 的树状规范 + 渐进式披露（MCP `get_spec_context`）承担，无需在子目录手写 rules 文件。
 
 ### 2.2 MCP Server（Cursor 0.45+）
 
@@ -166,10 +168,10 @@ AI 工具内输入"MumuSpec 项目有哪些 SHALL 约束？"。正确响应会�
 
 ### Q: Cursor 按 .cursorrules 工作的边界在哪里？
 
-Cursor 仅在对话上下文读取 `.cursorrules`。如果你用的是 Cursor Composer、它仅加载前一次对话；新起对话时重新加载。配置文件开 **Cursor Settings → Rules** 添加全局规则，可跨项目生效。
+0.20 起 MumuSpec 不再生成 `.cursorrules`（遗留格式禁令）。Cursor 通过 AGENTS.md（canonical）或 MCP 加载规则；全局规则走 **Cursor Settings → Rules**。
 
 ### Q: 多个 AI 工具同时运行，Rules 文件冲突吗？
 
-不冲突。`CLAUDE.md` / `.cursorrules` / `AGENTS.md` 三份文件内容相近但按工具名隔离。它们共享同一个规范源；MumuSpec 是单一真相。
+不冲突。**AGENTS.md 是唯一 canonical 规则文件**，`CLAUDE.md` / `GEMINI.md` 为首行 `@AGENTS.md` 的薄壳桥接，各工具按名称隔离读取，共享同一个规范源；MumuSpec 是单一真相。
 
 > **导航**: [← MCP 工具](mcp-tools.md)|[配置 →](configuration.md)

@@ -1,4 +1,5 @@
 import type { Severity } from './types.js';
+import type { ConstraintDimension, ConstraintStrength } from './types-constraint.js';
 
 /** Error code definition */
 export interface ErrorCodeDef {
@@ -8,6 +9,16 @@ export interface ErrorCodeDef {
   description: string;
   fixSteps: string[];
   forceable: boolean;
+  /**
+   * Enforcement dimension (Phase 3.3): which strength axis governs this code.
+   * Single source of truth — guard/checker.ts and consumers derive from here
+   * instead of maintaining parallel code→metadata maps.
+   */
+  dimension?: ConstraintDimension;
+  /** Minimum strength at which this code still fires. Default: 'low'. */
+  min_strength?: ConstraintStrength;
+  /** Cannot be downgraded by any strength configuration. */
+  always_enforce?: boolean;
 }
 
 /** All error code definitions */
@@ -44,6 +55,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'SHALL 无验证声明（无 Enforcement、无 annotation，P0 语义收窄：仅指 SHALL；SHALL NOT 走 E-SPEC-015）',
     fixSteps: ['为该约束补充 Enforcement 检查规则', '或标记为 enforcement: manual(原因)', '或补充 frontmatter annotation'],
     forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'medium',
+    always_enforce: true,
   },
   'E-SPEC-005': {
     code: 'E-SPEC-005',
@@ -137,6 +151,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
       '或声明 Enforcement `- ID: manual(原因)`',
     ],
     forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
+    always_enforce: true,
   },
 
   // CHANGE domain
@@ -187,6 +204,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: '非法状态机转换',
     fixSteps: ['检查当前 phase', '参考 Phase Guard 确认可转换路径'],
     forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
+    always_enforce: true,
   },
   'E-CHANGE-007': {
     code: 'E-CHANGE-007',
@@ -195,6 +215,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'decisions.md content_hash 不匹配',
     fixSteps: ['检查 decisions.md 是否被手动修改', '从 snapshots/ 恢复正确版本'],
     forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
+    always_enforce: true,
   },
   'E-CHANGE-008': {
     code: 'E-CHANGE-008',
@@ -242,6 +265,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
       'status != open 时补充 resolution.decision_ref（decisions.md 条目时间戳）',
     ],
     forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
+    always_enforce: true,
   },
   'E-CHANGE-021': {
     code: 'E-CHANGE-021',
@@ -254,6 +280,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
       'status=deferred 时补充 resolution.note 说明理由',
     ],
     forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
+    always_enforce: true,
   },
 
   // VERIFY domain (P0 verifier semantics — manual evidence gate)
@@ -284,6 +313,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
       '或走 accept-deviations 旁路并记录偏差',
     ],
     forceable: true,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
+    always_enforce: true,
   },
 
   // FINAL domain (finalize-archive — 归档收尾命令)
@@ -396,6 +428,8 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'Phase Guard 检查发现工件缺失',
     fixSteps: ['查看守卫报告确认缺失工件', '补充缺失工件'],
     forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'medium',
   },
   'E-GUARD-002': {
     code: 'E-GUARD-002',
@@ -404,6 +438,8 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'SHALL 约束未满足',
     fixSteps: ['实现 SHALL 要求', '或调整 spec.md 降低约束'],
     forceable: true,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
   },
   'E-GUARD-003': {
     code: 'E-GUARD-003',
@@ -412,6 +448,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'SHALL NOT 约束被违反',
     fixSteps: ['移除违规代码', 'SHALL NOT 不可通过 --force 跳过'],
     forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
+    always_enforce: true,
   },
   'E-GUARD-004': {
     code: 'E-GUARD-004',
@@ -420,6 +459,8 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: '测试用例或套件 hash 不匹配',
     fixSteps: ['检查文件是否被手动修改', '从 snapshots/ 恢复'],
     forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'medium',
   },
   'E-GUARD-005': {
     code: 'E-GUARD-005',
@@ -455,6 +496,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
       '或在 design.md 声明 <!-- no-open-questions --> / <!-- no-assumptions --> 并先落 decisions.md 签收条目',
     ],
     forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
+    always_enforce: true,
   },
 
   // PONYTAIL domain
@@ -465,6 +509,8 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: '引入了未被请求的抽象层或功能',
     fixSteps: ['删除不必要的抽象', '或用 ponytail: 注释标记理由'],
     forceable: true,
+    dimension: 'technical_design',
+    min_strength: 'medium',
   },
   'E-PONYTAIL-002': {
     code: 'E-PONYTAIL-002',
@@ -573,6 +619,17 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     fixSteps: ['等待其他 mumuspec 进程完成', '检查并删除陈旧锁目录 .mumuspec/contracts/.lock'],
     forceable: false,
   },
+  'E-CONTRACT-011': {
+    code: 'E-CONTRACT-011',
+    name: 'CONTRACT_REGISTRY_INVALID',
+    severity: 'ERROR',
+    description: '契约注册表文件结构无效（缺少必需字段或含 __proto__/constructor/prototype 污染键）',
+    fixSteps: [
+      '检查 contracts.json/contracts.yaml 的 version、contracts、outbound_ids、inbound_ids 结构',
+      '文件损坏时从版本控制恢复，或重新生成契约注册表',
+    ],
+    forceable: false,
+  },
 
   // KNOWLEDGE domain
   'E-KNOWLEDGE-001': {
@@ -608,6 +665,8 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'cognitive-map.yaml 不存在',
     fixSteps: ['回退到 Design', '执行认知框架 Step 0'],
     forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'medium',
   },
   'E-DESIGN-009': {
     code: 'E-DESIGN-009',
@@ -616,6 +675,8 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'design.md 缺少 templates/design-schema.yaml 要求的必填 section',
     fixSteps: ['按 schema 补充缺失的 section', '运行 mumuspec guard <change> design --verbose 查看匹配规则'],
     forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'medium',
   },
   'E-DESIGN-010': {
     code: 'E-DESIGN-010',
@@ -624,6 +685,8 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'proposal 与 design 跨工件不一致（Plan 步骤未映射到 Layers、FR 未被 design 引用）',
     fixSteps: ['在 design.md 中补充对应 Layer 或 FR 引用', '或修正 proposal.md 使步骤与设计对齐'],
     forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'medium',
   },
   'E-DESIGN-002': {
     code: 'E-DESIGN-002',
@@ -632,6 +695,8 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'Q1 已知的已知为空',
     fixSteps: ['检查 proposal.md 和 spec.md 是否已加载', '重新执行 Stage 1 信息采集'],
     forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'medium',
   },
 
   // SECURITY domain
@@ -676,7 +741,20 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     name: 'AGENTS_SPEC_DRIFT',
     severity: 'ERROR',
     description: 'AGENTS.md 与 spec 内容漂移（生成的 rules 基于旧版规范）',
-    fixSteps: ['重新运行 mumuspec rules generate 同步 AGENTS.md 与 agents-hash.json'],
+    fixSteps: ['重新运行 mumuspec init 同步 AGENTS.md 与 agents-hash.json'],
+    forceable: false,
+  },
+
+  // RULES domain（分发层容量预算 — 分发层 ENF-3）
+  'E-RULES-001': {
+    code: 'E-RULES-001',
+    name: 'RULES_BUDGET_EXCEEDED',
+    severity: 'ERROR',
+    description: '生成的 Rules 产物超过 32KiB 容量预算（禁止在 Rules 文件中内联全量规范上下文）',
+    fixSteps: [
+      '缩减 Rules 内容：渐进式披露职责归 MCP，Rules 文件仅保留摘要与速查',
+      '检查 spec 摘要是否被全量内联（应为逐层摘要而非全文）',
+    ],
     forceable: false,
   },
 

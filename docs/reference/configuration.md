@@ -146,9 +146,10 @@ ai:
   generate_rules: true
   mcp_server: true
   rules_files:
-    - "CLAUDE.md"
-    - ".cursorrules"
-    - "AGENTS.md"
+    - "AGENTS.md"                  # canonical（唯一权威规则文件）
+    - "CLAUDE.md"                  # 薄壳桥接（首行 @AGENTS.md）
+    - "GEMINI.md"                  # 薄壳桥接（首行 @AGENTS.md）
+  # 注: 0.20 起停止生成 .cursorrules / .windsurfrules（C3 遗留格式禁令）
 
 # Skill 生态集成
 skills:
@@ -634,7 +635,7 @@ MumuSpec 定义"零配置默认"配置,新用户无需理解全部即可启动�
 | Spec Layer | 开启 | 树状规范 + SHALL/SHALL NOT + 渐进式披露 |
 | Change Layer(基础) | 开启 | 五阶段状态机 + 基础回退 |
 | Guard Layer(P0) | 开启 | Pre-commit SHALL NOT 检查 + spec_drift |
-| Rules 文件生成 | 开启 | CLAUDE.md/.cursorrules/AGENTS.md |
+| Rules 文件生成 | 开启 | AGENTS.md（canonical）+ CLAUDE.md/GEMINI.md 薄壳桥接 |
 | AI 工具适配层 | 开启(自动检测) | 自动检测当前 AI 工具 |
 | 动态约束强度 | 开启（`balanced` 预设） | TD=medium, RG=medium;可通过 `mumuspec constraints preset` 切换 |
 | 持久化 constraints.yaml | 开启 | `mumuspec init` 自动初始化空约束清单 |

@@ -19,6 +19,7 @@ const mockExistsSync = vi.fn();
 const mockReadFileSync = vi.fn();
 const mockAppendFileSync = vi.fn();
 const mockWriteFileSync = vi.fn();
+const mockWriteText = vi.fn();
 const mockReaddirSync = vi.fn();
 const mockRenameSync = vi.fn();
 const mockReadText = vi.fn();
@@ -58,6 +59,7 @@ vi.mock('node:path', () => ({
 vi.mock('../../src/core/utils.js', () => ({
   readYaml: (...args: unknown[]) => mockReadYaml(...args),
   readText: (...args: unknown[]) => mockReadText(...args),
+  writeText: (...args: unknown[]) => mockWriteText(...args),
   now: () => mockNow(),
   appendAuditLog: (...args: unknown[]) => mockAppendAuditLog(...args),
   getMumuSpecDir: (...args: unknown[]) => mockGetMumuSpecDir(...args),
@@ -157,8 +159,8 @@ describe('mergeDeltaSpecsToMain — scopePath empty branch (line 167)', () => {
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
     // Implementation now uses writeFileSync + renameSync instead of appendFileSync
-    expect(mockWriteFileSync).toHaveBeenCalled();
-    expect(mockWriteFileSync.mock.calls[0][1]).toContain('delta-merged from');
+    expect(mockWriteText).toHaveBeenCalled();
+    expect(mockWriteText.mock.calls[0][1]).toContain('delta-merged from');
   });
 
   it('merges root-scope -prd.md into project root prd.md', () => {
@@ -170,7 +172,7 @@ describe('mergeDeltaSpecsToMain — scopePath empty branch (line 167)', () => {
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
     // Implementation now uses writeFileSync + renameSync instead of appendFileSync
-    expect(mockWriteFileSync).toHaveBeenCalled();
+    expect(mockWriteText).toHaveBeenCalled();
   });
 });
 

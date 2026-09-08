@@ -49,7 +49,8 @@ vi.mock('node:path', () => ({
   },
 }));
 
-vi.mock('../../src/core/utils.js', () => ({
+vi.mock('../../src/core/utils.js', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   readYaml: (...args: unknown[]) => mockReadYaml(...args),
   getMumuSpecDir: (...args: unknown[]) => mockGetMumuSpecDir(...args),
 }));

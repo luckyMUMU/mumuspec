@@ -7,7 +7,6 @@
  * - import: Direct file parsing (agent format -> MumuSpec knowledge)
  * - absorb: Conversation-based extraction (parse agent response)
  * - stats: Knowledge usage metrics
- * - search: Full-text search with relevance scoring
  */
 
 import type { Command } from 'commander';
@@ -23,7 +22,7 @@ import type {
 import { findProjectRoot, readText, writeText, createFrontmatter } from '../../core/utils.js';
 import { loadConfig } from '../../core/config.js';
 import { listKnowledgePages, getKnowledgeDir } from '../../knowledge/pages.js';
-import { knowledgeSearch } from '../../knowledge/search.js';
+import { runKnowledgeSearch } from './knowledge-crud.js';
 import {
   initializeRegistry,
   getPlugin,
@@ -66,11 +65,12 @@ export function registerKnowledgeSync(knowledgeCmd: Command): void {
   // Initialize plugin registry on first use
   initializeRegistry();
 
-  // --- search (enhanced) ---
-  // Note: This augments the existing search with more options
+  // --- search2 (deprecated alias) ---
+  // 2026-09-05 去重：增强搜索已合并进 `knowledge search`（runKnowledgeSearch），
+  // search2 保留为隐藏弃用别名以兼容既有脚本；将在下一个 minor 版本移除。
   knowledgeCmd
-    .command('search2')
-    .description('Full-text search with relevance scoring (enhanced)')
+    .command('search2', { hidden: true })
+    .description('Deprecated alias of `knowledge search`')
     .argument('<query>', 'search keywords')
     .option('--type <types>', 'filter by type (comma-separated)')
     .option('--scope <scope>', 'filter by scope')
@@ -80,36 +80,8 @@ export function registerKnowledgeSync(knowledgeCmd: Command): void {
     .option('--limit <n>', 'max results', '20')
     .option('--json', 'output as JSON')
     .action((query: string, options: Record<string, string>) => {
-      const root = requireRoot();
-      const config = loadConfig(root);
-
-      const results = knowledgeSearch(root, config, query, {
-        type: parseTypeList(options.type),
-        scope: options.scope,
-        status: options.status ? options.status.split(',') : undefined,
-        tags: parseTagList(options.tags),
-        graphNode: options.graph,
-        limit: parseInt(options.limit, 10) || 20,
-      });
-
-      if (results.length === 0) {
-        console.log('No matching knowledge entries found.');
-        return;
-      }
-
-      if (options.json) {
-        console.log(JSON.stringify(results, null, 2));
-        return;
-      }
-
-      console.log(`\n${results.length} result(s) for "${query}":\n`);
-      for (const r of results) {
-        console.log(`  [${r.score}pts] ${r.entry.id}: ${r.entry.title}`);
-        console.log(`    Type: ${r.entry.type} | Scope: ${r.entry.scope}`);
-        console.log(`    Matched: ${r.matchedFields.join(', ')}`);
-        console.log(`    ${r.excerpt.slice(0, 120)}`);
-        console.log('');
-      }
+      console.error('[deprecated] `knowledge search2` is deprecated — use `knowledge search` instead.');
+      runKnowledgeSearch(query, options);
     });
 
   // --- export ---

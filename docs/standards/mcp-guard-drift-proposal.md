@@ -1,6 +1,6 @@
 # MCP Tool Schema Proposal: Guard & Drift Detection
 
-**Status**: Draft
+**Status**: Draft（内部能力已实现：`detect_drift` / `check_compliance`；跨工具 MCP schema 标准化未落地，维持提案状态）
 **Author**: MumuSpec Contributors
 **Target**: MCP Working Group
 **Format Version**: 1.0.0 (2026-08-09)

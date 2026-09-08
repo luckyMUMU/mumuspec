@@ -7,9 +7,9 @@
  */
 import type { Command } from 'commander';
 import { join, relative, sep } from 'node:path';
-import { findProjectRoot, readText, readdirSync, statSync } from '../../core/utils.js';
+import { findProjectRoot, readText, readdirSync, statSync, SKIP_DIRS } from '../../core/utils.js';
 
-const SKIP_DIRS = new Set(['node_modules', '.git', '.mumuspec', 'dist', 'build', 'coverage', '.next', '.turbo', 'target', 'out']);
+// SKIP_DIRS 已统一收编到 core/utils.js（Phase 3.4）
 const SEARCH_EXTS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
   '.py', '.go', '.rs', '.java', '.rb', '.php',

@@ -50,6 +50,8 @@ export interface RollbackHistoryEntry {
 
 /** Change state stored in .mumuspec.yaml */
 export interface ChangeState {
+  /** Schema version for migration; absent means pre-1.0 legacy data */
+  schema_version?: string;
   name: string;
   phase: ChangePhase;
   workflow: Workflow;

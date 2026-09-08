@@ -17,10 +17,11 @@ import {
   parsePrdFile,
   parseTechFile,
 } from '../../spec/parser.js';
-import { loadSpecContext, searchSpecs, findAllDistributedSpecDirs } from '../../spec/loader.js';
+import { loadSpecContext, searchSpecs, findAllDistributedSpecDirs, getProhibitions } from '../../spec/loader.js';
 import { validateAllSpecs } from '../../spec/validator.js';
 import { validateMumuSpecStructure } from '../../spec/structure-validator.js';
 import { checkCompliance, detectDrift, autoFixDrift, detectDriftWithContracts, detectAgentsDrift } from '../../guard/checker.js';
+import { detectContractDrift, validateBoundaries } from '../../contract/validator.js';
 import { checkGlossary } from '../../guard/glossary-checker.js';
 import type { GlossaryCheckResult } from '../../guard/glossary-checker.js';
 import type { DriftResult, GuardResult } from '../../core/types-workflow.js';
@@ -32,6 +33,23 @@ interface CheckJsonPayload {
   drift: { errors: DriftResult[]; warnings: DriftResult[] };
   glossary?: GlossaryCheckResult;
   exitCode: number;
+}
+
+/** Render one requirement-bearing artifact (spec / prd / tech) — shared across artifact kinds. */
+function renderRequirements(label: string, requirements: Requirement[] | undefined): void {
+  if (!requirements || requirements.length === 0) return;
+  console.log(`\n${label} (${requirements.length} requirements):`);
+  for (const req of requirements) {
+    console.log(`  ## ${req.name}`);
+    if (req.shall.length > 0) {
+      console.log(`  SHALL:`);
+      for (const s of req.shall) console.log(`    - ${s}`);
+    }
+    if (req.shallNot.length > 0) {
+      console.log(`  SHALL NOT:`);
+      for (const s of req.shallNot) console.log(`    - ${s}`);
+    }
+  }
 }
 
 export function registerSpecCommands(program: Command): void {
@@ -64,20 +82,10 @@ export function registerSpecCommands(program: Command): void {
         console.log(`=== Level ${layer.level}: ${layer.scope} ===`);
         console.log(`Path: ${layer.path}`);
 
-        if (layer.spec) {
-          console.log(`\nSpec (${layer.spec.requirements.length} requirements):`);
-          for (const req of layer.spec.requirements) {
-            console.log(`  ## ${req.name}`);
-            if (req.shall.length > 0) {
-              console.log(`  SHALL:`);
-              for (const s of req.shall) console.log(`    - ${s}`);
-            }
-            if (req.shallNot.length > 0) {
-              console.log(`  SHALL NOT:`);
-              for (const s of req.shallNot) console.log(`    - ${s}`);
-            }
-          }
-        }
+        // 0.19+ 格式：prd.md（WHAT）/ tech.md（HOW）；spec.md/design.md 为遗留回退
+        renderRequirements('PRD', layer.prd?.requirements);
+        renderRequirements('Tech', layer.tech?.requirements);
+        renderRequirements('Spec', layer.spec?.requirements);
 
         if (layer.design) {
           console.log(`\nDesign: ${layer.design.path}`);
@@ -388,13 +396,83 @@ export function registerSpecCommands(program: Command): void {
       }
     });
 
+  // === prohibitions ===
+  program
+    .command('prohibitions')
+    .description('List SHALL NOT prohibitions applicable to a path (including inherited scopes)')
+    .argument('<path>', 'target directory or file path')
+    .option('--json', 'output as JSON')
+    .action((path: string, options: { json?: boolean }) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+      const targetPath = resolve(root, path);
+      const prohibitions = getProhibitions(root, targetPath);
+      if (options.json) {
+        console.log(JSON.stringify({ prohibitions }, null, 2));
+        return;
+      }
+      if (prohibitions.length === 0) {
+        console.log('  No prohibitions found for this path.');
+        return;
+      }
+      for (const p of prohibitions) {
+        console.log(`  ✗ [${p.scope}] ${p.text}  (source: ${p.source})`);
+      }
+      console.log(`\n${prohibitions.length} prohibition(s)`);
+    });
+
   // === drift ===
   const driftCmd = program
     .command('drift')
     .description('Detect drift between specs and code')
+    .option('--change <name>', 'scope drift detection to a change')
+    .option('--full', 'combined report: spec drift + contract drift + boundary validation')
     .option('--json', 'output as JSON')
     .option('--fix', 'auto-fix safe drift issues')
     .option('--dry-run', 'preview fixes without applying (use with --fix)');
+
+  function runFullDriftReport(options: { json?: boolean }): void {
+    const root = findProjectRoot();
+    if (!root) {
+      console.error('Error: Not in a MumuSpec project.');
+      process.exit(1);
+    }
+    const specDrift = detectDrift(root);
+    const contractReport = detectContractDrift(root);
+    const boundaryResults = validateBoundaries(root);
+    const boundaryErrors = boundaryResults.reduce((sum, r) => sum + r.errors.length, 0);
+    const boundaryWarnings = boundaryResults.reduce((sum, r) => sum + r.warnings.length, 0);
+    const report = {
+      timestamp: new Date().toISOString(),
+      spec_drift: { count: specDrift.length, drifts: specDrift },
+      contract_drift: {
+        count: contractReport.drift_count,
+        critical: contractReport.has_critical_drifts,
+        drifts: contractReport.drifts,
+      },
+      boundary_validation: {
+        errors: boundaryErrors,
+        warnings: boundaryWarnings,
+        results: boundaryResults,
+      },
+      overall_status:
+        specDrift.length === 0 && contractReport.drift_count === 0 && boundaryErrors === 0
+          ? 'clean'
+          : 'issues_detected',
+    };
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+    console.log(`\nFull Drift Report  (${report.timestamp})`);
+    console.log(`  spec drift:      ${report.spec_drift.count} issue(s)`);
+    console.log(`  contract drift:  ${report.contract_drift.count} issue(s)${report.contract_drift.critical ? '  [CRITICAL]' : ''}`);
+    console.log(`  boundaries:      ${report.boundary_validation.errors} error(s) / ${report.boundary_validation.warnings} warning(s)`);
+    console.log(`\n  overall: ${report.overall_status}`);
+  }
 
   function runDriftDetection(options: {
     json?: boolean;
@@ -458,16 +536,26 @@ export function registerSpecCommands(program: Command): void {
     }
   }
 
-  driftCmd.action((options) => runDriftDetection(options));
+  driftCmd.action((options) => {
+    if (options.full) {
+      runFullDriftReport(options);
+      return;
+    }
+    runDriftDetection(options);
+  });
 
+  // Deprecated alias — 与 `mumuspec drift` 完全重合（--change 已提升到主命令）。
+  // 保留隐藏别名以兼容既有脚本；将在下一个 minor 版本移除（2026-09-05 去重）。
+  // 注意：别名与主命令共享同名选项时，commander 会把 `detect` 之后的选项吸收进
+  // 父命令 opts —— 因此这里合并 parent.opts() 再转发。
   driftCmd
-    .command('detect')
-    .description('Detect drift (optionally scoped to a change)')
-    .option('--change <name>', 'scope drift detection to a change')
-    .option('--json', 'output as JSON')
-    .option('--fix', 'auto-fix safe drift issues')
-    .option('--dry-run', 'preview fixes without applying (use with --fix)')
-    .action((options) => runDriftDetection(options));
+    .command('detect', { hidden: true })
+    .description('Deprecated alias of `mumuspec drift`')
+    .action(function (this: Command) {
+      console.error('[deprecated] `mumuspec drift detect` is deprecated — use `mumuspec drift` instead.');
+      const parentOpts = (this.parent?.opts() ?? {}) as Record<string, unknown>;
+      runDriftDetection({ ...parentOpts, ...this.opts() } as Parameters<typeof runDriftDetection>[0]);
+    });
 
   // === search ===
   program

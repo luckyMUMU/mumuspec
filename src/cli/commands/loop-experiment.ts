@@ -33,7 +33,7 @@ import {
   getExperimentStatus,
   listExperiments,
   cleanupExperiment,
-} from '../../core/experiment-engine.js';
+} from '../../eval/experiment-engine.js';
 
 /**
  * Register experiment subcommands under the loop command.

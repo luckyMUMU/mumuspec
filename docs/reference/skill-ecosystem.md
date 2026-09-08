@@ -215,7 +215,7 @@ skill_dispatch:
 > `req` = required: true; `opt` = required: false; `conditional` = 满足条件时触发。
 
 > **Phase 归属说明**：
-> - **Phase 1**：Rules 文件生成（CLAUDE.md / .cursorrules / AGENTS.md）+ AI 工具适配层 — Skill 仅在 Rules 文件中声明引用,不调用
+> - **Phase 1**：Rules 文件生成（AGENTS.md canonical + CLAUDE.md 薄壳桥接；.cursorrules/.windsurfrules 已停止生成 — C3 红线）+ AI 工具适配层 — Skill 仅在 Rules 文件中声明引用,不调用
 > - **Phase 3**：Skill Bridge 兼容层（兼容 Superpowers / OpenSpec / Comet）+ MCP Server — 外部 Skill 可被调用
 > - **Phase 5**：自建 Skill 编排器（7 阶段 Skill 文件）+ Hyperplan 对抗式规划 — 全量阶段编排与对抗审查
 

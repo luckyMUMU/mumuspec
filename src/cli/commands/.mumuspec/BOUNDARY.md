@@ -47,15 +47,17 @@ layer: 3
 | `registerAuditLogCommand` | `audit-log.ts` | audit-log（2026-08-22 补录） |
 | `registerTraceCommand` | `trace.ts` | trace（2026-08-22 补录） |
 | `registerGraphCommand` | `graph.ts` | graph（2026-08-22 补录） |
+| `registerCodeGraphCommand` | `code-graph.ts` | code-graph（2026-09-06 新增，Phase 1 MCP 对齐） |
 | `registerTutorialCommand` | `tutorial.ts` | tutorial（2026-08-22 补录） |
 | `registerMetaEvolveCommand` | `meta-evolve.ts` | meta-evolve（2026-08-22 补录） |
 | `registerTeamCommands` | `team.ts` | team（init / clarify / run / status / confirm / scaffold / info） |
+| `registerCapabilityCommand` | `capability.ts` | capability（2026-09-07 新增，P0-A 命令能力分层查询） |
 
 > 注：`check` 命令由 `spec.ts` 的 `registerSpecCommands` 注册（ponytail 合并自原 check.ts，防止 commander 重复注册崩溃），**不属于** `guard.ts`。`knowledge-*.ts` / `cognitive-map.ts` / `loop-experiment.ts` 等子文件仅导出被父命令模块内部调用的子注册函数，不在 index.ts 顶层注册，故不列入上表。
 
-### 命令文件清单（42 个 .ts 文件）
+### 命令文件清单（43 个 .ts 文件）
 
-advise.ts, audit-log.ts, bundle.ts, change.ts, cognitive-map.ts, constraints.ts, contract.ts, dashboard.ts, decisions.ts, doctor.ts, env.ts, eval.ts, feedback.ts, finalize-archive.ts, graph.ts, grill-me.ts, guard.ts, hooks.ts, i18n.ts, install.ts, knowledge.ts, knowledge-analysis.ts, knowledge-chat.ts, knowledge-crud.ts, knowledge-doctor.ts, knowledge-git.ts, knowledge-onboard.ts, knowledge-scan.ts, knowledge-sync.ts, loop.ts, loop-experiment.ts, merge.ts, meta-evolve.ts, recommend.ts, review.ts, skill.ts, spec.ts, state.ts, sync.ts, team.ts, trace.ts, tutorial.ts
+advise.ts, audit-log.ts, bundle.ts, capability.ts, change.ts, cognitive-map.ts, constraints.ts, contract.ts, dashboard.ts, decisions.ts, doctor.ts, env.ts, eval.ts, feedback.ts, finalize-archive.ts, graph.ts, grill-me.ts, guard.ts, hooks.ts, i18n.ts, install.ts, knowledge.ts, knowledge-analysis.ts, knowledge-chat.ts, knowledge-crud.ts, knowledge-doctor.ts, knowledge-git.ts, knowledge-onboard.ts, knowledge-scan.ts, knowledge-sync.ts, loop.ts, loop-experiment.ts, merge.ts, meta-evolve.ts, recommend.ts, review.ts, skill.ts, spec.ts, state.ts, sync.ts, team.ts, trace.ts, tutorial.ts
 
 ## 依赖声明
 

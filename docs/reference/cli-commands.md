@@ -1,6 +1,7 @@
 # CLI 命令参考
 
 > 层级: Level 2 参考文档
+> 基准版本: 0.19.2-alpha.10（以 `mumuspec --help` 实际输出为准）
 
 ---
 
@@ -19,92 +20,19 @@ mumuspec validate                       # 校验所有规范格式
 mumuspec new <name>                     # 创建新变更（自动检查单一活跃变更约束）
 mumuspec status [name]                  # 查看变更状态
 mumuspec list                           # 列出活跃变更
-mumuspec archive <name>                 # 归档变更（git 提交 + MR + 合并规范 + 清理）
+mumuspec archive <name>                 # 归档变更（git 提交 + MR + 合并规范 + 清理；自动升版并写 CHANGELOG 条目，见 packaging-deployment.md §3.4）
 mumuspec discard <name>                 # 废弃变更（清理 worktree + 释放变更槽位）
 mumuspec decisions [change]             # 查看变更的决策审计轨迹
 mumuspec decisions append --phase <phase> --change <name> --text "..."  # 追加决策记录到 decisions.md
 ```
 
-## 特性配置管理
+## 特性与环境配置
 
-管理 MumuSpec 特性配置，控制高级特性的启用/禁用。
-
-### mumuspec config enable
-
-启用指定的高级特性。
+> ⚠️ 0.19.x 不提供顶层 `config` 命令（旧文档中的 `config enable/disable/list` 已移除）。
+> 特性开关通过 `.mumuspec/config.json` 的 workflow/feature 段配置；环境诊断用 `mumuspec env`。
 
 ```bash
-mumuspec config enable <feature>
-```
-
-**支持的 feature**:
-- `ponytail` - Ponytail 编码约束（Phase 2）
-- `cognitive-framework` - 认知框架 Q1-Q4（Phase 2）
-- `contract-layer` - Contract Layer（Phase 3）
-- `knowledge-graph` - Knowledge Layer 代码图谱（Phase 3，需配合 `knowledge.graph_backend` 配置）
-- `skill-bridge` - Skill Bridge 兼容层（Phase 3）
-- `hyperplan` - Hyperplan 对抗式规划（Phase 5）
-
-**示例**:
-
-```bash
-mumuspec config enable ponytail
-```
-
-输出:
-```
-✓ 已启用 Ponytail 编码约束
-请运行 mumuspec spec validate 重新验证规范
-```
-
-### mumuspec config disable
-
-禁用指定的特性。
-
-```bash
-mumuspec config disable <feature>
-```
-
-**示例**:
-
-```bash
-mumuspec config disable tdd-enforced
-```
-
-### mumuspec config list
-
-列出当前配置状态。
-
-```bash
-mumuspec config list
-```
-
-输出示例:
-```
-MumuSpec 配置状态:
-
-默认开启:
-  ✓ Spec Layer
-  ✓ Change Layer（基础）
-  ✓ Guard Layer（P0）
-  ✓ Rules 文件生成
-  ✓ AI 工具适配层（自动检测）
-
-高级特性（默认关闭）:
-  ✗ Ponytail 编码约束
-  ✗ 认知框架 Q1-Q4
-  ✗ Contract Layer
-  ✗ Knowledge Layer 代码图谱
-  ✗ Skill Bridge
-  ✗ Hyperplan
-
-工作流规则:
-  ✓ Worktree 隔离（默认开启）
-  ✓ 单一活跃变更（默认开启）
-  ✓ 自顶向下设计（默认开启）
-  ✓ TDD 强制（默认开启）
-
-使用 mumuspec config enable <feature> 开启高级特性
+mumuspec env                            # 环境与特性状态查看
 ```
 
 ## 诊断与引导
@@ -112,26 +40,20 @@ MumuSpec 配置状态:
 ```bash
 mumuspec status                         # 变更状态概览（当前 Phase、build_layers 进度、test-cases 锁定状态、rollback/rebuild 计数、下一步操作建议）
 mumuspec doctor                         # 环境诊断（Node.js 版本、Git 仓库状态、.mumuspec/ 目录完整性、config.yaml 校验、图谱索引新鲜度、Skill 生态可用性、依赖工具检查）
-mumuspec wizard                         # 交互式引导（初始化项目规范、创建第一个变更、选择 Workflow、逐步引导完成五阶段流程）
+mumuspec capability [command] [--json]  # 命令能力元数据查询（0.19.2-alpha.10 新增：tier/composables/不可逆标记；不带参数列出全部已登记命令）
+mumuspec tasks                          # 任务清单查看
+mumuspec dashboard                      # 项目仪表盘
 ```
+
+> 注：旧文档中的 `wizard` 交互式引导与 `config` 命令在 0.19.x 顶层命令中已不存在。
 
 ## 状态机回退
 
-```bash
-mumuspec rollback <name> --to design    # 回退到 Design 阶段（从 build/verify）
-mumuspec rollback <name> --to build     # 回退到 Build 阶段（仅从 verify，不增加回退计数）
-mumuspec rollback-history <name>        # 查看回退历史
-mumuspec snapshot list <name>           # 列出所有快照
-mumuspec snapshot restore <name> <id>   # 从快照恢复工件状态
-```
+> ⚠️ 顶层 `rollback` / `snapshot` 命令在 0.19.x 已移除（回退经 `state transition` 事件驱动，回退计数由状态机记录）。
 
 ## Worktree 管理
 
-```bash
-mumuspec worktree create <name>         # 为变更创建 worktree（默认隔离方式）
-mumuspec worktree remove <name>         # 移除变更的 worktree
-mumuspec worktree list                  # 列出所有 MumuSpec 管理的 worktree
-```
+> ⚠️ 顶层 `worktree` 命令在 0.19.x 已移除（worktree 隔离由 workflow 配置驱动，`mumuspec doctor` 可诊断）。
 
 ## 安装与生态
 
@@ -141,8 +63,9 @@ mumuspec install catpaw browser pdf --target user      # 安装技能（全局�
 mumuspec install catpaw pdf --target workspace --workspace-path <path>  # 安装到项目
 mumuspec install catpaw --search doc                   # 搜索可用技能
 mumuspec install catpaw --installed                    # 查看已安装技能
-mumuspec install claude                                # Claude Code 命令（coming soon）
-mumuspec install cursor                                # Cursor 命令（coming soon）
+mumuspec install claude <packages...>                  # Claude Code 斜杠命令安装
+mumuspec install cursor <packages...>                  # Cursor 技能安装
+mumuspec install workbuddy <packages...> [--force]     # WorkBuddy 技能安装（SKILL.md 版本随包版本注入）
 ```
 
 ## 知识层（代码图谱 + 知识管理）
@@ -150,7 +73,7 @@ mumuspec install cursor                                # Cursor 命令（coming 
 ### 代码图谱
 
 ```bash
-mumuspec index                          # 构建/更新代码图谱
+mumuspec code-graph structure <dir>     # 结构清单（目录/符号盘点）
 mumuspec impact [name]                  # 影响分析
 mumuspec trace <symbol> [--depth <n>] [--limit <n>] [--scope <path>]  # 深度优先符号追踪
 mumuspec search <pattern>               # 搜索代码节点
@@ -188,38 +111,12 @@ mumuspec merge execute <name> [--strategy squash|merge|rebase]  # 执行合并
 mumuspec merge abort <name>             # 中止合并流程
 ```
 
-## 层级管理
+## 归档收尾
 
 ```bash
-mumuspec layer list <name>              # 查看变更的实现层级计划
-mumuspec layer status <name> <layer>    # 查看特定层级的实现状态
-mumuspec layer verify <name> <layer>    # 验证特定层级的规范合规性
-```
-
-## 设计文档管理
-
-```bash
-mumuspec design init <scope>            # 为指定目录初始化 design.md
-mumuspec design update <scope>          # 更新指定层级的设计文档
-mumuspec design list                    # 列出所有层级的设计文档
-mumuspec design check                   # 校验 design.md 与 spec.md 一致性
-```
-
-## 文档生成
-
-```bash
-mumuspec doc generate [--scope <path>]  # 生成对外文档（默认全部，指定 scope 则仅生成该层级）
-mumuspec doc generate --type technical  # 仅生成技术文档
-mumuspec doc generate --type business   # 仅生成业务文档
-mumuspec doc generate --type integration  # 仅生成集成指南（从 outbound 契约）
-mumuspec doc generate --type dependencies  # 仅生成外部依赖文档（从 external 契约）
-mumuspec doc generate --format html     # 指定输出格式（markdown|html|pdf|confluence）
-mumuspec doc generate --depth 2         # 控制上下文聚合深度（默认全部父层）
-mumuspec doc list                       # 列出所有已生成文档及其状态
-mumuspec doc check                      # 文档一致性校验
-mumuspec doc stale                      # 列出过期的文档
-mumuspec doc template list              # 列出可用模板
-mumuspec doc template add <file>        # 添加自定义模板
+mumuspec finalize-archive <name> [--delete-old|--keep-old] [--force] [--json]
+                                        # 归档收尾：spec知识提取、code-graph 快照落盘（temp/codegraph.snapshot.json）、
+                                        # 陈旧归档缓存清理（30 天实删）、.finalized 防重跑标记（幂等，--force 覆盖）
 ```
 
 ## 测试用例与测试套件管理
@@ -227,10 +124,9 @@ mumuspec doc template add <file>        # 添加自定义模板
 ```bash
 mumuspec test-cases init <name>         # 初始化 test-cases/ 目录结构
 mumuspec test-cases lock <name>         # 锁定测试用例（计算 hash，设置 design_locked=true）
+mumuspec test-cases hash <name>         # 计算当前 test-cases hash（只读）
 mumuspec test-cases verify <name>       # 校验 test-cases/ hash 是否与锁定值一致
-mumuspec test-suites lock <name> <layer> # 锁定指定层级的测试套件
-mumuspec test-suites verify <name>      # 校验所有测试套件 hash
-mumuspec test-immutability <name>       # 综合校验测试不可变性
+mumuspec test-cases lock-suite <name>   # 锁定单个层级测试套件 hash
 ```
 
 ## 契约管理（0.8.0 新增）
@@ -250,14 +146,9 @@ mumuspec contract compat-check [--change <name>] # 向后兼容性检查（对�
 mumuspec contract doc generate [--name <name>]  # 从契约生成文档
 ```
 
-## 认知框架管理（0.8.0 新增）
+## 认知框架（0.19.x 口径）
 
-```bash
-mumuspec cognitive-map init <name>              # 初始化认知地图
-mumuspec cognitive-map status <name>            # 查看认知地图状态（Q1-Q4 计数、收敛状态）
-mumuspec cognitive-map validate <name>          # 校验认知地图完整性
-mumuspec cognitive-map converge <name>          # 强制收敛认知地图（达到轮次上限时）
-```
+> ⚠️ 顶层 `cognitive-map` 命令在 0.19.x 已移除；认知框架工件（cognitive-map.yaml、Q1-Q4）由 phase-design 流程与 `grill-me` 命令驱动，guard 在阶段转换时校验。
 
 ### 知识管理
 

@@ -1,9 +1,9 @@
 ---
 layer: 0
 scope: "."
-last_updated: "2026-08-09"
+last_updated: "2026-09-06"
 type: glossary
-version: "1.2"
+version: "1.3"
 ---
 
 # MumuSpec 通用语言术语速查表
@@ -69,6 +69,9 @@ version: "1.2"
 | **预设路径** | Preset Path | 预定义的变更流程：hotfix / tweak / full |
 | **热修复** | Hotfix | 快速 Bug 修复路径，跳过 Design 阶段直接 Build |
 | **微调** | Tweak | 文案/配置/文档微小调整路径 |
+| **循环迭代** | Loop Workflow | 预设路径之一：直入 build 阶段、跳过 open/design 的循环迭代路径，适用于探索性任务与反复调优 |
+| **归档进行中** | archive-in-progress | 变更进入归档阶段的进行中状态标识；规范写法为连字符 `archive-in-progress`（区别于旧写法 `archive-inprogress`） |
+| **Hyperplan** | Hyperplan | 变更前对抗式设计审查流程，多角色多轮次蒸馏 |
 | **单一活跃变更** | Single Active Change | 同一作用域只允许一个变更处于活跃状态 |
 | **决策日志** | decisions.md | 记录变更过程中的设计决策和回退原因 |
 | **测试用例锁定** | Test Cases Lock | Design 阶段结束后测试用例不可变 |
@@ -77,6 +80,8 @@ version: "1.2"
 | **构建模式** | Build Mode | Build 阶段的执行方式：executing-plans / subagent-driven-development / direct |
 | **构建暂停** | Build Pause | Build 阶段在 plan-ready 时暂停等待用户选择 |
 | **隔离策略** | Isolation | 变更隔离方式：branch（分支）或 worktree（工作树） |
+
+> **阶段守卫（Phase Guard）术语裁定**：统一使用"阶段守卫"指代 Phase Guard；"门禁"仅保留用于非 Phase Guard 的确认点（如 BP 用户确认门禁），二者不再互指。"守卫"不单独指代 Phase Guard，避免互指歧义。
 
 ### 阶段状态流转
 

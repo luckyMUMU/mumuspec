@@ -56,7 +56,9 @@ if (readmeVersionMatch) {
 }
 
 // Check STATUS.md version
-const status = readFileSync(join(root, 'docs/STATUS.md'), 'utf8');
+const statusPath = join(root, 'docs/STATUS.md');
+if (existsSync(statusPath)) {
+const status = readFileSync(statusPath, 'utf8');
 const statusVersionMatch = status.match(/当前包版本\**[：:]\s*[*]*([0-9][0-9.]*(?:-[a-z0-9.]+)?)[*]*/m);
 if (statusVersionMatch) {
   if (statusVersionMatch[1] === pkgVersion) {
@@ -67,9 +69,14 @@ if (statusVersionMatch) {
 } else {
   warn('Could not find version in STATUS.md');
 }
+} else {
+  fail('docs/STATUS.md not found');
+}
 
 // Check config.yaml version
-const configYaml = readFileSync(join(root, '.mumuspec/config.yaml'), 'utf8');
+const configPath = join(root, '.mumuspec/config.yaml');
+if (existsSync(configPath)) {
+const configYaml = readFileSync(configPath, 'utf8');
 const configVersionMatch = configYaml.match(/^version:\s*([0-9][0-9.]*(?:-[a-z0-9.]+)?)/m);
 if (configVersionMatch) {
   if (configVersionMatch[1] === pkgVersion) {
@@ -77,6 +84,7 @@ if (configVersionMatch) {
   } else {
     warn(`config.yaml version (${configVersionMatch[1]}) ≠ package.json version (${pkgVersion}) — config version may lag intentionally`);
   }
+}
 }
 
 // ═══════════════════════════════════════════════════════════════

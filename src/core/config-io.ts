@@ -2,6 +2,8 @@
  * Config I/O — getDefaultConfig, loadConfig, saveConfig, isInitialized, deepMerge.
  */
 import { readYaml, writeYaml, getMumuSpecDir, existsSync } from './utils.js';
+import { CURRENT_SCHEMA_VERSION } from './schema-version.js';
+import { migrateSchema } from './migrations.js';
 import type { MumuSpecConfig } from './config.js';
 import { BUILTIN_CONSTRAINT_EXCEPTIONS } from './config-tree.js';
 
@@ -207,8 +209,13 @@ export function loadConfig(projectRoot: string): MumuSpecConfig {
     return getDefaultConfig(projectRoot);
   }
 
-  const defaults = getDefaultConfig(config.project?.name || 'my-project');
-  const merged = deepMerge(defaults, config);
+  const migrated = migrateSchema<MumuSpecConfig>('config', config, {
+    filePath: configPath,
+    backupDir: joinPaths(mumuDir, 'temp', 'migrations'),
+  }).data;
+
+  const defaults = getDefaultConfig(migrated.project?.name || 'my-project');
+  const merged = deepMerge(defaults, migrated);
 
   merged.constraint_strength.exceptions = Array.from(
     new Set([...BUILTIN_CONSTRAINT_EXCEPTIONS, ...(merged.constraint_strength?.exceptions ?? [])]),
@@ -221,7 +228,7 @@ export function loadConfig(projectRoot: string): MumuSpecConfig {
 export function saveConfig(projectRoot: string, config: MumuSpecConfig): void {
   const mumuDir = getMumuSpecDir(projectRoot);
   const configPath = joinPaths(mumuDir, 'config.yaml');
-  writeYaml(configPath, config);
+  writeYaml(configPath, { ...config, schema_version: CURRENT_SCHEMA_VERSION.config });
 }
 
 /** Check if MumuSpec is initialized in a project */

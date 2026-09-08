@@ -1,0 +1,20 @@
+version: 1
+generatedAt: "2026-09-07T14:20:00.000Z"
+change: docs-tree-alignment
+items:
+  - id: AS-01
+    status: accepted
+    assumption: "审计基线（node dist/cli.js --help 56 命令、35 MCP 工具、83 错误码）在修订期间保持稳定"
+    impact: "若 CLI 在修订窗口内变更，部分数字需重新核对"
+    verification: "修订完成后复跑 check/drift 与 --help 抽查"
+    resolution:
+      summary: "修订窗口内未发布新版本，基线稳定成立"
+      decision_ref: "2026-09-07T14:14:01.717Z"
+  - id: AS-02
+    status: accepted
+    assumption: "纯文档变更不影响运行时行为，无需新增单测"
+    impact: "以 README 链接完整性脚本校验（40 链接 0 断裂）+ check/drift 全过作为验证手段"
+    verification: "git 提交前 check 全过（8e7d21e 等 4 提交均验证）"
+    resolution:
+      summary: "check/drift 全过 + 链接校验 0 断裂，验证手段充分"
+      decision_ref: "2026-09-07T14:14:01.717Z"

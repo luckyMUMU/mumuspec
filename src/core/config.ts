@@ -86,6 +86,8 @@ export interface WorkflowConfig {
 /** Full MumuSpec configuration */
 export interface MumuSpecConfig {
   version: string;
+  /** Config schema version for migration; absent means pre-1.0 legacy data */
+  schema_version?: string;
   project: {
     name: string;
     language: string;

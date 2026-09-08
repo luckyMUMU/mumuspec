@@ -17,7 +17,7 @@ import type {
   ConstraintViolation,
   SemanticConstraint,
   ILanguageProvider,
-} from '../../core/types-constraint-ast.ts';
+} from '../../guard/types-constraint-ast.js';
 import type { ExtractedSymbol } from '../../core/types-knowledge.ts';
 
 export const typescriptProvider: ILanguageProvider = {

@@ -1,6 +1,6 @@
 # Global Prohibitions
 
-> Last updated: 2026-08-29
+> Last updated: 2026-09-05
 > CHG-5 (0.20): 过程约束降为 advisory，仅保留结果约束为 block
 
 ## All Modules
@@ -23,6 +23,14 @@
 - 禁止 SHALL 约束缺少对应的 Enforcement 机制
 - 禁止 SHALL NOT 红线无可验证通道（E-SPEC-015 恒 block）
 - 禁止 spec.md 包含无具体内容的占位符（如 "定义本层的正向要求"）
+
+### 文档产出（结果导向）
+
+- 禁止在文档中记录思考过程、推理链或生成过程回顾（除非用户明确要求）
+- 禁止在文档中记录生成所用到的要求、命令、提示词等元信息
+- 禁止在文档中写对齐来源、修改说明类元注释（如"（与 XX 对齐）"、"本次更新了…"）
+- 禁止保留过期或无效的文档内容（类比死代码——删除而非注释保留）
+- 禁止生成多余的说明性注释
 
 ### 代码质量
 
@@ -49,6 +57,13 @@
 - ~~禁止在 single_active_change 模式下同时存在多个活跃变更~~ → advisory（medium 强度自动关闭）
 - ~~禁止跳过设计阶段执行 full workflow 的 build~~ → advisory（LLM 可自主选择设计深度）
 - ~~禁止 design.md 为空模板~~ → advisory（结果约束为 verify 通过）
+
+
+
+<!-- from finalize-archive -->
+# New SHALL NOT Constraints
+
+
 
 
 <!-- from finalize-archive -->

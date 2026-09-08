@@ -8,6 +8,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GuardResult } from '../core/types.js';
 import { Logger } from '../core/logger.js';
+import { findSpecDirs } from '../core/utils.js';
 
 /** Defined top-level directories under .mumuspec/ */
 const DEFINED_DIRECTORIES = new Set([
@@ -25,6 +26,9 @@ const DEFINED_DIRECTORIES = new Set([
   // Drive-by fix (2026-08-29): cognitive-map lookup reads
   // .mumuspec/templates/ (cognitive-map.ts, config custom_dir) — legit dir.
   'templates',
+  // doc-governance-decisions (2026-09-06): temp/ is the designated scratch
+  // area (root spec.md TEMP-1) — creating it must not trigger E-SPEC-013.
+  'temp',
 ]);
 
 /** Defined top-level files under .mumuspec/ */
@@ -44,6 +48,10 @@ const DEFINED_FILES = new Set([
   'constraints.yaml',
   'cognitive-map.yaml',
   'BOUNDARY.md',
+  // CHG-6/7 (2026-09-05): project-level workflow override is a defined root
+  // file (activateProjectWorkflow loads it at guard entry) — root spec.md
+  // TEMP-4 whitelist already declares it legitimate.
+  'workflow.yaml',
 ]);
 
 /** Defined knowledge subdirectories */
@@ -242,28 +250,9 @@ function validateChangesSubdirs(
   }
 }
 
-/** Find all directories with .mumuspec/ */
+/** Find all directories with .mumuspec/ (shared core walker + root check) */
 function findAllSpecDirs(projectRoot: string): string[] {
-  const results: string[] = [];
-
-  function scan(dir: string) {
-    const mumuDir = join(dir, '.mumuspec');
-    if (existsSync(mumuDir)) {
-      results.push(dir);
-    }
-
-    try {
-      const entries = readdirSync(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-          scan(join(dir, entry.name));
-        }
-      }
-    } catch {
-      // Ignore
-    }
-  }
-
-  scan(projectRoot);
+  const results = findSpecDirs(projectRoot);
+  if (existsSync(join(projectRoot, '.mumuspec'))) results.unshift(projectRoot);
   return results;
 }

@@ -45,9 +45,15 @@ interface SubmitFeedbackOptions {
   actual?: string;
 }
 
-function submitFeedback(projectRoot: string, options: SubmitFeedbackOptions): UserFeedback;
-function linkSession(projectRoot: string, feedbackId: string, sessionId: string): void;
-function listFeedbacks(projectRoot: string, options?: {...}): UserFeedback[];
+function submitFeedback(projectRoot: string, options: SubmitFeedbackOptions): { feedbackId: string; filePath: string };
+function linkFeedbackToSession(projectRoot: string, sessionId: string, feedbackId: string, feedbackFile: string): void;
+function linkFeedbackToChange(projectRoot: string, changeName: string, feedbackId: string, feedbackFile: string): void;
+function createSessionSummary(projectRoot: string, options: CreateSessionSummaryOptions): { sessionId: string; filePath: string };
+function listChangeFeedbacks(projectRoot: string, changeName: string): FeedbackEntry[];
+function listAllFeedbacks(projectRoot: string, options?: {...}): UserFeedback[];
+function getFeedbackContent(projectRoot: string, feedbackId: string): UserFeedback | undefined;
+function getChangeFeedbackLog(projectRoot: string, changeName: string): FeedbackLog;
+function updateFeedbackStatus(projectRoot: string, feedbackId: string, status: FeedbackStatus, reason?: string): void;
 ```
 
 ## 依赖关系 (Dependencies)

@@ -6,10 +6,10 @@ import { resolve } from 'node:path';
 import type { KnowledgeIssue } from '../../core/types.js';
 import { findProjectRoot } from '../../core/utils.js';
 import { loadConfig } from '../../core/config.js';
+import { knowledgeSearch } from '../../knowledge/search.js';
 import {
   listKnowledgePages,
   getKnowledgePage,
-  searchKnowledge,
   getKnowledgeContext,
   verifyKnowledge,
   listStalePages,
@@ -25,6 +25,49 @@ function requireRoot(): string {
     process.exit(1);
   }
   return root;
+}
+
+function parseList(value?: string): string[] | undefined {
+  return value ? value.split(',').map((t) => t.trim()).filter(Boolean) : undefined;
+}
+
+/**
+ * Unified `knowledge search` action — relevance-scored full-text search.
+ * 2026-09-05 去重：吸收原 `search2` 的增强引擎；`search2` 保留为隐藏弃用别名。
+ * 兼容旧简单选项（--tag/--type 单值）与增强选项（--tags/--type 逗号列表等）。
+ */
+export function runKnowledgeSearch(query: string, options: Record<string, string>): void {
+  const root = requireRoot();
+  const config = loadConfig(root);
+
+  const tags = [...(parseList(options.tags) ?? []), ...(options.tag ? [options.tag.trim()] : [])];
+  const results = knowledgeSearch(root, config, query, {
+    type: parseList(options.type),
+    scope: options.scope,
+    status: parseList(options.status),
+    tags: tags.length > 0 ? tags : undefined,
+    graphNode: options.graph,
+    limit: parseInt(options.limit, 10) || 20,
+  });
+
+  if (results.length === 0) {
+    console.log('No matching knowledge entries found.');
+    return;
+  }
+
+  if (options.json) {
+    console.log(JSON.stringify(results, null, 2));
+    return;
+  }
+
+  console.log(`\n${results.length} result(s) for "${query}":\n`);
+  for (const r of results) {
+    console.log(`  [${r.score}pts] ${r.entry.id}: ${r.entry.title}`);
+    console.log(`    Type: ${r.entry.type} | Scope: ${r.entry.scope}`);
+    console.log(`    Matched: ${r.matchedFields.join(', ')}`);
+    console.log(`    ${r.excerpt.slice(0, 120)}`);
+    console.log('');
+  }
 }
 
 /** Register knowledge list/show/search/context/verify/stale/supersede/organize/rebuild-index. */
@@ -77,18 +120,18 @@ export function registerKnowledgeCrud(knowledgeCmd: Command): void {
 
   knowledgeCmd
     .command('search')
-    .description('Search knowledge pages')
-    .argument('<keyword>', 'search keyword')
-    .option('--tag <tag>', 'filter by tag')
-    .option('--type <type>', 'filter by type')
-    .action((keyword, options) => {
-      const root = requireRoot();
-      const config = loadConfig(root);
-      const pages = searchKnowledge(root, config, { keyword, tag: options.tag, type: options.type });
-      console.log(`\n${pages.length} result(s):`);
-      for (const page of pages) {
-        console.log(`  [${page.frontmatter.type}] ${page.frontmatter.id}: ${page.frontmatter.title}`);
-      }
+    .description('Search knowledge pages (relevance scoring, superseded search2)')
+    .argument('<keyword>', 'search keywords')
+    .option('--type <types>', 'filter by type (comma-separated)')
+    .option('--tag <tag>', 'filter by tag (legacy single-value alias of --tags)')
+    .option('--tags <tags>', 'filter by tags (comma-separated)')
+    .option('--scope <scope>', 'filter by scope')
+    .option('--status <status>', 'filter by status (comma-separated)')
+    .option('--graph <node>', 'filter by graph binding')
+    .option('--limit <n>', 'max results', '20')
+    .option('--json', 'output as JSON')
+    .action((query: string, options: Record<string, string>) => {
+      runKnowledgeSearch(query, options);
     });
 
   knowledgeCmd

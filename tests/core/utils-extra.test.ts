@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockExistsSync = vi.fn();
 const mockReadFileSync = vi.fn();
 const mockWriteFileSync = vi.fn();
+const mockRenameSync = vi.fn();
 const mockMkdirSync = vi.fn();
 const mockStatSync = vi.fn();
 
@@ -14,6 +15,7 @@ vi.mock('node:fs', () => ({
   readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
   writeFileSync: (...args: unknown[]) => mockWriteFileSync(...args),
   mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
+  renameSync: (...args: unknown[]) => mockRenameSync(...args),
   readdirSync: vi.fn(() => []),
   statSync: vi.fn(),
 }));
@@ -112,7 +114,9 @@ describe('writeYaml', () => {
   it('should write YAML content to file', () => {
     mockExistsSync.mockReturnValue(false);
     writeYaml('/root/output.yaml', { key: 'value' });
-    expect(mockWriteFileSync).toHaveBeenCalledWith('/root/output.yaml', expect.stringContaining('key: value'), 'utf8');
+    // Atomic contract: content lands via tmp file + rename to target
+    expect(mockWriteFileSync).toHaveBeenCalledWith(expect.stringContaining('/root/output.yaml.tmp.'), expect.stringContaining('key: value'), 'utf8');
+    expect(mockRenameSync).toHaveBeenCalledWith(expect.stringContaining('/root/output.yaml.tmp.'), '/root/output.yaml');
   });
 
   it('should ensure directory before write', () => {
@@ -215,6 +219,7 @@ describe('writeText', () => {
   it('should write text content', () => {
     mockExistsSync.mockReturnValue(false);
     writeText('/root/output.txt', 'hello');
-    expect(mockWriteFileSync).toHaveBeenCalledWith('/root/output.txt', 'hello', 'utf8');
+    expect(mockWriteFileSync).toHaveBeenCalledWith(expect.stringContaining('/root/output.txt.tmp.'), 'hello', 'utf8');
+    expect(mockRenameSync).toHaveBeenCalledWith(expect.stringContaining('/root/output.txt.tmp.'), '/root/output.txt');
   });
 });

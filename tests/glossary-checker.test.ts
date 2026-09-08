@@ -20,7 +20,7 @@ beforeEach(() => {
   root = join(tmpdir(), `mumuspec-glossary-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   mkdirSync(root, { recursive: true });
   mkdirSync(join(root, '.mumuspec'), { recursive: true });
-  mkdirSync(join(root, 'docs', 'reference'), { recursive: true });
+  mkdirSync(join(root, '.mumuspec'), { recursive: true });
   mkdirSync(join(root, 'docs'), { recursive: true });
   mkdirSync(join(root, 'src'), { recursive: true });
 });
@@ -32,7 +32,7 @@ afterEach(() => {
 describe('CHG-4 术语扫描器', () => {
   it('TC-4-1 fixture 含 4 类混用 → 检出 ≥4 且类型齐全', () => {
     // glossary.md 存在，避免 glossary-missing 干扰
-    writeFileSync(join(root, 'docs', 'reference', 'glossary.md'), '# Glossary\n\n## Rollback\n回退\n', 'utf8');
+    writeFileSync(join(root, '.mumuspec', 'glossary.md'), '# Glossary\n\n## Rollback\n回退\n', 'utf8');
     writeFileSync(
       join(root, 'docs', 'guide.md'),
       '# Guide\n\n提交失败时需要回滚数据。\n\n规则 MUST NOT 使用旧写法。\n\n状态 archive-inprogress 已被废弃。\n',
@@ -51,7 +51,7 @@ describe('CHG-4 术语扫描器', () => {
   });
 
   it('TC-4-2 修复+白名单 → 0', () => {
-    writeFileSync(join(root, 'docs', 'reference', 'glossary.md'), '# Glossary\n', 'utf8');
+    writeFileSync(join(root, '.mumuspec', 'glossary.md'), '# Glossary\n', 'utf8');
     writeFileSync(
       join(root, 'docs', 'guide.md'),
       '# Guide\n\n提交失败时需要回退数据。\n\n规则 SHALL NOT 使用旧写法。\n\n状态 archive-in-progress 已被废弃。\n',
@@ -65,7 +65,7 @@ describe('CHG-4 术语扫描器', () => {
   });
 
   it('TC-4-3 白名单压制误报', () => {
-    writeFileSync(join(root, 'docs', 'reference', 'glossary.md'), '# Glossary\n', 'utf8');
+    writeFileSync(join(root, '.mumuspec', 'glossary.md'), '# Glossary\n', 'utf8');
     writeFileSync(join(root, 'docs', 'guide.md'), '# Guide\n\n数据回滚（legacy 兼容说明）。\n', 'utf8');
     writeFileSync(
       join(root, '.mumuspec', 'glossary-allowlist.yaml'),
@@ -93,7 +93,7 @@ describe('CHG-4 术语扫描器', () => {
   });
 
   it('TC-4-5 边界：二进制跳过', () => {
-    writeFileSync(join(root, 'docs', 'reference', 'glossary.md'), '# Glossary\n', 'utf8');
+    writeFileSync(join(root, '.mumuspec', 'glossary.md'), '# Glossary\n', 'utf8');
     // 含 null 字节 → 视为二进制，跳过（尽管含禁用写法）
     writeFileSync(join(root, 'docs', 'binary.md'), '# Binary\n\n回滚\x00\x00\x00data\n', 'utf8');
 
@@ -102,7 +102,7 @@ describe('CHG-4 术语扫描器', () => {
   });
 
   it('边界：strict 模式下 docs 中的 门禁 也报 suspect', () => {
-    writeFileSync(join(root, 'docs', 'reference', 'glossary.md'), '# Glossary\n', 'utf8');
+    writeFileSync(join(root, '.mumuspec', 'glossary.md'), '# Glossary\n', 'utf8');
     writeFileSync(join(root, 'docs', 'guide.md'), '# Guide\n\n门禁 用于流程控制。\n', 'utf8');
 
     const loose = checkGlossary(root);

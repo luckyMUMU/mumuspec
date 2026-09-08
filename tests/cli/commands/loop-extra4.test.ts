@@ -63,7 +63,7 @@ vi.mock('../../../src/change/manager.js', async (importOriginal) => {
   };
 });
 
-vi.mock('../../../src/core/loop-engine.js', () => ({
+vi.mock('../../../src/change/loop-engine.js', () => ({
   initLoop: mockInitLoop,
   startRound: mockStartRound,
   recordAction: mockRecordAction,

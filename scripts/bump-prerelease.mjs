@@ -80,4 +80,29 @@ const nextVersion = `${base}-${tag}.${nextNum}`;
 pkg.version = nextVersion;
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
 
+// Sync "current version" references in README.md / docs/STATUS.md so the
+// ci-check version gate stays green. Replaces only the exact old version
+// string — all its occurrences in these two files are current-version refs.
+const docTargets = [
+  join(__dirname, '..', 'README.md'),
+  join(__dirname, '..', 'docs', 'STATUS.md'),
+];
+for (const docPath of docTargets) {
+  let text;
+  try {
+    text = readFileSync(docPath, 'utf8');
+  } catch {
+    console.warn(`bump-prerelease: skip missing doc ${docPath}`);
+    continue;
+  }
+  if (!text.includes(current)) {
+    console.warn(
+      `bump-prerelease: ${docPath} does not reference ${current} — version drift already existed, fix manually`,
+    );
+    continue;
+  }
+  writeFileSync(docPath, text.split(current).join(nextVersion), 'utf8');
+  console.log(`bump-prerelease: synced ${docPath.replace(/\\/g, '/')} -> ${nextVersion}`);
+}
+
 console.log(`bump-prerelease: ${current} -> ${nextVersion}`);

@@ -5,10 +5,47 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Verifier 语义收紧（P0）+ Spec 即 DSL 定位修正 + CHG-5 LLM 自主性增强
+## [Unreleased] — PRD ↔ 实现对齐（Agent 上下文链路）
+
+分析依据：`review/spec-agent-integration-analysis-2026-09-08.md`；变更：`prd-alignment-agent-integration`。
+
+### Fixed
+- **渐进式披露通道修复**：`mumuspec context <path>` 文本渲染此前只输出遗留字段 `layer.spec` / `layer.design`，对 0.19 起的 prd.md/tech.md 新格式输出零条约束（7 行空输出）。现补齐 `layer.prd` / `layer.tech` 渲染，与 `--json` 通道同构（根路径输出 7 → 257 行）
+- **根全局 charter 回归规范链**：根层 `spec.md` 此前被 loader 当作 `tech.md` 的回退文件跳过（根层同时存在 prd/tech 时永不加载）。现根层（level 0）额外加载 spec.md——Root spec.md 是全局 charter，与 prd/tech 共存为规范要求；模块层保持「spec.md 仅作 tech.md 回退」语义
+- **AGENTS.md 规范链摘要为空**：`buildRuleGenContext` 改为结构摘要（层级 / scope / 文档类型 / SHALL·SHALL NOT 条数）+ 当前路径红线全文，不内联 SHALL 正文（遵守分发层「禁止内联全量规范」SHALL NOT）；init 与 install 两条链路均传入 specContext。摘要由空 → 56 条红线
+- **CLI 速查与注册表脱钩**：AGENTS.md 速查此前硬编码 8 条，实际注册 56 条，CLI-first 关键命令（`state transition` / `decisions append` / `test-cases lock` / `state layer` / `capability`）agent 无从得知。新增 `renderCliCheatSheet(program)` 从命令注册表现场生成（CLI-first 命令置顶 + 子命令展开）；`setCliCheatSheet()` 依赖倒置注入，使 install 路径与 init 同源
+- **归档 delta 合并污染根规范**：`prepareChangeSpecContent()` 剥离变更层 frontmatter（消除 `parent_prd` / `parent_tech` 未重定位导致的 E-SPEC-010 ×2）并拒绝合并未填写的 init 模板占位符；同步清理根 prd.md / tech.md 已入库的占位符块。`validate` 由 2 error → 0，unverifiable 2 → 0，declared_ratio 100%
+
+### Added
+- `tests/spec/agent-context-alignment.test.ts` — G1/G2/G3/G4 回归锁定（14 例）
+- `tests/guard/check-validate-parity.test.ts` — G5 门禁结论一致性回归（3 例）
+- `tests/guard/index-drift.test.ts` — G7b index 全树漂移检测回归（5 例）
+
+### Fixed（P1 批次）
+- **门禁结论不一致（G5）**：`checkCompliance` 全量模式并入 `validateAllSpecs` 的 error 级诊断（E-SPEC-* 全族，按 code+message 去重，warning 不升格）。此前 `check` 仅覆盖 E-SPEC-004/015，规范结构缺陷（如 E-SPEC-010 父引用断链）在 `check` 下静默通过而 `validate` 报 ERROR——违反「归档前必须通过 check 全量校验」；并入后 check 实测抓到 AGENTS.md↔spec 漂移（E-AGENTS-001）
+- **规范-实现 API 名漂移（G6）**：`src/feedback/.mumuspec/prd.md` / `tech.md` 与 `manager.ts` 头部注释引用 3 个不存在的 API（`linkSession` / `listFeedbacks` / `getFeedbackContext`），`submitFeedback` 返回类型漂移。按 YAGNI 修文档对齐实际导出（9 个函数），不新增无调用方函数
+- **index 漂移检测只扫一层（G7b）**：`checkIndexDrift` 此前仅枚举 projectRoot 一级子目录，深层模块「有 .mumuspec 却未注册」永远漏检。改为全树递归收集（排除 node_modules / dot 目录），上线即抓到 2 个漏检目录（src/contract/formatter、src/knowledge/scanners）
+- **drift --fix 生成质量**：`autoFixDrift` 生成的 index 条目使用绝对路径且缩进错乱，已手工修正为相对路径统一格式（条目生成逻辑待后续修复）
+
+### Added（P1 批次）
+- **G7a 三模块规范层**：`src/mcp`（35 工具 / 4 写工具显式声明 / 传输-工具分离边界）、`src/meta-evolution`（评分 / 知识进化 / 技能推荐 / 影响分析 / stats 五子系统）、`src/team`（状态机 / 适配器分离 / 配置校验门）补齐 V2 格式 prd/tech 并注册 index——严格校验生效，约束总数 230 → 258，unverifiable 保持 0，declared_ratio 100%
+
+## [Unreleased] — 自洽性修复批次（2026-09-05 全流程评审落地）+ Verifier 语义收紧（P0）+ Spec 即 DSL 定位修正 + CHG-5 LLM 自主性增强
 
 设计提案：`review/proposal-verifier-semantics-2026-08-29.md`（含影响分析 C1-C7 与开放问题裁决 Q1-Q6）。
 定位修正：`review/nl-bytecode-gap-analysis-2026-08-29.md` §定位修正，决策页 KP-0059。
+本轮依据：`review/full-flow-consistency-ecosystem-2026-09-05.md`（全流程自洽性评审 × 生态对标）。
+
+### Changed
+- **归档自动升版口径定稿（保留 + 补 CHANGELOG）**：`bumpVersionForArchive` 保留既有规则（full: minor+1/prerelease 重置；tweak/hotfix: prerelease 计数 +1；无 prerelease: patch+1 转 alpha 基线），新增可选 `changeName` 参数——bump 成功时自动在 `CHANGELOG.md` 顶部插入 `## [<newVersion>] — archive auto-bump (<date>)` 条目（幂等，该版本标题已存在则跳过；无 CHANGELOG.md 或写失败均非致命）；`archiveChange` 传入 changeName 接通口径。文档口径见 `docs/reference/packaging-deployment.md` §3.4。经用户 2026-09-07 裁决保留该行为，人工不回滚版本
+- **Dogfood 迁移（P0）**：根部 AGENTS.md/CLAUDE.md 从旧式全量生成迁移到 canonical-first 产物——AGENTS.md 为 canonical（规范链摘要 + Ponytail + CLI + MCP 四节），CLAUDE.md 为 `@AGENTS.md` 薄壳桥接；`buildRuleGenContext` 补齐对新格式 tech.md 层的读取（此前仅读 `layer.spec`，新格式项目生成空摘要）；demo/ 示例产物同步更新
+- **CHG-7 dogfood**：本仓库创建 `.mumuspec/workflow.yaml`（当前与内置默认一致，启用项目级加载路径；差异化调整时在此修改）
+- **CLI 去重（非破坏）**：`--change` 选项提升至 `mumuspec drift` 主命令；`drift detect` 降级为隐藏弃用别名（stderr 提示，下一 minor 移除）；`knowledge search` 升级为原 search2 的相关性评分增强引擎（兼容旧 `--tag`/`--type` 单值选项）；`search2` 降级为隐藏弃用别名
+- **SKILL.md 开放标准对齐**：新增 `skills/mumuspec-workflow/SKILL.md`（agentskills.io 标准 frontmatter：name/license/metadata，installer `findMumuspecWorkflowSource` 首选路径）；`skills/mumuspec/en/SKILL.md`（无 frontmatter，不合规范）降级为资源文件 `en/orchestrator-en.md`
+- 失效修复提示更正：`mumuspec rules generate` 命令已不存在，E-AGENTS-001 fixSteps 及 agents_drift fixHint 改为指向 `mumuspec init`
+
+### Removed
+- DS-005 任务粒度检查空壳占位（`phase-guard.ts` checkBuildToVerify 内 `void GranularityLimit` 死代码）：从未产出任何 warning 且无文档声明，按 YAGNI 移除；未来需要时基于 tasks 数据结构重新设计
 
 ### Added
 - **CLI-first 三命令（0.20）**：`tasks next <name>`（tasks.md 首个未完成任务定位，替代 grep 手工步骤）、`test-cases lock-suite <name> --layer N`（逐层套件 hash 确定性写入 state.suites_hash，替代手写 suite-map.yaml）、`state layer <name> <N> <status>`（build_layers 状态确定性更新，替代手编 .mumuspec.yaml）
@@ -33,6 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - F8 修复：自动注解移除「样板/DRY → no-side-effect」语义错配（此前制造虚假的 enforced-strong 覆盖）
 
 ### Fixed
+- **CLI 版本动态化（CHANGE-3 由构造保证）**：`src/cli/index.ts` 硬编码 `.version('0.19.1')` 与 package.json（0.19.2-alpha.0）漂移——`--version` 输出错误且 prebuild 阻断；现改为运行时读取 package.json，`prebuild-check` 识别动态读取模式
+- **C3 遗留格式禁令 dogfooding 误报**：`禁止生成 .cursorrules/.windsurfrules` 的字面扫描命中 generator 硬过滤与 doctor 指引（约束自身的合法实现者）；扩展 `isAgentBehaviorConstraint` dogfooding carve-out 覆盖该约束（checker.ts）
 - **skill 指令与 CLI 实现一致性修复（6 处）**：verify-fail/archive-reopen 两个无效状态机目标改为 `transition <name> build --reason`；`mumuspec archive` 补 `--confirm`；`decisions append` 补 `--text`；编排器 Guard/State 说明重写为当前审计语义；skill 接线既有命令（cognitive-map init/sync、grill-me run、test-cases init、decisions append）。分析见 `review/pipeline-cli-first-analysis-2026-08-29.md`
 - `checkIndexDrift` 对比逻辑修复：此前将 index 子项 path（`src\core`）与目录名（`core`）互比，永不相交导致每个索引条目都产生假漂移警告；现按 path 探测 `.mumuspec` 存在性，仅报告真实陈旧项
 - `serializeSpecFile` frontmatter 保真修复：此前 round-trip 会静默丢弃未知 frontmatter 字段（如 doc_type、parent_prd）；现按序保留（`mumuspec annotate` 等回写命令不再有数据丢失风险）
@@ -44,6 +83,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/design/constraint-strength.md` 新增 §9.0 可验证性前置判定
 - `docs/reference/error-codes.md` 自动再生（71 → 73 码，新增 VERIFY 域）
 - README.md、overview.md、design.md、STATUS.md 全面更新：对齐 "Spec 即 DSL" 核心定位（KP-0059），"人工编写 spec 而不编写代码"
+
+## [0.19.2-alpha.10] - 2026-09-07
+
+### Added
+- **P0-C 容量断言**：Rules 产物 32KiB 预算（`MAX_RULES_BYTES` + `assertRulesWithinBudget`），fail-closed；新增错误码 E-RULES-001
+- **P0-A 命令能力分层（最小版）**：`CommandMetadata` + `mumuspec capability [command] [--json]`
+
+### Changed
+- **P0-B**：loader 渐进式披露层数改用 `config.specs.max_layer_depth`（默认 5），不再硬编码 3 层
+- **P0-D**：finalize-archive code-graph snapshot 由占位改为真实快照（落 temp/codegraph.snapshot.json）
+
+### Fixed
+- **P0-D**：cleanStaleCache 陈旧归档项由「仅计数」改为实际删除；新增 `.finalized` 防重跑标记（幂等，--force 覆盖）
 
 ## [0.19.1] - 2026-08-22
 

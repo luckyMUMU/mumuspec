@@ -1,0 +1,46 @@
+# Assumptions: p0-calibration-hardening
+# 每条假设的消解引用 decisions.md 中人工签收的决策条目时间戳。
+version: 1
+change: p0-calibration-hardening
+items:
+  - id: AS-01
+    assumption: >-
+      loader 的渐进式披露层数应由 config.specs.max_layer_depth 决定（默认 5），
+      而非固定的 3 层；层数增加带来的 context token 增长在可接受范围。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-06T16:00:53.232Z"
+      note: >-
+        D2 裁决；实现改为 selectLayersToLoad 尊重 maxDepth，非法配置回退 5。
+        既有测试 loader.test.ts 的 "max 3 layers" 断言已按新契约改写（默认 4 层全返、限 3 降载）。
+
+  - id: AS-02
+    assumption: >-
+      capability 元数据采用「集中注册表 + 回落默认」足以满足 spec 的最小要求；
+      无需为 40+ 命令逐一改动注册函数签名（Ponytail: 最小可工作实现）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-06T16:00:51.613Z"
+      note: >-
+        D1 裁决最小版；未登记命令回落 general/composable=true，专用工具白名单登记。
+        dry-run 框架与名称二次确认明确列为二期，不在本变更范围。
+
+  - id: AS-03
+    assumption: >-
+      finalize-archive 的 code-graph snapshot 可复用既有 getCachedCodeGraph，
+      落盘到 .mumuspec/temp/（符合临时目录规范，不纳版本控制）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-06T16:00:54.670Z"
+      note: >-
+        D3 裁决；实现复用 knowledge/graph-builder 的 getCachedCodeGraph（Ponytail L2 复用），
+        写入 temp/codegraph.snapshot.json；构建失败降级为非致命 warning。
+
+  - id: AS-04
+    assumption: >-
+      cleanStaleCache 的陈旧归档项（>30 天）可以安全删除；此前「仅计数不删」是缺口而非有意保守。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-06T16:00:54.670Z"
+      note: >-
+        D3 裁决；改为 rmSync 实际删除，删除失败保持非致命；新增用例验证超期删除、近期保留。

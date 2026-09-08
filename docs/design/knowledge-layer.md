@@ -1004,7 +1004,7 @@ knowledge_drift:
 
 ### 14.1 Rules 文件增强
 
-自动生成的 Rules 文件（CLAUDE.md / .cursorrules）增加知识层说明：
+自动生成的 Rules 文件（AGENTS.md canonical + 薄壳桥接）增加知识层说明：
 
 ```markdown
 ## Knowledge Base

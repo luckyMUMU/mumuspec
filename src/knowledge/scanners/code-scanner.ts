@@ -8,6 +8,7 @@
  */
 import { readdirSync, statSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
+import { resolveWithinRoot, SKIP_DIRS } from '../../core/utils.js';
 import type { ProposedKnowledgePage } from '../scan-types.js';
 
 let idCounter = 0;
@@ -34,7 +35,7 @@ function getDirTree(dirPath: string, maxDepth: number = 3, currentDepth: number 
 
     for (const entry of entries) {
       // Skip common non-source directories
-      if (['node_modules', '.git', 'dist', 'build', '.next', 'coverage', '__pycache__', '.mumuspec'].includes(entry)) {
+      if (SKIP_DIRS.has(entry)) {
         continue;
       }
 
@@ -68,7 +69,7 @@ function countFilesByExtension(dirPath: string): Record<string, number> {
     try {
       const entries = readdirSync(path);
       for (const entry of entries) {
-        if (['node_modules', '.git', 'dist', 'build', '.next', 'coverage', '__pycache__'].includes(entry)) {
+        if (SKIP_DIRS.has(entry)) {
           continue;
         }
         const fullPath = join(path, entry);
@@ -215,7 +216,7 @@ function countFilesInDir(dirPath: string): number {
   try {
     const entries = readdirSync(dirPath);
     for (const entry of entries) {
-      if (['node_modules', '.git', 'dist', 'build', '__pycache__'].includes(entry)) continue;
+      if (SKIP_DIRS.has(entry)) continue;
       const fullPath = join(dirPath, entry);
       try {
         const stat = statSync(fullPath);
@@ -275,7 +276,7 @@ function findMissingBarrelFiles(tree: DirEntry[], projectRoot: string): Proposed
 /** Scan codebase structure and propose design knowledge */
 export function scanCodeStructure(projectRoot: string, scope?: string): ProposedKnowledgePage[] {
   idCounter = 0;
-  const targetDir = scope ? join(projectRoot, scope) : projectRoot;
+  const targetDir = scope ? resolveWithinRoot(projectRoot, scope) : projectRoot;
   const proposed: ProposedKnowledgePage[] = [];
 
   // Get directory tree

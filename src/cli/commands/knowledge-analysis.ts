@@ -39,6 +39,7 @@ export function registerKnowledgeAnalysis(program: Command, knowledgeCmd: Comman
     .command('impact')
     .description('Analyze change impact with knowledge correlation')
     .option('--diff <range>', 'Git diff range (e.g., "HEAD~3..HEAD")')
+    .option('--changed-files <paths...>', 'explicit changed-file list (overrides git diff)')
     .option('--scope <path>', 'Limit analysis to scope')
     .option('--json', 'Output as JSON')
     .option('--with-knowledge', 'Include knowledge warnings', true)
@@ -50,6 +51,11 @@ export function registerKnowledgeAnalysis(program: Command, knowledgeCmd: Comman
           diffRange: options.diff,
           scope: options.scope,
           withKnowledge: options.withKnowledge,
+          mockChangedFiles: options.changedFiles?.map((path: string) => ({
+            path,
+            change_type: 'modified' as const,
+            lines_changed: 0,
+          })),
         });
 
         if (options.json) {

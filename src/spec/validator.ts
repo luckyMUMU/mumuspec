@@ -7,7 +7,7 @@ import { classifyRequirements, computeEnforcementCoverage } from './verifier-cla
 import { parseSpecFile, parsePrdFile, parseTechFile } from './parser.js';
 import { checkInheritanceConflicts } from './inheritance.js';
 import type { MumuSpecConfig } from '../core/config.js';
-import { readText } from '../core/utils.js';
+import { readText, findSpecDirs } from '../core/utils.js';
 
 /** Distributed spec file types for validation */
 const DISTRIBUTED_SPEC_FILES = ['spec.md', 'prd.md', 'tech.md'] as const;
@@ -84,7 +84,7 @@ export function validateAllSpecs(
  * classified item.
  *   - SHALL NOT + unverifiable → E-SPEC-015 (strict: ERROR / else WARN)
  *   - SHALL + unverifiable     → E-SPEC-004 (always WARN, never folded away —
- *                                GUARD_CHECK_METADATA marks it always_enforce)
+ *                                ERROR_CODES registry marks it always_enforce)
  */
 function emitVerifiabilityFindings(
   items: ClassifiedItem[],
@@ -231,29 +231,10 @@ export function validateSpecFile(filePath: string): GuardResult {
   };
 }
 
-/** Find all directories with .mumuspec/ */
+/** Find all directories with .mumuspec/ (shared core walker + root check) */
 function findAllSpecDirs(projectRoot: string): string[] {
-  const results: string[] = [];
-
-  function scan(dir: string) {
-    const mumuDir = join(dir, '.mumuspec');
-    if (existsSync(mumuDir)) {
-      results.push(dir);
-    }
-
-    try {
-      const entries = readdirSync(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-          scan(join(dir, entry.name));
-        }
-      }
-    } catch {
-      // Ignore
-    }
-  }
-
-  scan(projectRoot);
+  const results = findSpecDirs(projectRoot);
+  if (existsSync(join(projectRoot, '.mumuspec'))) results.unshift(projectRoot);
   return results;
 }
 

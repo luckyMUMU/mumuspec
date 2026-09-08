@@ -21,7 +21,8 @@ vi.mock('node:path', () => ({
   relative: (from: string, to: string) => to.replace(from + '/', '') || '.',
 }));
 
-vi.mock('../../src/core/utils.js', () => ({
+vi.mock('../../src/core/utils.js', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   readYaml: (...args: unknown[]) => mockReadYaml(...args),
   getMumuSpecDir: (...args: unknown[]) => mockGetMumuSpecDir(...args),
 }));

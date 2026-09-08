@@ -47,13 +47,15 @@ vi.mock('../../src/guard/checker.js', () => ({
     mockApplyStrengthToGuardResult(result, strength),
 }));
 
-vi.mock('node:fs', () => ({
+vi.mock('node:fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs')>()),
   existsSync: (...args: unknown[]) => mockExistsSync(...args),
   readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
   readdirSync: vi.fn(() => []),
 }));
 
-vi.mock('../../src/core/utils.js', () => ({
+vi.mock('../../src/core/utils.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/core/utils.js')>()),
   readText: (...args: unknown[]) => mockReadText(...args),
   computeHash: (...args: unknown[]) => mockComputeHash(...args),
 }));

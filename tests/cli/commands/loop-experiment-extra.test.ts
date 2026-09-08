@@ -14,7 +14,7 @@ vi.mock('../../../src/core/utils.js', async (importOriginal) => {
   return { ...actual, findProjectRoot: mockFindProjectRoot };
 });
 
-vi.mock('../../../src/core/experiment-engine.js', () => ({
+vi.mock('../../../src/eval/experiment-engine.js', () => ({
   initExperiment: (...args: unknown[]) => mockInitExperiment(...args),
   spawnArms: (...args: unknown[]) => mockSpawnArms(...args),
   runArm: vi.fn(),

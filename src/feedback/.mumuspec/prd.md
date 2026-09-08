@@ -11,9 +11,10 @@ last_updated: '2026-08-04'
 用户反馈与 Session 摘要的收集、关联和查询模块。
 
 - `submitFeedback()` — 用户提交反馈，格式化记录并自动关联 session
-- `linkSession()` — 将反馈与 session 摘要建立双向关联
-- `listFeedbacks()` — 按变更/时间/类型查询反馈列表
-- `getFeedbackContext()` — 获取变更相关的完整反馈上下文
+- `linkFeedbackToSession()` / `linkFeedbackToChange()` — 建立反馈与 session 摘要 / 变更的双向关联
+- `listChangeFeedbacks()` / `listAllFeedbacks()` — 按变更 / 时间 / 类型查询反馈列表
+- `getFeedbackContent()` / `getChangeFeedbackLog()` — 读取反馈正文与变更反馈日志
+- `updateFeedbackStatus()` — 流转反馈处理状态
 - 支持 5 种反馈类型：bug、feature-request、improvement、question、design-review
 - 支持 5 种状态：open、acknowledged、in-progress、resolved、declined
 

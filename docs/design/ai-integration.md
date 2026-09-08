@@ -13,7 +13,7 @@ graph TB
     subgraph AIL["AI Integration Layer"]
         Skills["原生 Skill 文件<br/>阶段编排器"]
         Bridge["Skill Bridge<br/>外部 Skill 生态兼容"]
-        Rules["Rules 文件<br/>CLAUDE.md / .cursorrules / AGENTS.md"]
+        Rules["Rules 文件<br/>AGENTS.md（canonical）+ CLAUDE.md/GEMINI.md 薄壳"]
         MCP["MCP Server<br/>标准化 AI 工具接口"]
         CLI["CLI<br/>命令行工具"]
         Hooks["Git Hooks<br/>pre-commit / CI"]
@@ -194,7 +194,7 @@ interface AdapterInfo {
 #### CursorAdapter
 
 - **适配工具**: Cursor
-- **支持特性**: rules_generation(.cursorrules)
+- **支持特性**: rules_generation(AGENTS.md canonical；.cursorrules 已停止生成，C3 遗留格式禁令)
 - **Phase 归属**: Phase 1(基础 Rules 生成)
 - **配置项**: `ai_integration.tool: "cursor"`
 
@@ -252,7 +252,7 @@ ai:
   mcp_server: true
   rules_files:
     - "CLAUDE.md"        # Claude Code
-    - ".cursorrules"      # Cursor
+    # ".cursorrules" 已废弃（C3 禁令），Cursor 读 AGENTS.md
     - "AGENTS.md"         # 通用 Agent
 ```
 

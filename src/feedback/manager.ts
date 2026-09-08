@@ -3,9 +3,11 @@
  *
  * 核心能力：
  * - submitFeedback(): 用户主动提交反馈，格式化记录 + 自动关联 session
- * - linkSession(): 将反馈与 session 摘要建立双向关联
- * - listFeedbacks(): 按变更/时间/类型查询反馈
- * - getFeedbackContext(): 获取变更相关的完整反馈上下文
+ * - linkFeedbackToSession() / linkFeedbackToChange(): 建立反馈与 session / 变更的双向关联
+ * - listChangeFeedbacks() / listAllFeedbacks(): 按变更 / 时间 / 类型查询反馈
+ * - getFeedbackContent() / getChangeFeedbackLog(): 读取反馈正文与变更反馈日志
+ * - updateFeedbackStatus(): 流转反馈处理状态
+ * - createSessionSummary(): 归档 session 摘要并与反馈互链
  */
 
 import { existsSync, readdirSync } from 'node:fs';

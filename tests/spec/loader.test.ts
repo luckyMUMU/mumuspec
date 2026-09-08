@@ -262,7 +262,7 @@ describe('loadSpecContext', () => {
     expect(result.layers.some(l => l.scope === 'src/core')).toBe(true);
   });
 
-  it('should apply progressive disclosure (max 3 layers)', () => {
+  it('should apply progressive disclosure (respects specs.max_layer_depth)', () => {
     // Create 4 levels deep
     mkdirSync(join(projectDir, 'a', '.mumuspec'), { recursive: true });
     mkdirSync(join(projectDir, 'a', 'b', '.mumuspec'), { recursive: true });
@@ -278,9 +278,19 @@ describe('loadSpecContext', () => {
         `---\nscope: ${scope}\nlayer: 0\n---\n## R1\n- SHALL: "x"\n`,
       );
     }
+    // 默认 max_layer_depth = 5：4 层全在预算内 → 全量返回（不再硬编码 3 层）
     const result = loadSpecContext(join(projectDir, 'a', 'b', 'c'), projectDir, defaultConfig);
-    // Should have at most 3 layers
-    expect(result.layers.length).toBeLessThanOrEqual(3);
+    expect(result.layers.length).toBe(4);
+
+    // 显式限制为 3 层时降载，且保留 root 与 target
+    const limited = loadSpecContext(
+      join(projectDir, 'a', 'b', 'c'),
+      projectDir,
+      { ...defaultConfig, specs: { ...defaultConfig.specs, max_layer_depth: 3 } },
+    );
+    expect(limited.layers.length).toBe(3);
+    expect(limited.layers[0].scope).toBe('.');
+    expect(limited.layers[limited.layers.length - 1].scope).toBe('a/b/c');
   });
 
   it('should detect inheritance conflicts', () => {

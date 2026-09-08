@@ -13,6 +13,7 @@
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
+import { SKIP_DIRS } from '../core/utils.js';
 
 export interface PonytailLintResult {
   ruleId: string;
@@ -203,7 +204,7 @@ function collectSourceFiles(dir: string, accum: string[], depth: number = 0): st
   }
 
   for (const entry of entries) {
-    if (entry === 'node_modules' || entry === '.git' || entry === 'dist' || entry === '.mumuspec') continue;
+    if (SKIP_DIRS.has(entry)) continue;
     const fullPath = join(dir, entry);
     try {
       const stat = statSync(fullPath);

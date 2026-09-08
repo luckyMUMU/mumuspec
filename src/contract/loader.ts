@@ -22,6 +22,64 @@ import type {
   BoundaryChangeEntry,
 } from '../core/types-contract.js';
 import { readText } from '../core/utils.js';
+import { migrateSchema } from '../core/migrations.js';
+import { MumuSpecError } from '../core/errors.js';
+
+// ════════════════════════════════════════════════════════════════════
+// Registry schema validation (Phase 2.4)
+// ════════════════════════════════════════════════════════════════════
+
+/** Keys that enable prototype pollution when spread into other objects */
+const PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/** Depth-guarded scan for prototype-pollution keys anywhere in a parsed tree */
+function hasProtoKeys(value: unknown, depth = 0): boolean {
+  if (depth > 8 || !value || typeof value !== 'object') return false;
+  if (Array.isArray(value)) {
+    return value.some((v) => hasProtoKeys(v, depth + 1));
+  }
+  const rec = value as Record<string, unknown>;
+  for (const key of Object.keys(rec)) {
+    if (PROTO_KEYS.has(key) || hasProtoKeys(rec[key], depth + 1)) return true;
+  }
+  return false;
+}
+
+/**
+ * Validate a parsed registry before it is trusted as ContractRegistry.
+ * Strict on structure the loader dereferences (contracts array, contract ids,
+ * outbound/inbound id lists); lenient on optional display fields so legacy
+ * hand-maintained files still load. Throws E-CONTRACT-011 on dirty data.
+ */
+function validateRegistryShape(parsed: unknown, filePath: string): ContractRegistry {
+  const reject = (reason: string): never => {
+    throw new MumuSpecError('E-CONTRACT-011', { filePath, reason });
+  };
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return reject('root is not an object');
+  }
+  if (hasProtoKeys(parsed)) {
+    return reject('contains __proto__/constructor/prototype keys');
+  }
+
+  const r = parsed as Record<string, unknown>;
+  if (typeof r.version !== 'string') return reject('version is not a string');
+  if (!Array.isArray(r.contracts)) return reject('contracts is not an array');
+  if (!Array.isArray(r.outbound_ids)) return reject('outbound_ids is not an array');
+  if (!Array.isArray(r.inbound_ids)) return reject('inbound_ids is not an array');
+
+  for (const entry of r.contracts) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return reject('contracts contains a non-object entry');
+    }
+    if (typeof (entry as Record<string, unknown>).id !== 'string') {
+      return reject('a contract entry is missing a string id');
+    }
+  }
+
+  return parsed as ContractRegistry;
+}
 import { MUMUSPEC_DIR, CONTRACTS_SUBDIR, REGISTRY_FILE, BOUNDARY_FILE, MAX_SCAN_DEPTH } from './constants.js';
 
 /** Contract registry file names to discover */
@@ -109,10 +167,12 @@ export function loadContractRegistry(dirPath: string): ContractRegistry | null {
     if (existsSync(filePath)) {
       const content = readText(filePath);
       if (!content) continue;
-      if (filename.endsWith('.json')) {
-        return JSON.parse(content) as ContractRegistry;
-      }
-      return parseYaml(content) as ContractRegistry;
+      const parsed: unknown = filename.endsWith('.json') ? JSON.parse(content) : parseYaml(content);
+      const registry = validateRegistryShape(parsed, filePath);
+      return migrateSchema<ContractRegistry>('contractRegistry', registry, {
+        filePath,
+        backupDir: join(dirPath, '.migration-backups'),
+      }).data;
     }
   }
   return null;

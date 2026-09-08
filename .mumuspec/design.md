@@ -1,7 +1,7 @@
 ---
 layer: 0
 scope: "."
-last_updated: "2026-08-29"
+last_updated: "2026-09-06"
 ---
 
 # Root Technical Design
@@ -32,6 +32,26 @@ last_updated: "2026-08-29"
   不是字节码式中间表示。决策页：knowledge/decisions/global/KP-0059。
 - **行为/结果约束分离（CHG-5）**：结果可客观验证的约束才允许 block；过程约束
   一律 advisory，为 LLM 保留 HOW 层自由度。
+
+## 文档体系职责矩阵（2026-09-06 整合）
+
+docs/ 已纳入 mumuspec 文档体系，职责划分如下（唯一源原则，双源即冲突）：
+
+| 区域 | 职责 | 权威性 |
+|------|------|--------|
+| `.mumuspec/spec.md` / `prohibitions.md` | 约束（SHALL / SHALL NOT） | 唯一源 |
+| `.mumuspec/prd.md` / `goal.md` | 产品需求与北极星 | 唯一源 |
+| `.mumuspec/tech.md` | 代码实现概览（六层模块、技术栈） | 唯一源 |
+| `.mumuspec/design.md` | 设计索引 + 边界声明（本文件） | 索引，细节以下行为准 |
+| `.mumuspec/glossary.md` | 权威术语表（Ubiquitous Language） | 唯一源；`docs/reference/glossary.md` 仅作对外快速入口，不得独立维护定义 |
+| `.mumuspec/knowledge/` | WHY / WHERE 决策与模式页 | 知识层工具管理；KD/KP 页面为导入快照，与源文档冲突时以源文档为准 |
+| `.mumuspec/roadmap/` / `contracts/` / `adr/` | 路线图、契约变更、架构决策记录 | 各自唯一源 |
+| `docs/design/` | 分层设计权威文档（7 篇） | 设计细节唯一源 |
+| `docs/overview.md` / `STATUS.md` | 对外总览 / 进度权威 | STATUS 为进度唯一权威 |
+| `docs/getting-started*.md` | 用户教程（人类 / Agent） | 教程唯一源 |
+| `docs/reference/` | 用户参考（CLI / MCP / config / error-codes 等） | 唯一源（error-codes.md 由代码自动生成） |
+| `docs/appendix/` | 冻结研究报告（Level 3） | 快照性质，不再演进；知识层已有对应 KD/KP/KL 页 |
+| `docs/standards/` | 对外标准化提案 | 提案性质，标注实现状态 |
 
 ## Enforcement
 

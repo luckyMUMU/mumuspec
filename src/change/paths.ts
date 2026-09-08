@@ -5,18 +5,19 @@
  */
 import { join, relative, sep } from 'node:path';
 import { existsSync, readdirSync } from 'node:fs';
-import { getMumuSpecDir, validateChangeName } from '../core/utils.js';
+import { getMumuSpecDir, validateChangeName, resolveWithinRoot } from '../core/utils.js';
 import { MumuSpecError } from '../core/errors.js';
 
 /** Get the changes directory for a given scope.
  *  If scope is "." or undefined, returns root .mumuspec/changes/.
  *  Otherwise returns <scope>/.mumuspec/changes/.
+ *  Scope escapes the project root → E-SECURITY-001.
  */
 export function getChangesDir(projectRoot: string, scope?: string): string {
   if (!scope || scope === '.') {
     return join(getMumuSpecDir(projectRoot), 'changes');
   }
-  return join(projectRoot, scope, '.mumuspec', 'changes');
+  return join(resolveWithinRoot(projectRoot, scope), '.mumuspec', 'changes');
 }
 
 /** Get the archive directory for a given scope */
@@ -77,9 +78,10 @@ export function getChangeStatePath(projectRoot: string, changeName: string, scop
 /**
  * Resolve a scope string relative to projectRoot.
  * Used by callers that need an absolute path from a scope.
+ * Scope escaping the project root → E-SECURITY-001.
  */
 export function scopeToPath(projectRoot: string, scope: string): string {
-  return scope === '.' ? projectRoot : join(projectRoot, scope);
+  return scope === '.' ? projectRoot : resolveWithinRoot(projectRoot, scope);
 }
 
 // Re-export for backward compat with any direct importer

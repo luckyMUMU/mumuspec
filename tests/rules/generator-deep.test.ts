@@ -95,16 +95,19 @@ describe('rules/generator — generateRulesFiles (canonical-first glue)', () => 
     expect(content).toContain('**Project**: test-proj (typescript, React)');
   });
 
-  it('renders spec context requirements into 规范链摘要', () => {
+  it('renders spec context as 结构摘要 + 红线全文（不内联 SHALL 正文）', () => {
     const root = makeRoot();
     const ctx = makeSpecContext();
     generateRulesFiles(root, makeConfig(['AGENTS.md']), ctx);
     const content = readFileSync(join(root, 'AGENTS.md'), 'utf8');
 
-    expect(content).toContain('### root');
-    expect(content).toContain('Test Requirement');
-    expect(content).toContain('SHALL: do this thing');
-    expect(content).toContain('SHALL NOT: do that thing');
+    // 结构摘要：层级 / scope / 文档类型 / 条数统计
+    expect(content).toContain('| Layer | Scope | Docs | SHALL | SHALL NOT |');
+    expect(content).toContain('root');
+    // 红线全文（prohibitions 为空时回退从各层提取）
+    expect(content).toContain('do that thing');
+    // SHALL 正文不内联 — 分发层 SHALL NOT：禁止内联全量规范上下文
+    expect(content).not.toContain('SHALL: do this thing');
   });
 
   it('renders prohibitions into 规范链摘要', () => {

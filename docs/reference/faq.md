@@ -177,13 +177,11 @@ rollback_limit: 5
 
 ### Q: Cursor 不加载 `.cursorrules`
 
-原因通常是 `.cursorrules` 不在项目根目录，或 Cursor 路径包含符号链接。
+0.20 起 MumuSpec 不再生成 `.cursorrules`（C3 遗留格式禁令），Cursor 请改用以下方式加载规则：
 
-修复：
-
-- 确认文件位置：`<project-root>/.cursorrules`
-- 如果在子目录，Cursor 只会读根目录或本目录的 `.cursorrules`
-- Cursor Settings → Rules 也可以配置全局规则
+- 确认项目根存在 `AGENTS.md`（canonical，`mumuspec install cursor` 生成/更新）
+- 或通过 MCP Server 加载（渐进式披露 + 实时校验）
+- Cursor Settings → Rules 可配置全局规则
 
 ---
 
@@ -201,7 +199,7 @@ rollback_limit: 5
 
 ### Q: `npm run release:dry` 报"You must specify a tag"
 
-**原因**：当前版本号为 prerelease（如 `0.12.1-alpha.0`），npm 强制要求显式 `--tag`。
+**原因**：当前版本号为 prerelease（如 `0.19.2-alpha.1`），npm 强制要求显式 `--tag`。
 
 修复：
 

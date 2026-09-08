@@ -23,12 +23,16 @@ const {
   mockMergeDeltaSpecsToMain,
   mockExtractKnowledgeToGlobal,
   mockGetArchivedChangeDir,
+  mockRmSync,
+  mockGetCachedCodeGraph,
 } = vi.hoisted(() => ({
   mockFindProjectRoot: vi.fn(),
   mockExistsSync: vi.fn(),
   mockReaddirSync: vi.fn(),
   mockUnlinkSync: vi.fn(),
   mockStatSync: vi.fn(),
+  mockRmSync: vi.fn(),
+  mockGetCachedCodeGraph: vi.fn(),
   mockLoadConfig: vi.fn(),
   mockLoadChangeState: vi.fn(),
   mockReadText: vi.fn(),
@@ -46,11 +50,20 @@ const dirContentMap = new Map<string, any[]>();
 // Module mocks
 // ════════════════════════════════════════════════════════════════════
 
+// P0-D ①：code-graph snapshot 由占位改为真实构建（getCachedCodeGraph）。
+// 此处 mock 以便分别验证成功路径与失败降级路径。
+vi.mock('../../../src/knowledge/graph-builder.js', () => ({
+  getCachedCodeGraph: () => mockGetCachedCodeGraph(),
+}));
+
 vi.mock('node:fs', () => ({
   existsSync: (p: string) => mockExistsSync(p),
   readdirSync: (p: string, opts?: any) => mockReaddirSync(p, opts),
   unlinkSync: (p: string) => mockUnlinkSync(p),
   statSync: (p: string) => mockStatSync(p),
+  // P0-D：cleanStaleCache 改为实际删除、code-graph snapshot 落盘到 temp/
+  rmSync: (p: string) => mockRmSync(p),
+  mkdirSync: () => undefined,
 }));
 
 vi.mock('node:path', () => ({
@@ -416,7 +429,11 @@ describe('finalize-archive updateProhibitions branches', () => {
     const { writeText } = await import('../../../src/core/utils.js');
     await runCommand(['idempotent']);
     // writeText should NOT be called for prohibitions since content already exists
-    expect((writeText as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    // （P0-D 新增 .finalized 标记也会走 writeText，故按路径精确断言而非"完全不调用"）
+    const writtenPaths = (writeText as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c) => String(c[0]),
+    );
+    expect(writtenPaths.some((p) => p.includes('prohibitions.md'))).toBe(false);
   });
 
   it('should create prohibitions.md when it does not exist yet', async () => {
@@ -1009,12 +1026,29 @@ describe('finalize-archive code-graph snapshot error', () => {
     mockGetArchivedChangeDir.mockReturnValue('/fake/root/.mumuspec/changes/archive/cg-test');
     mockLoadChangeState.mockReturnValue({ phase: 'archive-completed', workflow: 'full' });
 
+    // 构建失败 → 非致命：降级为 warning，不中断整个 finalize
+    mockGetCachedCodeGraph.mockImplementation(() => {
+      throw new Error('boom');
+    });
     await runCommand(['cg-test', '--json']);
     const jsonCall = logSpy.mock.calls.find(
       (call) => typeof call[0] === 'string' && call[0].startsWith('{')
     );
     const parsed = JSON.parse(jsonCall![0] as string);
-    // code-graph snapshot result should always be present (it's a no-op)
+    expect(parsed.warnings.some((w: string) => w.includes('code-graph'))).toBe(true);
+  });
+
+  it('should record code-graph snapshot success when graph builds', async () => {
+    setFileExists('/fake/root/.mumuspec/changes/archive/cg-ok');
+    mockGetArchivedChangeDir.mockReturnValue('/fake/root/.mumuspec/changes/archive/cg-ok');
+    mockLoadChangeState.mockReturnValue({ phase: 'archive-completed', workflow: 'full' });
+    mockGetCachedCodeGraph.mockReturnValue({ nodes: [{ id: 'a.ts' }] });
+
+    await runCommand(['cg-ok', '--json']);
+    const jsonCall = logSpy.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].startsWith('{')
+    );
+    const parsed = JSON.parse(jsonCall![0] as string);
     expect(parsed.results.some((r: string) => r.includes('code-graph'))).toBe(true);
   });
 });

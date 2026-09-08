@@ -13,7 +13,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { readYaml, normalizePath } from '../core/utils.js';
+import { readYaml, normalizePath, SKIP_DIRS } from '../core/utils.js';
 
 export interface GlossaryFinding {
   file: string;
@@ -57,11 +57,13 @@ const RULES: GlossaryRule[] = [
   { type: 'gate', term: '门禁', regex: /门禁/g, suggestion: '阶段守卫', scope: 'src' },
 ];
 
-const GLOSSARY_MD_REL = 'docs/reference/glossary.md';
+// doc-governance-decisions (2026-09-06): 权威术语表为 .mumuspec/glossary.md
+// （根 spec.md GLOSSARY-1）；docs/reference/glossary.md 仅为对外薄入口。
+const GLOSSARY_MD_REL = '.mumuspec/glossary.md';
 const ALLOWLIST_REL = '.mumuspec/glossary-allowlist.yaml';
 
 /** 扫描根目录时跳过的目录 */
-const SKIP_DIRS = new Set(['node_modules', '.git', '.mumuspec', 'dist', 'coverage', '.workbuddy', '.omo', '.meituan-catpaw']);
+// SKIP_DIRS 已统一收编到 core/utils.js（Phase 3.4）
 
 /**
  * 运行术语漂移扫描。
@@ -79,7 +81,7 @@ export function checkGlossary(
       file: GLOSSARY_MD_REL,
       type: 'glossary-missing',
       pattern: '<missing>',
-      suggestion: '创建 docs/reference/glossary.md 作为术语唯一基准',
+      suggestion: '创建 .mumuspec/glossary.md 作为术语唯一基准',
     });
   }
 

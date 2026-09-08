@@ -7,7 +7,7 @@
  */
 import { readdirSync, statSync, readFileSync, existsSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
-import { computeHash } from '../core/utils.js';
+import { computeHash, SKIP_DIRS, findSpecDirs } from '../core/utils.js';
 import { registerBuiltInProviders, getLanguageProvider } from '../guard/language-provider-registry.js';
 import {
   createGraph,
@@ -19,10 +19,18 @@ import type { CodeGraph, GraphNode, GraphEdge } from '../core/types-knowledge.js
 import type { MumuSpecConfig } from '../core/config.js';
 
 // ponytail: skip directories shared with code-scanner.ts
-const SKIP_DIRS = new Set([
-  'node_modules', '.git', 'dist', 'build', '.next', 'coverage',
-  '__pycache__', '.mumuspec', '.cache', 'tmp', 'temp',
-]);
+// SKIP_DIRS 已统一收编到 core/utils.js（Phase 3.4）
+
+// Per-project graph cache — avoids rebuilding on every CLI/MCP call
+let _graphCache: { root: string; graph: CodeGraph } | null = null;
+
+/** Get the cached code graph for a project root (builds on first access). */
+export function getCachedCodeGraph(root: string): CodeGraph {
+  if (!_graphCache || _graphCache.root !== root) {
+    _graphCache = { root, graph: buildCodeGraph(root) };
+  }
+  return _graphCache.graph;
+}
 
 /** Build a code graph from a project root */
 export function buildCodeGraph(
@@ -245,7 +253,7 @@ function resolveRelativePath(dir: string, importPath: string): string {
 /** Match spec.md bindings to build GOVERNED_BY edges */
 function buildSpecBindings(projectRoot: string, graph: CodeGraph): void {
   // ponytail: scan .mumuspec/spec.md files for binding declarations
-  const specDirs = findSpecDirs(projectRoot);
+  const specDirs = findMumuSpecDirs(projectRoot);
   for (const specDir of specDirs) {
     const specPath = join(specDir, 'spec.md');
     if (!existsSync(specPath)) continue;
@@ -298,41 +306,12 @@ function buildSpecBindings(projectRoot: string, graph: CodeGraph): void {
   }
 }
 
-/** Find all .mumuspec directories in the project */
-function findSpecDirs(projectRoot: string): string[] {
-  const result: string[] = [];
-  const mumuSpecDir = join(projectRoot, '.mumuspec');
-  if (existsSync(mumuSpecDir)) {
-    result.push(mumuSpecDir);
-  }
-
-  // Also check subdirectory .mumuspec dirs (depth-limited)
-  function scanDir(dir: string, depth: number): void {
-    if (depth > 3) return;
-    let entries: string[];
-    try {
-      entries = readdirSync(dir);
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (SKIP_DIRS.has(entry)) continue;
-      const fullPath = join(dir, entry);
-      try {
-        if (statSync(fullPath).isDirectory()) {
-          const specSubDir = join(fullPath, '.mumuspec');
-          if (existsSync(specSubDir)) {
-            result.push(specSubDir);
-          }
-          scanDir(fullPath, depth + 1);
-        }
-      } catch {
-        continue;
-      }
-    }
-  }
-  scanDir(projectRoot, 0);
-  return result;
+/** Find all .mumuspec directories in the project (delegates to shared core walker) */
+function findMumuSpecDirs(projectRoot: string): string[] {
+  const parents = existsSync(join(projectRoot, '.mumuspec'))
+    ? [projectRoot, ...findSpecDirs(projectRoot)]
+    : findSpecDirs(projectRoot);
+  return parents.map((d) => join(d, '.mumuspec'));
 }
 
 /** Simple glob matching — supports ** and * */

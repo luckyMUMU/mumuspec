@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockExistsSync = vi.fn();
 const mockReadFileSync = vi.fn();
 const mockWriteFileSync = vi.fn();
+const mockRenameSync = vi.fn();
 const mockMkdirSync = vi.fn();
 const mockAppendFileSync = vi.fn();
 const mockReaddirSync = vi.fn();
@@ -22,7 +23,7 @@ vi.mock('node:fs', () => ({
   appendFileSync: (...args: unknown[]) => mockAppendFileSync(...args),
   readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
   statSync: vi.fn(),
-  renameSync: vi.fn(),
+  renameSync: (...args: unknown[]) => mockRenameSync(...args),
 }));
 
 vi.mock('node:path', () => ({
@@ -241,12 +242,15 @@ describe('writeYaml — additional edge cases', () => {
 
   it('should handle array data', () => {
     writeYaml('/root/list.yaml', ['a', 'b', 'c']);
-    expect(mockWriteFileSync).toHaveBeenCalledWith('/root/list.yaml', expect.stringContaining('- a'), 'utf8');
+    // Atomic contract: content lands via tmp file + rename to target
+    expect(mockWriteFileSync).toHaveBeenCalledWith(expect.stringContaining('/root/list.yaml.tmp.'), expect.stringContaining('- a'), 'utf8');
+    expect(mockRenameSync).toHaveBeenCalledWith(expect.stringContaining('/root/list.yaml.tmp.'), '/root/list.yaml');
   });
 
   it('should handle deeply nested object', () => {
     writeYaml('/root/nested.yaml', { a: { b: { c: 'deep' } } });
-    expect(mockWriteFileSync).toHaveBeenCalledWith('/root/nested.yaml', expect.stringContaining('a:'), 'utf8');
+    expect(mockWriteFileSync).toHaveBeenCalledWith(expect.stringContaining('/root/nested.yaml.tmp.'), expect.stringContaining('a:'), 'utf8');
+    expect(mockRenameSync).toHaveBeenCalledWith(expect.stringContaining('/root/nested.yaml.tmp.'), '/root/nested.yaml');
   });
 });
 
@@ -280,12 +284,14 @@ describe('writeText — additional edge cases', () => {
 
   it('should handle empty string content', () => {
     writeText('/root/empty.txt', '');
-    expect(mockWriteFileSync).toHaveBeenCalledWith('/root/empty.txt', '', 'utf8');
+    expect(mockWriteFileSync).toHaveBeenCalledWith(expect.stringContaining('/root/empty.txt.tmp.'), '', 'utf8');
+    expect(mockRenameSync).toHaveBeenCalledWith(expect.stringContaining('/root/empty.txt.tmp.'), '/root/empty.txt');
   });
 
   it('should handle multiline content', () => {
     const content = 'first\nsecond\nthird';
     writeText('/root/multiline.txt', content);
-    expect(mockWriteFileSync).toHaveBeenCalledWith('/root/multiline.txt', content, 'utf8');
+    expect(mockWriteFileSync).toHaveBeenCalledWith(expect.stringContaining('/root/multiline.txt.tmp.'), content, 'utf8');
+    expect(mockRenameSync).toHaveBeenCalledWith(expect.stringContaining('/root/multiline.txt.tmp.'), '/root/multiline.txt');
   });
 });

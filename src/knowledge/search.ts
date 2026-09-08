@@ -174,7 +174,16 @@ export function knowledgeSearch(
   options: SearchOptions = {},
 ): KnowledgeSearchResult[] {
   const tokens = tokenize(query);
-  if (tokens.length === 0) return [];
+  // Filter-only search (no query tokens) is valid when at least one filter
+  // is present — results come back unscored, sorted by title.
+  const hasFilters = Boolean(
+    (options.type && options.type.length > 0) ||
+      options.scope ||
+      (options.status && options.status.length > 0) ||
+      (options.tags && options.tags.length > 0) ||
+      options.graphNode,
+  );
+  if (tokens.length === 0 && !hasFilters) return [];
 
   // Load index for quick filtering before loading full content
   const pageIndex = loadPageIndex(projectRoot, config);
@@ -222,7 +231,7 @@ export function knowledgeSearch(
 
     const { score, matchedFields, excerpt } = scorePage(page, parts.body, tokens);
 
-    if (score > 0) {
+    if (tokens.length === 0 || score > 0) {
       results.push({ entry, score, matchedFields, excerpt });
     }
   }

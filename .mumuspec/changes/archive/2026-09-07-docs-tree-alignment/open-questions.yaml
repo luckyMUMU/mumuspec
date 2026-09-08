@@ -1,0 +1,22 @@
+version: 1
+generatedAt: "2026-09-07T14:00:00.000Z"
+change: docs-tree-alignment
+items:
+  - id: OQ-01
+    question: "附录研究报告的 0.17.0 基准版本是重写还是标注快照？"
+    status: resolved
+    resolution:
+      summary: "标注'撰写时快照'而非重写，保持历史文档真实性"
+      decision_ref: "2026-09-07T14:14:01.717Z"
+  - id: OQ-02
+    question: "feedback-process 历史反馈表中的旧版本号是否刷新？"
+    status: resolved
+    resolution:
+      summary: "保留 0.12.1-beta.0（历史事实），仅刷新示例版本"
+      decision_ref: "2026-09-07T14:14:01.717Z"
+  - id: OQ-03
+    question: "packaging-deployment 的发布通道示例版本如何避免再次漂移？"
+    status: resolved
+    resolution:
+      summary: "改用通用占位 0.x.y-{alpha,beta,rc}.N"
+      decision_ref: "2026-09-07T14:14:01.717Z"

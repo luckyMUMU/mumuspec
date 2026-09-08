@@ -1,8 +1,8 @@
 # MumuSpec 设计文档索引
 
-> **版本**: 0.20.0-draft | **日期**: 2026-08-29 | **状态**: 设计草案
+> **版本**: 0.20.0-draft | **日期**: 2026-09-06 | **状态**: 设计草案
 >
-> **定位**: Spec 即 DSL — 人工编写规范，AI 生成代码。详见 [KP-0059](../.mumuspec/knowledge/decisions/global/KP-0059-spec-as-dsl-not-bytecode.md)。
+> **定位**: Spec 即 DSL — 大模型起草 Spec、人做设计决策与审批签收，AI 生成代码（人机合著，设计决策权始终在人）。详见 [KP-0059](../.mumuspec/knowledge/decisions/global/KP-0059-spec-as-dsl-not-bytecode.md)。
 >
 > 详细进度见 [STATUS.md](STATUS.md)。
 
@@ -105,7 +105,7 @@ MumuSpec 的持久化 Spec 不是文档，而是一门**领域特定语言（DSL
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**核心信息流**：人工编写 Spec → Spec 经 Guard 校验 → AI 按 Spec 生成代码 → 代码经 Guard 校验一致性 → 归档提取知识。
+**核心信息流**：大模型起草 Spec ⇄ 追问补全 → 人签收 → Spec 经 Guard 校验 → AI 按 Spec 生成代码 → 代码经 Guard 校验一致性 → 归档提取知识。
 
 ---
 

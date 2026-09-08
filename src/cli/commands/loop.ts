@@ -34,7 +34,7 @@ import {
   getLoopRecommendation,
   detectStagnation,
   cleanupWorktrees,
-} from '../../core/loop-engine.js';
+} from '../../change/loop-engine.js';
 import { runLoopGrill, formatGrillReport, type GrillContext } from '../../core/loop-grill.js';
 import type { LoopActionType } from '../../core/types-loop.js';
 import { success, fail, warn, tip } from '../ui-helpers.js';

@@ -71,30 +71,6 @@ export function getKnowledgePage(
   return pages.find((p) => p.frontmatter.id === id);
 }
 
-/** Search knowledge pages by keyword or tag */
-export function searchKnowledge(
-  projectRoot: string,
-  config: MumuSpecConfig,
-  options: { keyword?: string; tag?: string; type?: string },
-): KnowledgePage[] {
-  let pages = listKnowledgePages(projectRoot, config, { type: options.type });
-
-  if (options.tag) {
-    pages = pages.filter((p) => p.frontmatter.tags?.includes(options.tag!));
-  }
-
-  if (options.keyword) {
-    const keyword = options.keyword.toLowerCase();
-    pages = pages.filter(
-      (p) =>
-        p.frontmatter.title.toLowerCase().includes(keyword) ||
-        p.content.toLowerCase().includes(keyword),
-    );
-  }
-
-  return pages;
-}
-
 /** Get knowledge context for a path (progressive loading) */
 export function getKnowledgeContext(
   projectRoot: string,

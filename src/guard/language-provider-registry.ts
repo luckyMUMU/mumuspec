@@ -5,7 +5,7 @@
  * Third-party code or MumuSpec itself can register new language support
  * via registerLanguageProvider().
  */
-import type { ILanguageProvider, ProviderInfo } from '../core/types-constraint-ast.js';
+import type { ILanguageProvider, ProviderInfo } from '../guard/types-constraint-ast.js';
 import { typescriptProvider } from './providers/typescript-provider.js';
 import { javascriptProvider } from './providers/javascript-provider.js';
 

@@ -215,6 +215,37 @@ export interface AgentRuleTarget {
 
 export const AGENTS_RULES_FILE = 'AGENTS.md';
 
+/**
+ * Declarative install policy per agent — the single source of truth for
+ * installPackage dispatch. Adding an agent = adding an entry here (plus its
+ * package manifest); the switch in installer-ops is data-driven off this.
+ */
+export type InstallerKind = 'catpaw' | 'generic' | 'rules-only';
+
+export interface AgentInstallPolicy {
+  /** Which installer implementation runs */
+  kind: InstallerKind;
+  /** generic: rule files also generated on workspace-scope installs (C2 gate) */
+  rulesRideAlong: boolean;
+  /** rules-only agents (copilot): installs restricted to workspace target */
+  workspaceOnly?: boolean;
+  /** Installed skill file layout: flat command file vs subdirectory + SKILL.md */
+  layout: 'flat-command' | 'skill-dir';
+}
+
+export const AGENT_INSTALL_POLICIES: Record<AgentType, AgentInstallPolicy> = {
+  catpaw: { kind: 'catpaw', rulesRideAlong: false, layout: 'skill-dir' },
+  claude: { kind: 'generic', rulesRideAlong: false, layout: 'flat-command' },
+  cursor: { kind: 'generic', rulesRideAlong: false, layout: 'flat-command' },
+  trae: { kind: 'generic', rulesRideAlong: false, layout: 'skill-dir' },
+  workbuddy: { kind: 'generic', rulesRideAlong: false, layout: 'skill-dir' },
+  opencode: { kind: 'generic', rulesRideAlong: false, layout: 'skill-dir' },
+  codex: { kind: 'generic', rulesRideAlong: true, layout: 'skill-dir' },
+  windsurf: { kind: 'generic', rulesRideAlong: true, layout: 'skill-dir' },
+  gemini: { kind: 'generic', rulesRideAlong: true, layout: 'skill-dir' },
+  copilot: { kind: 'rules-only', rulesRideAlong: false, layout: 'skill-dir', workspaceOnly: true },
+};
+
 export const AGENT_RULE_TARGETS: Partial<Record<AgentType, AgentRuleTarget>> = {
   codex: { rulesFile: AGENTS_RULES_FILE, bridges: {}, skillsDir: '.codex/skills', marksManaged: true },
   windsurf: { rulesFile: AGENTS_RULES_FILE, bridges: {}, skillsDir: '.windsurf/skills', marksManaged: true },

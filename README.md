@@ -7,12 +7,12 @@
 **MumuSpec 是一门面向 Vibe Coding 的领域特定语言（DSL）。** 你用自然语言编写 Spec（规范），MumuSpec 把它校验为可执行的约束网络，AI 编程工具根据约束自动生成代码。
 
 ```
-随意的自然语言  →  精准的 Spec（人工编写）  →  代码（AI 生成）
+随意的自然语言  →  大模型起草精准 Spec  ⇄  设计缺陷时向人追问补全  →  大模型判定设计完备性（人签收）  →  代码（AI 生成）
 ```
 
-**核心理念：人工编写 spec 而不编写代码。** Spec 是一等源文件，代码是衍生品。
+**核心理念：设计决策权始终在人。** 人不再逐字编写 Spec 全文，只做设计决策与审批签收；Spec 由大模型起草、追问补全、判定完备性后交由 AI 生成代码。Spec 仍是一等源文件（人机合著），代码是衍生品。
 
-当前版本：**0.19.1**（0.20 预发布中：Verifier 语义收紧、CLI-first 流程载体）。详细状态见 [STATUS.md](docs/STATUS.md)。
+当前版本：**0.19.2-alpha.11**（0.20 预发布中：Verifier 语义收紧、CLI-first 流程载体、规则-实现分离）。详细状态见 [STATUS.md](docs/STATUS.md)。
 
 ---
 
@@ -67,6 +67,10 @@ Spec 存储在 `.mumuspec/` 下，版本化管理，不随代码删除而消失�
 ### 6. 为目标增加限制，但不限制过程（CHG-5）
 
 > Spec 只约束 WHAT（验收标准、红线），不约束 HOW（执行路径）。AI 的执行自由度不被限制，但产出必须通过 Spec 校验。
+
+### 7. 规则-实现分离（KP-0060）
+
+引擎归代码（固定部分由代码实现）、规则归 LLM（仅创建声明式规则）、校验归代码（非法规则拒绝执行）。CLI-first 是其在流程层的特例。
 
 ---
 
@@ -131,6 +135,10 @@ Open → Design → Build → Verify → Archive
 | **tweak** | 小变更（配置微调），≤ 5 文件 | `mumuspec new <name> --workflow tweak` |
 
 预设路径自动检测升级条件——一旦影响范围超出阈值，自动切换到完整工作流。
+
+### 项目级工作流 override（CHG-7）
+
+在 `.mumuspec/workflow.yaml` 中可对内置工作流做项目级覆盖（约束强度、工作流规则、TDD 模式等），未声明字段回落到内置默认。这是"规则归 LLM、校验归代码"在配置层的落地：项目只写声明式差异，引擎不改动。
 
 ---
 
@@ -198,7 +206,7 @@ mumuspec validate
 
 # 5. 让 AI 编程工具加载 Spec（二选一）
 #    5a. MCP Server（推荐，渐进式披露 + 实时校验）
-#    5b. Rules 文件（CLAUDE.md / .cursorrules / AGENTS.md，自动生成）
+#    5b. Rules 文件（canonical AGENTS.md + CLAUDE.md 薄壳桥接，自动生成）
 
 # 6. 创建变更
 mumuspec new my-first-change --workflow hotfix
@@ -241,7 +249,7 @@ mumuspec archive my-first-change --confirm
   "mcpServers": {
     "mumuspec": {
       "command": "npx",
-      "args": ["-y", "mumuspec@0.19.1"],
+      "args": ["-y", "mumuspec"],
       "env": { "MUMUSPEC_ROOT": "${workspaceRoot}" }
     }
   }
@@ -294,24 +302,26 @@ mumuspec archive my-first-change --confirm
 
 ### 方式二：Rules 文件（无 MCP 时的兼容方案）
 
-MumuSpec 自动生成 AI Rules 文件到项目根目录：
+MumuSpec 自动生成 AI Rules 文件到项目根目录。**AGENTS.md 是唯一 canonical 规则文件**（AAIF 托管事实标准），其余文件为薄壳桥接：
 
-| 文件 | IDE |
-|------|-----|
-| `CLAUDE.md` | Claude Code |
-| `.cursorrules` | Cursor |
-| `AGENTS.md` | OpenCode / 通用 Agent |
+| 文件 | 角色 | IDE |
+|------|------|-----|
+| `AGENTS.md` | **canonical**（规范链摘要 + Ponytail + CLI + MCP 四节） | OpenCode / Codex / 通用 Agent |
+| `CLAUDE.md` | 薄壳桥接（首行 `@AGENTS.md`） | Claude Code |
+| `GEMINI.md` | 薄壳桥接（首行 `@AGENTS.md`） | Gemini CLI |
 
-Rules 文件包含项目规范、Ponytail 约束、工作流规则、优先级体系和 CLI 命令速查。
+> 遗留格式 `.cursorrules` / `.windsurfrules` 已停止生成（C3 遗留格式禁令）。Cursor / Windsurf 用户请迁移到 AGENTS.md 读取。
+
+Rules 文件包含项目规范、Ponytail 约束、工作流规则、优先级体系和 CLI 命令速查。通过 `mumuspec init` 或 `mumuspec install <agent>` 生成/更新。
 
 ### IDE 集成详细配置
 
-- **Claude Code**：MCP JSON 写进 `~/.claude/settings.json` 或项目根 `.mcp.json`
-- **Cursor**：工程根放 `.cursorrules`，Cursor 全自动加载
-- **OpenCode**：工程根放 `AGENTS.md`
-- **Codex**：工程根放 `AGENTS.md`，配合环境变量传入 MCP
+- **Claude Code**：MCP JSON 写进 `~/.claude/settings.json` 或项目根 `.mcp.json`；规则读取 CLAUDE.md 薄壳
+- **Cursor**：通过 AGENTS.md 或 MCP 加载规则
+- **OpenCode / Codex / Gemini / Windsurf / GitHub Copilot**：工程根 `AGENTS.md`（canonical）
+- **WorkBuddy / Trae / CatPaw**：`mumuspec install <agent>` 安装工作流 Skill 到对应技能目录
 
-各 IDE 具体配置见 [docs/getting-started-agent.md](docs/getting-started-agent.md)。
+各 Agent 具体配置见 [docs/reference/agent-install-guide.md](docs/reference/agent-install-guide.md)。
 
 ---
 
@@ -324,7 +334,7 @@ mumuspec init [path]                                       # 初始化（项目�
 mumuspec context <path>                                    # 查看目录规范上下文（渐进式披露）
 mumuspec validate                                          # 校验 Spec 格式 + 可验证性覆盖率
 mumuspec check                                             # 全量合规校验
-mumuspec drift                                             # 漂移检测
+mumuspec drift [--change <name>]                              # 漂移检测（可限定变更范围）
 mumuspec search <pattern>                                  # 搜索代码与规范节点
 ```
 
@@ -351,7 +361,7 @@ mumuspec chat [query]                                      # 知识库问答
 ```bash
 mumuspec constraints                                       # 动态约束强度
 mumuspec feedback                                          # 用户反馈管理
-mumuspec install                                           # AI 工具技能安装
+mumuspec install                                           # AI 工具技能与规则安装（10 agent：catpaw/claude/cursor/trae/workbuddy/opencode/codex/windsurf/gemini/copilot）
 mumuspec hooks                                             # Git hooks 管理
 mumuspec dashboard                                         # 实时状态仪表盘
 mumuspec eval                                              # 评估场景运行
@@ -359,7 +369,8 @@ mumuspec i18n                                              # 国际化设置
 mumuspec skill                                             # Skill 创作与管理
 mumuspec bundle                                            # Skill 打包与发布
 mumuspec env                                               # 环境检测
-mumuspec finalize-archive <change>                         # 归档后清理
+mumuspec finalize-archive <change>                         # 归档后清理（幂等，.finalized 防重跑）
+mumuspec capability [command] [--json]                     # 命令能力元数据查询
 mumuspec doctor                                            # 环境诊断
 ```
 
@@ -375,6 +386,7 @@ mumuspec doctor                                            # 环境诊断
 my-project/
 ├── .mumuspec/
 │   ├── config.yaml              # 项目配置
+│   ├── workflow.yaml            # 项目级工作流 override（可选，CHG-7）
 │   ├── spec.md                  # 根层 Spec（Level 0，全局规则）
 │   ├── goal.md                  # 产品目标（北极星指标）
 │   ├── prd.md                   # 根层产品需求
@@ -399,9 +411,8 @@ my-project/
 │       └── .mumuspec/
 │           ├── prd.md           # 子层产品需求
 │           └── tech.md          # 子层技术设计
-├── CLAUDE.md                    # Claude Code 规则（自动生成）
-├── .cursorrules                 # Cursor 规则（自动生成）
-└── AGENTS.md                    # 通用 Agent 规则（自动生成）
+├── CLAUDE.md                    # Claude Code 规则（@AGENTS.md 薄壳，自动生成）
+└── AGENTS.md                    # canonical Agent 规则（自动生成）
 ```
 
 ---
@@ -411,7 +422,7 @@ my-project/
 | 通道 | dist-tag | 当前版本 | 安装命令 |
 |------|---------|---------|---------|
 | 稳定版 | `latest` | 0.19.1 | `npm install -g mumuspec` |
-| 预发布版 | `next` | 0.20.0-dev | `npm install -g mumuspec@next` |
+| 预发布版 | `next` | 0.19.2-alpha.11 | `npm install -g mumuspec@next` |
 
 灰度策略见 [docs/reference/release-strategy.md](docs/reference/release-strategy.md)。
 
@@ -434,6 +445,15 @@ my-project/
 | [CHANGELOG.md](CHANGELOG.md) | 版本变更日志 |
 | [LICENSE](LICENSE) | MIT 许可证全文 |
 | [demo/](demo/) | 示例项目 |
+
+**更多参考**：
+
+| 分组 | 文档 |
+|------|------|
+| 设计层（docs/design/） | [spec-layer](docs/design/spec-layer.md) · [change-layer](docs/design/change-layer.md) · [guard-layer](docs/design/guard-layer.md) · [knowledge-layer](docs/design/knowledge-layer.md) · [contract-layer](docs/design/contract-layer.md) · [constraint-strength](docs/design/constraint-strength.md) · [ai-integration](docs/design/ai-integration.md) · [设计总览](docs/design.md) |
+| 参考层（docs/reference/ 其余） | [phase-guards](docs/reference/phase-guards.md) · [drift-detection](docs/reference/drift-detection.md) · [cognitive-framework](docs/reference/cognitive-framework.md) · [glossary](docs/reference/glossary.md) · [faq](docs/reference/faq.md) · [skill-ecosystem](docs/reference/skill-ecosystem.md) · [feedback-process](docs/reference/feedback-process.md) · [agent-install-guide](docs/reference/agent-install-guide.md) · [ai-tools-setup](docs/reference/ai-tools-setup.md) |
+| 标准提案（docs/standards/） | [mcp-guard-drift-proposal](docs/standards/mcp-guard-drift-proposal.md) — MCP/Guard/Drift 标准化提案 |
+| 附录（docs/appendix/） | [directory-structure](docs/appendix/directory-structure.md) · [comparison](docs/appendix/comparison.md) · [competitive-analysis-chapter](docs/appendix/competitive-analysis-chapter.md) · [mumuspec-meta-research-report](docs/appendix/mumuspec-meta-research-report.md) · [swot-strategic-analysis-report](docs/appendix/swot-strategic-analysis-report.md) · [ai-agent-ecosystem-research](docs/appendix/ai-agent-ecosystem-research.md) · [meta-evolution-analysis](docs/appendix/meta-evolution-analysis.md) · [mumuspec-ecosystem-comparison](docs/appendix/mumuspec-ecosystem-comparison.md) · [open-questions](docs/appendix/open-questions.md) |
 
 ---
 

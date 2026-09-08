@@ -996,6 +996,7 @@ describe('validateAllSpecs — inheritance conflicts', () => {
     ].join('\n');
 
     mockExists.mockImplementation((p: string) => {
+      if (p === root) return true; // findSpecDirs 存在性守卫需要根可访问
       if (p === parentMuDir) return true;
       if (p === childMuDir) return true;
       if (p === parentSpec) return true;
@@ -1062,6 +1063,7 @@ describe('validateAllSpecs — inheritance conflicts', () => {
     ].join('\n');
 
     mockExists.mockImplementation((p: string) => {
+      if (p === root) return true; // findSpecDirs 存在性守卫需要根可访问
       if (p === parentMuDir) return true;
       if (p === childMuDir) return true;
       if (p === parentSpec) return true;

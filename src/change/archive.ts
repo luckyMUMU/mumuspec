@@ -1,24 +1,27 @@
 /**
  * Change archive sub-processes — version bump, delta-merge, knowledge extraction.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ChangeState } from '../core/types.js';
 import { loadConfig } from '../core/config.js';
-import { readYaml, readText, now, appendAuditLog, getMumuSpecDir, computeHash } from '../core/utils.js';
+import { readYaml, readText, writeText, now, appendAuditLog, getMumuSpecDir, computeHash } from '../core/utils.js';
 import { MumuSpecError } from '../core/errors.js';
 import { createKnowledgePage, getKnowledgeDir } from '../knowledge/manager.js';
-import { getChangeDir, getArchiveDir } from './paths.js';
+import { getChangeDir, getArchiveDir, scopeToPath } from './paths.js';
 import { loadChangeState, saveChangeState } from './state.js';
 import { hasWorktree, removeWorktree } from '../core/git.js';
 
 /**
  * Auto-bump project version during archive.
  * Increments the prerelease counter (alpha.N -> alpha.N+1) and syncs src/cli.ts.
+ * When changeName is provided, also records the bump as a CHANGELOG.md entry
+ * (idempotent; failures are non-fatal).
  */
 export function bumpVersionForArchive(
   projectRoot: string,
   workflow: string,
+  changeName?: string,
 ): string | null {
   const pkgPath = join(projectRoot, 'package.json');
   const cliPath = join(projectRoot, 'src', 'cli.ts');
@@ -51,7 +54,7 @@ export function bumpVersionForArchive(
     }
 
     pkg.version = nextVersion;
-    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+    writeText(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
     const cliRaw = readFileSync(cliPath, 'utf8');
     const updatedCli = cliRaw.replace(
@@ -59,12 +62,55 @@ export function bumpVersionForArchive(
       `.version('${nextVersion}')`,
     );
     if (updatedCli !== cliRaw) {
-      writeFileSync(cliPath, updatedCli, 'utf8');
+      writeText(cliPath, updatedCli);
+    }
+
+    if (changeName) {
+      recordChangelogEntry(projectRoot, nextVersion, changeName, workflow);
     }
 
     return nextVersion;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Insert an auto-bump entry into CHANGELOG.md (Keep a Changelog style).
+ * The entry is placed before the first existing `## [` heading so the newest
+ * version stays on top. Idempotent: skipped when the version heading already
+ * exists. Missing CHANGELOG.md or write failures are non-fatal.
+ */
+function recordChangelogEntry(
+  projectRoot: string,
+  version: string,
+  changeName: string,
+  workflow: string,
+): void {
+  try {
+    const changelogPath = join(projectRoot, 'CHANGELOG.md');
+    if (!existsSync(changelogPath)) return;
+
+    const existing = readFileSync(changelogPath, 'utf8');
+    if (existing.includes(`## [${version}]`)) return; // Idempotency
+
+    const date = new Date().toISOString().split('T')[0];
+    const entry = [
+      `## [${version}] — archive auto-bump (${date})`,
+      '',
+      '### Changed',
+      `- 归档自动升版：变更 ${changeName}（${workflow} workflow）归档触发`,
+    ].join('\n') + '\n';
+
+    const firstHeading = existing.search(/^## \[/m);
+    const merged =
+      firstHeading === -1
+        ? `${existing.replace(/\s*$/, '\n')}\n${entry}`
+        : `${existing.slice(0, firstHeading)}${entry}\n${existing.slice(firstHeading)}`;
+
+    writeText(changelogPath, merged);
+  } catch {
+    // Non-fatal: version bump already succeeded.
   }
 }
 
@@ -89,7 +135,7 @@ export function archiveChange(
   const isTweak = state.workflow === 'tweak';
   const changeDir = getChangeDir(projectRoot, changeName, scope);
 
-  const bumpedVersion = bumpVersionForArchive(projectRoot, state.workflow);
+  const bumpedVersion = bumpVersionForArchive(projectRoot, state.workflow, changeName);
   if (bumpedVersion) {
     appendAuditLog(getMumuSpecDir(projectRoot), {
       actor: 'system',
@@ -223,11 +269,9 @@ export function mergeDeltaSpecsToMain(
         continue;  // Already merged, skip to prevent duplication
       }
 
-      // P0-2 Fix: Atomic write (read → modify → write)
+      // Atomic write via writeText (tmp + rename)
       const merged = `${existing}\n\n${marker}\n${specContent}\n`;
-      const tmpPath = `${targetPath}.tmp.${process.pid}`;
-      writeFileSync(tmpPath, merged, 'utf8');
-      renameSync(tmpPath, targetPath);
+      writeText(targetPath, merged);
     }
   } catch {
     // Non-fatal
@@ -286,7 +330,7 @@ function mergeConstraintsToScope(
 
     // Determine target scope — use state.scope or default to root
     const scope = state.scope || '.';
-    const targetDir = scope === '.' ? projectRoot : join(projectRoot, scope);
+    const targetDir = scopeToPath(projectRoot, scope);
     const targetMumuDir = join(targetDir, '.mumuspec');
 
     // Try to merge into constraints.yaml first, then spec.md/tech.md
@@ -307,14 +351,36 @@ function mergeConstraintsToScope(
       if (existing.includes(marker)) continue; // Idempotency
 
       const merged = `${existing}\n\n${marker}\n${content}\n`;
-      const tmpPath = `${targetPath}.tmp.${process.pid}`;
-      writeFileSync(tmpPath, merged, 'utf8');
-      renameSync(tmpPath, targetPath);
+      writeText(targetPath, merged);
       mergeLog.push(`constraints/${constraintFile} → ${targetPath.replace(projectRoot, '')}`);
     }
   } catch {
     // Non-fatal
   }
+}
+
+/**
+ * `mumuspec init --distributed` 生成的模板占位符标记。
+ * spec「项目结构规范」SHALL NOT：禁止约束内容使用无具体含义的占位符文本 ——
+ * 未填写的模板不得合并进目标规范。
+ */
+const TEMPLATE_PLACEHOLDER_PATTERNS = [/<Describe [^>]*>/, /is maintained at current level/];
+
+/** 剥离文档 frontmatter — 变更层的文档元数据（含相对 parent 路径）不随合并带入目标规范 */
+function stripFrontmatter(content: string): string {
+  const match = /^\s*---\r?\n[\s\S]*?\r?\n---\r?\n?/.exec(content);
+  return match ? content.slice(match[0].length) : content;
+}
+
+/**
+ * 准备待合并的变更层规范内容：剥离 frontmatter + 过滤未填写的模板。
+ * 返回 null 表示无合并价值（空内容或占位符模板），调用方跳过并记录诊断。
+ */
+export function prepareChangeSpecContent(content: string): string | null {
+  if (!content.trim()) return null;
+  if (TEMPLATE_PLACEHOLDER_PATTERNS.some((p) => p.test(content))) return null;
+  const body = stripFrontmatter(content).trim();
+  return body || null;
 }
 
 /**
@@ -340,7 +406,10 @@ function mergeChangeLevelSpecs(
   if (existsSync(changePrdPath)) {
     try {
       const content = readFileSync(changePrdPath, 'utf8');
-      if (content && content.trim()) {
+      const prepared = prepareChangeSpecContent(content);
+      if (!prepared) {
+        mergeLog.push('.mumuspec/prd.md → 跳过（空内容或未填写的模板占位符）');
+      } else {
         const targetPrdPath = join(targetMumuDir, 'prd.md');
         const targetDesignPath = join(targetMumuDir, 'design.md');
         const targetPath = existsSync(targetPrdPath) ? targetPrdPath : (existsSync(targetDesignPath) ? targetDesignPath : null);
@@ -348,10 +417,8 @@ function mergeChangeLevelSpecs(
           const marker = `<!-- change-spec-merged from ${changeName}/.mumuspec/prd.md -->`;
           const existing = readFileSync(targetPath, 'utf8');
           if (!existing.includes(marker)) {
-            const merged = `${existing}\n\n${marker}\n${content}\n`;
-            const tmpPath = `${targetPath}.tmp.${process.pid}`;
-            writeFileSync(tmpPath, merged, 'utf8');
-            renameSync(tmpPath, targetPath);
+            const merged = `${existing}\n\n${marker}\n${prepared}\n`;
+            writeText(targetPath, merged);
             mergeLog.push(`.mumuspec/prd.md → ${targetPath.replace(projectRoot, '')}`);
           }
         }
@@ -366,7 +433,10 @@ function mergeChangeLevelSpecs(
   if (existsSync(changeTechPath)) {
     try {
       const content = readFileSync(changeTechPath, 'utf8');
-      if (content && content.trim()) {
+      const prepared = prepareChangeSpecContent(content);
+      if (!prepared) {
+        mergeLog.push('.mumuspec/tech.md → 跳过（空内容或未填写的模板占位符）');
+      } else {
         const targetTechPath = join(targetMumuDir, 'tech.md');
         const targetSpecPath = join(targetMumuDir, 'spec.md');
         const targetPath = existsSync(targetTechPath) ? targetTechPath : (existsSync(targetSpecPath) ? targetSpecPath : null);
@@ -374,10 +444,8 @@ function mergeChangeLevelSpecs(
           const marker = `<!-- change-spec-merged from ${changeName}/.mumuspec/tech.md -->`;
           const existing = readFileSync(targetPath, 'utf8');
           if (!existing.includes(marker)) {
-            const merged = `${existing}\n\n${marker}\n${content}\n`;
-            const tmpPath = `${targetPath}.tmp.${process.pid}`;
-            writeFileSync(tmpPath, merged, 'utf8');
-            renameSync(tmpPath, targetPath);
+            const merged = `${existing}\n\n${marker}\n${prepared}\n`;
+            writeText(targetPath, merged);
             mergeLog.push(`.mumuspec/tech.md → ${targetPath.replace(projectRoot, '')}`);
           }
         }

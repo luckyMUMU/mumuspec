@@ -2,10 +2,10 @@
 
 > 本文件是 MumuSpec 项目进度的唯一权威来源。其他文档提及进度时 SHALL 引用本文件,不得自行描述进度数据。
 
-- **最后更新日期**: 2026-08-29
+- **最后更新日期**: 2026-09-06
 - **设计版本**: 0.20.0-draft
-- **当前包版本**: 0.19.1（0.20.0 开发中）
-- **定位**: Spec 即 DSL — 人工编写规范，AI 生成代码
+- **当前包版本**: 0.19.2-alpha.11（0.20.0 开发中）
+- **定位**: Spec 即 DSL — Spec 由大模型起草、人做设计决策与审批签收（人机合著），AI 生成代码
 
 ---
 
@@ -19,6 +19,21 @@
 | 0.20 进展 | Verifier P0 已实施 | 可验证性四分类、E-SPEC-015、enforcement coverage 已落地；M2 门控默认 ON |
 
 ---
+
+## 0.20 关键变更（2026-09-05 批次，全流程自洽性评审落地）
+
+依据：`review/full-flow-consistency-ecosystem-2026-09-05.md`。定位修正与规则-实现分离见决策页 KP-0059 / KP-0060。
+
+| 变更 | 状态 | 说明 |
+|------|------|------|
+| 核心目标修正（人机合著） | ✅ | "随意的自然语言 → 大模型起草 Spec ⇄ 追问补全 → 完备性判定（人签收）→ AI 生成代码"；设计决策权始终在人 |
+| 规则-实现分离（KP-0060） | ✅ | 引擎归代码、规则归 LLM（声明式）、校验归代码；CLI-first 为流程层特例 |
+| Dogfood 迁移（P0） | ✅ | 根部 AGENTS.md 为 canonical，CLAUDE.md 为 `@AGENTS.md` 薄壳；`buildRuleGenContext` 补齐新格式 tech.md 读取 |
+| CHG-7 dogfood | ✅ | `.mumuspec/workflow.yaml` 项目级 override 机制落地并在本仓库启用 |
+| CLI 去重（非破坏） | ✅ | `drift --change` 提升至主命令（`drift detect` 为隐藏弃用别名）；`knowledge search` 升级为相关性评分引擎（`search2` 为隐藏弃用别名） |
+| SKILL.md 开放标准对齐 | ✅ | `skills/mumuspec-workflow/SKILL.md` 按 agentskills.io 标准重写；旧无 frontmatter 版降级为资源文件 |
+| E-AGENTS-001 fixHint 更正 | ✅ | 指向 `mumuspec init`（`rules generate` 命令已不存在） |
+| DS-005 空壳移除 | ✅ | phase-guard 死代码按 YAGNI 移除 |
 
 ## 0.20 关键变更（2026-08-29）
 
@@ -88,7 +103,7 @@
 | Spec Layer | 100% | **95%** | Phase 1 (✅ 完成) | parser/loader/validator/inheritance/ponytail/可验证性四分类完整；缺多语言 AST |
 | Change Layer | 100% | **80%** | Phase 1 (✅ 基本完成) | CRUD/状态机/归档/CLI-first 三命令完整；缺 Worktree isolation |
 | Guard Layer | 100% | **93%** | Phase 1 (✅ 完成) | compliance/drift/phase-guard/enforcement coverage 完整；缺多语言 AST |
-| AI Integration | 100% | **90%** | Phase 1 (✅ 完成) | CLAUDE.md/.cursorrules/AGENTS.md 生成 + MCP Server 完整 |
+| AI Integration | 100% | **92%** | Phase 1 (✅ 完成) | canonical AGENTS.md + CLAUDE.md 薄壳桥接生成 + MCP Server 完整；10 agent Skill 分发完整 |
 | Knowledge Layer | 100% | **85%** | Phase 3 (推进中) | CRUD/PageIndex/UA 分析完整；缺 Code-graph 后端(SQLite) |
 | Contract Layer | 100% | 0% | Phase 3 | 配置已定义，实体未开始 |
 | 认知框架 Q1-Q4 | 100% | **80%** | Phase 2 | 配置完整，guard 集成已就位；默认关闭 |

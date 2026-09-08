@@ -24,7 +24,7 @@ import {
 } from '../../src/guard/language-provider-registry.js';
 import { typescriptProvider } from '../../src/guard/providers/typescript-provider.js';
 import { javascriptProvider } from '../../src/guard/providers/javascript-provider.js';
-import type { ILanguageProvider, ASTResult } from '../../src/core/types-constraint-ast.js';
+import type { ILanguageProvider, ASTResult } from '../../../src/guard/types-constraint-ast.js';
 
 /** Minimal mock provider for testing registry behavior */
 function createMockProvider(language: string, extensions: string[]): ILanguageProvider {

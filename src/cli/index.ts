@@ -4,7 +4,7 @@
  * Command modules are split across src/cli/commands/ for maintainability.
  */
 import { Command } from 'commander';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve, join, basename } from 'node:path';
 import { saveConfig, getDefaultConfig, isInitialized } from '../core/config.js';
 import { getMumuSpecDir, ensureDir, writeText, writeYaml, now, appendAuditLog } from '../core/utils.js';
@@ -12,6 +12,8 @@ import { getMumuSpecDir, ensureDir, writeText, writeYaml, now, appendAuditLog } 
 // Spec
 import { createDefaultSpecContent, parseSpecFile, serializeSpecFile } from '../spec/parser.js';
 import { injectPonytail } from '../spec/ponytail.js';
+import { loadSpecContext } from '../spec/loader.js';
+import type { SpecContext } from '../core/types-spec.js';
 
 // Project Analysis & Init Generation (0.13.0+)
 import { analyzeProject, type ProjectAnalysis } from '../core/project-analyzer.js';
@@ -22,6 +24,8 @@ import { detectExistingDocuments, detectThirdPartySpecs, importExistingDocuments
 
 // Rules
 import { generateRulesFiles } from '../rules/generator.js';
+import { renderCliCheatSheet } from './capability.js';
+import { setCliCheatSheet } from '../install/rules-generator.js';
 
 // i18n
 import { initLocale } from '../i18n/locales.js';
@@ -53,6 +57,7 @@ import { registerDecisionsCommand } from './commands/decisions.js';
 import { registerAdviseCommand } from './commands/advise.js';
 import { registerContractCommands } from './commands/contract.js';
 import { registerLoopCommands } from './commands/loop.js';
+import { registerCodeGraphCommand } from './commands/code-graph.js';
 import { registerGrillMeCommand } from './commands/grill-me.js';
 import { registerSyncCommand } from './commands/sync.js';
 import { registerReviewCommand } from './commands/review.js';
@@ -62,6 +67,7 @@ import { registerTraceCommand } from './commands/trace.js';
 import { registerGraphCommand } from './commands/graph.js';
 import { registerMetaEvolveCommand } from './commands/meta-evolve.js';
 import { registerTeamCommands } from './commands/team.js';
+import { registerCapabilityCommand } from './commands/capability.js';
 
 // Builds the full command tree without parsing args, so tests can import it
 // and assert command-tree invariants (e.g. no duplicate registrations)
@@ -72,10 +78,21 @@ const program = new Command();
 // Initialize locale before any command runs
 initLocale();
 
+// CLI version reads package.json at runtime — CHANGE-3 不变式（package.json ↔ CLI
+// 版本一致）由构造保证，不再依赖发布流程人工同步（2026-09-05 自洽性修复）。
+const CLI_VERSION = (() => {
+  try {
+    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { version?: string };
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+})();
+
 program
   .name('mumuspec')
   .description('MumuSpec — Tree-distributed dual-constraint specification system')
-  .version('0.19.1');
+  .version(CLI_VERSION);
 
 // === init ===
 program
@@ -284,8 +301,21 @@ program
 
     // ── Step 10: Generate Rules files ──
     if (config.ai.generate_rules) {
+      // 规范链摘要取自 loader、CLI 速查取自命令注册表 — 均为运行时单一事实源，
+      // 避免 Rules 文件与项目实际状态 / 命令集漂移。
+      let ruleSpecContext: SpecContext | undefined;
+      try {
+        ruleSpecContext = loadSpecContext(projectRoot, projectRoot, config);
+      } catch {
+        // Best-effort: 规范链不可用时 Rules 仍须生成（摘要回落为"尚未生成"提示）
+      }
       // goal-p0-dispatch-gate (C2/D1): consume { written, skipped } — skip 仅诊断，不写盘
-      const rulesResult = generateRulesFiles(projectRoot, config);
+      const rulesResult = generateRulesFiles(
+        projectRoot,
+        config,
+        ruleSpecContext,
+        renderCliCheatSheet(program),
+      );
       if (rulesResult.written.length === 0 && rulesResult.skipped.length === 0) {
         console.log('  ⚠ No rule files generated (none configured).');
       }
@@ -424,6 +454,7 @@ registerDecisionsCommand(program);
 registerAdviseCommand(program);
 registerContractCommands(program);
 registerLoopCommands(program);
+registerCodeGraphCommand(program);
 registerGrillMeCommand(program);
 registerSyncCommand(program);
 registerReviewCommand(program);
@@ -434,6 +465,10 @@ registerGraphCommand(program);
 registerTutorialCommand(program);
 registerMetaEvolveCommand(program);
 registerTeamCommands(program);
+registerCapabilityCommand(program);
+
+// 命令注册表至此完备 — 注入 CLI 速查，使 install 路径生成的 AGENTS.md 与 init 路径同源
+setCliCheatSheet(renderCliCheatSheet(program));
 
 // Handle unknown commands gracefully
 program.on('command:*', () => {

@@ -17,6 +17,7 @@ const mockExistsSync = vi.fn();
 const mockReadFileSync = vi.fn();
 const mockAppendFileSync = vi.fn();
 const mockWriteFileSync = vi.fn();
+const mockWriteText = vi.fn();
 const mockReaddirSync = vi.fn();
 const mockRenameSync = vi.fn();
 const mockReadText = vi.fn();
@@ -56,6 +57,7 @@ vi.mock('node:path', () => ({
 vi.mock('../../src/core/utils.js', () => ({
   readYaml: (...args: unknown[]) => mockReadYaml(...args),
   readText: (...args: unknown[]) => mockReadText(...args),
+  writeText: (...args: unknown[]) => mockWriteText(...args),
   now: () => mockNow(),
   appendAuditLog: (...args: unknown[]) => mockAppendAuditLog(...args),
   getMumuSpecDir: (...args: unknown[]) => mockGetMumuSpecDir(...args),
@@ -232,7 +234,86 @@ describe('bumpVersionForArchive', () => {
     bumpVersionForArchive(PROJECT_ROOT, 'tweak');
 
     // writeFileSync gets called for both package.json and cli.ts
-    expect(mockWriteFileSync).toHaveBeenCalledTimes(2);
+    expect(mockWriteText).toHaveBeenCalledTimes(2);
+  });
+
+  it('appends a CHANGELOG entry when changeName is provided', () => {
+    const changelog = '# Changelog\n\n## [Unreleased]\n\n- old entry\n';
+    mockReadFileSync.mockImplementation((p: string) => {
+      if (p.includes('package.json')) return JSON.stringify({ version: '1.2.3-alpha.5' });
+      if (p.includes('CHANGELOG.md')) return changelog;
+      if (p.includes('cli.ts')) return `.version('1.2.3-alpha.5')`;
+      return '';
+    });
+    mockExistsSync.mockReturnValue(true);
+
+    const result = bumpVersionForArchive(PROJECT_ROOT, 'full', 'my-change');
+
+    expect(result).toBe('1.3.0-alpha.0');
+    const changelogCall = mockWriteText.mock.calls.find((c) =>
+      String(c[0]).includes('CHANGELOG.md'),
+    );
+    expect(changelogCall).toBeDefined();
+    const newContent = String(changelogCall![1]);
+    expect(newContent).toContain('## [1.3.0-alpha.0]');
+    expect(newContent).toContain('my-change');
+    // New entry inserted before the existing first version heading
+    expect(newContent.indexOf('## [1.3.0-alpha.0]')).toBeLessThan(
+      newContent.indexOf('## [Unreleased]'),
+    );
+    expect(newContent).toContain('- old entry');
+  });
+
+  it('skips CHANGELOG entry when the version heading already exists (idempotent)', () => {
+    const changelog = '# Changelog\n\n## [1.3.0-alpha.0] — existing\n\n- x\n';
+    mockReadFileSync.mockImplementation((p: string) => {
+      if (p.includes('package.json')) return JSON.stringify({ version: '1.2.3-alpha.5' });
+      if (p.includes('CHANGELOG.md')) return changelog;
+      if (p.includes('cli.ts')) return `.version('1.2.3-alpha.5')`;
+      return '';
+    });
+    mockExistsSync.mockReturnValue(true);
+
+    bumpVersionForArchive(PROJECT_ROOT, 'full', 'my-change');
+
+    // package.json + cli.ts only — no CHANGELOG rewrite
+    expect(mockWriteText).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips CHANGELOG silently when CHANGELOG.md does not exist', () => {
+    mockReadFileSync.mockImplementation((p: string) => {
+      if (p.includes('package.json')) return JSON.stringify({ version: '1.2.3-alpha.5' });
+      if (p.includes('cli.ts')) return `.version('1.2.3-alpha.5')`;
+      return '';
+    });
+    mockExistsSync.mockImplementation(
+      (p: string) => !p.includes('CHANGELOG.md'),
+    );
+
+    const result = bumpVersionForArchive(PROJECT_ROOT, 'full', 'my-change');
+
+    expect(result).toBe('1.3.0-alpha.0');
+    const changelogCall = mockWriteText.mock.calls.find((c) =>
+      String(c[0]).includes('CHANGELOG.md'),
+    );
+    expect(changelogCall).toBeUndefined();
+  });
+
+  it('does not write CHANGELOG when changeName omitted (backward compat)', () => {
+    mockReadFileSync.mockImplementation((p: string) => {
+      if (p.includes('package.json')) return JSON.stringify({ version: '1.2.3' });
+      if (p.includes('CHANGELOG.md')) return '# Changelog\n';
+      if (p.includes('cli.ts')) return `.version('1.2.3')`;
+      return '';
+    });
+    mockExistsSync.mockReturnValue(true);
+
+    bumpVersionForArchive(PROJECT_ROOT, 'full');
+
+    const changelogCall = mockWriteText.mock.calls.find((c) =>
+      String(c[0]).includes('CHANGELOG.md'),
+    );
+    expect(changelogCall).toBeUndefined();
   });
 });
 
@@ -459,8 +540,8 @@ describe('mergeDeltaSpecsToMain', () => {
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
     // P0-2 Fix: Now uses writeFileSync + renameSync instead of appendFileSync
-    expect(mockWriteFileSync).toHaveBeenCalled();
-    expect(mockWriteFileSync.mock.calls[0][1]).toContain('delta-merged from');
+    expect(mockWriteText).toHaveBeenCalled();
+    expect(mockWriteText.mock.calls[0][1]).toContain('delta-merged from');
   });
 
   it('falls back to spec.md when tech.md does not exist in scope', () => {
@@ -477,7 +558,7 @@ describe('mergeDeltaSpecsToMain', () => {
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
     // P0-2 Fix: Now uses writeFileSync + renameSync instead of appendFileSync
-    expect(mockWriteFileSync).toHaveBeenCalled();
+    expect(mockWriteText).toHaveBeenCalled();
   });
 
   it('merges root -prd.md into root prd.md', () => {
@@ -493,7 +574,7 @@ describe('mergeDeltaSpecsToMain', () => {
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
     // P0-2 Fix: Now uses writeFileSync + renameSync instead of appendFileSync
-    expect(mockWriteFileSync).toHaveBeenCalled();
+    expect(mockWriteText).toHaveBeenCalled();
   });
 
   it('falls back to design.md when prd.md not found', () => {
@@ -510,7 +591,7 @@ describe('mergeDeltaSpecsToMain', () => {
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
     // P0-2 Fix: Now uses writeFileSync + renameSync instead of appendFileSync
-    expect(mockWriteFileSync).toHaveBeenCalled();
+    expect(mockWriteText).toHaveBeenCalled();
   });
 
   it('falls back to main spec.md when no scope match', () => {
@@ -536,7 +617,7 @@ describe('mergeDeltaSpecsToMain', () => {
     mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
 
     // P0-2 Fix: Now uses writeFileSync + renameSync instead of appendFileSync
-    expect(mockWriteFileSync).toHaveBeenCalled();
+    expect(mockWriteText).toHaveBeenCalled();
   });
 });
 

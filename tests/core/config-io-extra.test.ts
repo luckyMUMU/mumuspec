@@ -105,7 +105,8 @@ describe('saveConfig', () => {
     saveConfig('/root', config);
     expect(mockWriteYaml).toHaveBeenCalledWith(
       expect.stringContaining('config.yaml'),
-      config
+      // saveConfig stamps the current config schema version on write
+      { ...config, schema_version: '1.0.0' }
     );
   });
 

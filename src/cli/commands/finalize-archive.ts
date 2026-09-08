@@ -12,7 +12,7 @@
  * - Ask user about old spec.md/design.md files
  */
 import type { Command } from 'commander';
-import { existsSync, readdirSync, unlinkSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, unlinkSync, statSync, mkdirSync, rmSync } from 'node:fs';
 import { join, dirname, relative, sep } from 'node:path';
 import {
   findProjectRoot,
@@ -33,6 +33,7 @@ import {
   mergeDeltaSpecsToMain,
   extractKnowledgeToGlobal,
 } from '../../change/manager.js';
+import { getCachedCodeGraph } from '../../knowledge/graph-builder.js';
 import type { ChangeState } from '../../core/types.js';
 
 export function registerFinalizeArchiveCommand(program: Command): void {
@@ -42,8 +43,9 @@ export function registerFinalizeArchiveCommand(program: Command): void {
     .argument('<change-name>', 'archived change name')
     .option('--delete-old', 'auto-delete old spec.md/design.md without prompt')
     .option('--keep-old', 'auto-keep old spec.md/design.md without prompt')
+    .option('--force', 're-run even if already finalized (overrides .finalized marker)')
     .option('--json', 'output as JSON')
-    .action((changeName: string, options: { deleteOld?: boolean; keepOld?: boolean; json?: boolean }) => {
+    .action((changeName: string, options: { deleteOld?: boolean; keepOld?: boolean; json?: boolean; force?: boolean }) => {
       const root = findProjectRoot();
       if (!root) {
         console.error('Error: Not in a MumuSpec project.');
@@ -53,9 +55,35 @@ export function registerFinalizeArchiveCommand(program: Command): void {
       const config = loadConfig(root);
       const results: string[] = [];
       const warnings: string[] = [];
+      const archiveBaseDir = join(getMumuSpecDir(root), 'changes', 'archive');
+
+      // ── Step B-1: 防重跑（幂等）— P0-D ③ ──
+      // 归档后重复 finalize 会造成 delta 重复合并、状态与目录不一致（E-CHANGE-011 风险）。
+      // 以 .finalized 标记拦截；--force 显式覆盖。
+      let archivedDirEarly = getArchivedChangeDir(root, changeName);
+      if (!archivedDirEarly || !existsSync(archivedDirEarly)) {
+        if (existsSync(archiveBaseDir)) {
+          for (const entry of readdirSync(archiveBaseDir)) {
+            if (entry === changeName || entry.endsWith(`-${changeName}`)) {
+              archivedDirEarly = join(archiveBaseDir, entry);
+              break;
+            }
+          }
+        }
+      }
+      if (archivedDirEarly && !options.force && isFinalized(archivedDirEarly)) {
+        const msg = `已 finalize，跳过（标记存在：${
+          readText(finalizeMarkerPath(archivedDirEarly)) || '未知时间'
+        }）。需重跑请加 --force`;
+        if (options.json) {
+          console.log(JSON.stringify({ results: [msg], warnings: [] }, null, 2));
+          return;
+        }
+        console.log(msg);
+        return;
+      }
 
       // ── Step B0: Verify archived ──
-      const archiveBaseDir = join(getMumuSpecDir(root), 'changes', 'archive');
       let archivedDir = getArchivedChangeDir(root, changeName);
 
       if (!archivedDir || !existsSync(archivedDir)) {
@@ -160,6 +188,14 @@ export function registerFinalizeArchiveCommand(program: Command): void {
 
       // ── Step B8: Release active slot ──
       releaseActiveSlot(root, changeName);
+
+      // ── Step B8.5: 写防重跑标记（幂等保障，P0-D ③）──
+      try {
+        markFinalized(archivedDir);
+        results.push('✓ finalized marker written (.finalized)');
+      } catch {
+        warnings.push('⚠ finalized marker 写入失败（重跑保护未生效）');
+      }
 
       // ── Step B9: User decision about old files ──
       if (!options.deleteOld && !options.keepOld) {
@@ -319,14 +355,25 @@ function extractFirstHeading(filePath: string): string {
   }
 }
 
+/**
+ * 序列化当前代码结构快照（P0-D ①）。
+ * 复用既有 getCachedCodeGraph（Ponytail L2: 复用已有实现），落到 temp/ 下
+ * （spec 临时目录管理规范：非规范产物一律入 .mumuspec/temp/，且不纳版本控制）。
+ */
 function updateCodeGraphSnapshot(
-  _projectRoot: string,
+  projectRoot: string,
   _changeName: string,
   _changeDir: string,
 ): void {
-  // Placeholder: code-graph snapshot would be updated here
-  // In a real implementation, this would serialize current code structure
-  // ponytail: minimal implementation for initial scaffold
+  const graph = getCachedCodeGraph(projectRoot);
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  const tempDir = join(getMumuSpecDir(projectRoot), 'temp');
+  if (!existsSync(tempDir)) mkdirSync(tempDir, { recursive: true });
+  const snapshotPath = join(tempDir, 'codegraph.snapshot.json');
+  writeText(
+    snapshotPath,
+    JSON.stringify({ generatedAt: now(), nodeCount: nodes.length, nodes }, null, 2),
+  );
 }
 
 function cleanupWorktree(projectRoot: string, _changeName: string): void {
@@ -343,10 +390,16 @@ function cleanupWorktree(projectRoot: string, _changeName: string): void {
   }
 }
 
+/** Stale-archive retention window (days) — 超此天数的归档目录引用被视为陈旧并清理。 */
+const STALE_ARCHIVE_DAYS = 30;
+
+/**
+ * 清理陈旧归档项（P0-D ②）。
+ * 此前仅计数不删除，导致 cache 陈旧项长期残留；现实际删除超期目录。
+ */
 function cleanStaleCache(projectRoot: string, _config: ReturnType<typeof loadConfig>): number {
   let cleaned = 0;
 
-  // Clean stale .mumuspec.yaml references
   const changesDir = join(getMumuSpecDir(projectRoot), 'changes');
   if (!existsSync(changesDir)) return 0;
 
@@ -354,18 +407,18 @@ function cleanStaleCache(projectRoot: string, _config: ReturnType<typeof loadCon
     const archiveDir = join(changesDir, 'archive');
     if (existsSync(archiveDir)) {
       const entries = readdirSync(archiveDir);
-      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const cutoff = Date.now() - STALE_ARCHIVE_DAYS * 24 * 60 * 60 * 1000;
 
       for (const entry of entries) {
         const entryPath = join(archiveDir, entry);
         try {
           const stat = statSync(entryPath);
-          if (stat.mtimeMs < thirtyDaysAgo) {
-            // Stale entry detected — report but don't auto-delete
+          if (stat.mtimeMs < cutoff) {
+            rmSync(entryPath, { recursive: true, force: true });
             cleaned++;
           }
         } catch {
-          // Skip
+          // Skip — 权限/占用等不可删情况保持非致命
         }
       }
     }
@@ -374,6 +427,19 @@ function cleanStaleCache(projectRoot: string, _config: ReturnType<typeof loadCon
   }
 
   return cleaned;
+}
+
+/** P0-D ③ 防重跑标记：归档目录写入 .finalized（含时间戳），重复运行幂等跳过。 */
+function finalizeMarkerPath(changeDir: string): string {
+  return join(changeDir, '.finalized');
+}
+
+function isFinalized(changeDir: string): boolean {
+  return existsSync(finalizeMarkerPath(changeDir));
+}
+
+function markFinalized(changeDir: string): void {
+  writeText(finalizeMarkerPath(changeDir), now());
 }
 
 function releaseActiveSlot(projectRoot: string, changeName: string): void {

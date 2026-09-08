@@ -17,6 +17,12 @@ vi.mock('node:path', () => ({
   extname: (p: string) => '.' + p.split('.').pop(),
 }));
 
+// Pass-through for the fake path semantics above (traversal defense is
+// covered by tests/core/path-traversal.test.ts with real fs)
+vi.mock('../../src/core/utils.js', () => ({
+  resolveWithinRoot: (root: string, scope: string) => (scope === '.' ? root : root + '/' + scope),
+}));
+
 import { scanCodeStructure } from '../../src/knowledge/scanners/code-scanner.js';
 
 describe('scanCodeStructure', () => {

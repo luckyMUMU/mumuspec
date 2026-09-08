@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { typescriptProvider } from '../../src/guard/providers/typescript-provider.js';
 import { javascriptProvider } from '../../src/guard/providers/javascript-provider.js';
 import { registerLanguageProvider, clearProviderRegistry, getLanguageProvider } from '../../src/guard/language-provider-registry.js';
-import type { ASTResult } from '../../src/core/types-constraint-ast.js';
+import type { ASTResult } from '../../../src/guard/types-constraint-ast.js';
 
 describe('R-0003 — AST Engine', () => {
   beforeEach(() => {

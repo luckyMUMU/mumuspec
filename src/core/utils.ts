@@ -1,8 +1,9 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, readdirSync, statSync } from 'node:fs';
-import { join, resolve, relative, isAbsolute, dirname, sep } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, readdirSync, statSync, realpathSync, renameSync, unlinkSync } from 'node:fs';
+import { join, resolve, relative, isAbsolute, dirname, basename, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { parse, stringify } from 'yaml';
 import type { AuditLogEntry } from './types.js';
+import { MumuSpecError } from './errors.js';
 
 export { existsSync, readdirSync, statSync };
 
@@ -27,9 +28,29 @@ export function readYaml<T = unknown>(filePath: string): T | undefined {
 }
 
 /** Write an object as YAML to a file */
+/**
+ * Atomic write: temp file + rename within the same directory (same volume,
+ * so rename is atomic). Temp names are pid-suffixed to avoid cross-process
+ * collisions; the temp file is cleaned up if the write or rename fails.
+ */
+function atomicWrite(filePath: string, content: string): void {
+  const tmpPath = `${filePath}.tmp.${process.pid}`;
+  try {
+    writeFileSync(tmpPath, content, 'utf8');
+    renameSync(tmpPath, filePath);
+  } catch (err) {
+    try {
+      unlinkSync(tmpPath);
+    } catch {
+      /* best-effort cleanup */
+    }
+    throw err;
+  }
+}
+
 export function writeYaml(filePath: string, data: unknown): void {
   ensureDir(dirname(filePath));
-  writeFileSync(filePath, dumpYaml(data), 'utf8');
+  atomicWrite(filePath, dumpYaml(data));
 }
 
 /** Serialize an object to a YAML string */
@@ -43,10 +64,10 @@ export function readText(filePath: string): string | undefined {
   return readFileSync(filePath, 'utf8');
 }
 
-/** Write text to a file, creating directories as needed */
+/** Write text to a file atomically, creating directories as needed */
 export function writeText(filePath: string, content: string): void {
   ensureDir(dirname(filePath));
-  writeFileSync(filePath, content, 'utf8');
+  atomicWrite(filePath, content);
 }
 
 /** Move a file from source to destination, creating directories as needed */
@@ -68,6 +89,45 @@ export function isPathSafe(inputPath: string, projectRoot: string): boolean {
   const resolved = resolve(projectRoot, inputPath);
   const rel = relative(projectRoot, resolved);
   return !rel.startsWith('..') && !isAbsolute(rel);
+}
+
+/**
+ * Resolve a user-controlled path strictly within projectRoot.
+ * Defends against three escape vectors:
+ *  1. `..` traversal (lexical containment via resolve + relative)
+ *  2. Absolute paths outside root
+ *  3. Symlink/junction escapes (realpath of the nearest existing ancestor)
+ * Throws E-SECURITY-001 on any escape; returns the resolved absolute path.
+ */
+export function resolveWithinRoot(root: string, userPath: string): string {
+  if (typeof userPath !== 'string' || !userPath.trim()) {
+    throw new MumuSpecError('E-SECURITY-001', { path: String(userPath) });
+  }
+  const resolved = resolve(root, userPath);
+  if (!isPathSafe(resolved, root)) {
+    throw new MumuSpecError('E-SECURITY-001', { path: userPath });
+  }
+  // Symlink containment: resolve the real path of the nearest existing
+  // ancestor (the full path may not exist yet for to-be-created scopes).
+  let probe = resolved;
+  const suffix: string[] = [];
+  while (probe !== dirname(probe) && !existsSync(probe)) {
+    suffix.unshift(basename(probe));
+    probe = dirname(probe);
+  }
+  let realProbe: string;
+  try {
+    realProbe = realpathSync(probe);
+  } catch {
+    // Probe vanished or is unreadable — fall back to the lexical path;
+    // lexical containment has already passed at this point.
+    realProbe = probe;
+  }
+  const realTarget = suffix.length ? join(realProbe, ...suffix) : realProbe;
+  if (!isPathSafe(realTarget, root)) {
+    throw new MumuSpecError('E-SECURITY-001', { path: userPath });
+  }
+  return resolved;
 }
 
 /** Get the .mumuspec directory path */
@@ -143,6 +203,34 @@ export function getLayerLevel(dirPath: string, projectRoot: string): number {
   if (!rel || rel === '.') return 0;
   return rel.split(sep).filter(Boolean).length;
 }
+
+/**
+ * Canonical noise-directory skip set for all tree walkers.
+ * Union of every previously duplicated local SKIP_DIRS
+ * (constraints-loader / graph-builder / glossary-checker / trace /
+ * code-scanner / ponytail-linter). Shared via Phase 3.4.
+ */
+export const SKIP_DIRS: ReadonlySet<string> = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'out',
+  'target',
+  'tmp',
+  'temp',
+  'coverage',
+  '__pycache__',
+  '.next',
+  '.nuxt',
+  '.cache',
+  '.turbo',
+  '.vercel',
+  '.mumuspec',
+  '.workbuddy',
+  '.omo',
+  '.meituan-catpaw',
+]);
 
 /** List subdirectories that contain .mumuspec/ */
 export function findSpecDirs(dirPath: string): string[] {

@@ -3,7 +3,7 @@
 > **Auto-generated** from `src/core/errors.ts`. Do not edit manually.
 > Run `node scripts/gen-error-codes-doc.mjs` to regenerate.
 
-Last updated: 2026-09-05
+Last updated: 2026-09-08
 
 ## Summary
 
@@ -17,15 +17,16 @@ Last updated: 2026-09-05
 | MERGE | 10 |
 | GUARD | 8 |
 | PONYTAIL | 4 |
-| CONTRACT | 10 |
+| CONTRACT | 11 |
 | KNOWLEDGE | 3 |
 | DESIGN | 4 |
 | SECURITY | 3 |
 | STATE | 1 |
 | AGENTS | 1 |
+| RULES | 1 |
 | CHECK | 1 |
 | GIT | 3 |
-| **Total** | **81** |
+| **Total** | **83** |
 
 ## SPEC Domain
 
@@ -673,6 +674,7 @@ Last updated: 2026-09-05
 | `E-CONTRACT-008` | CONTRACT_GRAPH_INCONSISTENT | WARN | 契约依赖图中引用了不存在的契约 ID | Yes |
 | `E-CONTRACT-009` | CONTRACT_BREAKING_CHANGE | ERROR | 检测到破坏性契约变更，但未提供迁移路径 | No |
 | `E-CONTRACT-010` | CONTRACT_LOCK_TIMEOUT | ERROR | 获取契约文件锁超时（5s），另一个进程可能正在修改契约 | No |
+| `E-CONTRACT-011` | CONTRACT_REGISTRY_INVALID | ERROR | 契约注册表文件结构无效（缺少必需字段或含 __proto__/constructor/prototype 污染键） | No |
 
 ### `E-CONTRACT-001`: BOUNDARY_DOC_MISSING
 
@@ -770,6 +772,16 @@ Last updated: 2026-09-05
 **Fix Steps**:
 1. 等待其他 mumuspec 进程完成
 2. 检查并删除陈旧锁目录 .mumuspec/contracts/.lock
+
+### `E-CONTRACT-011`: CONTRACT_REGISTRY_INVALID
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 契约注册表文件结构无效（缺少必需字段或含 __proto__/constructor/prototype 污染键）
+
+**Fix Steps**:
+1. 检查 contracts.json/contracts.yaml 的 version、contracts、outbound_ids、inbound_ids 结构
+2. 文件损坏时从版本控制恢复，或重新生成契约注册表
 
 ## KNOWLEDGE Domain
 
@@ -925,7 +937,23 @@ Last updated: 2026-09-05
 - **Description**: AGENTS.md 与 spec 内容漂移（生成的 rules 基于旧版规范）
 
 **Fix Steps**:
-1. 重新运行 mumuspec rules generate 同步 AGENTS.md 与 agents-hash.json
+1. 重新运行 mumuspec init 同步 AGENTS.md 与 agents-hash.json
+
+## RULES Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-RULES-001` | RULES_BUDGET_EXCEEDED | ERROR | 生成的 Rules 产物超过 32KiB 容量预算（禁止在 Rules 文件中内联全量规范上下文） | No |
+
+### `E-RULES-001`: RULES_BUDGET_EXCEEDED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 生成的 Rules 产物超过 32KiB 容量预算（禁止在 Rules 文件中内联全量规范上下文）
+
+**Fix Steps**:
+1. 缩减 Rules 内容：渐进式披露职责归 MCP，Rules 文件仅保留摘要与速查
+2. 检查 spec 摘要是否被全量内联（应为逐层摘要而非全文）
 
 ## CHECK Domain
 

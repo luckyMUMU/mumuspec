@@ -13,6 +13,7 @@ const {
   mockListKnowledgePages,
   mockGetKnowledgePage,
   mockSearchKnowledge,
+  mockKnowledgeSearch,
   mockGetKnowledgeContext,
   mockVerifyKnowledge,
   mockListStalePages,
@@ -23,6 +24,7 @@ const {
   mockListKnowledgePages: vi.fn(),
   mockGetKnowledgePage: vi.fn(),
   mockSearchKnowledge: vi.fn(),
+  mockKnowledgeSearch: vi.fn(),
   mockGetKnowledgeContext: vi.fn(),
   mockVerifyKnowledge: vi.fn(),
   mockListStalePages: vi.fn(),
@@ -41,6 +43,10 @@ vi.mock('../../../src/knowledge/manager.js', () => ({
   supersedeKnowledge: mockSupersedeKnowledge,
   rebuildPageIndex: mockRebuildPageIndex,
   organizeKnowledge: mockOrganizeKnowledge,
+}));
+
+vi.mock('../../../src/knowledge/search.js', () => ({
+  knowledgeSearch: mockKnowledgeSearch,
 }));
 
 const mockFindProjectRoot = vi.fn();
@@ -202,13 +208,22 @@ describe('knowledge-crud subcommand handlers', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  // ── search subcommand ────────────────────────────────────────────
+  // ── search subcommand（2026-09-05 已合并 search2 增强引擎，relevance scoring）──
 
-  it('search: should print results count and page ids', async () => {
+  it('search: should print scored results count and page ids', async () => {
     const { registerKnowledgeCrud } = await import('../../../src/cli/commands/knowledge-crud.js');
     const program = new Command();
     const knowledgeCmd = program.command('knowledge');
     registerKnowledgeCrud(knowledgeCmd);
+
+    mockKnowledgeSearch.mockReturnValue([
+      {
+        score: 42,
+        entry: { id: 'KP-0003', title: 'Title for KP-0003', type: 'pattern', scope: 'global' },
+        matchedFields: ['title'],
+        excerpt: 'Saga pattern content.',
+      },
+    ]);
 
     await program.parseAsync(['knowledge', 'search', 'saga'], { from: 'user' });
 
@@ -220,21 +235,24 @@ describe('knowledge-crud subcommand handlers', () => {
     );
   });
 
-  it('search: should pass keyword, tag, and type filters', async () => {
+  it('search: should pass keyword and filters to enhanced engine', async () => {
     const { registerKnowledgeCrud } = await import('../../../src/cli/commands/knowledge-crud.js');
     const program = new Command();
     const knowledgeCmd = program.command('knowledge');
     registerKnowledgeCrud(knowledgeCmd);
+
+    mockKnowledgeSearch.mockReturnValue([]);
 
     await program.parseAsync(
       ['knowledge', 'search', 'pattern', '--tag', 'architecture', '--type', 'pattern'],
       { from: 'user' }
     );
 
-    expect(mockSearchKnowledge).toHaveBeenCalledWith(
+    expect(mockKnowledgeSearch).toHaveBeenCalledWith(
       '/fake/root',
       expect.any(Object),
-      { keyword: 'pattern', tag: 'architecture', type: 'pattern' }
+      'pattern',
+      expect.objectContaining({ type: ['pattern'], tags: ['architecture'] })
     );
   });
 

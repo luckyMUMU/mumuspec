@@ -23,7 +23,7 @@ import { Logger } from '../core/logger.js';
 
 /**
  * Load spec context for a directory using progressive disclosure.
- * Loads 3 layers: target + parent + grandparent (plus root if deeper).
+ * Loads up to config.specs.max_layer_depth layers (root + capped middle + target).
  */
 export function loadSpecContext(
   targetPath: string,
@@ -36,8 +36,8 @@ export function loadSpecContext(
   // Build the path chain from root to target
   const pathChain = buildPathChain(targetPath, projectRoot);
 
-  // Determine which layers to load (progressive disclosure: load up to 3 layers)
-  // Always load root (Level 0), then the target layer and its parent
+  // Determine which layers to load (progressive disclosure, depth from config)
+  // Always load root (Level 0) and the target layer; middle layers are capped
   const layersToLoad = selectLayersToLoad(pathChain, config.specs.max_layer_depth);
 
   for (const { level, dirPath, scope } of layersToLoad) {
@@ -63,21 +63,24 @@ export function loadSpecContext(
         // Skip invalid tech.md
         Logger.error('spec.loader', 'Failed to parse tech.md', { path: techPath, error: (e as Error).message });
       }
-    } else {
-      // Backward compatibility: load spec.md if tech.md doesn't exist
-      const specPath = join(mumuDir, 'spec.md');
-      if (existsSync(specPath)) {
-        try {
-          const content = readFileSync(specPath, 'utf8');
-          layer.spec = parseSpecFile(content, specPath);
-          // Collect prohibitions
-          for (const req of layer.spec.requirements) {
-            prohibitions.push(...req.shallNot);
-          }
-        } catch (e) {
-          // Skip invalid specs
-          Logger.error('spec.loader', 'Failed to parse spec.md', { path: specPath, error: (e as Error).message });
+    }
+
+    // Backward compatibility: load spec.md if tech.md doesn't exist.
+    // 根层例外：Root spec.md 是全局 charter（spec「变更管理」SHALL：Root spec.md
+    // SHALL contain only cross-module global rules），与 prd/tech 共存是规范要求；
+    // 仅模块层禁止 spec.md 与 tech.md 共存，故模块层保持回退语义。
+    const specPath = join(mumuDir, 'spec.md');
+    if (existsSync(specPath) && (level === 0 || !existsSync(techPath))) {
+      try {
+        const content = readFileSync(specPath, 'utf8');
+        layer.spec = parseSpecFile(content, specPath);
+        // Collect prohibitions
+        for (const req of layer.spec.requirements) {
+          prohibitions.push(...req.shallNot);
         }
+      } catch (e) {
+        // Skip invalid specs
+        Logger.error('spec.loader', 'Failed to parse spec.md', { path: specPath, error: (e as Error).message });
       }
     }
 
@@ -355,24 +358,40 @@ function buildPathChain(
   return chain;
 }
 
-/** Select which layers to load based on progressive disclosure (max 3 layers) */
-function selectLayersToLoad(
+/** Fallback when max_layer_depth is missing or invalid (spec: no hardcoded layer count). */
+const DEFAULT_LAYER_DEPTH = 5;
+
+/**
+ * Select which layers to load for progressive disclosure.
+ * Depth comes from config.specs.max_layer_depth — never hardcoded (spec SHALL NOT).
+ * Root (level 0) and target (deepest) are always kept; middle layers are capped.
+ */
+export function selectLayersToLoad(
   chain: { level: number; dirPath: string; scope: string }[],
-  _maxDepth: number,
+  maxDepth: number,
 ): { level: number; dirPath: string; scope: string }[] {
   // Filter to only levels that have .mumuspec/ directory
   const withSpecs = chain.filter((c) => existsSync(join(c.dirPath, '.mumuspec')));
 
-  if (withSpecs.length <= 3) {
+  if (withSpecs.length <= 1) {
     return withSpecs;
   }
 
-  // Always include root, then the target and its direct parent
+  const depth =
+    Number.isFinite(maxDepth) && maxDepth > 0 ? Math.floor(maxDepth) : DEFAULT_LAYER_DEPTH;
+
+  if (withSpecs.length <= depth) {
+    return withSpecs;
+  }
+
+  // Always include root and target; cap the middle layers to respect the budget.
   const root = withSpecs[0];
   const target = withSpecs[withSpecs.length - 1];
-  const parent = withSpecs[withSpecs.length - 2];
+  const middle = withSpecs.slice(1, -1);
+  const keep = Math.max(0, depth - 2);
+  const capped = middle.length <= keep ? middle : middle.slice(middle.length - keep);
 
-  return [root, parent, target];
+  return [root, ...capped, target];
 }
 
 /** Build or update index.yaml for a directory */

@@ -893,7 +893,7 @@ function rank(s: Strength): number {
 
 ### 10.4 与 AI Integration Layer 集成
 
-- Rules 文件（CLAUDE.md / .cursorrules / AGENTS.md）生成时包含当前约束强度
+- Rules 文件（AGENTS.md canonical + CLAUDE.md/GEMINI.md 薄壳）生成时包含当前约束强度
 - MCP Server 新增 `constraints.check` 工具供 AI 查询当前约束
 - Skill 分发策略随强度联动（见 §7）
 

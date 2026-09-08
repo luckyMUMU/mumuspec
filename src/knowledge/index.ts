@@ -98,7 +98,13 @@ export function readReverseIndex(
   const knowledgeDir = getKnowledgeDir(projectRoot, config);
   const reversePath = join(knowledgeDir, config.knowledge.reverse_index.file);
   try {
-    return readYaml<Array<{ code_node: string; knowledge_pages: string[] }>>(reversePath) ?? [];
+    const entries = readYaml<Array<{ code_node: string; knowledge_pages: string[] }>>(reversePath) ?? [];
+    // Tolerate malformed entries (hand-edited or legacy data): the index is a
+    // rebuildable derived cache, so non-string code_node rows are skipped
+    // rather than crashing downstream `.includes` calls.
+    return entries.filter(
+      (entry) => entry && typeof entry.code_node === 'string' && Array.isArray(entry.knowledge_pages),
+    );
   } catch {
     return [];
   }

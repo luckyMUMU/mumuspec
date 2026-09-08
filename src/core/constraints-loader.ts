@@ -32,7 +32,7 @@
 
 import { readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { readYaml, getMumuSpecDir } from './utils.js';
+import { readYaml, getMumuSpecDir, SKIP_DIRS } from './utils.js';
 import { normalizeScope } from './config.js';
 import type { ConstraintsFile, ConstraintStrength } from './types.js';
 
@@ -40,19 +40,7 @@ import type { ConstraintsFile, ConstraintStrength } from './types.js';
  * Directories that are never scanned for `.mumuspec/` content. Keeps the
  * loader from descending into dependencies, build artifacts, and VCS data.
  */
-const SKIP_DIRS: ReadonlySet<string> = new Set([
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  '.next',
-  '.nuxt',
-  '.cache',
-  '.turbo',
-  '.vercel',
-  'coverage',
-  '.mumuspec', // do NOT recurse into .mumuspec/.mumuspec
-]);
+// SKIP_DIRS 已统一收编到 ./utils.js（Phase 3.4），此处直接复用共享集合
 
 export interface LoadConstraintsOptions {
   /**

@@ -1,6 +1,6 @@
 # MumuSpec — 全局概览
 
-> **版本**: 0.20.0-draft | **日期**: 2026-08-29 | **状态**: 设计草案
+> **版本**: 0.20.0-draft | **日期**: 2026-09-06 | **状态**: 设计草案
 >
 > **定位**: MumuSpec 是一门面向 Vibe Coding 的领域特定语言（DSL）。详见 [KP-0059](../.mumuspec/knowledge/decisions/global/KP-0059-spec-as-dsl-not-bytecode.md)。
 
@@ -8,10 +8,10 @@
 
 ## 0. 核心目标
 
-**MumuSpec 的核心目标是创建自然语言的中间层作为 Vibe Coding 的辅助——随意的自然语言转换为精准的 Spec，AI 根据 Spec 生成代码。人工编写 Spec 而不编写代码。**
+**MumuSpec 的核心目标是创建自然语言的中间层作为 Vibe Coding 的辅助——大模型起草精准 Spec，人做设计决策与审批签收，AI 根据 Spec 生成代码。人不逐字编写 Spec 全文，也不编写代码。**
 
 ```
-随意的自然语言  →  精准的 Spec（人工编写）  →  代码（AI 生成）
+随意的自然语言  →  大模型起草精准 Spec  ⇄  设计缺陷时向人追问补全  →  大模型判定设计完备性（人签收）  →  代码（AI 生成）
 ```
 
 ### Spec 即 DSL
@@ -31,7 +31,7 @@ MumuSpec 的持久化 Spec 不是文档，不是配置，而是一门**领域特
 
 - Spec 只约束 WHAT（验收标准、红线），不约束 HOW（执行路径）
 - 结果约束 block，行为约束 advisory
-- 人工编写 Spec 是一等源文件，代码是衍生品
+- Spec 是一等源文件（人机合著），代码是衍生品；设计决策权始终在人
 - 可验证性是一等语义：不可验证的约束等于不存在的约束
 
 ### 为什么是 DSL 而不是字节码
@@ -50,7 +50,7 @@ MumuSpec 的持久化 Spec 不是文档，不是配置，而是一门**领域特
 - **角色**: 全栈开发者，独立维护 1-2 个中型项目
 - **场景**: 使用 AI 编程工具（Claude Code / Cursor / CatPaw）加速开发
 - **痛点**: AI 不了解项目规范，经常生成不符合架构约束的代码；自己又不想花时间审查每一行代码
-- **目标**: **用自然语言写 Spec，让 AI 按 Spec 生成代码，人工不写代码**
+- **目标**: **用自然语言表达需求与约束，让 AI 起草 Spec 并生成代码，人只做设计决策与审批签收**
 - **使用路径**: `mumuspec init` → 编写 Spec → AI 加载 Spec → AI 生成代码 → 自动校验
 
 ### 画像 2: Tech Lead Jordan
@@ -94,7 +94,7 @@ MumuSpec 的持久化 Spec 不是文档，不是配置，而是一门**领域特
 | **多项目规范同步** | 当前聚焦单项目，跨项目共享留给后续生态层 |
 | **IDE 原生插件** | 通过 MCP Server + CLI 覆盖 IDE 集成需求 |
 | **可视化编辑器** | Spec 文件为 YAML + Markdown，无需专用编辑器 |
-| **规范自动生成**（从代码逆向生成 spec） | Spec 是设计意图的表达，人工编写才有意义 |
+| **规范自动生成**（从代码逆向生成 spec） | Spec 是设计意图的一等源文件，代码是衍生品；自动生成导致循环依赖 |
 | **强制代码风格检查** | 由项目现有 ESLint/Prettier 负责 |
 | **过程编排** | 过程约束降为 advisory，不限制 AI 的执行路径 |
 
@@ -114,7 +114,7 @@ MumuSpec 的持久化 Spec 不是文档，不是配置，而是一门**领域特
 
 ### 2.1 Spec 即一等源文件（Spec-as-Source）
 
-Spec 不是文档、不是配置，是人工编写的领域特定语言。语法面、语义面、诊断面三件套构成完整的语言系统。可读性、可写性与诊断质量是语言设计的一等约束。
+Spec 不是文档、不是配置，是作者（人与大模型合著）直接书写的领域特定语言。语法面、语义面、诊断面三件套构成完整的语言系统。可读性、可写性与诊断质量是语言设计的一等约束。
 
 ### 2.2 双向约束（Dual Constraint）
 
@@ -136,13 +136,17 @@ Spec 存储在 `.mumuspec/` 下，版本化管理，不随代码删除而消失�
 
 每条约束按固定顺序判定为四分类之一（enforced-strong / enforced-weak / manual / unverifiable）。SHALL NOT 无验证通道恒 block（E-SPEC-015）；可验证性与强度正交。详见 `docs/design/constraint-strength.md` §9.0。
 
+### 2.7 规则-实现分离（KP-0060）
+
+引擎归代码（固定部分由代码实现）、规则归 LLM（仅创建声明式规则）、校验归代码（非法规则拒绝执行）。CLI-first 是其在流程层的特例。
+
 ---
 
 ## 3. 工作流规则
 
 | # | 规则 | 含义 |
 |---|------|------|
-| 1 | **Worktree 隔离** | 每个变更在独立 worktree 中工作，物理隔离主分支 |
+| 1 | **Worktree 隔离** | 每个变更在独立 worktree 中工作（配置级推荐，自动 worktree 操作在开发中） |
 | 2 | **单一活跃变更** | 同时只允许一个活跃变更（per-scope），强制单一任务专注 |
 | 3 | **自顶向下设计，自底向上实现** | 设计从根到叶逐级细化，实现从叶到根逐级集成 |
 | 4 | **红绿 TDD** | 测试用例是 Design 阶段的产出，Design 锁定后测试不可变更 |
@@ -231,6 +235,7 @@ graph LR
 
 | 版本 | 日期 | 核心变更 |
 |------|------|---------|
+| 0.20.0-dev | 2026-09-05 | 全流程自洽性修复批次：Dogfood canonical AGENTS.md 迁移、CHG-7 项目级 workflow.yaml override、CLI 去重（drift --change / knowledge search）、SKILL.md 开放标准对齐、规则-实现分离（KP-0060） |
 | 0.20.0-dev | 2026-08-29 | Spec 即 DSL 定位（KP-0059）；Verifier 语义收紧 P0（可验证性四分类、E-SPEC-015、enforcement coverage）；CLI-first 三命令（tasks next / lock-suite / state layer） |
 | 0.19.1 | 2026-08-22 | 安全加固、spec annotate、错误码自动生成 |
 | 0.15.0 | 2026-08-01 | Mode-aware Guard、Spec Scaffolder、Git 封装、Dashboard、Init/Archive 重构 |

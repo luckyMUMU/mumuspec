@@ -162,9 +162,12 @@ my-project/
 │   └── workflows/
 │       └── mumuspec-check.yml              # CI/CD 校验流水线
 │
-├── CLAUDE.md                               # AI Rules 文件（自动生成）
-├── .cursorrules                            # Cursor Rules（自动生成）
+├── AGENTS.md                               # Canonical AI Rules（自动生成，单一事实源）
+├── CLAUDE.md                               # AI Rules 薄壳（@AGENTS.md 桥接，自动生成）
 └── package.json
+
+# 注：.cursorrules / .windsurfrules 已停止生成（C3 红线）；
+# Cursor/Windsurf 经 AGENTS.md 或 MCP 获取规范，存量遗留文件建议迁移后手动删除。
 ```
 
 ---

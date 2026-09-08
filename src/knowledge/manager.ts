@@ -14,10 +14,11 @@ export {
   listKnowledgePages,
   loadKnowledgePage,
   getKnowledgePage,
-  searchKnowledge,
   getKnowledgeContext,
   createKnowledgePage,
 } from './pages.js';
+
+export { knowledgeSearch } from './search.js';
 
 export {
   loadPageIndex,

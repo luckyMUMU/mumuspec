@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ChangeState, GuardResult } from '../core/types.js';
-import { readText, computeHash } from '../core/utils.js';
+import { readText, computeHash, resolveWithinRoot } from '../core/utils.js';
 import { getChangeDir, loadChangeState, verifyTestCases } from '../change/manager.js';
 import { validateArtifact, extractDecisionRefs, type ArtifactKind } from '../change/artifact-validator.js';
 import { applyStrengthToGuardResult } from './checker.js';
@@ -617,18 +617,9 @@ function checkBuildToVerify(
     warnings.push({ code: 'W-GUARD-004', message: 'test suites 未锁定（行为约束 — 结果约束为测试全绿）' });
   }
 
-  // DS-005: Task granularity warning (W-DESIGN-001)
-  if (state.hyperplan_result && state.hyperplan_result.triggered) {
-    // Check if any tasks exceed granularity limit (read from state or config)
-    const GranularityLimit = 15; // minutes
-    const taskLayers = state.build_layers.filter(
-      (l) => l.status !== 'done' && l.scope.includes('min'),
-    );
-    // Note: In full implementation, this would check task metadata
-    // For now, this is a placeholder for the warning mechanism
-    void GranularityLimit;
-    void taskLayers;
-  }
+  // ponytail: 原此处有 DS-005 任务粒度检查占位（void GranularityLimit）——
+  // 从未产出任何 warning，且无任何文档声明该检查；按 YAGNI 移除（2026-09-05）。
+  // 若未来需要任务粒度门禁，应基于 tasks 数据结构重新设计并补充 E/W 错误码。
 
   // Completeness gate v1 (ENF-3/ENF-4) — hard gate, full workflow only:
   // hotfix/tweak keep their lightweight semantics (只增不改 — no new hard
@@ -726,7 +717,7 @@ function checkVerifyToArchive(
 function collectManualItems(projectRoot: string, scopes: string[]): ClassifiedItem[] {
   const items: ClassifiedItem[] = [];
   for (const scope of scopes) {
-    const scopeDir = !scope || scope === '.' ? projectRoot : join(projectRoot, scope);
+    const scopeDir = !scope || scope === '.' ? projectRoot : resolveWithinRoot(projectRoot, scope);
     for (const fileName of ['spec.md', 'tech.md'] as const) {
       const specPath = join(scopeDir, '.mumuspec', fileName);
       if (!existsSync(specPath)) continue;

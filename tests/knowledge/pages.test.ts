@@ -7,7 +7,6 @@ import {
   listKnowledgePages,
   loadKnowledgePage,
   getKnowledgePage,
-  searchKnowledge,
   getKnowledgeContext,
   createKnowledgePage,
 } from '../../src/knowledge/pages.js';
@@ -174,38 +173,6 @@ describe('getKnowledgePage', () => {
     const result = getKnowledgePage(projectDir, config, 'FIND-001');
     expect(result).toBeDefined();
     expect(result?.frontmatter.id).toBe('FIND-001');
-  });
-});
-
-describe('searchKnowledge', () => {
-  let projectDir: string;
-  let config: MumuSpecConfig;
-
-  beforeEach(() => {
-    const setup = createProject();
-    projectDir = setup.dir;
-    config = setup.config;
-  });
-
-  afterEach(() => {
-    cleanup(projectDir);
-  });
-
-  it('returns empty for empty project', () => {
-    const result = searchKnowledge(projectDir, config, { keyword: 'anything' });
-    expect(result).toEqual([]);
-  });
-
-  it('filters by keyword in title', () => {
-    writePage(projectDir, config, 'KEY-001', 'decision');
-    const result = searchKnowledge(projectDir, config, { keyword: 'KEY-001' });
-    expect(result.length).toBeGreaterThanOrEqual(0);
-  });
-
-  it('filters by tag', () => {
-    writePage(projectDir, config, 'TAG-001', 'decision');
-    const result = searchKnowledge(projectDir, config, { tag: 'nonexistent' });
-    expect(Array.isArray(result)).toBe(true);
   });
 });
 

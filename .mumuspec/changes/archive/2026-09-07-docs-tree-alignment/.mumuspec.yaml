@@ -1,0 +1,50 @@
+name: docs-tree-alignment
+phase: archive-completed
+workflow: full
+created_at: 2026-09-07T13:40:26.642Z
+updated_at: 2026-09-07 14:20:56
+scope: .
+affected_scopes: []
+build_layers: []
+test_cases:
+  design_locked: false
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/docs-tree-alignment
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    design: 1
+  content_hash: 0b099911b05d1bed
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+verify_result: pass
+branch_status: handled

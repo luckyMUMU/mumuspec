@@ -58,7 +58,7 @@ fix(change): 修复归档路径拼接跨平台的正反斜杠问题
 # 构建类型检查 (同时也是 lint)
 npm run build
 
-# 全量测试 (204 用例)
+# 全量测试 (约 4900 用例)
 npm test
 
 # 预发布校验 (package.json 版本同步 + bin 源文件存在)
@@ -126,7 +126,7 @@ node scripts/prebuild-check.mjs
 
 ### 当前覆盖范围
 
-13 个测试文件 / 204 用例覆盖以下模块：
+244+ 个测试文件 / 约 4900 用例覆盖以下模块：
 
 - CLI 端到端 (cli.test.ts)
 - 约束强度与继承 (constraint-strength.test.ts, inheritance.test.ts, ponytail.test.ts)

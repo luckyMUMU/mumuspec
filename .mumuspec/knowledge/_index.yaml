@@ -21,6 +21,17 @@ pages:
       - hyperplan
       - decision
       - dashboard-onboard-chat
+  - id: KE-docs-tree-alignment-hyperplan
+    title: Adversarial design review insights from docs-tree-alignment
+    type: decision
+    status: confirmed
+    scope: docs-tree-alignment
+    file: .mumuspec\knowledge\decisions\KE-docs-tree-alignment-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - docs-tree-alignment
   - id: KE-goal-p0-dispatch-gate-hyperplan
     title: Adversarial design review insights from goal-p0-dispatch-gate
     type: decision
@@ -43,6 +54,17 @@ pages:
       - hyperplan
       - decision
       - onboard-cli
+  - id: KE-p0-calibration-hardening-hyperplan
+    title: Adversarial design review insights from p0-calibration-hardening
+    type: decision
+    status: confirmed
+    scope: p0-calibration-hardening
+    file: .mumuspec\knowledge\decisions\KE-p0-calibration-hardening-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - p0-calibration-hardening
   - id: KE-ast-guard-patterns
     title: Architecture patterns from ast-guard
     type: pattern
@@ -65,6 +87,17 @@ pages:
       - pattern
       - architecture
       - dashboard-onboard-chat
+  - id: KE-docs-tree-alignment-patterns
+    title: Architecture patterns from docs-tree-alignment
+    type: pattern
+    status: confirmed
+    scope: docs-tree-alignment
+    file: .mumuspec\knowledge\patterns\KE-docs-tree-alignment-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - docs-tree-alignment
   - id: KE-goal-p0-dispatch-gate-patterns
     title: Architecture patterns from goal-p0-dispatch-gate
     type: pattern
@@ -87,6 +120,17 @@ pages:
       - pattern
       - architecture
       - onboard-cli
+  - id: KE-p0-calibration-hardening-patterns
+    title: Architecture patterns from p0-calibration-hardening
+    type: pattern
+    status: confirmed
+    scope: p0-calibration-hardening
+    file: .mumuspec\knowledge\patterns\KE-p0-calibration-hardening-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - p0-calibration-hardening
   - id: KP-0035
     title: 完整目录结构示例
     type: pattern
@@ -664,6 +708,17 @@ pages:
       - lesson
       - decisions
       - dashboard-onboard-chat
+  - id: KE-docs-tree-alignment-lessons
+    title: Lessons from docs-tree-alignment decisions
+    type: lesson
+    status: confirmed
+    scope: docs-tree-alignment
+    file: .mumuspec\knowledge\lessons\KE-docs-tree-alignment-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - docs-tree-alignment
   - id: KE-goal-p0-dispatch-gate-lessons
     title: Lessons from goal-p0-dispatch-gate decisions
     type: lesson
@@ -686,6 +741,17 @@ pages:
       - lesson
       - decisions
       - onboard-cli
+  - id: KE-p0-calibration-hardening-lessons
+    title: Lessons from p0-calibration-hardening decisions
+    type: lesson
+    status: confirmed
+    scope: p0-calibration-hardening
+    file: .mumuspec\knowledge\lessons\KE-p0-calibration-hardening-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - p0-calibration-hardening
   - id: KL-0006
     title: 开放问题
     type: lesson
@@ -733,6 +799,20 @@ pages:
       - docs
       - tutorial
     verified_at: 2026-07-31T16:19:01.701Z
+  - id: KL-0061
+    title: 活跃变更期 agents-hash 漂移、Windows 归档 EPERM 与 spec 树规范化教训
+    type: lesson
+    status: confirmed
+    scope: global
+    file: .mumuspec\knowledge\lessons\KL-0061-agents-hash-drift-windows-archive-normalization.md
+    tags:
+      - lessons
+      - agents-hash
+      - windows
+      - archive
+      - spec-normalization
+      - parallel-edit
+    verified_at: 2026-09-06T00:35:00+08:00
   - id: KP-0010
     title: 参考项目调研总结：OpenSpec / Comet / CGC / CBM / Ponytail
     type: lesson

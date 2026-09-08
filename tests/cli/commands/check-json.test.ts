@@ -244,8 +244,8 @@ for (const fn of registered) {
 for (const fn of boundaryListed) {
   expect(registered.has(fn), `listed in BOUNDARY.md but not registered: ${fn}`).toBe(true);
 }
-expect(registered.size).toBe(32);
-expect(boundaryListed.size).toBe(32);
+expect(registered.size).toBe(34);
+expect(boundaryListed.size).toBe(34);
   });
 
   it('TC-L3-1b: BOUNDARY.md attributes `check` to spec.ts (not guard.ts)', () => {

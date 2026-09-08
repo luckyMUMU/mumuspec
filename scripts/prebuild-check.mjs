@@ -36,26 +36,32 @@ if (!semverRe.test(pkg.version)) {
   fail(`package.json version "${pkg.version}" is not valid SemVer`);
 }
 
-// 2. CLI version sync. Read src/cli.ts and src/cli/index.ts for .version('...').
+// 2. CLI version sync. Preferred: CLI reads version from package.json at
+//    runtime (constructed consistency — CHANGE-3 cannot drift). Fallback:
+//    literal .version('...') in src/cli/index.ts (then src/cli.ts) must match.
 const cliFile = join(root, 'src', 'cli.ts');
 const cliIndexFile = join(root, 'src', 'cli', 'index.ts');
 
-let cliVerMatch = null;
-// Try src/cli/index.ts first (new location after modularization), then fall back to src/cli.ts
 const cliIndexSrc = existsSync(cliIndexFile) ? readFileSync(cliIndexFile, 'utf8') : '';
-cliVerMatch = cliIndexSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
-if (!cliVerMatch) {
-  // Fallback: check legacy src/cli.ts
-  const cliSrc = readFileSync(cliFile, 'utf8');
-  cliVerMatch = cliSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
-}
+const dynamicVersion = /package\.json['"]\s*,\s*import\.meta\.url/.test(cliIndexSrc);
 
-if (!cliVerMatch) {
-  fail(`src/cli.ts and src/cli/index.ts: cannot find .version('...') call`);
-} else if (cliVerMatch[1] !== pkg.version) {
-  fail(
-    `version mismatch: package.json=${pkg.version}, cli source=${cliVerMatch[1]}`,
-  );
+if (dynamicVersion) {
+  // Runtime read — version consistency is guaranteed by construction.
+} else {
+  let cliVerMatch = cliIndexSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
+  if (!cliVerMatch) {
+    // Fallback: check legacy src/cli.ts
+    const cliSrc = readFileSync(cliFile, 'utf8');
+    cliVerMatch = cliSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
+  }
+
+  if (!cliVerMatch) {
+    fail(`src/cli.ts and src/cli/index.ts: cannot find .version('...') call`);
+  } else if (cliVerMatch[1] !== pkg.version) {
+    fail(
+      `version mismatch: package.json=${pkg.version}, cli source=${cliVerMatch[1]}`,
+    );
+  }
 }
 
 // 3. files[] entries exist.

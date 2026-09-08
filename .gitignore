@@ -49,3 +49,7 @@ git-status.txt
 
 # MumuSpec temp directory (non-spec artifacts, logs, migration staging)
 .mumuspec/temp/
+
+# Test scaffolding leftovers (temp projects created by change tests)
+tests/**/.chg7-tmp/
+*.tgz

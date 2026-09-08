@@ -1,7 +1,7 @@
 ---
 layer: 0
 scope: "."
-last_updated: "2026-08-29"
+last_updated: "2026-09-05"
 prohibitions:
   - text: "禁止引入未被请求的抽象层（YAGNI）"
     annotation:
@@ -42,23 +42,24 @@ prohibitions:
 ## Requirement: 临时目录管理规范
 
 ### SHALL
-- `.mumuspec/temp/` 目录作为**临时文件唯一合法存放处**，非规范文档、运行时日志、测试样本、迁移过渡文件一律存入此目录
+- `.mumuspec/temp/` 目录作为**临时文件唯一合法存放处**（按需创建），非规范文档、运行时日志、测试样本、迁移过渡文件一律存入此目录
 - 归档阶段（finalize-archive）**必须**整理 temp/ 内容：有价值的内容导入 knowledge/ 对应分类，无价值内容直接清理
 - 归档完成后 temp/ 应为空或仅保留"待用户确认"的过渡内容
 - temp/ 目录必须在 `.gitignore` 中全局排除（不纳入版本控制）
-- temp/ 子目录按归档来源分类：`design-archive/`、`designs-archive/`、`bundles-archive/`、`evals/`
+- temp/ 子目录按归档来源分类：`bundles-archive/`、`evals/`
+- `.mumuspec/designs-archive/` 为**版本化设计归档目录**（纳入版本控制），存放已被现行方案取代但保留追溯价值的设计草案（doc-governance-decisions 裁决，2026-09-06）
 
 ### SHALL NOT
-- 禁止在 temp/ 之外存放非规范文件（禁止在 .mumuspec/ 根目录散落 audit.log、*.yaml 样本等）
+- 禁止在 temp/ 之外存放非规范文件（功能性状态文件 constraints.yaml / audit.log / agents-hash.json 除外，见 TEMP-4 白名单）
 - 禁止将 temp/ 内容提交至 git（gitignore 兜底 + pre-commit 检查）
 - 禁止 temp/ 长期积压未整理内容（每次归档必须触发清理）
 - 禁止在 temp/ 中存放活跃变更的工件（变更工件在 changes/<name>/ 下）
 
 ### Enforcement
-- TEMP-1: `.mumuspec/temp/` 目录必须存在
+- TEMP-1: `.mumuspec/temp/` 使用时创建，结构校验器不得因 temp/ 存在报 E-SPEC-013
 - TEMP-2: `.mumuspec/temp/` 必须在根 `.gitignore` 中被排除
 - TEMP-3: finalize-archive 阶段必须提示用户清理 temp/
-- TEMP-4: 禁止在 .mumuspec/ 根目录存放非规范文件（白名单：spec.md/prd.md/tech.md/goal.md/env-spec.md/prohibitions.md/glossary.md/index.yaml/config.yaml）
+- TEMP-4: 禁止在 .mumuspec/ 根目录存放非规范文件（白名单：spec.md/prd.md/tech.md/design.md/goal.md/env-spec.md/prohibitions.md/glossary.md/index.yaml/config.yaml/workflow.yaml/constraints.yaml/audit.log/agents-hash.json + designs-archive/ 目录）
 
 ## Requirement: 项目结构规范
 
@@ -86,7 +87,9 @@ prohibitions:
 - 归档前必须通过 mumuspec check 全量校验
 - **任何代码或规范变更都必须同步更新 package.json 和 src/cli.ts 中的版本号**
 - Each `.mumuspec/` directory SHALL contain `prd.md` (product perspective) and `tech.md` (technical perspective) instead of `spec.md` and `design.md`
-- Root `.mumuspec/` SHALL additionally contain `goal.md`, `env-spec.md`, and retain `spec.md` (global charter) and `prohibitions.md`
+- Root `.mumuspec/` SHALL contain: `spec.md` (global charter)、`design.md` (root design index)、`prd.md`、`tech.md`、`goal.md`、`env-spec.md`、`prohibitions.md`、`glossary.md`、`index.yaml`、`config.yaml`、`constraints.yaml` (动态约束强度持久化)、`workflow.yaml` (项目级流程 override)
+- 项目级 `.mumuspec/workflow.yaml` 存在且合法时，guard 入口必须加载并生效（source 'project'）；损坏或非法时必须 WARN 并回退内置默认（CHG-7）
+- workflow.yaml 的 phases 顺序必须与 phase-graph.ts 的 PHASE_ORDER 保持同构（CHG-6 单一事实源为 `src/change/workflow.default.yaml`，AC-01 测试锁定）
 - Root `spec.md` SHALL contain only cross-module global rules (Ponytail constraints, project structure, change management)
 - Changes SHALL be stored in the `.mumuspec/changes/` of the directory where the change is scoped
 - `single_active_change` SHALL be enforced per-scope, not globally
@@ -148,12 +151,43 @@ prohibitions:
 - FA-2: finalize-archive verifies all delta-specs were merged before asking user about cleanup
 - FA-3: finalize-archive respects backward compat — old spec.md/design.md kept by default
 
+## Requirement: 文档产出规范（结果导向）
+
+### SHALL
+- 生成的文档只记录结果与结论（最终状态、事实、结论本身），过程性信息仅在被用户明确要求时写入
+- 有意保留的过程性内容必须显式标注（如 `process:` 前缀标记），便于归档时清理
+
+### SHALL NOT
+- 禁止在文档中记录思考过程、推理链或生成过程回顾（除非用户明确要求）
+- 禁止在文档中记录生成该文档所用到的要求、命令、提示词等元信息
+- 禁止在文档中写对齐来源、修改说明类元注释（如"（与 XX 对齐）"、"本次更新了…"）
+- 禁止保留过期或无效的文档内容（类比代码死代码——应删除而非注释保留）
+- 禁止生成多余的说明性注释
+
+### Enforcement
+- DOC-1: manual(code review 核对产出文档无过程性内容与元注释)
+- DOC-2: enforced-weak(正则兜底可提取：扫描"（与 …对齐）"类括号元注释与"本次/此次更新"类过程回顾句式)
+
 ## Requirement: 术语表管理规范
 
 ### SHALL
 - 项目根目录 `.mumuspec/glossary.md` 作为**权威术语参考**（Ubiquitous Language），所有文档、代码注释、沟通均应使用其中定义的统一术语
 - 新增术语须经过共识决策，禁止在不同文档中对同一术语赋予不同含义
 - 术语表与规范/代码保持同步：当引入新命令、新模块、新流程时，必须在 glossary.md 中补充对应术语
+
+### SHALL NOT
+- 禁止术语表条目与 spec.md / tech.md / prd.md 中的定义相互矛盾
+- 禁止省略术语的英文对照（原文引用场景依赖英文符号）
+- 禁止将术语表用作实现规范约束的场所（约束入 spec.md，术语入 glossary.md）
+
+### Enforcement
+- GLOSSARY-1: glossary.md 必须存在于项目根 `.mumuspec/` 目录
+- GLOSSARY-2: glossary.md 每条目必须包含"术语 / 英文 / 定义"三要素
+- GLOSSARY-3: 新增命令/模块时检查 glossary.md 是否同步更新
+
+## Requirement: 命令能力分层（Capability Tier）
+
+### SHALL
 - 每个命令必须声明自己的层级（`tier: "general" | "dedicated"`），通过 `CommandMetadata` 接口自描述
 - 专用工具（dedicated）必须实现标准守门流程：前置校验 → 影响预览 → 显式确认 → 执行 → 后置验证 → 报告
 - 通用基础能力（general）必须支持 `--dry-run` 模式，供用户预览操作结果
@@ -162,15 +196,12 @@ prohibitions:
 - 通用能力的组合结果不得自动作为专用工具的输入
 - 每个专用工具的确认提示必须展示影响范围预览
 - dry-run 输出必须与实际执行输出格式一致
-- MumuSpec  SHALL 提供 `mumuspec capability <command>` 命令查询任意命令的能力属性
+- MumuSpec SHALL 提供 `mumuspec capability <command>` 命令查询任意命令的能力属性
 - 通用基础能力 SHALL 标记 `composable: true`，支持链式调用、并行探索、迭代深化
 - 专用工具 SHALL 标记 `composable: false`，执行过程不可中断或跳转
 - 能力层级的提升或降低 SHALL 走外部契约变更流程（影响分析 → 用户征询 → 文档同步 → 记录持久化）
 
 ### SHALL NOT
-- 禁止术语表条目与 spec.md / tech.md / prd.md 中的定义相互矛盾
-- 禁止省略术语的英文对照（原文引用场景依赖英文符号）
-- 禁止将术语表用作实现规范约束的场所（约束入 spec.md，术语入 glossary.md）
 - SHALL NOT 将通用能力标记为专用工具以提高"重要性"（分层基于风险等级）
 - SHALL NOT 在执行通用能力时要求用户显式确认（除非用户在配置中显式启用）
 - SHALL NOT 跳过专用工具的前置校验（即使"看起来没问题"）
@@ -187,9 +218,6 @@ prohibitions:
 - 专用工具在 hotfix 预设下可降级前置校验强度（但仍需用户确认）
 
 ### Enforcement
-- GLOSSARY-1: glossary.md 必须存在于项目根 `.mumuspec/` 目录
-- GLOSSARY-2: glossary.md 每条目必须包含"术语 / 英文 / 定义"三要素
-- GLOSSARY-3: 新增命令/模块时检查 glossary.md 是否同步更新
 - CAP-1: 每个命令必须在代码中声明 `CommandMetadata`，包含 `tier` / `risk` / `confirmRequired` / `reversible` 字段
 - CAP-2: 专用工具必须经过完整守门流程才能执行（可通过 `mumuspec capability <cmd>` 验证）
 - CAP-3: 通用能力组合不得产生文件系统副作用（测试覆盖）
@@ -241,10 +269,9 @@ prohibitions:
 - F-5: manual(由 review 流程核对 skill 引用的命令与注册表一致——P1 候选：清单化生成校验)
 
 
-<!-- delta-merged from goal-p0-dispatch-gate/completeness-gate.md -->
-# Delta Spec: 完备性门禁 v1
+<!-- delta-merged from goal-p0-dispatch-gate/completeness-gate.md (2026-09-05 归档合并) -->
 
-## Requirement: 结构化完备性工件
+## Requirement: 完备性门禁 — 结构化完备性工件
 
 设计完备性判定必须产出机器可读的结构化工件，而非自由文本结论。
 
@@ -264,7 +291,7 @@ prohibitions:
 - ENF-1: enforced-strong(schema 校验：字段、状态枚举、version 存在)
 - ENF-2: enforced-strong(工件状态与 decisions 日志交叉断言：resolved 条目必有决策去向)
 
-## Requirement: 双签门禁
+## Requirement: 完备性门禁 — 双签放行
 
 完备性门禁 = LLM 判定（advisory）+ 人工签收（放行条件），机械校验保持一票否决。
 
@@ -287,10 +314,9 @@ prohibitions:
 
 
 
-<!-- delta-merged from goal-p0-dispatch-gate/dispatch-layer.md -->
-# Delta Spec: 分发层 canonical-first
+<!-- delta-merged from goal-p0-dispatch-gate/dispatch-layer.md (2026-09-05 归档合并) -->
 
-## Requirement: AGENTS.md canonical 生成
+## Requirement: 分发层 — AGENTS.md canonical 生成
 
 MumuSpec 必须能生成 AGENTS.md 作为唯一权威 Rules 文件，并通过薄壳桥接覆盖全部主流 agent。
 
@@ -314,7 +340,7 @@ MumuSpec 必须能生成 AGENTS.md 作为唯一权威 Rules 文件，并通过�
 - ENF-3: enforced-strong(容量断言：生成产物 ≤ 32KiB)
 - ENF-4: manual(薄壳在真实 Claude Code 会话中被加载，evidence 记入 verify.md)
 
-## Requirement: phase skill 分发平权
+## Requirement: 分发层 — phase skill 平权
 
 阶段 Skill 对所有支持的 agent 可用，不因 agent 而缺失。
 
@@ -328,12 +354,9 @@ MumuSpec 必须能生成 AGENTS.md 作为唯一权威 Rules 文件，并通过�
 
 
 
-<!-- delta-merged from goal-p0-dispatch-gate/rule-driven-implementation.md -->
-# Delta Spec: 规则-实现分离（Rule-Driven Implementation）
+<!-- delta-merged from goal-p0-dispatch-gate/rule-driven-implementation.md (2026-09-05 归档合并；依据 KP-0060，与「流程执行载体（CLI-first）」块同构，作为其一般化上位原则) -->
 
-> 依据 KP-0060。归档时合并进根 spec.md，与「流程执行载体（CLI-first）」块同构，作为其一般化上位原则。
-
-## Requirement: 规则-实现分离
+## Requirement: 规则-实现分离（Rule-Driven Implementation）
 
 ### SHALL
 

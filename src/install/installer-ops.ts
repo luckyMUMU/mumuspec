@@ -21,9 +21,13 @@ import {
   MCP_PRESETS,
   COMMAND_PRESETS,
   AGENT_RULE_TARGETS,
+  AGENT_INSTALL_POLICIES,
 } from './installer-registry.js';
 import { renderRuleFiles, buildRuleGenContext } from './rules-generator.js';
 import type { MumuSpecConfig } from '../core/config.js';
+import { loadConfig } from '../core/config.js';
+import { loadSpecContext } from '../spec/loader.js';
+import type { SpecContext } from '../core/types-spec.js';
 
 export type InstallMode = 'install' | 'update';
 
@@ -228,31 +232,17 @@ export function installPackage(
   workspacePath?: string,
   mode: InstallMode = 'install',
 ): InstallResult {
-  switch (agent) {
-    case 'catpaw':
-      return installCatpawPackage(packageName, target, workspacePath, mode);
-    case 'claude':
-    case 'cursor':
-    case 'trae':
-    case 'workbuddy':
-    case 'opencode':
-      return installGenericAgentPackage(agent, packageName, target, workspacePath, mode);
-    case 'codex':
-    case 'windsurf':
-    case 'gemini': {
-      const result = installGenericAgentPackage(agent, packageName, target, workspacePath, mode);
-      // goal-p0-dispatch-gate (C2): rules generation rides on workspace-scope installs
-      if (result.success && target === 'workspace' && workspacePath) {
-        installRuleFiles(agent, workspacePath, { forceRules: mode === 'update' });
-      }
-      return result;
-    }
-    case 'copilot':
-      // C2/D1: copilot distribution IS the canonical rules file (no skill files —
-      // TC-A1x forbids extra files under .github/)
-      if (target === 'workspace' && workspacePath) {
-        return installRuleFilesAsResult(agent, packageName, target, workspacePath, mode === 'update');
-      }
+  const policy = AGENT_INSTALL_POLICIES[agent];
+  if (!policy) {
+    return { success: false, packageName, agent, target, error: `Unknown agent: ${agent}` };
+  }
+  if (policy.kind === 'catpaw') {
+    return installCatpawPackage(packageName, target, workspacePath, mode);
+  }
+  if (policy.kind === 'rules-only') {
+    // C2/D1: copilot distribution IS the canonical rules file (no skill files —
+    // TC-A1x forbids extra files under .github/)
+    if (policy.workspaceOnly && target !== 'workspace') {
       return {
         success: false,
         packageName,
@@ -260,9 +250,21 @@ export function installPackage(
         target,
         error: 'Copilot rules are workspace-scoped; use --target workspace --workspace-path <dir>.',
       };
-    default:
-      return { success: false, packageName, agent, target, error: `Unknown agent: ${agent}` };
+    }
+    return installRuleFilesAsResult(agent, packageName, target, workspacePath!, mode === 'update');
   }
+  // kind === 'generic'
+  const result = installGenericAgentPackage(agent, packageName, target, workspacePath, mode);
+  // goal-p0-dispatch-gate (C2): rules generation rides on workspace-scope installs
+  if (
+    result.success &&
+    policy.rulesRideAlong &&
+    target === 'workspace' &&
+    workspacePath
+  ) {
+    installRuleFiles(agent, workspacePath, { forceRules: mode === 'update' });
+  }
+  return result;
 }
 
 function createMinimalAgentSkill(pkg: PackageManifestEntry): string {
@@ -277,6 +279,38 @@ ${pkg.description}
 
 mumuspec init / mumuspec new <name> / mumuspec status / mumuspec guard <name> <phase>
 `;
+}
+
+/** 运行时读取包版本（与 cli/index.ts 的 CLI_VERSION 同源：package.json 单一事实源） */
+function getPackageVersion(): string {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+    ) as { version?: string };
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
+/**
+ * 将技能 SKILL.md frontmatter 的 metadata.version 替换为指定版本（版本单一源）。
+ * 仅处理文件头部 frontmatter（首个 --- … --- 块）；无 frontmatter 时原样返回；
+ * 正文中的 version 文本不受影响。
+ */
+export function stampSkillVersion(content: string, version: string): string {
+  const fm = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!fm) return content;
+  const head = fm[0];
+  let body = fm[1];
+  if (/^(\s*)version:[ \t]/m.test(body)) {
+    body = body.replace(/^(\s*)version:[ \t].*$/m, `$1version: ${version}`);
+  } else if (/^metadata:[ \t]*$/m.test(body)) {
+    body = body.replace(/^metadata:[ \t]*$/m, `metadata:\n  version: ${version}`);
+  } else {
+    return content;
+  }
+  return content.replace(head, `---\n${body}\n---`);
 }
 
 function installGenericAgentPackage(
@@ -294,7 +328,7 @@ function installGenericAgentPackage(
     const sourceSkill = findSkillSource(packageName);
 
     let targetPath: string;
-    if (agent === 'claude' || agent === 'cursor') {
+    if (AGENT_INSTALL_POLICIES[agent].layout === 'flat-command') {
       const cmdName = pkg.command || packageName;
       targetPath = join(dirInfo.baseDir, dirInfo.skillsSubDir, `${cmdName}${dirInfo.fileExt}`);
     } else {
@@ -308,7 +342,8 @@ function installGenericAgentPackage(
     mkdirSync(dirname(targetPath), { recursive: true });
     // ponytail: fallback to minimal skill content if source not found (aligned with CatPaw's createMinimalWorkflowSkill)
     const content = sourceSkill ? readFileSync(sourceSkill, 'utf8') : createMinimalAgentSkill(pkg);
-    writeFileSync(targetPath, content, 'utf8');
+    // 版本单一源：写入时以运行时包版本覆盖 SKILL.md frontmatter 的 metadata.version
+    writeFileSync(targetPath, stampSkillVersion(content, getPackageVersion()), 'utf8');
     return { success: true, packageName, agent, target, path: targetPath };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -340,6 +375,18 @@ function tryLoadInstallConfig(workspacePath: string): MumuSpecConfig | undefined
   }
 }
 
+/**
+ * 尝试加载 workspace 的规范链（AGENTS.md「规范链摘要」数据来源）。
+ * 未 init / 加载失败 → undefined，摘要回落为"尚未生成"提示。
+ */
+function tryLoadSpecContext(workspacePath: string): SpecContext | undefined {
+  try {
+    return loadSpecContext(workspacePath, workspacePath, loadConfig(workspacePath));
+  } catch {
+    return undefined;
+  }
+}
+
 /** 内存快照：目标规则文件（canonical + bridges）的当前磁盘内容，absent = undefined */
 function snapshotRuleFiles(agent: AgentType, workspacePath: string): Record<string, string | undefined> {
   const target = AGENT_RULE_TARGETS[agent];
@@ -363,10 +410,17 @@ export function installRuleFiles(
   workspacePath: string,
   opts: { forceRules?: boolean } = {},
 ): InstallRulesResult {
-  const plans = renderRuleFiles(agent, buildRuleGenContext(tryLoadInstallConfig(workspacePath)), {
-    existingFiles: snapshotRuleFiles(agent, workspacePath),
-    forceRules: opts.forceRules === true,
-  });
+  const plans = renderRuleFiles(
+    agent,
+    buildRuleGenContext(
+      tryLoadInstallConfig(workspacePath),
+      tryLoadSpecContext(workspacePath),
+    ),
+    {
+      existingFiles: snapshotRuleFiles(agent, workspacePath),
+      forceRules: opts.forceRules === true,
+    },
+  );
   const written: string[] = [];
   const skipped: Array<{ path: string; diagnostic?: string }> = [];
   for (const plan of plans) {
@@ -712,7 +766,7 @@ export function listInstalledAgentSkills(
     for (const entry of entries) {
       const fullPath = join(skillsDir, entry.name);
 
-      if (agent === 'claude' || agent === 'cursor') {
+      if (AGENT_INSTALL_POLICIES[agent].layout === 'flat-command') {
         // These agents use flat .md files in commands dir
         if (entry.isFile() && entry.name.endsWith(dirInfo.fileExt)) {
           skills.push({

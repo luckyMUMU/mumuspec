@@ -9,77 +9,37 @@ import { classifyRequirements, computeEnforcementCoverage, extractQuotedTerms, t
 import { parsePonytailMarkers } from '../spec/ponytail.js';
 import { lintPonytail } from './ponytail-linter.js';
 import { readText, writeText, computeHash, getMumuSpecDir, findSpecDirs, normalizePath } from '../core/utils.js';
+import { loadConfig } from '../core/config.js';
+import { validateAllSpecs } from '../spec/validator.js';
 import type { ConstraintStrengthField } from '../core/config.js';
 import { evaluateConstraint, type ConstraintCheck } from '../core/constraint-evaluator.js';
+import { ERROR_CODES } from '../core/errors.js';
 import { detectContractDrift } from '../contract/validator.js';
 import { getLanguageProvider, registerBuiltInProviders, getProviderCount } from './language-provider-registry.js';
 
 /**
- * Guard check metadata — maps error codes to strength-evaluation attributes.
+ * Derive strength metadata from the authoritative `ERROR_CODES` registry
+ * (Phase 3.3: single source — the code→dimension/strength mapping lives on
+ * each `ErrorCodeDef` in core/errors.ts; this replaces the former parallel
+ * GUARD_CHECK_METADATA map whose phantom entries had drifted from the registry).
  *
- * Used by `applyStrengthToGuardResult()` to decide whether a given error/
- * warning should be kept (block), downgraded to a warning (warn), or dropped
- * (info) based on the project's `constraint_strength` configuration.
- *
- * Error codes absent from this map use a default of
+ * Codes without registry metadata default to
  * `{ dimension: 'technical_design', min_strength: 'low' }` — i.e. they
- * always fire at any strength level, preserving backwards compatibility
- * for code paths that have not yet been annotated.
+ * always fire at any strength level, preserving backwards compatibility.
  */
-const GUARD_CHECK_METADATA: Record<string, Omit<ConstraintCheck, 'id'>> = {
-  // SHALL NOT violations — always block (CI invariant)
-  'E-GUARD-003': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
-  // SHALL without verification declaration — verifiability is orthogonal to
-  // strength (P0): always visible, never folded away at low strength.
-  'E-SPEC-004': { dimension: 'technical_design', min_strength: 'medium', always_enforce: true },
-  // SHALL NOT unverifiable (P0 E-SPEC-015) — red-line format invariant, always block
-  'E-SPEC-015': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
-  // Manual constraint missing verify evidence (P0 E-VERIFY-003) — result gate
-  'E-VERIFY-003': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
-  // Ponytail markers — TD
-  'E-PONYTAIL-001': { dimension: 'technical_design', min_strength: 'medium' },
-  // Test immutability hash mismatch — TD (behavior constraint, downgraded for LLM freedom)
-  'E-GUARD-004': { dimension: 'technical_design', min_strength: 'medium' },
-  // Build layers not done — RG (delivery completeness, result constraint — keep block)
-  'E-GUARD-002': { dimension: 'requirement_goals', min_strength: 'high' },
-  // Cognitive framework checks — TD (behavior constraints, downgraded for LLM freedom)
-  'E-DESIGN-001': { dimension: 'technical_design', min_strength: 'medium' },
-  'E-DESIGN-002': { dimension: 'technical_design', min_strength: 'medium' },
-  'E-DESIGN-003': { dimension: 'technical_design', min_strength: 'medium' },
-  'E-DESIGN-004': { dimension: 'technical_design', min_strength: 'medium' },
-  'E-DESIGN-005': { dimension: 'technical_design', min_strength: 'medium' },
-  'E-DESIGN-006': { dimension: 'technical_design', min_strength: 'medium' },
-  // decisions.md hash mismatch — RG (audit integrity, always block)
-  'E-CHANGE-007': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
-  // Completeness gate artifacts invalid / resolution chain broken — RG high
-  // (goal-p0-dispatch-gate ENF-1/2/4: gate must never be degraded or bypassed)
-  'E-CHANGE-020': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
-  'E-CHANGE-021': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
-  // Completeness gate block (missing artifact / open items / empty artifact /
-  // unsigned declaration path) — RG high, always_enforce (ENF-3/ENF-4 red line)
-  'E-GUARD-008': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
-  // Invalid phase transition — workflow control (always block)
-  'E-CHANGE-006': { dimension: 'requirement_goals', min_strength: 'high', always_enforce: true },
-  // Generic guard error (proposal.md missing, etc.) — TD medium (process artifact check)
-  // CHG-5 (0.20): downgraded from RG high to TD medium — artifact existence is a
-  // process constraint; the result constraint (verify pass) catches missing artifacts.
-  'E-GUARD-001': { dimension: 'technical_design', min_strength: 'medium' },
-  // Design template check — TD (process constraint, design structure is HOW)
-  'E-DESIGN-009': { dimension: 'technical_design', min_strength: 'medium' },
-  // Cross-artifact consistency — TD (process constraint, advisory for LLM freedom)
-  'E-DESIGN-010': { dimension: 'technical_design', min_strength: 'medium' },
-};
-
-/** Default metadata for unmapped error codes. */
-const DEFAULT_CHECK_METADATA: Omit<ConstraintCheck, 'id'> = {
-  dimension: 'technical_design',
-  min_strength: 'low',
-};
+function checkMetadataFor(code: string): Omit<ConstraintCheck, 'id'> {
+  const def = ERROR_CODES[code];
+  return {
+    dimension: def?.dimension ?? 'technical_design',
+    min_strength: def?.min_strength ?? 'low',
+    ...(def?.always_enforce ? { always_enforce: true as const } : {}),
+  };
+}
 
 /**
  * Apply strength-aware evaluation to a `GuardResult`.
  *
- * For each error/warning, looks up its `code` in `GUARD_CHECK_METADATA`,
+ * For each error/warning, derives its metadata via `checkMetadataFor()` (ERROR_CODES registry),
  * calls `evaluateConstraint()`, and partitions the result:
  *   - `block` → retained in `errors`
  *   - `warn`  → moved to `warnings` (if it was an error) or retained (if already a warning)
@@ -98,7 +58,7 @@ export function applyStrengthToGuardResult(
   const newWarnings: GuardWarning[] = [];
 
   for (const err of result.errors) {
-    const meta = GUARD_CHECK_METADATA[err.code] ?? DEFAULT_CHECK_METADATA;
+    const meta = checkMetadataFor(err.code);
     const evalResult = evaluateConstraint(
       { id: err.code, ...meta },
       strength,
@@ -116,7 +76,7 @@ export function applyStrengthToGuardResult(
   }
 
   for (const warn of result.warnings) {
-    const meta = GUARD_CHECK_METADATA[warn.code] ?? DEFAULT_CHECK_METADATA;
+    const meta = checkMetadataFor(warn.code);
     const evalResult = evaluateConstraint(
       { id: warn.code, ...meta },
       strength,
@@ -186,6 +146,14 @@ export function checkCompliance(
     }
   }
 
+  // G5 (2026-09-08): 规范层校验并入 check。根 spec.md:87 要求「归档前必须通过
+  // mumuspec check 全量校验」，但此前 check 仅覆盖 E-SPEC-004/015，规范结构缺陷
+  // （E-SPEC-001/002/003/010/011…）只有 validate 能发现 —— 二者共用同一套 E-SPEC-*
+  // 诊断却给出相反结论。full check 即全量门禁，故并入。
+  if (fullCheck) {
+    mergeSpecValidation(projectRoot, errors);
+  }
+
   const rawResult: GuardResult = {
     passed: errors.length === 0,
     errors,
@@ -199,6 +167,35 @@ export function checkCompliance(
   }
 
   return applyStrengthToGuardResult(rawResult, options.strength);
+}
+
+/**
+ * Merge spec-layer validation errors (E-SPEC-*) into a check run.
+ *
+ * Only errors are merged — warnings (unverifiable / advisory diagnostics) stay
+ * validate-only so `check` output remains focused on blocking issues. Entries
+ * are deduped by code+message so diagnostics both sides produce (E-SPEC-015
+ * 红线) are not reported twice.
+ */
+function mergeSpecValidation(
+  projectRoot: string,
+  errors: { code: string; message: string; detail?: string }[],
+): void {
+  let specErrors: { code: string; message: string; detail?: string }[];
+  try {
+    specErrors = validateAllSpecs(projectRoot, loadConfig(projectRoot)).errors;
+  } catch (e) {
+    Logger.debug('guard.checker', 'Spec validation skipped during check', { error: (e as Error).message });
+    return;
+  }
+
+  const seen = new Set(errors.map((e) => `${e.code}|${e.message}`));
+  for (const entry of specErrors) {
+    const key = `${entry.code}|${entry.message}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    errors.push(entry);
+  }
 }
 
 /** Check SHALL NOT violations */
@@ -311,6 +308,12 @@ function isMumuSpecSelfRepo(projectRoot: string): boolean {
 function isAgentBehaviorConstraint(text: string): boolean {
   const lower = text.toLowerCase();
   if (lower.includes('手工编辑') && (lower.includes('状态工件') || lower.includes('.mumuspec.yaml') || lower.includes('decisions.md'))) {
+    return true;
+  }
+  // C3 遗留格式禁令（"禁止生成 `.cursorrules` 与 `.windsurfrules`"）：generator 的
+  // 硬过滤与 doctor 的指引文案是该约束的合法实现者——必须精确写出这些文件名才能
+  // 保证"永不生成"（goal-p0-dispatch-gate D2；2026-09-05 自洽性修复）。
+  if (lower.includes('.cursorrules') || lower.includes('.windsurfrules')) {
     return true;
   }
   return lower.includes('--force') && (lower.includes('e-spec-015') || lower.includes('forceable'));
@@ -826,74 +829,102 @@ export function detectDrift(projectRoot: string): DriftResult[] {
   return results;
 }
 
+/**
+ * G7b (2026-09-08): 全树递归收集含 .mumuspec 的目录（相对 projectRoot）。
+ *
+ * 此前 checkIndexDrift 只扫 projectRoot 一层，深层模块（如 src\mcp）「有规范层
+ * 却未注册进 index.yaml」永远漏检。MumuSpec 的 index.yaml 是单文件全树注册
+ * （children.path 直接挂 src\mcp 这类相对路径），因此对比基准就是根 index。
+ *
+ * 排除：node_modules、dot 目录（.mumuspec 自身与变更目录内嵌套的 .mumuspec
+ * 因 dot 天然跳过）。
+ */
+function collectSpecDirsRel(projectRoot: string): string[] {
+  const found: string[] = [];
+  const walk = (absDir: string, relDir: string): void => {
+    let entries: import('node:fs').Dirent[];
+    try {
+      entries = readdirSync(absDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+      const childAbs = join(absDir, entry.name);
+      const childRel = relDir ? `${relDir}/${entry.name}` : entry.name;
+      if (existsSync(join(childAbs, '.mumuspec'))) {
+        found.push(childRel);
+      }
+      walk(childAbs, childRel);
+    }
+  };
+  walk(projectRoot, '');
+  return found;
+}
+
 /** Check index.yaml freshness — P1-2 Fix: Real directory comparison */
 function checkIndexDrift(
   projectRoot: string,
   results: DriftResult[],
 ): void {
-  const scan = (dir: string) => {
-    const mumuDir = join(dir, '.mumuspec');
-    const indexPath = join(mumuDir, 'index.yaml');
+  const indexPath = join(projectRoot, '.mumuspec', 'index.yaml');
 
-    if (!existsSync(indexPath)) return;
+  if (!existsSync(indexPath)) return;
 
-    try {
-      const indexContent = readFileSync(indexPath, 'utf8');
-      const indexData = parse(indexContent) as { children?: Array<{ name?: string; path?: string }> };
+  try {
+    const indexContent = readFileSync(indexPath, 'utf8');
+    const indexData = parse(indexContent) as { children?: Array<{ name?: string; path?: string }> };
 
-      // Get actual directories that have .mumuspec subdirectory
-      const actualDirs = readdirSync(dir, { withFileTypes: true })
-        .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules')
-        .filter((e) => existsSync(join(dir, e.name, '.mumuspec')))
-        .map((e) => e.name);
+    // G7b: 全树收集（相对路径，posix 分隔符），替代此前的一层 readdir
+    const actualDirs = collectSpecDirsRel(projectRoot);
 
-      // P1-2 fix (2026-08-29): index children carry a `name` and a relative
-      // `path` (e.g. "src\core"). The previous comparison matched paths
-      // against bare directory names — they never intersected, so EVERY
-      // entry produced a spurious "no longer has .mumuspec" warning.
-      const indexEntries = indexData.children || [];
+    // P1-2 fix (2026-08-29): index children carry a `name` and a relative
+    // `path` (e.g. "src\core"). The previous comparison matched paths
+    // against bare directory names — they never intersected, so EVERY
+    // entry produced a spurious "no longer has .mumuspec" warning.
+    const indexEntries = indexData.children || [];
 
-      // Detect directories missing from index (compare names against both
-      // the entry name and its path basename/whole path)
-      for (const dirName of actualDirs) {
-        const covered = indexEntries.some((c) => {
-          if (c.name === dirName || c.path === dirName) return true;
-          const base = c.path?.split(/[\\/]/).pop();
-          return base === dirName;
+    const norm = (p: string): string => p.replace(/\\/g, '/');
+
+    // Detect directories missing from index (exact path/name match first,
+    // basename fallback kept for backward compatibility)
+    for (const dirName of actualDirs) {
+      const covered = indexEntries.some((c) => {
+        if (c.name === dirName || norm(c.path ?? '') === dirName) return true;
+        const base = c.path?.split(/[\\/]/).pop();
+        return base === dirName.split('/').pop();
+      });
+      if (!covered) {
+        results.push({
+          type: 'index_drift',
+          severity: 'WARN',
+          message: `Directory "${dirName}" has .mumuspec but is missing from index.yaml`,
+          file: join(projectRoot, dirName),
+          fixable: true,
+          fixHint: `Run 'mumuspec sync' to update index.yaml`,
         });
-        if (!covered) {
-          results.push({
-            type: 'index_drift',
-            severity: 'WARN',
-            message: `Directory "${dirName}" has .mumuspec but is missing from index.yaml`,
-            file: join(dir, dirName),
-            fixable: true,
-            fixHint: `Run 'mumuspec sync' to update index.yaml`,
-          });
-        }
       }
-
-      // Detect index entries whose target no longer has .mumuspec on disk
-      for (const entry of indexEntries) {
-        if (!entry.path) continue;
-        const childMumuDir = join(dir, entry.path, '.mumuspec');
-        if (!existsSync(childMumuDir)) {
-          results.push({
-            type: 'index_drift',
-            severity: 'WARN',
-            message: `index.yaml references "${entry.path}" but directory no longer has .mumuspec`,
-            file: join(dir, entry.path),
-            fixable: true,
-            fixHint: `Remove stale entry from index.yaml or restore directory`,
-          });
-        }
-      }
-    } catch (e) {
-      Logger.debug('guard.checker', 'Failed to read index.yaml during drift check', { error: (e as Error).message });
     }
-  };
 
-  scan(projectRoot);
+    // Detect index entries whose target no longer has .mumuspec on disk
+    for (const entry of indexEntries) {
+      if (!entry.path) continue;
+      const childMumuDir = join(projectRoot, entry.path, '.mumuspec');
+      if (!existsSync(childMumuDir)) {
+        results.push({
+          type: 'index_drift',
+          severity: 'WARN',
+          message: `index.yaml references "${entry.path}" but directory no longer has .mumuspec`,
+          file: join(projectRoot, entry.path),
+          fixable: true,
+          fixHint: `Remove stale entry from index.yaml or restore directory`,
+        });
+      }
+    }
+  } catch (e) {
+    Logger.debug('guard.checker', 'Failed to read index.yaml during drift check', { error: (e as Error).message });
+  }
 }
 
 /** Detect drift between contracts and code (Cross-Directory Contract Guard) */
@@ -993,7 +1024,7 @@ export function detectAgentsDrift(projectRoot: string): DriftResult[] {
         type: 'agents_drift',
         severity: 'WARN',
         message: 'AGENTS.md↔spec 漂移无法校验：agents-hash.json 未生成',
-        fixHint: '运行 mumuspec rules generate 生成 AGENTS.md 与 agents-hash.json',
+        fixHint: '运行 mumuspec init 重新生成 AGENTS.md 与 agents-hash.json',
       },
     ];
   }
@@ -1007,7 +1038,7 @@ export function detectAgentsDrift(projectRoot: string): DriftResult[] {
         type: 'agents_drift',
         severity: 'WARN',
         message: 'AGENTS.md↔spec 漂移无法校验：agents-hash.json 解析失败',
-        fixHint: '重新运行 mumuspec rules generate',
+        fixHint: '重新运行 mumuspec init（重新生成 rules 文件）',
       },
     ];
   }
@@ -1021,7 +1052,7 @@ export function detectAgentsDrift(projectRoot: string): DriftResult[] {
       severity: 'ERROR',
       code: 'E-AGENTS-001',
       message: 'AGENTS.md↔spec 漂移：spec 内容在 AGENTS.md 生成后发生变化',
-      fixHint: '重新运行 mumuspec rules generate',
+      fixHint: '重新运行 mumuspec init（重新生成 rules 文件）',
     },
   ];
 }

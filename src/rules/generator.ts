@@ -46,9 +46,10 @@ export function generateRulesFiles(
   projectRoot: string,
   config: MumuSpecConfig,
   specContext?: SpecContext,
+  cliCommands?: string,
 ): GenerateRulesResult {
   const legacyFiltered = config.ai.rules_files.filter((f) => !LEGACY_RULE_FILES.includes(f));
-  const ctx = buildRuleGenContext(config, specContext);
+  const ctx = buildRuleGenContext(config, specContext, cliCommands);
   const written: string[] = [];
   const skipped: SkippedRuleFile[] = [];
 

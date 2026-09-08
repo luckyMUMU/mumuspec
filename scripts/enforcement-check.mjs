@@ -236,18 +236,23 @@ function checkChange3() {
   // Check src/cli/index.ts first (new location after modularization)
   const cliIndexPath = join(root, 'src', 'cli', 'index.ts');
   let cliVerMatch = null;
+  let dynamicVersion = false;
   if (existsSync(cliIndexPath)) {
     const cliIndexSrc = readFileSync(cliIndexPath, 'utf8');
+    // Runtime package.json read → consistency guaranteed by construction
+    dynamicVersion = /package\.json['"]\s*,\s*import\.meta\.url/.test(cliIndexSrc);
     cliVerMatch = cliIndexSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
   }
 
   // Fallback: check src/cli.ts
-  if (!cliVerMatch) {
+  if (!dynamicVersion && !cliVerMatch) {
     const cliSrc = readFileSync(join(root, 'src', 'cli.ts'), 'utf8');
     cliVerMatch = cliSrc.match(/\.version\(['"]([^'"]+)['"]\)/);
   }
 
-  if (!cliVerMatch) {
+  if (dynamicVersion) {
+    console.log('  OK — CLI reads version from package.json at runtime (by-construction consistency)');
+  } else if (!cliVerMatch) {
     report('error', 'CHANGE-3', 'src/cli.ts and src/cli/index.ts: cannot find .version() call');
   } else if (cliVerMatch[1] !== pkg.version) {
     report('error', 'CHANGE-3', `version mismatch: package.json=${pkg.version}, cli source=${cliVerMatch[1]}`);
