@@ -76,6 +76,8 @@ vi.mock('node:path', () => ({
 vi.mock('../../../src/core/utils.js', () => ({
   findProjectRoot: (() => mockFindProjectRoot()) as () => string | undefined,
   getMumuSpecDir: vi.fn(() => '/fake/root/.mumuspec'),
+  // W3: fixture dirs are built with prd.md — registration predicate holds
+  isRegisteredSpecModule: () => true,
   readText: (p: string) => mockReadText(p),
   writeText: vi.fn(),
   writeYaml: vi.fn(),

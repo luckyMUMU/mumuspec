@@ -1,7 +1,7 @@
 /**
  * Change archive sub-processes — version bump, delta-merge, knowledge extraction.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ChangeState } from '../core/types.js';
 import { loadConfig } from '../core/config.js';
@@ -135,17 +135,10 @@ export function archiveChange(
   const isTweak = state.workflow === 'tweak';
   const changeDir = getChangeDir(projectRoot, changeName, scope);
 
-  const bumpedVersion = bumpVersionForArchive(projectRoot, state.workflow, changeName);
-  if (bumpedVersion) {
-    appendAuditLog(getMumuSpecDir(projectRoot), {
-      actor: 'system',
-      action: 'version.bump',
-      change: changeName,
-      to_version: bumpedVersion,
-      trigger: 'archive',
-      result: 'success',
-    });
-  }
+  // W2 (CHG 2026-09-09-review-followup-hardening): bump moved AFTER rename —
+  // a failed rename must not leave version/CHANGELOG side effects behind.
+  // mergeDeltaSpecsToMain / extractKnowledgeToGlobal stay before rename:
+  // both are retry-safe (marker check / filename-keyed pages).
 
   if (!isTweak) {
     mergeDeltaSpecsToMain(projectRoot, changeName, changeDir);
@@ -171,11 +164,10 @@ export function archiveChange(
   const archiveDir = getArchiveDir(projectRoot, scope);
   const archivedDir = join(archiveDir, `${new Date().toISOString().split('T')[0]}-${changeName}`);
 
-  ensureDir(archivedDir);
   try {
-    renameSync(changeDir, archivedDir);
+    moveDirSync(changeDir, archivedDir);
   } catch (err) {
-    // Rename failed: do NOT save state or write success audit
+    // Move failed: do NOT bump version, save state, or write success audit
     appendAuditLog(getMumuSpecDir(projectRoot), {
       actor: 'user',
       action: 'change.archive',
@@ -185,6 +177,20 @@ export function archiveChange(
       error: (err as Error).message,
     });
     throw new MumuSpecError('E-CHANGE-011', { cause: (err as Error).message });
+  }
+
+  // W2: bump AFTER successful move (rename fact established first).
+  // Idempotent via .version-bumped marker inside the archived dir.
+  const bumpedVersion = bumpVersionForArchiveIdempotent(archivedDir, projectRoot, state.workflow, changeName);
+  if (bumpedVersion) {
+    appendAuditLog(getMumuSpecDir(projectRoot), {
+      actor: 'system',
+      action: 'version.bump',
+      change: changeName,
+      to_version: bumpedVersion,
+      trigger: 'archive',
+      result: 'success',
+    });
   }
 
   // Only save state AFTER successful rename
@@ -217,7 +223,89 @@ export function archiveChange(
 
 // Local imports needed only by archive sub-processes
 import { ensureDir } from '../core/utils.js';
-import { renameSync } from 'node:fs';
+import { renameSync, cpSync, rmSync } from 'node:fs';
+
+/**
+ * W2 (CHG 2026-09-09-review-followup-hardening): resilient directory move.
+ * Order of attempts:
+ *   1. plain renameSync (fast path, same volume);
+ *   2. existing-empty target on Windows makes dir→dir rename fail (EPERM/
+ *      ENOTEMPTY) → clear the empty target and retry rename;
+ *   3. still failing (EPERM/EACCES/EXDEV…) → copy-recursive + delete-source
+ *      fallback; only when BOTH legs fail does the error propagate.
+ */
+export function moveDirSync(from: string, to: string): void {
+  try {
+    renameSync(from, to);
+    return;
+  } catch {
+    // fall through to recovery paths
+  }
+
+  // Existing empty target is the observed Windows EPERM trigger — clear and retry.
+  try {
+    if (existsSync(to)) {
+      const stillThere = readdirSyncSafe(to);
+      if (stillThere.length === 0) {
+        rmSync(to, { recursive: true, force: true });
+        try {
+          renameSync(from, to);
+          return;
+        } catch {
+          // retry failed — continue to copy fallback below
+        }
+      }
+    }
+  } catch {
+    // probe failure — continue to copy fallback below
+  }
+
+  // Last resort: copy + delete. mkdir the target parent first.
+  try {
+    ensureDir(to);
+    cpSync(from, to, { recursive: true, force: true });
+    rmSync(from, { recursive: true, force: true });
+  } catch (err) {
+    throw new Error(
+      `moveDirSync failed: rename and copy+delete fallback both failed for ${from} -> ${to}: ${(err as Error).message}`,
+    );
+  }
+}
+
+function readdirSyncSafe(dir: string): string[] {
+  try {
+    return readdirSync(dir);
+  } catch {
+    return ['<unreadable>']; // non-empty by assumption; skip the clear-and-retry leg
+  }
+}
+
+/**
+ * W2: idempotent wrapper around bumpVersionForArchive.
+ * A `.version-bumped` marker file inside the archived change dir records the
+ * bumped version; a second call with the marker present is a no-op (returns
+ * null). The marker lives in the archived dir so it survives the move and is
+ * git-auditable.
+ */
+export function bumpVersionForArchiveIdempotent(
+  archivedDir: string,
+  projectRoot: string,
+  workflow: string,
+  changeName: string,
+): string | null {
+  const markerPath = join(archivedDir, '.version-bumped');
+  if (existsSync(markerPath)) return null;
+
+  const bumped = bumpVersionForArchive(projectRoot, workflow, changeName);
+  if (bumped) {
+    try {
+      writeText(markerPath, `${bumped}\n`);
+    } catch {
+      // marker write failure is non-fatal: bump itself already succeeded
+    }
+  }
+  return bumped;
+}
 
 /** Merge delta-specs into the appropriate scope's tech.md or prd.md */
 export function mergeDeltaSpecsToMain(
@@ -455,8 +543,6 @@ function mergeChangeLevelSpecs(
     }
   }
 }
-
-import { readdirSync } from 'node:fs';
 
 /**
  * Extract knowledge from change artifacts to global knowledge base.

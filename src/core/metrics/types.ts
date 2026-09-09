@@ -114,15 +114,8 @@ export const DEFAULT_HYBRID_CONFIG: HybridConfig = {
   manualWeight: 0.3,
 };
 
-/** Default weights for each evaluator (when all are active). Sum = 1 (design D2, CHG 2026-09-09-completeness-artifacts-freedom-metrics).
- *  NOTE: reference-only today — the authoritative source is each evaluator's
- *  `defaultWeight` property (consumed via MetricResult.weight in auto-evaluate).
- *  Keep both in sync until a single source of truth lands (follow-up CHG). */
-export const DEFAULT_EVALUATOR_WEIGHTS: Record<string, number> = {
-  'test-pass-rate': 0.3,
-  'drift-score': 0.2,
-  'spec-compliance': 0.2,
-  'code-delta': 0.1,
-  'design-build-first-pass': 0.2,
-  'constraint-density': 0, // regulation signal only — excluded from composite (design D1)
-};
+// W1 (CHG 2026-09-09-review-followup-hardening): DEFAULT_EVALUATOR_WEIGHTS removed.
+// The single source of truth for evaluator weights is each evaluator's
+// `defaultWeight` property (consumed via MetricResult.weight in auto-evaluate).
+// Invariant (enforced by tests/core/metrics/freedom-suggestions.test.ts):
+// built-in active (defaultWeight > 0) weights sum to 1; constraint-density = 0.

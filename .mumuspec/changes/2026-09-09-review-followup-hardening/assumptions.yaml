@@ -1,0 +1,26 @@
+# Assumptions: 2026-09-09-review-followup-hardening
+# LLM-drafted; each resolution cites a human-signed decision entry in decisions.md.
+version: 1
+change: 2026-09-09-review-followup-hardening
+items:
+  - id: AS-1
+    assumption: >-
+      W1 删除 DEFAULT_EVALUATOR_WEIGHTS 视为破坏性 API 变更可接受——该导出
+      仅在本仓测试中被引用，npm 发布面的下游消费者按 0.x 版本语义容忍破坏性变更。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-09T15:54:48.113Z"
+  - id: AS-2
+    assumption: >-
+      moveDirSync 回退使用 node:fs 的 cpSync（Node ≥16.7，当前 runtime 22.x），
+      不引入 fs-extra 依赖（Ponytail L5 零新增依赖纪律）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-09T15:54:48.113Z"
+  - id: AS-3
+    assumption: >-
+      saveChangeState 在 rename 后保存时的路径解析对归档目录天然兼容
+      （0.20 前已如此工作，本次不改 saveChangeState 实现）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-09T15:54:48.113Z"

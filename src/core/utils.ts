@@ -156,6 +156,20 @@ export function now(): string {
   return new Date().toISOString();
 }
 
+/**
+ * W3 (CHG 2026-09-09-review-followup-hardening): the single module-registration
+ * predicate. A directory counts as a registered spec module iff it contains a
+ * `.mumuspec` directory holding a prd.md OR a tech.md.
+ * Consumers: guard/checker.ts (index_drift detection) and
+ * cli/commands/finalize-archive.ts (rebuildIndexYaml) — both must use THIS
+ * function; do not re-implement the criterion locally.
+ */
+export function isRegisteredSpecModule(dirPath: string): boolean {
+  const mumuDir = join(dirPath, '.mumuspec');
+  if (!existsSync(mumuDir)) return false;
+  return existsSync(join(mumuDir, 'prd.md')) || existsSync(join(mumuDir, 'tech.md'));
+}
+
 /** Append to audit log (JSONL format) */
 export function appendAuditLog(
   mumuSpecDir: string,

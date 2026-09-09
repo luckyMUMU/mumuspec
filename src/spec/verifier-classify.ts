@@ -77,7 +77,7 @@ function escapeRegExp(string: string): string {
 export function isRegexCheckable(text: string): boolean {
   const lower = text.replace(/^ast:/i, '').toLowerCase();
   if (lower.includes('jsx') || lower.includes('tsx')) return true;
-  if (lower.includes('eval') || lower.includes('动态执行')) return true;
+  if (/\beval\b/.test(lower) || lower.includes('动态执行')) return true;
   const quoted = text.match(/[`'"]([^`'"]+)[`'"]/g);
   return !!quoted?.some((q) => q.replace(/[`'"]/g, '').length > 2);
 }
@@ -105,7 +105,7 @@ export function extractRegexPatterns(text: string): RegExp[] {
       term.length <= 4 ? new RegExp(`\\b${escaped}\\b`, 'i') : new RegExp(escaped, 'i'),
     );
   }
-  if (lower.includes('eval') || lower.includes('动态执行')) {
+  if (/\beval\b/.test(lower) || lower.includes('动态执行')) {
     patterns.push(/eval\s*\(/, /new\s+Function\s*\(/);
   }
   return patterns;

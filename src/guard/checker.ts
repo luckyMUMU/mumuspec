@@ -8,7 +8,7 @@ import { parseSpecFile, parsePrdFile, parseTechFile } from '../spec/parser.js';
 import { classifyRequirements, computeEnforcementCoverage, extractQuotedTerms, type ClassifiedItem } from '../spec/verifier-classify.js';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
 import { lintPonytail } from './ponytail-linter.js';
-import { readText, writeText, computeHash, getMumuSpecDir, findSpecDirs, normalizePath } from '../core/utils.js';
+import { readText, writeText, computeHash, getMumuSpecDir, findSpecDirs, normalizePath, isRegisteredSpecModule } from '../core/utils.js';
 import { loadConfig } from '../core/config.js';
 import { validateAllSpecs } from '../spec/validator.js';
 import type { ConstraintStrengthField } from '../core/config.js';
@@ -722,7 +722,7 @@ function checkProhibitionViolation(
 
   // eval/动态执行 lexical channel (mirrors extractRegexPatterns)
   const lowerText = prohibition.replace(/^ast:/i, '').toLowerCase();
-  if (lowerText.includes('eval') || lowerText.includes('动态执行')) {
+  if (/\beval\b/.test(lowerText) || lowerText.includes('动态执行')) {
     const lines = content.split('\n');
     for (let i = 0; i < lines.length; i++) {
       const trimmed = lines[i].trim();
@@ -853,7 +853,10 @@ function collectSpecDirsRel(projectRoot: string): string[] {
       if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
       const childAbs = join(absDir, entry.name);
       const childRel = relDir ? `${relDir}/${entry.name}` : entry.name;
-      if (existsSync(join(childAbs, '.mumuspec'))) {
+      // W3: use the shared registration predicate — BOUNDARY-only dirs are not
+      // registered modules and must not trigger index_drift (parity with
+      // rebuildIndexYaml).
+      if (isRegisteredSpecModule(childAbs)) {
         found.push(childRel);
       }
       walk(childAbs, childRel);

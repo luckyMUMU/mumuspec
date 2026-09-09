@@ -26,6 +26,7 @@ import {
 } from '../../core/utils.js';
 import { MumuSpecError } from '../../core/errors.js';
 import { loadConfig } from '../../core/config.js';
+import { isRegisteredSpecModule } from '../../core/utils.js';
 import { getCurrentBranch, getMainBranch, switchBranch } from '../../core/git.js';
 import {
   loadChangeState,
@@ -301,11 +302,12 @@ function rebuildIndexYaml(projectRoot: string, _config: ReturnType<typeof loadCo
       const entries = readdirSync(dir, { withFileTypes: true });
       const mumuDir = join(dir, '.mumuspec');
 
-      if (existsSync(mumuDir)) {
+      // W3: shared registration predicate (single source of truth with checker)
+      if (isRegisteredSpecModule(dir)) {
         const prdPath = join(mumuDir, 'prd.md');
         const techPath = join(mumuDir, 'tech.md');
 
-        if (existsSync(prdPath) || existsSync(techPath)) {
+        {
           const relPath = relative(projectRoot, dir) || '.';
           const prdSummary = existsSync(prdPath) ? extractFirstHeading(prdPath) : '';
           const techSummary = existsSync(techPath) ? extractFirstHeading(techPath) : '';

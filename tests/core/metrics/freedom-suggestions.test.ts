@@ -21,7 +21,7 @@ import {
   clearEvaluatorRegistry,
   registerEvaluator,
 } from '../../../src/core/metrics/evaluator-registry.js';
-import { DEFAULT_EVALUATOR_WEIGHTS } from '../../../src/core/metrics/types.js';
+import { getActiveEvaluators } from '../../../src/core/metrics/evaluator-registry.js';
 import type { Evaluator, EvaluatorContext, MetricResult } from '../../../src/core/metrics/types.js';
 
 function mock(name: string, value: number, weight: number): Evaluator {
@@ -101,12 +101,18 @@ describe('autoEvaluate integration with freedom metrics', () => {
     expect(result.progress).toBeGreaterThan(0.8);
   });
 
-  it('built-in registry exposes 6 evaluators with weights summing to 1', () => {
+  it('built-in registry exposes 6 evaluators; active weights sum to 1; density is 0 (W1 single-source invariant)', () => {
     registerBuiltInEvaluators();
-    const weights = Object.values(DEFAULT_EVALUATOR_WEIGHTS);
-    expect(weights.reduce((s, w) => s + w, 0)).toBeCloseTo(1, 6);
-    expect(DEFAULT_EVALUATOR_WEIGHTS['design-build-first-pass']).toBe(0.2);
-    expect(DEFAULT_EVALUATOR_WEIGHTS['constraint-density']).toBe(0);
+    const evaluators = getActiveEvaluators();
+    expect(evaluators).toHaveLength(6);
+    const active = evaluators.filter((e) => e.defaultWeight > 0);
+    expect(active.reduce((s, e) => s + e.defaultWeight, 0)).toBeCloseTo(1, 9);
+    const density = evaluators.find((e) => e.name === 'constraint-density');
+    expect(density).toBeDefined();
+    expect(density!.defaultWeight).toBe(0);
+    const firstPass = evaluators.find((e) => e.name === 'design-build-first-pass');
+    expect(firstPass).toBeDefined();
+    expect(firstPass!.defaultWeight).toBe(0.2);
   });
 
   it('suggestion production never mutates any file in the project root', async () => {

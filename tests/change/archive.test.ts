@@ -20,6 +20,8 @@ const mockWriteFileSync = vi.fn();
 const mockWriteText = vi.fn();
 const mockReaddirSync = vi.fn();
 const mockRenameSync = vi.fn();
+const mockCpSync = vi.fn();
+const mockRmSync = vi.fn();
 const mockReadText = vi.fn();
 const mockNow = vi.fn();
 const mockAppendAuditLog = vi.fn();
@@ -48,6 +50,8 @@ vi.mock('node:fs', () => ({
   writeFileSync: (...args: unknown[]) => mockWriteFileSync(...args),
   readdirSync: (...args: unknown[]) => mockReaddirSync(...args),
   renameSync: (...args: unknown[]) => mockRenameSync(...args),
+  cpSync: (...args: unknown[]) => mockCpSync(...args),
+  rmSync: (...args: unknown[]) => mockRmSync(...args),
 }));
 
 vi.mock('node:path', () => ({
@@ -383,7 +387,11 @@ describe('archiveChange', () => {
 
   it('calls appendAuditLog with version bump info when version bumps', () => {
     mockLoadChangeState.mockReturnValue(makeChangeState({ workflow: 'tweak' }));
-    mockExistsSync.mockReturnValue(true);
+    mockExistsSync.mockImplementation((p: string) => {
+      // W2: bump is idempotent via marker — the marker must NOT exist yet
+      if (p.includes('.version-bumped')) return false;
+      return true;
+    });
     mockReadFileSync.mockImplementation((p: string) => {
       if (p.includes('package.json')) return JSON.stringify({ version: '0.17.0' });
       if (p.includes('cli.ts')) return `.version('0.17.0')`;
@@ -433,7 +441,7 @@ describe('archiveChange', () => {
     expect(savedState.knowledge_extraction!.conflicts_resolved).toBe(true);
   });
 
-  it('calls getArchiveDir and ensureDir for final move', () => {
+  it('calls moveDirSync (via renameSync) for final move; ensureDir no longer pre-creates target (W2)', () => {
     mockLoadChangeState.mockReturnValue(makeChangeState());
     mockExistsSync.mockReturnValue(false);
     mockReadFileSync.mockImplementation((p: string) => {
@@ -445,8 +453,9 @@ describe('archiveChange', () => {
     archiveChange(PROJECT_ROOT, CHANGE_NAME);
 
     expect(mockGetArchiveDir).toHaveBeenCalledWith(PROJECT_ROOT, undefined);
-    expect(mockEnsureDir).toHaveBeenCalled();
     expect(mockRenameSync).toHaveBeenCalled();
+    // W2: ensureDir before rename was the Windows EPERM trigger — removed
+    expect(mockEnsureDir).not.toHaveBeenCalled();
   });
 
   it('passes scope parameter to loadChangeState and getChangeDir', () => {
@@ -485,9 +494,37 @@ describe('archiveChange', () => {
     expect(archiveEntry![1].knowledge_extracted).toBe(true);
   });
 
-  it('handles renameSync failure gracefully', () => {
+  it('W2: renameSync failure degrades to copy+delete fallback → archive still succeeds', () => {
     mockLoadChangeState.mockReturnValue(makeChangeState());
-    mockRenameSync.mockImplementation(() => { throw new Error('ENOENT'); });
+    mockRenameSync.mockImplementation(() => { throw new Error('EPERM'); });
+    mockExistsSync.mockImplementation((p: string) => {
+      // W2: bump is idempotent via marker — the marker must NOT exist yet
+      if (p.includes('.version-bumped')) return false;
+      return false;
+    });
+    mockReadFileSync.mockImplementation((p: string) => {
+      if (p.includes('package.json')) return JSON.stringify({ version: '0.17.0' });
+      if (p.includes('cli.ts')) return `.version('0.17.0')`;
+      return '';
+    });
+    mockReaddirSync.mockReturnValue([]);
+
+    // W2 semantics: rename failure is no longer fatal when the copy+delete
+    // fallback succeeds — the archive fact is established either way.
+    expect(() => {
+      archiveChange(PROJECT_ROOT, CHANGE_NAME);
+    }).not.toThrow();
+    expect(mockCpSync).toHaveBeenCalled();
+    expect(mockRmSync).toHaveBeenCalled();
+    const auditCalls = mockAppendAuditLog.mock.calls;
+    const archiveEntry = auditCalls.find((call) => call[1].action === 'change.archive');
+    expect(archiveEntry![1].result).toBe('success');
+  });
+
+  it('W2: rename AND fallback both failing → throws E-CHANGE-011, no version.bump audit', () => {
+    mockLoadChangeState.mockReturnValue(makeChangeState());
+    mockRenameSync.mockImplementation(() => { throw new Error('EPERM'); });
+    mockCpSync.mockImplementation(() => { throw new Error('EXDEV too'); });
     mockExistsSync.mockReturnValue(false);
     mockReadFileSync.mockImplementation((p: string) => {
       if (p.includes('package.json')) return JSON.stringify({ version: '0.17.0' });
@@ -496,10 +533,12 @@ describe('archiveChange', () => {
     });
     mockReaddirSync.mockReturnValue([]);
 
-    // P0-1 Fix: archiveChange now throws on renameSync failure instead of silently ignoring
     expect(() => {
       archiveChange(PROJECT_ROOT, CHANGE_NAME);
     }).toThrow();
+    const auditCalls = mockAppendAuditLog.mock.calls;
+    const bumpEntry = auditCalls.find((call) => call[1].action === 'version.bump');
+    expect(bumpEntry).toBeUndefined(); // W2: bump strictly after successful move
   });
 });
 

@@ -1,0 +1,27 @@
+# Open Questions: 2026-09-09-review-followup-hardening
+# LLM-drafted; each resolution must cite a human-signed decision entry in decisions.md.
+version: 1
+change: 2026-09-09-review-followup-hardening
+items:
+  - id: OQ-1
+    question: >-
+      W2 中 merge/extract 是否也移到 rename 之后？（设计建议：不移——
+      merge 有 marker 幂等、extract 按变更名键控，retry 安全；移到 rename 后
+      反而引入"目录已归档但 spec 未合并"的中间态，复杂度不对称）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-09T15:54:44.454Z"
+  - id: OQ-2
+    question: >-
+      bump 幂等标记用什么机制？（设计建议：归档目录 .mumuspec/.version-bumped
+      标记文件，内容为已 bump 版本号——确定性、可 git 审计、不依赖日志解析）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-09T15:54:44.454Z"
+  - id: OQ-3
+    question: >-
+      W3 共享判定函数放哪层？（设计建议：src/core/utils.ts——guard 与 cli
+      均为上层域可导入 core，满足 arch-boundaries；loader.ts 语义不符）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-09T15:54:44.454Z"
