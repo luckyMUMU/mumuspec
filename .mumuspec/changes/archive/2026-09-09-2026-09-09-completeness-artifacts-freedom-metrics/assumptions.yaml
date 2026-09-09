@@ -1,0 +1,25 @@
+# Assumptions: 2026-09-09-completeness-artifacts-freedom-metrics
+# LLM-drafted; each resolution cites a human-signed decision entry in decisions.md.
+version: 1
+change: 2026-09-09-completeness-artifacts-freedom-metrics
+items:
+  - id: AS-1
+    assumption: >-
+      变更 state 工件的识别以存在 .mumuspec.yaml 为准，不依赖目录命名约定
+      （archive/ 下 discarded 等特殊目录自动跳过）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-09T13:58:01.057Z"
+  - id: AS-2
+    assumption: >-
+      YAML 解析复用项目既有 yaml 依赖，不引入新依赖（Ponytail L5）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-09T13:58:01.057Z"
+  - id: AS-3
+    assumption: >-
+      反哺建议仅进入 AutoEvaluateResult.suggestions 与既有 JSON/文本输出通道，
+      本变更不修改 html-reporter（范围控制，如需可视化单列后续变更）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-09T13:58:01.057Z"

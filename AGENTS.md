@@ -9,7 +9,7 @@
 
 | Layer | Scope | Docs | SHALL | SHALL NOT |
 |---|---|---|---|---|
-| 0 | `.` | prd+tech+spec | 94 | 56 |
+| 0 | `.` | prd+tech+spec | 101 | 60 |
 
 ### 当前路径适用红线（SHALL NOT 全文，含父层继承 — `.`）
 
@@ -69,6 +69,10 @@
 - 禁止将相对固定的执行逻辑以 LLM 现场发挥方式实现（LLM 不充当引擎）。
 - 禁止在无对应校验器的情况下引入新的 LLM 结构化产出物（先校验器后消费者）。
 - 禁止代码静默消费校验失败的规则（fail-open）。
+- SHALL NOT 将约束密度直接判定为"好/坏"质量分（密度是调节信号，质量判定归 spec-compliance / drift-score）。
+- 禁止 LLM 自行计算或手写该指标值（与 hash 类字段同一纪律：确定性推导归代码）。
+- 禁止自动修改 constraint_strength 配置（无人工签收不放行，红线 bp_04 同源）。
+- 禁止建议逻辑绕过 evaluator 结果自行采样（建议必须引用本轮 metric 数值）。
 
 > 完整约束正文经 MCP `get_spec_context` / `mumuspec context <path>` 渐进式加载（Rules 文件不内联全量规范）。
 

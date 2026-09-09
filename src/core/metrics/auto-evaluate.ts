@@ -28,6 +28,8 @@ import { testPassRateEvaluator } from './test-pass-rate.js';
 import { driftScoreEvaluator } from './drift-score.js';
 import { specComplianceEvaluator } from './spec-compliance.js';
 import { codeDeltaEvaluator } from './code-delta.js';
+import { constraintDensityEvaluator } from './constraint-density.js';
+import { designBuildFirstPassEvaluator } from './design-build-first-pass.js';
 
 // ════════════════════════════════════════════════════════════════════
 // History Tracker (for stability window check)
@@ -119,11 +121,15 @@ export async function autoEvaluate(
   // 5. Generate recommendation
   const recommendation = buildRecommendation(activeMetrics, progress, goalAchieved, config);
 
+  // 6. Advisory constraint-strength suggestions (freedom-metrics, human signoff required)
+  const suggestions = buildSuggestions(metrics);
+
   return {
     progress,
     goalAchieved,
     metrics,
     recommendation,
+    suggestions,
     history,
   };
 }
@@ -197,4 +203,54 @@ export function registerBuiltInEvaluators(): void {
   registerEvaluator(driftScoreEvaluator);
   registerEvaluator(specComplianceEvaluator);
   registerEvaluator(codeDeltaEvaluator);
+  registerEvaluator(designBuildFirstPassEvaluator);
+  registerEvaluator(constraintDensityEvaluator);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Advisory Feedback (freedom-metrics)
+// ════════════════════════════════════════════════════════════════════
+
+/** First-pass target from goal.md north-star ("一次通过率 ≥ 80%"). */
+export const FIRST_PASS_TARGET = 0.8;
+/** Tighten branch threshold for first-pass rate. */
+export const FIRST_PASS_TIGHTEN = 0.9;
+/** Density above which low pass-rate suggests relaxation review. */
+export const DENSITY_RELAX_THRESHOLD = 0.7;
+/** Density below which high pass-rate suggests tightening review. */
+export const DENSITY_TIGHTEN_THRESHOLD = 0.3;
+
+interface SuggestionMetric {
+  value: number;
+}
+
+function findMetric(metrics: MetricResult[], name: string): SuggestionMetric | undefined {
+  const m = metrics.find((x) => x.name === name);
+  return m ? { value: m.value } : undefined;
+}
+
+/**
+ * Build advisory constraint-strength suggestions from THIS round's metrics.
+ * Pure function over the collected MetricResult list — no I/O, no config
+ * mutation (red line: no strength change without human signoff).
+ */
+export function buildSuggestions(metrics: MetricResult[]): string[] {
+  const suggestions: string[] = [];
+  const firstPass = findMetric(metrics, 'design-build-first-pass');
+  const density = findMetric(metrics, 'constraint-density');
+  if (!firstPass || !density) return suggestions; // never reference stale values
+
+  const fp = firstPass.value.toFixed(2);
+  const den = density.value.toFixed(2);
+
+  if (firstPass.value < FIRST_PASS_TARGET && density.value > DENSITY_RELAX_THRESHOLD) {
+    suggestions.push(
+      `一次通过率 ${fp} 低于目标 ${FIRST_PASS_TARGET.toFixed(2)} 且约束密度 ${den} 高于 ${DENSITY_RELAX_THRESHOLD.toFixed(2)} → 建议评估放宽约束强度（须人工签收后生效）`,
+    );
+  } else if (firstPass.value >= FIRST_PASS_TIGHTEN && density.value < DENSITY_TIGHTEN_THRESHOLD) {
+    suggestions.push(
+      `一次通过率 ${fp} 达标且约束密度 ${den} 低于 ${DENSITY_TIGHTEN_THRESHOLD.toFixed(2)} → 建议评估收紧约束强度（须人工签收后生效）`,
+    );
+  }
+  return suggestions;
 }

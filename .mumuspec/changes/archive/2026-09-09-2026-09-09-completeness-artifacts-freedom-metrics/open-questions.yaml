@@ -1,0 +1,26 @@
+# Open Questions: 2026-09-09-completeness-artifacts-freedom-metrics
+# LLM-drafted; each resolution cites a human-signed decision entry in decisions.md.
+version: 1
+change: 2026-09-09-completeness-artifacts-freedom-metrics
+items:
+  - id: OQ-1
+    question: >-
+      constraint-density 是否参与收敛 composite？（设计建议 D1：defaultWeight = 0，
+      仅作调节信号进入 metrics 观测面，避免高密度拉低 progress 产生"删减 Spec 换收敛"的反向激励）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-09T13:57:55.564Z"
+  - id: OQ-2
+    question: >-
+      first-pass 纳入 composite 的权重再平衡方案？（设计建议 D2：显式重排
+      0.30/0.20/0.20/0.10/0.20 使和为 1，first-pass = 0.20 对齐北极星指标地位）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-09T13:57:55.564Z"
+  - id: OQ-3
+    question: >-
+      建议阈值是否常量化？（设计建议 D3：first-pass 目标 0.8、放宽线 density > 0.7、
+      收紧线 density < 0.3 以模块常量实现，不做配置项，rawData 透出实际值）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-09T13:57:55.564Z"

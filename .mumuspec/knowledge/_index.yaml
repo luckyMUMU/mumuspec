@@ -1,4 +1,15 @@
 pages:
+  - id: KE-2026-09-09-completeness-artifacts-freedom-metrics-hyperplan
+    title: Adversarial design review insights from 2026-09-09-completeness-artifacts-freedom-metrics
+    type: decision
+    status: confirmed
+    scope: 2026-09-09-completeness-artifacts-freedom-metrics
+    file: .mumuspec\knowledge\decisions\KE-2026-09-09-completeness-artifacts-freedom-metrics-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - 2026-09-09-completeness-artifacts-freedom-metrics
   - id: KE-ast-guard-hyperplan
     title: Adversarial design review insights from ast-guard
     type: decision
@@ -65,6 +76,17 @@ pages:
       - hyperplan
       - decision
       - p0-calibration-hardening
+  - id: KE-2026-09-09-completeness-artifacts-freedom-metrics-patterns
+    title: Architecture patterns from 2026-09-09-completeness-artifacts-freedom-metrics
+    type: pattern
+    status: confirmed
+    scope: 2026-09-09-completeness-artifacts-freedom-metrics
+    file: .mumuspec\knowledge\patterns\KE-2026-09-09-completeness-artifacts-freedom-metrics-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - 2026-09-09-completeness-artifacts-freedom-metrics
   - id: KE-ast-guard-patterns
     title: Architecture patterns from ast-guard
     type: pattern
@@ -686,6 +708,17 @@ pages:
       - overview
       - introduction
     verified_at: 2026-07-31T16:19:01.701Z
+  - id: KE-2026-09-09-completeness-artifacts-freedom-metrics-lessons
+    title: Lessons from 2026-09-09-completeness-artifacts-freedom-metrics decisions
+    type: lesson
+    status: confirmed
+    scope: 2026-09-09-completeness-artifacts-freedom-metrics
+    file: .mumuspec\knowledge\lessons\KE-2026-09-09-completeness-artifacts-freedom-metrics-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - 2026-09-09-completeness-artifacts-freedom-metrics
   - id: KE-ast-guard-lessons
     title: Lessons from ast-guard decisions
     type: lesson

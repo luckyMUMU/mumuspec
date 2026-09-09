@@ -106,3 +106,15 @@ MumuSpec 采用六层架构，从上到下依次为：
 | 构建 | tsc (TypeScript compiler) | ESM 编译 |
 | Lint | ESLint + Prettier | 代码风格检查 |
 | 零依赖模块 | Node.js 内置模块 | install/bundle/i18n/skill-authoring |
+
+
+<!-- constraint-merged from 2026-09-09-completeness-artifacts-freedom-metrics/new-shall-not.md -->
+# New SHALL NOT Constraints
+
+
+
+
+<!-- constraint-merged from 2026-09-09-completeness-artifacts-freedom-metrics/new-shall.md -->
+# New SHALL Constraints
+
+

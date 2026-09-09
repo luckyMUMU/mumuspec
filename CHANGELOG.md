@@ -5,6 +5,11 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0-alpha.0] — archive auto-bump (2026-09-09)
+
+### Changed
+- 归档自动升版：变更 2026-09-09-completeness-artifacts-freedom-metrics（full workflow）归档触发
+
 ## [Unreleased] — PRD ↔ 实现对齐（Agent 上下文链路）
 
 分析依据：`review/spec-agent-integration-analysis-2026-09-08.md`；变更：`prd-alignment-agent-integration`。

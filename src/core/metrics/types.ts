@@ -73,6 +73,8 @@ export interface AutoEvaluateResult {
   metrics: MetricResult[];
   /** Recommendation for next round */
   recommendation: string;
+  /** Advisory constraint-strength suggestions (freedom-metrics; human signoff required to act) */
+  suggestions?: string[];
   /** History of recent composite scores (for stability check) */
   history: number[];
 }
@@ -112,10 +114,12 @@ export const DEFAULT_HYBRID_CONFIG: HybridConfig = {
   manualWeight: 0.3,
 };
 
-/** Default weights for each evaluator (when all are active). */
+/** Default weights for each evaluator (when all are active). Sum = 1 (design D2, CHG 2026-09-09-completeness-artifacts-freedom-metrics). */
 export const DEFAULT_EVALUATOR_WEIGHTS: Record<string, number> = {
-  'test-pass-rate': 0.35,
-  'drift-score': 0.25,
-  'spec-compliance': 0.25,
-  'code-delta': 0.15,
+  'test-pass-rate': 0.3,
+  'drift-score': 0.2,
+  'spec-compliance': 0.2,
+  'code-delta': 0.1,
+  'design-build-first-pass': 0.2,
+  'constraint-density': 0, // regulation signal only — excluded from composite (design D1)
 };
