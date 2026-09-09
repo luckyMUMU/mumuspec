@@ -9,7 +9,7 @@
 
 | Layer | Scope | Docs | SHALL | SHALL NOT |
 |---|---|---|---|---|
-| 0 | `.` | prd+tech+spec | 101 | 60 |
+| 0 | `.` | prd+tech+spec | 109 | 66 |
 
 ### 当前路径适用红线（SHALL NOT 全文，含父层继承 — `.`）
 
@@ -73,6 +73,12 @@
 - 禁止 LLM 自行计算或手写该指标值（与 hash 类字段同一纪律：确定性推导归代码）。
 - 禁止自动修改 constraint_strength 配置（无人工签收不放行，红线 bp_04 同源）。
 - 禁止建议逻辑绕过 evaluator 结果自行采样（建议必须引用本轮 metric 数值）。
+- SHALL NOT 在 types.ts 或任何共享模块中保留可与之漂移的权重副本。
+- SHALL NOT 引入运行时从注册表动态推导 map 的机制（评估器集合可变，动态推导无稳定语义）。
+- SHALL NOT 在 rename 前执行版本 bump、CHANGELOG 写入、知识提取等一次性副作用。
+- SHALL NOT 用 try/catch 吞掉副作用失败（失败必须中断并留 audit 记录）。
+- SHALL NOT 仅以 `.mumuspec` 存在性判定模块（BOUNDARY-only 目录不是已注册模块）。
+- SHALL NOT 在 checker 与 builder 中保留语义不一致的独立实现。
 
 > 完整约束正文经 MCP `get_spec_context` / `mumuspec context <path>` 渐进式加载（Rules 文件不内联全量规范）。
 

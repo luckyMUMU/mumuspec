@@ -118,3 +118,15 @@ MumuSpec 采用六层架构，从上到下依次为：
 # New SHALL Constraints
 
 
+
+
+<!-- constraint-merged from 2026-09-09-review-followup-hardening/new-shall-not.md -->
+# New SHALL NOT Constraints
+
+
+
+
+<!-- constraint-merged from 2026-09-09-review-followup-hardening/new-shall.md -->
+# New SHALL Constraints
+
+

@@ -10,6 +10,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-09-completeness-artifacts-freedom-metrics
+  - id: KE-2026-09-09-review-followup-hardening-hyperplan
+    title: Adversarial design review insights from 2026-09-09-review-followup-hardening
+    type: decision
+    status: confirmed
+    scope: 2026-09-09-review-followup-hardening
+    file: .mumuspec\knowledge\decisions\KE-2026-09-09-review-followup-hardening-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - 2026-09-09-review-followup-hardening
   - id: KE-ast-guard-hyperplan
     title: Adversarial design review insights from ast-guard
     type: decision
@@ -87,6 +98,17 @@ pages:
       - pattern
       - architecture
       - 2026-09-09-completeness-artifacts-freedom-metrics
+  - id: KE-2026-09-09-review-followup-hardening-patterns
+    title: Architecture patterns from 2026-09-09-review-followup-hardening
+    type: pattern
+    status: confirmed
+    scope: 2026-09-09-review-followup-hardening
+    file: .mumuspec\knowledge\patterns\KE-2026-09-09-review-followup-hardening-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - 2026-09-09-review-followup-hardening
   - id: KE-ast-guard-patterns
     title: Architecture patterns from ast-guard
     type: pattern
@@ -719,6 +741,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-09-completeness-artifacts-freedom-metrics
+  - id: KE-2026-09-09-review-followup-hardening-lessons
+    title: Lessons from 2026-09-09-review-followup-hardening decisions
+    type: lesson
+    status: confirmed
+    scope: 2026-09-09-review-followup-hardening
+    file: .mumuspec\knowledge\lessons\KE-2026-09-09-review-followup-hardening-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - 2026-09-09-review-followup-hardening
   - id: KE-ast-guard-lessons
     title: Lessons from ast-guard decisions
     type: lesson
