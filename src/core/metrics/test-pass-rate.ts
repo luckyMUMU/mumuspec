@@ -10,7 +10,7 @@ import type { Evaluator, EvaluatorContext, MetricResult } from './types.js';
 
 export const testPassRateEvaluator: Evaluator = {
   name: 'test-pass-rate',
-  defaultWeight: 0.35,
+  defaultWeight: 0.3, // D2 rebalance (was 0.35)
 
   async evaluate(ctx: EvaluatorContext): Promise<MetricResult> {
     const cwd = ctx.worktreePath || ctx.projectRoot;

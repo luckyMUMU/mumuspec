@@ -3,7 +3,7 @@
 > **Auto-generated** from `src/core/errors.ts`. Do not edit manually.
 > Run `node scripts/gen-error-codes-doc.mjs` to regenerate.
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 ## Summary
 

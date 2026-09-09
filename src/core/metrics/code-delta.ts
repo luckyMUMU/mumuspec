@@ -12,7 +12,7 @@ import type { Evaluator, EvaluatorContext, MetricResult } from './types.js';
 
 export const codeDeltaEvaluator: Evaluator = {
   name: 'code-delta',
-  defaultWeight: 0.15,
+  defaultWeight: 0.1, // D2 rebalance (was 0.15)
 
   async evaluate(ctx: EvaluatorContext): Promise<MetricResult> {
     const cwd = ctx.worktreePath || ctx.projectRoot;

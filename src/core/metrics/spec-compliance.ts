@@ -10,7 +10,7 @@ import type { Evaluator, EvaluatorContext, MetricResult } from './types.js';
 
 export const specComplianceEvaluator: Evaluator = {
   name: 'spec-compliance',
-  defaultWeight: 0.25,
+  defaultWeight: 0.2, // D2 rebalance (was 0.25)
 
   async evaluate(ctx: EvaluatorContext): Promise<MetricResult> {
     const cwd = ctx.worktreePath || ctx.projectRoot;
