@@ -1,8 +1,8 @@
 name: freedom-metrics-loop-closure
-phase: verify
+phase: archive-in-progress
 workflow: full
 created_at: 2026-09-10T12:00:48.356Z
-updated_at: 2026-09-10 16:11:44
+updated_at: 2026-09-10T16:12:14.843Z
 scope: .
 affected_scopes: []
 build_layers: []
@@ -57,3 +57,4 @@ is_doc_only: false
 is_pure_bugfix: false
 schema_version: 1.0.0
 verify_result: pass
+branch_status: handled
