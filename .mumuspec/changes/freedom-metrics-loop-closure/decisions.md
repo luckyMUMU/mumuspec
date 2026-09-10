@@ -16,3 +16,15 @@
 ## [build] 2026-09-10T12:21:28.547Z
 
 实现期裁决：为满足 ENF-3（metrics 须返回约束密度），修复 constraint-density 采集路径两处实现缺陷——(1) spawnSync('npx') 在 win32 上 ENOENT，加 shell: process.platform === 'win32'；(2) context --json 实际输出为多行美化 JSON，原实现只取首个 '{' 开头的行（即 '{' 本身）导致解析必然失败，改为从 stdout 首个 '{' 起切片解析。constraint-density 单测夹具同步改为多行 JSON，防止紧凑夹具再次掩盖该缺陷
+
+## [verify] 2026-09-10T16:15:22.595Z
+
+verify 结论 pass：tsc --noEmit 0 错误；受影响测试 8 文件/55 用例全 PASS；mumuspec validate 通过；mumuspec drift 无漂移。全量回归 4969 用例中 4968 PASS，唯一失败 cli-smoke 的 dogfooding 门槛源自既有 59 条 E-GUARD-003 违规（单一规则宽匹配），已用 config.yaml 回退对照证明计数与本次改动无关，且命中文件中的 3 行均为未触碰的既有代码
+
+## [verify] 2026-09-10T16:15:29.275Z
+
+实跑发现（记录不扩大范围）：constraint-density 采集路径此前从未采到任何值——spawnSync('npx') 在 win32 上 ENOENT，且 context --json 为多行美化 JSON 而采集器只取首个 '{' 开头的行；原单测的紧凑 JSON 夹具掩盖了后者。属 ENF-3 的前置条件，已随本变更修复
+
+## [verify] 2026-09-10T16:15:35.971Z
+
+环境限制（记录，不处理）：本环境无法创建嵌套 git ref（refs/heads/<a>/<b>），git checkout -b 静默失败导致变更分支 HEAD 进入 unborn。已通过 packed-refs 挂载 ref 恢复（ref 侧修复，未改仓库历史结构）。衍生缺陷：discard 当前所在分支会移除该分支 ref 而不回退 HEAD，后续 new 继承 unborn 状态；createBranch 返回值未被调用方检查，失败无感知。二者均属独立变更范畴
