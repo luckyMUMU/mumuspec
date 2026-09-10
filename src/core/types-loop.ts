@@ -73,6 +73,13 @@ export interface LoopEvaluation {
   needs_user_input: boolean;
   /** Reason user input is needed (if applicable) */
   block_reason?: string;
+  /**
+   * Advisory constraint-strength suggestions (freedom-metrics).
+   * Carried through from AutoEvaluateResult so consumers (`loop evaluate` CLI,
+   * decisions advisory entries) can surface them — dropping them here is what
+   * made the freedom-metrics work a dead-end output. Human signoff required.
+   */
+  suggestions?: string[];
 }
 
 /** Record of a single loop iteration */

@@ -14,7 +14,7 @@ layer: 3
 
 ### 完整命令注册函数列表（31 个）
 
-> 与 `src/cli/index.ts` 的 `buildProgram()` 中 31 次 `register*` 调用逐一核对（2026-08-22）。
+> 与 `src/cli/index.ts` 的 `buildProgram()` 中 35 次 `register*` 调用逐一核对（2026-09-10）。
 
 | 注册函数 | 来源文件 | 命令名 |
 |----------|----------|--------|
@@ -40,6 +40,7 @@ layer: 3
 | `registerAdviseCommand` | `advise.ts` | advise |
 | `registerContractCommands` | `contract.ts` | contract |
 | `registerLoopCommands` | `loop.ts` | loop |
+| `registerMetricsCommands` | `metrics.ts` | metrics（2026-09-10 新增，自由度度量只读报告） |
 | `registerGrillMeCommand` | `grill-me.ts` | grill-me（2026-08-22 补录） |
 | `registerSyncCommand` | `sync.ts` | sync |
 | `registerReviewCommand` | `review.ts` | review |

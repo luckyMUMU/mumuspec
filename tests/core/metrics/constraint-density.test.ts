@@ -48,7 +48,13 @@ function contextJson(shall: number, shallNot: number): string {
       shallNot: Array.from({ length: shallNot }, (_, i) => `never ${i}`),
     },
   ];
-  return JSON.stringify({ targetPath: '.', layers: [{ level: 0, tech: { requirements } }] });
+  // Pretty-printed on purpose: the real `context --json` output is multi-line,
+  // and a compact fixture is what let the single-line parsing bug go unnoticed.
+  return JSON.stringify(
+    { targetPath: '.', layers: [{ level: 0, tech: { requirements } }] },
+    null,
+    2
+  );
 }
 
 function spawnOk(payload: string): ReturnType<typeof spawnSync> {

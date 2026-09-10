@@ -1,4 +1,4 @@
-version: 0.16.0-beta.0
+version: 0.1.0
 project:
   name: mumuspec
   language: typescript
@@ -94,7 +94,6 @@ ai:
   mcp_server: true
   rules_files:
     - CLAUDE.md
-    - .cursorrules
     - AGENTS.md
 skills:
   enabled: true

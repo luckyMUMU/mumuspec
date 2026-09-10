@@ -97,6 +97,13 @@ export interface MetricsSnapshot {
   progress: number;
   goalAchieved: boolean;
   metrics: Array<{ name: string; value: number; details: string }>;
+  /**
+   * Advisory constraint-strength suggestions produced THIS round.
+   * Persisted so advisories survive across rounds and remain auditable;
+   * optional for backward compatibility with snapshots written before
+   * freedom-metrics-loop-closure (missing ⇒ no advisory that round).
+   */
+  suggestions?: string[];
 }
 
 // ════════════════════════════════════════════════════════════════════

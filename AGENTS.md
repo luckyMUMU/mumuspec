@@ -163,6 +163,7 @@ SHALL: 先查可复用实现 / 最小可工作实现 / 有意简化用 `ponytail
   mumuspec advise <bp_id> [change]            # Get advisor recommendation for a blocking point
   mumuspec contract                           # Manage external contracts and boundaries
   mumuspec loop                               # Dynamic loop workflow (Plan → Act → Evaluate)
+  mumuspec metrics [change]                   # Read-only freedom-metrics report (evaluator values + advisory suggestions)
   mumuspec code-graph                         # Search and inspect the code structure graph
   mumuspec grill-me                           # Phase-gate questioning engine — trigger at any stage when ambiguity exists
   mumuspec sync                               # Sync code state to persistent spec (BOUNDARY.md, index.yaml, contracts)
