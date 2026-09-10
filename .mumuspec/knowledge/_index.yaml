@@ -54,6 +54,17 @@ pages:
       - hyperplan
       - decision
       - docs-tree-alignment
+  - id: KE-freedom-metrics-loop-closure-hyperplan
+    title: Adversarial design review insights from freedom-metrics-loop-closure
+    type: decision
+    status: confirmed
+    scope: freedom-metrics-loop-closure
+    file: .mumuspec\knowledge\decisions\KE-freedom-metrics-loop-closure-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - freedom-metrics-loop-closure
   - id: KE-goal-p0-dispatch-gate-hyperplan
     title: Adversarial design review insights from goal-p0-dispatch-gate
     type: decision
@@ -142,6 +153,17 @@ pages:
       - pattern
       - architecture
       - docs-tree-alignment
+  - id: KE-freedom-metrics-loop-closure-patterns
+    title: Architecture patterns from freedom-metrics-loop-closure
+    type: pattern
+    status: confirmed
+    scope: freedom-metrics-loop-closure
+    file: .mumuspec\knowledge\patterns\KE-freedom-metrics-loop-closure-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - freedom-metrics-loop-closure
   - id: KE-goal-p0-dispatch-gate-patterns
     title: Architecture patterns from goal-p0-dispatch-gate
     type: pattern
@@ -785,6 +807,17 @@ pages:
       - lesson
       - decisions
       - docs-tree-alignment
+  - id: KE-freedom-metrics-loop-closure-lessons
+    title: Lessons from freedom-metrics-loop-closure decisions
+    type: lesson
+    status: confirmed
+    scope: freedom-metrics-loop-closure
+    file: .mumuspec\knowledge\lessons\KE-freedom-metrics-loop-closure-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - freedom-metrics-loop-closure
   - id: KE-goal-p0-dispatch-gate-lessons
     title: Lessons from goal-p0-dispatch-gate decisions
     type: lesson
