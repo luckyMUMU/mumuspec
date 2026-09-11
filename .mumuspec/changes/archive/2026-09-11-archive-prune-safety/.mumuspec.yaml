@@ -1,8 +1,8 @@
 name: archive-prune-safety
-phase: archive-completed
+phase: archive-in-progress
 workflow: hotfix
 created_at: 2026-09-11T16:24:06.922Z
-updated_at: 2026-09-11T16:40:13.087Z
+updated_at: 2026-09-11T16:39:09.689Z
 scope: .
 affected_scopes: []
 build_layers:
@@ -60,10 +60,3 @@ is_pure_bugfix: true
 schema_version: 1.0.0
 branch_status: handled
 verify_result: pass
-knowledge_extraction:
-  completed: true
-  pages_created_count: 2
-  graph_bindings_verified: true
-  conflicts_resolved: true
-git_merge:
-  merged: false

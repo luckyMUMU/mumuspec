@@ -21,6 +21,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-09-review-followup-hardening
+  - id: KE-archive-prune-safety-hyperplan
+    title: Adversarial design review insights from archive-prune-safety
+    type: decision
+    status: confirmed
+    scope: archive-prune-safety
+    file: .mumuspec\knowledge\decisions\KE-archive-prune-safety-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - archive-prune-safety
   - id: KE-ast-guard-hyperplan
     title: Adversarial design review insights from ast-guard
     type: decision
@@ -774,6 +785,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-09-review-followup-hardening
+  - id: KE-archive-prune-safety-lessons
+    title: Lessons from archive-prune-safety decisions
+    type: lesson
+    status: confirmed
+    scope: archive-prune-safety
+    file: .mumuspec\knowledge\lessons\KE-archive-prune-safety-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - archive-prune-safety
   - id: KE-ast-guard-lessons
     title: Lessons from ast-guard decisions
     type: lesson

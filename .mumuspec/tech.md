@@ -142,3 +142,15 @@ MumuSpec 采用六层架构，从上到下依次为：
 # New SHALL Constraints
 
 
+
+
+<!-- constraint-merged from archive-prune-safety/new-shall-not.md -->
+# New SHALL NOT Constraints
+
+
+
+
+<!-- constraint-merged from archive-prune-safety/new-shall.md -->
+# New SHALL Constraints
+
+
