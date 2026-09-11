@@ -1,14 +1,14 @@
 name: archive-prune-safety
-phase: verify
+phase: archive-in-progress
 workflow: hotfix
 created_at: 2026-09-11T16:24:06.922Z
-updated_at: 2026-09-11T16:38:03.179Z
+updated_at: 2026-09-11T16:39:09.689Z
 scope: .
 affected_scopes: []
 build_layers:
   - layer: 0
     scope: .
-    status: pending
+    status: done
 test_cases:
   design_locked: true
   suites_locked: false
@@ -58,3 +58,5 @@ data_migration: false
 is_doc_only: false
 is_pure_bugfix: true
 schema_version: 1.0.0
+branch_status: handled
+verify_result: pass
