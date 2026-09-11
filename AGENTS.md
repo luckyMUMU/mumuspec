@@ -9,7 +9,7 @@
 
 | Layer | Scope | Docs | SHALL | SHALL NOT |
 |---|---|---|---|---|
-| 0 | `.` | prd+tech+spec | 120 | 71 |
+| 0 | `.` | prd+tech+spec | 121 | 73 |
 
 ### 当前路径适用红线（SHALL NOT 全文，含父层继承 — `.`）
 
@@ -84,6 +84,8 @@
 - SHALL NOT 因新增命令而改变既有 loop evaluate 通道的收敛语义（composite 权重与阈值不动）。
 - SHALL NOT 在 AGENTS.md 中内联指标数据（渐进式披露职责归命令与 MCP，Rules 文件受 32KiB 预算约束）。
 - SHALL NOT 以"下游硬过滤兜底"替代事实源自身干净（兜底是防线，不是许可）。
+- SHALL NOT 以行内代码标记承载对象标识符（配置键、命令名、字段名）——词法兜底通道会把字面量出现误判为行为发生。
+- SHALL NOT 为同一语义保留两条约束（重复即两条权威源，与单一权威源纪律同源）。
 
 > 完整约束正文经 MCP `get_spec_context` / `mumuspec context <path>` 渐进式加载（Rules 文件不内联全量规范）。
 
