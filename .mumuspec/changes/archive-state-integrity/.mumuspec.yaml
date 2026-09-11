@@ -1,8 +1,8 @@
-name: archive-prune-safety
-phase: archive-completed
+name: archive-state-integrity
+phase: verify
 workflow: hotfix
-created_at: 2026-09-11T16:24:06.922Z
-updated_at: 2026-09-11T16:40:13.087Z
+created_at: 2026-09-11T16:42:26.036Z
+updated_at: 2026-09-11 17:03:10
 scope: .
 affected_scopes: []
 build_layers:
@@ -14,7 +14,7 @@ test_cases:
   suites_locked: false
   suites_locked_layers: []
   suites_hash: {}
-  design_content_hash: b1de5440f9a8d518
+  design_content_hash: e3131bebf61c9c4c
 rollback_count: 0
 rebuild_count: 0
 rollback_limit: 3
@@ -22,13 +22,13 @@ rebuild_limit: 5
 build_mode: executing-plans
 tdd_mode: tdd
 isolation: branch
-branch: mumuspec/archive-prune-safety
+branch: mumuspec/archive-state-integrity
 single_active_change: true
 user_confirmed: true
 decisions_log:
   counts:
-    build: 2
-  content_hash: 28853328c7bfa967
+    build: 3
+  content_hash: 95b38a6aaf60f7ba
 rollback_history: []
 cognitive_framework:
   enabled: false
@@ -58,12 +58,4 @@ data_migration: false
 is_doc_only: false
 is_pure_bugfix: true
 schema_version: 1.0.0
-branch_status: handled
 verify_result: pass
-knowledge_extraction:
-  completed: true
-  pages_created_count: 2
-  graph_bindings_verified: true
-  conflicts_resolved: true
-git_merge:
-  merged: false
