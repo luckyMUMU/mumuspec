@@ -72,20 +72,29 @@ export function clearHistory(changeName: string): void {
 // ════════════════════════════════════════════════════════════════════
 
 /**
+ * Collect metrics from all active evaluators — pure read-only.
+ *
+ * Read-only consumers (e.g. `mumuspec metrics`) must NOT trigger the
+ * `recordProgress` write side effect embedded in `autoEvaluate`. Evaluator
+ * failures are dropped rather than replaced by a fake value — same discipline
+ * as `autoEvaluate`: never assume a passing score for a collection that failed.
+ */
+export async function collectMetrics(ctx: EvaluatorContext): Promise<MetricResult[]> {
+  const results = await Promise.all(
+    getActiveEvaluators().map(e => e.evaluate(ctx).catch(() => null as MetricResult | null))
+  );
+  return results.filter((m): m is MetricResult => m !== null);
+}
+
+/**
  * Run auto-evaluation: collect metrics, compute progress, judge convergence.
  */
 export async function autoEvaluate(
   ctx: EvaluatorContext,
   config: ConvergenceConfig = DEFAULT_CONVERGENCE_CONFIG,
 ): Promise<AutoEvaluateResult> {
-  const evaluators = getActiveEvaluators();
-
-  // 1. Collect metrics in parallel
-  const results = await Promise.all(
-    evaluators.map(e => e.evaluate(ctx).catch(() => null as MetricResult | null))
-  );
-
-  const metrics: MetricResult[] = results.filter((m): m is MetricResult => m !== null);
+  // 1. Collect metrics in parallel (read-only; no state writes)
+  const metrics = await collectMetrics(ctx);
 
   // 2. Filter to active metrics (weight > 0) and renormalize weights
   const activeMetrics = metrics.filter(m => m.weight > 0);

@@ -1,0 +1,26 @@
+# Assumptions: freedom-metrics-loop-closure
+# LLM-drafted; each resolution cites a human-signed decision entry in decisions.md.
+version: 1
+change: freedom-metrics-loop-closure
+items:
+  - id: AS-1
+    assumption: >-
+      MetricsSnapshot 新增 suggestions 为可选字段（suggestions?: string[]），
+      历史快照缺省即视为无建议，不做迁移（向后兼容，不写迁移脚本）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-10T12:05:14.475Z"
+  - id: AS-2
+    assumption: >-
+      复用既有 Evaluator 接口、evaluator-registry 与 buildSuggestions 纯函数，
+      不引入新依赖、不新增抽象层（Ponytail L2 复用 / L5 不引新依赖）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-10T12:05:24.869Z"
+  - id: AS-3
+    assumption: >-
+      本变更不修改 html-reporter，也不触碰 constraint_strength 配置
+      （沿用前一变更的范围控制与红线：无人工签收不放行）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-10T12:05:24.869Z"

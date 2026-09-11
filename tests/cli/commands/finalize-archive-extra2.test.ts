@@ -789,7 +789,7 @@ describe('finalize-archive --delete-old branch', () => {
 // Tests for cleanStaleCache
 // ════════════════════════════════════════════════════════════════════
 
-describe('finalize-archive cleanStaleCache branch', () => {
+describe('finalize-archive stale archive report (read-only)', () => {
   let logSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -801,7 +801,7 @@ describe('finalize-archive cleanStaleCache branch', () => {
 
   afterEach(() => { vi.restoreAllMocks(); });
 
-  it('should count stale entries older than 30 days', async () => {
+  it('should report stale archives older than 30 days without deleting them', async () => {
     setFileExists('/fake/root/.mumuspec/changes/archive/cache-test');
     mockGetArchivedChangeDir.mockReturnValue('/fake/root/.mumuspec/changes/archive/cache-test');
     mockLoadChangeState.mockReturnValue({ phase: 'archive-completed', workflow: 'full' });
@@ -824,7 +824,9 @@ describe('finalize-archive cleanStaleCache branch', () => {
       (call) => typeof call[0] === 'string' && call[0].startsWith('{')
     );
     const parsed = JSON.parse(jsonCall![0] as string);
-    expect(parsed.results.some((r: string) => r.includes('cleaned') && r.includes('stale cache'))).toBe(true);
+    expect(parsed.results.some((r: string) => r.includes('stale archive') || r.includes('归档条目'))).toBe(true);
+    // 只读报告：绝不执行删除
+    expect(mockRmSync).not.toHaveBeenCalled();
   });
 
   it('should not count recent entries as stale', async () => {
@@ -844,8 +846,9 @@ describe('finalize-archive cleanStaleCache branch', () => {
       (call) => typeof call[0] === 'string' && call[0].startsWith('{')
     );
     const parsed = JSON.parse(jsonCall![0] as string);
-    // No cleaned result since entries are recent
-    expect(parsed.results.some((r: string) => r.includes('stale cache'))).toBe(false);
+    // No stale archive result since entries are recent
+    expect(parsed.results.some((r: string) => r.includes('归档条目'))).toBe(false);
+    expect(mockRmSync).not.toHaveBeenCalled();
   });
 
   it('should return 0 when changesDir does not exist', async () => {
@@ -861,8 +864,8 @@ describe('finalize-archive cleanStaleCache branch', () => {
       (call) => typeof call[0] === 'string' && call[0].startsWith('{')
     );
     const parsed = JSON.parse(jsonCall![0] as string);
-    // No stale cache cleanup result (since changesDir doesn't exist)
-    expect(parsed.results.some((r: string) => r.includes('stale cache'))).toBe(false);
+    // No stale archive result (since changesDir doesn't exist)
+    expect(parsed.results.some((r: string) => r.includes('归档条目'))).toBe(false);
   });
 
   it('should skip entries where statSync fails', async () => {

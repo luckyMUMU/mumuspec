@@ -237,13 +237,16 @@ export async function evaluateRound(
         ? await autoEvaluate(ctx)
         : await hybridEvaluate(ctx, manualProgress);
 
-      // Convert auto-evaluate result to LoopEvaluation
+      // Convert auto-evaluate result to LoopEvaluation.
+      // suggestions MUST be carried through — an advisory that is produced but
+      // never reachable is a dead-end output (freedom-metrics-loop-closure, D1).
       finalEvaluation = {
         progress: evalResult.progress,
         goal_achieved: evalResult.goalAchieved,
         issues: [],
         next_focus: evalResult.recommendation,
         needs_user_input: false,
+        suggestions: evalResult.suggestions ?? [],
       };
 
       // Persist metrics snapshot
@@ -257,6 +260,7 @@ export async function evaluateRound(
           value: m.value,
           details: m.details,
         })),
+        suggestions: evalResult.suggestions ?? [],
       };
       if (!loop.metrics_history) {
         loop.metrics_history = [];

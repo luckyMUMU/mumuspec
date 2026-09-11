@@ -1,0 +1,29 @@
+# Open Questions: freedom-metrics-loop-closure
+# LLM-drafted; each resolution cites a human-signed decision entry in decisions.md.
+version: 1
+change: freedom-metrics-loop-closure
+items:
+  - id: OQ-1
+    question: >-
+      自由度信号在非 loop 路径的暴露形态？（设计建议 D2：新增只读命令
+      mumuspec metrics [change] [--json]。该裁决明确反转前一变更不做清单中的
+      "不新增 CLI 命令"——须由人裁定是否值得开这个口子）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-10T12:05:14.475Z"
+  - id: OQ-2
+    question: >-
+      只读性如何保证？（autoEvaluate 内含 recordProgress 写状态副作用，
+      直接复用会污染变更工件。设计建议：另设纯采集函数 collectMetrics，
+      仅调 evaluator、不记 progress、不判收敛）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-10T12:05:14.475Z"
+  - id: OQ-3
+    question: >-
+      元数据漂移是否值得新建运行时校验器？（设计建议 D4：不新建——G4 的病灶
+      正是"产出物无消费者"，新建校验器等于再造无消费面的产出物；改以单元测试
+      作为一致性校验器锁定）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-10T12:05:24.869Z"

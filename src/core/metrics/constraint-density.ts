@@ -91,7 +91,10 @@ export const constraintDensityEvaluator: Evaluator = {
         const result = spawnSync(
           'npx',
           ['mumuspec', 'context', scope === '.' ? '.' : scope, '--json'],
-          { cwd, encoding: 'utf-8', timeout: 30_000 },
+          // ponytail: `npx` resolves to npx.cmd on Windows, which spawnSync cannot
+          // exec without a shell — without this the metric silently degrades to
+          // "skipped" on win32 and the freedom signal is never collected there.
+          { cwd, encoding: 'utf-8', timeout: 30_000, shell: process.platform === 'win32' },
         );
 
         if (result.error || result.status !== 0) {
@@ -100,16 +103,16 @@ export const constraintDensityEvaluator: Evaluator = {
           );
         }
 
-        const jsonLine = (result.stdout ?? '')
-          .split('\n')
-          .filter(l => l.trim())
-          .find(l => l.startsWith('{'));
-
-        if (!jsonLine) {
+        // `context --json` emits pretty-printed multi-line JSON — slicing from the
+        // first brace (rather than taking the first `{`-prefixed LINE) is what makes
+        // this survive the real CLI output instead of only mocked single-line stdout.
+        const stdout = (result.stdout ?? '').trim();
+        const jsonStart = stdout.indexOf('{');
+        if (jsonStart < 0) {
           return nullResult(`context produced no JSON output for scope "${scope}"`);
         }
 
-        const counts = extractConstraintCounts(JSON.parse(jsonLine));
+        const counts = extractConstraintCounts(JSON.parse(stdout.slice(jsonStart)));
         shall += counts.shall;
         shallNot += counts.shallNot;
       }

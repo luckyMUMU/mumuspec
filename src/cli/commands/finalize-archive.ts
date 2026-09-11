@@ -12,7 +12,7 @@
  * - Ask user about old spec.md/design.md files
  */
 import type { Command } from 'commander';
-import { existsSync, readdirSync, unlinkSync, statSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, readdirSync, unlinkSync, statSync, mkdirSync } from 'node:fs';
 import { join, dirname, relative, sep } from 'node:path';
 import {
   findProjectRoot,
@@ -177,11 +177,13 @@ export function registerFinalizeArchiveCommand(program: Command): void {
         warnings.push('⚠ worktree cleanup skipped');
       }
 
-      // ── Step B7: Clean stale cache ──
+      // ── Step B7: Report stale archives (read-only) ──
       try {
-        const cleaned = cleanStaleCache(root, config);
-        if (cleaned > 0) {
-          results.push(`✓ cleaned ${cleaned} stale cache entries`);
+        const stale = reportStaleArchives(root);
+        if (stale.length > 0) {
+          results.push(
+            `⚠ ${stale.length} 个归档条目超过 ${STALE_ARCHIVE_DAYS} 天未改动（只读报告，不删除）: ${stale.join(', ')}`,
+          );
         }
       } catch {
         // Non-fatal
@@ -392,43 +394,36 @@ function cleanupWorktree(projectRoot: string, _changeName: string): void {
   }
 }
 
-/** Stale-archive retention window (days) — 超此天数的归档目录引用被视为陈旧并清理。 */
+/** Stale-archive report threshold (days) — 超此天数未改动的归档条目在 finalize 时提示。 */
 const STALE_ARCHIVE_DAYS = 30;
 
 /**
- * 清理陈旧归档项（P0-D ②）。
- * 此前仅计数不删除，导致 cache 陈旧项长期残留；现实际删除超期目录。
+ * 报告陈旧归档条目（只读，不执行任何删除）。
+ *
+ * 归档目录承载变更的唯一物理副本（delta-specs / decisions.md / design.md /
+ * cognitive-map.yaml），其生命周期不由 finalize-archive 决定。此前此处按
+ * 目录 mtime 递归删除归档条目，属于无人工确认、无路径级审计的不可逆操作，
+ * 且 mtime 与归档时间无因果关系（会被非归档行为刷新）。删除行为已移除，
+ * 仅保留清单报告。
  */
-function cleanStaleCache(projectRoot: string, _config: ReturnType<typeof loadConfig>): number {
-  let cleaned = 0;
+function reportStaleArchives(projectRoot: string): string[] {
+  const archiveDir = join(getMumuSpecDir(projectRoot), 'changes', 'archive');
+  if (!existsSync(archiveDir)) return [];
 
-  const changesDir = join(getMumuSpecDir(projectRoot), 'changes');
-  if (!existsSync(changesDir)) return 0;
+  const stale: string[] = [];
+  const cutoff = Date.now() - STALE_ARCHIVE_DAYS * 24 * 60 * 60 * 1000;
 
-  try {
-    const archiveDir = join(changesDir, 'archive');
-    if (existsSync(archiveDir)) {
-      const entries = readdirSync(archiveDir);
-      const cutoff = Date.now() - STALE_ARCHIVE_DAYS * 24 * 60 * 60 * 1000;
-
-      for (const entry of entries) {
-        const entryPath = join(archiveDir, entry);
-        try {
-          const stat = statSync(entryPath);
-          if (stat.mtimeMs < cutoff) {
-            rmSync(entryPath, { recursive: true, force: true });
-            cleaned++;
-          }
-        } catch {
-          // Skip — 权限/占用等不可删情况保持非致命
-        }
+  for (const entry of readdirSync(archiveDir)) {
+    try {
+      if (statSync(join(archiveDir, entry)).mtimeMs < cutoff) {
+        stale.push(entry);
       }
+    } catch {
+      // 不可 stat 的条目跳过（权限/占用），不影响其余条目
     }
-  } catch {
-    // Non-fatal
   }
 
-  return cleaned;
+  return stale;
 }
 
 /** P0-D ③ 防重跑标记：归档目录写入 .finalized（含时间戳），重复运行幂等跳过。 */

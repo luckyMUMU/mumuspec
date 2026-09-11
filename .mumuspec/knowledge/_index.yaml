@@ -21,6 +21,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-09-review-followup-hardening
+  - id: KE-archive-prune-safety-hyperplan
+    title: Adversarial design review insights from archive-prune-safety
+    type: decision
+    status: confirmed
+    scope: archive-prune-safety
+    file: .mumuspec\knowledge\decisions\KE-archive-prune-safety-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - archive-prune-safety
   - id: KE-ast-guard-hyperplan
     title: Adversarial design review insights from ast-guard
     type: decision
@@ -54,6 +65,17 @@ pages:
       - hyperplan
       - decision
       - docs-tree-alignment
+  - id: KE-freedom-metrics-loop-closure-hyperplan
+    title: Adversarial design review insights from freedom-metrics-loop-closure
+    type: decision
+    status: confirmed
+    scope: freedom-metrics-loop-closure
+    file: .mumuspec\knowledge\decisions\KE-freedom-metrics-loop-closure-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - freedom-metrics-loop-closure
   - id: KE-goal-p0-dispatch-gate-hyperplan
     title: Adversarial design review insights from goal-p0-dispatch-gate
     type: decision
@@ -142,6 +164,17 @@ pages:
       - pattern
       - architecture
       - docs-tree-alignment
+  - id: KE-freedom-metrics-loop-closure-patterns
+    title: Architecture patterns from freedom-metrics-loop-closure
+    type: pattern
+    status: confirmed
+    scope: freedom-metrics-loop-closure
+    file: .mumuspec\knowledge\patterns\KE-freedom-metrics-loop-closure-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - freedom-metrics-loop-closure
   - id: KE-goal-p0-dispatch-gate-patterns
     title: Architecture patterns from goal-p0-dispatch-gate
     type: pattern
@@ -752,6 +785,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-09-review-followup-hardening
+  - id: KE-archive-prune-safety-lessons
+    title: Lessons from archive-prune-safety decisions
+    type: lesson
+    status: confirmed
+    scope: archive-prune-safety
+    file: .mumuspec\knowledge\lessons\KE-archive-prune-safety-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - archive-prune-safety
   - id: KE-ast-guard-lessons
     title: Lessons from ast-guard decisions
     type: lesson
@@ -785,6 +829,17 @@ pages:
       - lesson
       - decisions
       - docs-tree-alignment
+  - id: KE-freedom-metrics-loop-closure-lessons
+    title: Lessons from freedom-metrics-loop-closure decisions
+    type: lesson
+    status: confirmed
+    scope: freedom-metrics-loop-closure
+    file: .mumuspec\knowledge\lessons\KE-freedom-metrics-loop-closure-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - freedom-metrics-loop-closure
   - id: KE-goal-p0-dispatch-gate-lessons
     title: Lessons from goal-p0-dispatch-gate decisions
     type: lesson

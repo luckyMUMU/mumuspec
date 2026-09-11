@@ -1,0 +1,61 @@
+name: freedom-metrics-loop-closure
+phase: archive-in-progress
+workflow: full
+created_at: 2026-09-10T12:00:48.356Z
+updated_at: 2026-09-10T16:15:36.026Z
+scope: .
+affected_scopes: []
+build_layers: []
+test_cases:
+  design_locked: false
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/freedom-metrics-loop-closure
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 1
+    design: 2
+    build: 1
+    verify: 3
+  content_hash: e60118eaf767f196
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+estimated_files: 12
+modules_affected: 4
+cross_module: false
+new_public_api: false
+new_external_dep: false
+data_migration: false
+is_doc_only: false
+is_pure_bugfix: false
+schema_version: 1.0.0
+verify_result: pass
+branch_status: handled

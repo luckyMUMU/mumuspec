@@ -299,6 +299,18 @@ export function registerLoopCommands(program: Command): void {
           }
         }
 
+        // Advisory constraint-strength suggestions (freedom-metrics-loop-closure, D1).
+        // Produced by buildSuggestions; must be surfaced here or it is a dead-end output.
+        const suggestions = status.lastEvaluation?.suggestions ?? [];
+        if (suggestions.length > 0) {
+          console.log('');
+          console.log('  ── 自由度信号建议（advisory） ──────────────');
+          for (const suggestion of suggestions) {
+            console.log(`  • ${suggestion}`);
+          }
+          tip('advisory 须人工签收后生效: mumuspec decisions append "<裁定>"');
+        }
+
         if (result.should_commit) {
           console.log('');
           success('Auto-committed round state.');
