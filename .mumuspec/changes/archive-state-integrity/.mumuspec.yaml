@@ -1,8 +1,8 @@
 name: archive-state-integrity
-phase: verify
+phase: archive-in-progress
 workflow: hotfix
 created_at: 2026-09-11T16:42:26.036Z
-updated_at: 2026-09-11 17:03:10
+updated_at: 2026-09-11T17:03:13.761Z
 scope: .
 affected_scopes: []
 build_layers:
@@ -59,3 +59,4 @@ is_doc_only: false
 is_pure_bugfix: true
 schema_version: 1.0.0
 verify_result: pass
+branch_status: handled
