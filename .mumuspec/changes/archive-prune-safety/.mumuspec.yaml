@@ -1,0 +1,60 @@
+name: archive-prune-safety
+phase: verify
+workflow: hotfix
+created_at: 2026-09-11T16:24:06.922Z
+updated_at: 2026-09-11T16:38:03.179Z
+scope: .
+affected_scopes: []
+build_layers:
+  - layer: 0
+    scope: .
+    status: pending
+test_cases:
+  design_locked: true
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+  design_content_hash: b1de5440f9a8d518
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/archive-prune-safety
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    build: 2
+  content_hash: 28853328c7bfa967
+rollback_history: []
+cognitive_framework:
+  enabled: false
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+estimated_files: 0
+modules_affected: 1
+cross_module: false
+new_public_api: false
+new_external_dep: false
+data_migration: false
+is_doc_only: false
+is_pure_bugfix: true
+schema_version: 1.0.0

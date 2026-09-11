@@ -84,7 +84,7 @@ describe('finalize-archive — P0-D 缺口修复', () => {
     expect(typeof parsed.nodeCount === 'number' || Array.isArray(parsed.nodes)).toBe(true);
   });
 
-  it('② cache 陈旧项实际删除（30 天前的归档目录被清理）', async () => {
+  it('② 陈旧归档条目只报告不删除（归档目录不因 mtime 陈旧被清理）', async () => {
     const change = 'chg-old';
     setup(change);
     const archiveBase = join(root, '.mumuspec', 'changes', 'archive');
@@ -95,7 +95,12 @@ describe('finalize-archive — P0-D 缺口修复', () => {
     utimesSync(stale, new Date(old / 1000), new Date(old / 1000));
 
     await run(change, '--json');
-    expect(existsSync(stale)).toBe(false);
+    // 归档目录承载变更的唯一物理副本，不得被清理逻辑删除
+    expect(existsSync(stale)).toBe(true);
+    expect(existsSync(join(stale, 'x.txt'))).toBe(true);
+    // 仅以只读方式报告
+    const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(out).toMatch(/stale-entry/);
   });
 
   it('③ .finalized 防重跑标记：第二次运行被幂等拦截', async () => {
