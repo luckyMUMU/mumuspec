@@ -366,6 +366,64 @@ P1-1（低依赖，可并行）
 
 ---
 
+## 七、实施前置条件：HEAD 自检为红 `[v2 补充，2026-09-12 实测]`
+
+**在动手实施 P0 之前，必须先处理一个新发现的、与本次修复强耦合的问题。**
+
+### 事实
+
+干净树 HEAD（`master @ ea82055`，`dist` 已重建）上 `mumuspec check` **exit 1**：
+
+```
+exit=1
+  60  [E-GUARD-003]  SHALL NOT 仅以 `.mumuspec` 存在性判定模块（BOUNDARY-only 目录不是已注册模块）
+   2  [E-ARCH-003]   归档目录名出现重复日期前缀（2026-09-09-2026-09-09-*，两例）
+```
+
+干净树 == HEAD，故这是 **HEAD 的固有属性**，与任何未提交改动无关。连锁后果：项目自称的反回归门
+`tests/cli/cli-smoke.test.ts › mumuspec check runs (dogfooding) with exit 0` **确定性失败**，
+且**任何新变更走 verify 阶段都会被这条门挡住**。
+
+### 根因（已定位到行）
+
+1. 约束文本 `.mumuspec/spec.md:493` 用行内标记包了 bare 目录名：`` 仅以 `.mumuspec` 存在性判定模块 ``；
+2. `src/spec/verifier-classify.ts:89` 的 `extractQuotedTerms` 取出 term = `.mumuspec`；
+3. `src/guard/checker.ts:696-720`：term 长度 9 > 4 → 正则退化为**裸子串匹配** `/.mumuspec/i`；
+   而它既不满足 `isFlagTerm`（非 `--` 开头），也不满足 `isFileTerm`
+   （正则 `\.(md|ya?ml|json|txt|log)$` 不匹配）→ **两条亲和性守卫全部落空**；
+4. 于是任何**非注释行**只要含 `.mumuspec` 即判违规——连 `.mumuspec.yaml` 也命中（子串）。
+
+**判定：假阳性。** 与 `checker.ts:694-695` 自身的设计意图直接矛盾——
+*"a matched line must plausibly **perform** the prohibited act, not merely mention it"*。
+60 个命中文件包含 `src/spec/loader.ts`、`src/spec/validator.ts` 等**合法解析 `.mumuspec` 路径**的文件。
+同时违反项目自己的 Requirement「约束通道与约束语义一致」。
+
+### 与本方案的耦合（为什么必须先修）
+
+P1-1 的"彻底改法"要把 `runPhaseGuard` 的 `error.code` 与 drift code 灌进 loop 的 `issues`。
+**在通道未洗净前做这件事，会让 loop 每轮被注入 60 条假 issue——"提带宽"变成"灌噪声"**，
+比不改更糟（会污染 `next_focus`、`blocked` 判定与后续 archive）。
+故：**修 FP 是 P1-1 的前置条件**，且 P0-1 落盘时也必须对 `E-GUARD-003` 做去噪或标记，
+否则 stats 里 60 条/次的假失败会直接扭曲 `passRate`。
+
+### 两个修法（含设计选择，需人裁决）
+
+| 方案 | 内容 | 评价 |
+|---|---|---|
+| **(A) 改约束文本**（推荐） | 改写 `.mumuspec/spec.md:493`：去掉对 bare 目录名的行内标记，或换成有语义的通道（`ast:` 注解 / 块级 `Enforcement`） | 符合「通道与语义一致」的既有裁决；需走 spec 变更 |
+| (B) 给 checker 补守卫 | 在 `checker.ts` 为"目录名类 term"增加亲和性守卫，与既有 `isFlagTerm` / `isFileTerm` 同构 | 在启发式上再打启发式补丁；且不解决文本本身的通道错配，同类问题会再犯 |
+
+### 测试基线的判读纪律（附带）
+
+全量测试连跑三次得 `5 files/11 tests failed` → `2/2` → `1/1`，抖动的成因是
+**`dist/` 在运行途中被重建**：测试 spawn 的是 gitignored 的构建产物，撞上写了一半的模块图 →
+`SyntaxError: module './commands/grill-me.js' does not provide an export named 'registerGrillMeCommand'`
+（而 `src/cli/commands/grill-me.ts:27` 定义无误）。**这不是真实回归。**
+排查 CLI 相关离奇失败时，第一件事是比对 `dist` 与 `src` 的 mtime 并重建后再跑，
+否则会把产物竞态误判为代码回归。
+
+---
+
 ## 附录 A · 独立评审记录
 
 **方法**：本方案 v1 交付后，派出一名独立 subagent（**不同模型**）执行**证伪式**复核——

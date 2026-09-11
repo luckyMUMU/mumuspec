@@ -3,6 +3,9 @@
 > 日期：2026-09-12　范围：`src/change/` + `src/cli/commands/finalize-archive.ts` + `src/core/git.ts`
 > 方法：逐行代码定位 → 仓库实证核对 → 与根规范既有约束比对
 > 结论：4 处缺陷（含 1 处 P0 数据销毁风险）+ 1 处校验面缺口。四处全部**违反根规范已有约束**，不是"约束缺失"，是"实现未合规"。
+>
+> **2026-09-12 后续：D1 由变更 `archive-prune-safety` 修复并归档；D2–D5 由变更 `archive-state-integrity`
+> 修复并归档。修复过程中另发现一处新的机制矛盾（D6），记录于文末，未修。**
 
 ---
 
@@ -193,3 +196,30 @@ D1–D4 表面分散在四个模块，实则是同一类失效的四种表现：
 D2/D3/D4/D5 涉及引擎行为与状态路径语义变更，建议合并为一个 hotfix 变更（携带 delta-spec，须走 hotfix 而非 tweak —— 这正是 D4 的教训）。D1 因为是可逆性与数据安全问题，建议单独变更以便独立评审。
 
 **当前仓库还有一处未提交改动**：`.mumuspec/changes/archive/2026-09-11-spec-lexical-channel-hygiene/delta-specs/*.md` 存在尾随空白/末尾空行差异（上次 finalize 的写入痕迹），不影响语义，可随下次提交一并处理。
+
+---
+
+## 修复状态（2026-09-12 后续）
+
+| 缺陷 | 变更 | 落地情况 |
+|------|------|----------|
+| D1 | `archive-prune-safety`（hotfix，已归档） | 删除行为移除，改为只读报告 `reportStaleArchives`；测试断言改为"不删除"（含 `rmSync` 未被调用） |
+| D2 | `archive-state-integrity`（hotfix，已归档） | 新增 `resolveChangeStatePath`（活跃优先/归档兜底）+ `saveChangeStateInDir`；归档写回归档目录。实测归档后活跃区无残留、归档状态为 `archive-completed` |
+| D3 | 同上 | `commitChangeBranch` 检查提交返回状态，失败抛错 + 失败审计；`guard` 触发条件改为 `isolation === 'branch' && branch_status !== 'handled'` |
+| D4 | 同上 | tweak 携带非空 delta-specs / constraints 时抛 `E-CHANGE-012` |
+| D5 | 同上 | 新增 `src/change/archive-consistency.ts`，接入 `mumuspec check`（E-ARCH-001/002/003）；归档目录名不再重复添加日期前缀 |
+
+存量迁移（一次性脚本，执行后删除）：7 个归档状态阶段修正、4 个残留状态目录删除。
+迁移后 E-ARCH-001/002 为 0；E-ARCH-003 剩 2 条（历史重复日期前缀，仅告警）。
+
+回归：4984 用例 1 失败（基线 `cli-smoke` dogfooding，由 E-GUARD-003 宽匹配导致）；`tsc --noEmit` 0 错误；`mumuspec check` drift OK。
+E-GUARD-003 由 59 增至 60，新增一条来自新文件 `src/change/archive-consistency.ts` 中的 `.mumuspec.yaml` 字面量，
+与既有 59 条同源同形态，按既定纪律不为此扭曲代码或改通道派生逻辑。
+
+## D6（新发现，未修）— `mumuspec merge` 在分支模型下自相矛盾
+
+归档产物只存在于变更分支的提交中，而 `checkMergeGate` 要求当前不在变更分支（E-MERGE-005）。
+于是：在变更分支上 → 违反 E-MERGE-005；在主分支上 → 归档目录尚未合入，`loadChangeState` 找不到 → E-MERGE-001。
+两次归档后均只能通过 `git merge --no-ff` 手工完成合并，`mumuspec merge` 的门禁在其自身流程中不可满足。
+
+可能的方向：归档产物提交到主分支（而非变更分支），或门禁允许在变更分支上执行合并前的最后校验。
