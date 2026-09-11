@@ -519,7 +519,6 @@ index_drift 检查与 index 构建必须采用同一模块判定标准。
 ### SHALL NOT
 
 - SHALL NOT 存在产出物无消费者的死端（产出物与消费面必须同批交付）。
-- SHALL NOT 自动应用建议——`constraint_strength` 配置不得被建议逻辑改写（红线 bp_04 同源）。
 
 ### Enforcement
 
@@ -540,7 +539,7 @@ goal.md 北极星指标"Design→Build 一次通过率 ≥ 80%"对全项目生�
 ### SHALL NOT
 
 - SHALL NOT 使自由度指标仅在 loop 工作流可计算。
-- SHALL NOT 因新增命令而改变既有 `loop evaluate` 的收敛语义（composite 权重与阈值不动）。
+- SHALL NOT 因新增命令而改变既有 loop evaluate 通道的收敛语义（composite 权重与阈值不动）。
 
 ### Enforcement
 

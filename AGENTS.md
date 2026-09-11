@@ -9,7 +9,7 @@
 
 | Layer | Scope | Docs | SHALL | SHALL NOT |
 |---|---|---|---|---|
-| 0 | `.` | prd+tech+spec | 109 | 66 |
+| 0 | `.` | prd+tech+spec | 120 | 71 |
 
 ### 当前路径适用红线（SHALL NOT 全文，含父层继承 — `.`）
 
@@ -79,6 +79,11 @@
 - SHALL NOT 用 try/catch 吞掉副作用失败（失败必须中断并留 audit 记录）。
 - SHALL NOT 仅以 `.mumuspec` 存在性判定模块（BOUNDARY-only 目录不是已注册模块）。
 - SHALL NOT 在 checker 与 builder 中保留语义不一致的独立实现。
+- SHALL NOT 存在产出物无消费者的死端（产出物与消费面必须同批交付）。
+- SHALL NOT 使自由度指标仅在 loop 工作流可计算。
+- SHALL NOT 因新增命令而改变既有 loop evaluate 通道的收敛语义（composite 权重与阈值不动）。
+- SHALL NOT 在 AGENTS.md 中内联指标数据（渐进式披露职责归命令与 MCP，Rules 文件受 32KiB 预算约束）。
+- SHALL NOT 以"下游硬过滤兜底"替代事实源自身干净（兜底是防线，不是许可）。
 
 > 完整约束正文经 MCP `get_spec_context` / `mumuspec context <path>` 渐进式加载（Rules 文件不内联全量规范）。
 
