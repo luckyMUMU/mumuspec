@@ -42,7 +42,9 @@ export function registerGuardCommand(program: Command): void {
       // check passes), then transitions. Order: commit → handled → check → apply.
       if (options.apply && phase === 'archive-in-progress') {
         const preState = loadChangeState(root, change);
-        if (preState && preState.phase === 'verify' && preState.branch_status !== 'handled') {
+        // 触发条件表达事实（分支隔离且尚未提交），而非阶段名：绑定到
+        // `phase === 'verify'` 会让其它进入归档的路径静默跳过提交。
+        if (preState && preState.isolation === 'branch' && preState.branch_status !== 'handled') {
           try {
             commitChangeBranch(root, change, preState);
             result = runPhaseGuard(root, change, phase, guardOptions);

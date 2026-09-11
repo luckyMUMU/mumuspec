@@ -26,6 +26,7 @@ import { checkGlossary } from '../../guard/glossary-checker.js';
 import type { GlossaryCheckResult } from '../../guard/glossary-checker.js';
 import type { DriftResult, GuardResult } from '../../core/types-workflow.js';
 import { loadChangeState } from '../../change/state.js';
+import { detectArchiveStateDrift } from '../../change/archive-consistency.js';
 
 /** Aggregated `mumuspec check` payload — machine-consumable (LOOP-4 L1). */
 interface CheckJsonPayload {
@@ -317,6 +318,7 @@ export function registerSpecCommands(program: Command): void {
         const drifts: DriftResult[] = [
           ...detectDriftWithContracts(root),
           ...detectAgentsDrift(root),
+          ...detectArchiveStateDrift(root),
         ];
         const driftErrors = drifts.filter((d) => d.severity === 'ERROR');
         const driftWarns = drifts.filter((d) => d.severity !== 'ERROR');

@@ -91,7 +91,25 @@ export function commitChangeBranch(
 ): void {
   if (state.phase === 'discarded' || state.phase === 'archive-completed') return;
 
-  commitAll(projectRoot, `chore(change): commit work for change ${changeName}`);
+  const result = commitAll(projectRoot, `chore(change): commit work for change ${changeName}`);
+
+  // 提交失败必须中断：静默置位会让门禁基于一个未发生的提交放行，
+  // 失败只体现在返回状态上（commitAll 用 allowFail 容错）。
+  if (result.status !== 0) {
+    appendAuditLog(getMumuSpecDir(projectRoot), {
+      actor: 'user',
+      action: 'change.branch_commit',
+      change: changeName,
+      branch: state.branch,
+      result: 'failed',
+      error: (result.stderr || result.stdout || 'git commit failed').trim(),
+    });
+    throw new MumuSpecError('E-VERIFY-002', {
+      '说明': '变更分支提交失败，branch_status 未置为 handled',
+      '错误': (result.stderr || result.stdout || 'git commit failed').trim(),
+      '修复': '手动提交后执行: mumuspec state set <name> branch_status handled',
+    });
+  }
 
   state.branch_status = 'handled';
   state.updated_at = now();

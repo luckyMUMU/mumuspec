@@ -10,7 +10,7 @@ Last updated: 2026-09-11
 | Domain | Count |
 |--------|-------|
 | SPEC | 15 |
-| CHANGE | 13 |
+| CHANGE | 14 |
 | VERIFY | 3 |
 | FINAL | 1 |
 | HOOK | 1 |
@@ -26,7 +26,7 @@ Last updated: 2026-09-11
 | RULES | 1 |
 | CHECK | 1 |
 | GIT | 3 |
-| **Total** | **83** |
+| **Total** | **84** |
 
 ## SPEC Domain
 
@@ -213,6 +213,7 @@ Last updated: 2026-09-11
 | `E-CHANGE-009` | CHANGE_BRANCH_CREATE_FAILED | ERROR | 自动创建变更分支失败（已回退变更目录） | No |
 | `E-CHANGE-010` | CHANGE_DISCARD_MOVE_FAILED | ERROR | 废弃变更时目录移动失败，变更保留在原位置 | No |
 | `E-CHANGE-011` | CHANGE_ARCHIVE_MOVE_FAILED | ERROR | 归档变更时目录移动失败，变更保留在原位置 | No |
+| `E-CHANGE-012` | CHANGE_TWEAK_CARRIES_SPEC | ERROR | tweak 工作流归档会跳过 delta-spec 与知识合并，携带规范工件的变更不得用 tweak 归档 | No |
 | `E-CHANGE-020` | CHANGE_ARTIFACT_SCHEMA_INVALID | ERROR | 完备性工件 schema 非法（open-questions.yaml / assumptions.yaml 违反 schema v1） | No |
 | `E-CHANGE-021` | CHANGE_RESOLUTION_CHAIN_BROKEN | ERROR | 工件 resolution 链断裂（decision_ref 在 decisions.md 中无对应条目，或 deferred 缺 note） | No |
 
@@ -324,6 +325,16 @@ Last updated: 2026-09-11
 **Fix Steps**:
 1. 检查目标目录是否已存在
 2. 手动将变更目录移到 .mumuspec/changes/archive/
+
+### `E-CHANGE-012`: CHANGE_TWEAK_CARRIES_SPEC
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: tweak 工作流归档会跳过 delta-spec 与知识合并，携带规范工件的变更不得用 tweak 归档
+
+**Fix Steps**:
+1. 改用 hotfix 工作流归档（mumuspec new <name> --workflow hotfix）
+2. 或将 delta-specs/ 与 constraints/ 内容迁出到 hotfix 变更后再归档
 
 ### `E-CHANGE-020`: CHANGE_ARTIFACT_SCHEMA_INVALID
 

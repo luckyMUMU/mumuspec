@@ -32,6 +32,17 @@ pages:
       - hyperplan
       - decision
       - archive-prune-safety
+  - id: KE-archive-state-integrity-hyperplan
+    title: Adversarial design review insights from archive-state-integrity
+    type: decision
+    status: confirmed
+    scope: archive-state-integrity
+    file: .mumuspec\knowledge\decisions\KE-archive-state-integrity-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - archive-state-integrity
   - id: KE-ast-guard-hyperplan
     title: Adversarial design review insights from ast-guard
     type: decision
@@ -796,6 +807,17 @@ pages:
       - lesson
       - decisions
       - archive-prune-safety
+  - id: KE-archive-state-integrity-lessons
+    title: Lessons from archive-state-integrity decisions
+    type: lesson
+    status: confirmed
+    scope: archive-state-integrity
+    file: .mumuspec\knowledge\lessons\KE-archive-state-integrity-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - archive-state-integrity
   - id: KE-ast-guard-lessons
     title: Lessons from ast-guard decisions
     type: lesson

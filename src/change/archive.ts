@@ -9,7 +9,29 @@ import { readYaml, readText, writeText, now, appendAuditLog, getMumuSpecDir, com
 import { MumuSpecError } from '../core/errors.js';
 import { createKnowledgePage, getKnowledgeDir } from '../knowledge/manager.js';
 import { getChangeDir, getArchiveDir, scopeToPath } from './paths.js';
-import { loadChangeState, saveChangeState } from './state.js';
+import { loadChangeState, saveChangeStateInDir } from './state.js';
+
+/**
+ * 找出变更目录中会被 tweak 归档跳过的规范工件。
+ * 返回相对文件名列表（delta-specs/ 与 constraints/ 下内容非空的 .md 文件）。
+ */
+function findCarriedSpecArtifacts(changeDir: string): string[] {
+  const carried: string[] = [];
+  for (const sub of ['delta-specs', 'constraints']) {
+    const dir = join(changeDir, sub);
+    if (!existsSync(dir)) continue;
+    try {
+      for (const file of readdirSync(dir)) {
+        if (!file.endsWith('.md')) continue;
+        const content = readFileSync(join(dir, file), 'utf8');
+        if (content.trim()) carried.push(`${sub}/${file}`);
+      }
+    } catch {
+      // 不可读则按无工件处理
+    }
+  }
+  return carried;
+}
 import { hasWorktree, removeWorktree } from '../core/git.js';
 
 /**
@@ -135,6 +157,18 @@ export function archiveChange(
   const isTweak = state.workflow === 'tweak';
   const changeDir = getChangeDir(projectRoot, changeName, scope);
 
+  // tweak 归档会跳过 delta-spec / 约束 / 知识三个合并子过程。携带规范工件的
+  // tweak 变更若静默归档，规范不会更新且无任何可观测信号 —— 直接拒绝。
+  if (isTweak) {
+    const carried = findCarriedSpecArtifacts(changeDir);
+    if (carried.length > 0) {
+      throw new MumuSpecError('E-CHANGE-012', {
+        '携带的规范工件': carried.join(', '),
+        '修复': '改用 hotfix 工作流归档',
+      });
+    }
+  }
+
   // W2 (CHG 2026-09-09-review-followup-hardening): bump moved AFTER rename —
   // a failed rename must not leave version/CHANGELOG side effects behind.
   // mergeDeltaSpecsToMain / extractKnowledgeToGlobal stay before rename:
@@ -162,7 +196,11 @@ export function archiveChange(
   state.git_merge = state.git_merge ?? { merged: false };
 
   const archiveDir = getArchiveDir(projectRoot, scope);
-  const archivedDir = join(archiveDir, `${new Date().toISOString().split('T')[0]}-${changeName}`);
+  // 变更名已带日期前缀时不再重复添加（历史归档中已出现双前缀条目）。
+  const archiveEntryName = /^\d{4}-\d{2}-\d{2}-/.test(changeName)
+    ? changeName
+    : `${new Date().toISOString().split('T')[0]}-${changeName}`;
+  const archivedDir = join(archiveDir, archiveEntryName);
 
   try {
     moveDirSync(changeDir, archivedDir);
@@ -193,8 +231,11 @@ export function archiveChange(
     });
   }
 
-  // Only save state AFTER successful rename
-  saveChangeState(projectRoot, changeName, state, scope);
+  // Save state INTO the archive directory. Writing through the name-derived
+  // active path here would recreate the directory that was just moved away
+  // (writeYaml ensures the parent dir), leaving a stale copy behind while the
+  // state travelling with the change keeps the pre-archive phase.
+  saveChangeStateInDir(archivedDir, state);
 
   appendAuditLog(getMumuSpecDir(projectRoot), {
     actor: 'user',

@@ -11,6 +11,7 @@ import type { ChangeState } from '../../src/core/types.js';
 
 const mockLoadChangeState = vi.fn();
 const mockSaveChangeState = vi.fn();
+const mockSaveChangeStateInDir = vi.fn();
 const mockGetChangeDir = vi.fn();
 const mockGetArchiveDir = vi.fn();
 const mockExistsSync = vi.fn();
@@ -36,6 +37,7 @@ const mockGetKnowledgeDir = vi.fn();
 vi.mock('../../src/change/state.js', () => ({
   loadChangeState: (...args: unknown[]) => mockLoadChangeState(...args),
   saveChangeState: (...args: unknown[]) => mockSaveChangeState(...args),
+  saveChangeStateInDir: (...args: unknown[]) => mockSaveChangeStateInDir(...args),
 }));
 
 vi.mock('../../src/change/paths.js', () => ({
@@ -363,7 +365,7 @@ describe('archiveChange', () => {
 
     archiveChange(PROJECT_ROOT, CHANGE_NAME);
 
-    expect(mockSaveChangeState).toHaveBeenCalled();
+    expect(mockSaveChangeStateInDir).toHaveBeenCalled();
     expect(mockLoadChangeState).toHaveBeenCalledWith(PROJECT_ROOT, CHANGE_NAME, undefined);
   });
 
@@ -372,7 +374,7 @@ describe('archiveChange', () => {
 
     archiveChange(PROJECT_ROOT, CHANGE_NAME);
 
-    const savedState = mockSaveChangeState.mock.calls[0][2] as ChangeState;
+    const savedState = mockSaveChangeStateInDir.mock.calls[0][1] as ChangeState;
     expect(savedState.phase).toBe('archive-completed');
   });
 
@@ -381,7 +383,7 @@ describe('archiveChange', () => {
 
     archiveChange(PROJECT_ROOT, CHANGE_NAME);
 
-    const savedState = mockSaveChangeState.mock.calls[0][2] as ChangeState;
+    const savedState = mockSaveChangeStateInDir.mock.calls[0][1] as ChangeState;
     expect(savedState.updated_at).toBe('2025-06-15T10:30:00Z');
   });
 
@@ -418,7 +420,7 @@ describe('archiveChange', () => {
 
     archiveChange(PROJECT_ROOT, CHANGE_NAME);
 
-    const savedState = mockSaveChangeState.mock.calls[0][2] as ChangeState;
+    const savedState = mockSaveChangeStateInDir.mock.calls[0][1] as ChangeState;
     expect(savedState.knowledge_extraction).toBeUndefined();
   });
 
@@ -434,7 +436,7 @@ describe('archiveChange', () => {
 
     archiveChange(PROJECT_ROOT, CHANGE_NAME);
 
-    const savedState = mockSaveChangeState.mock.calls[0][2] as ChangeState;
+    const savedState = mockSaveChangeStateInDir.mock.calls[0][1] as ChangeState;
     expect(savedState.knowledge_extraction).toBeDefined();
     expect(savedState.knowledge_extraction!.completed).toBe(true);
     expect(savedState.knowledge_extraction!.graph_bindings_verified).toBe(true);
@@ -470,7 +472,10 @@ describe('archiveChange', () => {
     archiveChange(PROJECT_ROOT, CHANGE_NAME, 'src/api');
 
     expect(mockLoadChangeState).toHaveBeenCalledWith(PROJECT_ROOT, CHANGE_NAME, 'src/api');
-    expect(mockSaveChangeState).toHaveBeenCalledWith(PROJECT_ROOT, CHANGE_NAME, expect.any(Object), 'src/api');
+    // 状态必须随变更写入归档目录，而不是通过名称派生回活跃区路径
+    expect(mockSaveChangeState).not.toHaveBeenCalled();
+    expect(mockSaveChangeStateInDir).toHaveBeenCalled();
+    expect(mockSaveChangeStateInDir.mock.calls[0][0]).toContain('archive');
     expect(mockGetArchiveDir).toHaveBeenCalledWith(PROJECT_ROOT, 'src/api');
   });
 

@@ -13,6 +13,7 @@ import type { ChangeState } from '../../src/core/types.js';
 
 const mockLoadChangeState = vi.fn();
 const mockSaveChangeState = vi.fn();
+const mockSaveChangeStateInDir = vi.fn();
 const mockGetChangeDir = vi.fn();
 const mockGetArchiveDir = vi.fn();
 const mockExistsSync = vi.fn();
@@ -36,6 +37,7 @@ const mockGetKnowledgeDir = vi.fn();
 vi.mock('../../src/change/state.js', () => ({
   loadChangeState: (...args: unknown[]) => mockLoadChangeState(...args),
   saveChangeState: (...args: unknown[]) => mockSaveChangeState(...args),
+  saveChangeStateInDir: (...args: unknown[]) => mockSaveChangeStateInDir(...args),
 }));
 
 vi.mock('../../src/change/paths.js', () => ({

@@ -252,6 +252,17 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     fixSteps: ['检查目标目录是否已存在', '手动将变更目录移到 .mumuspec/changes/archive/'],
     forceable: false,
   },
+  'E-CHANGE-012': {
+    code: 'E-CHANGE-012',
+    name: 'CHANGE_TWEAK_CARRIES_SPEC',
+    severity: 'ERROR',
+    description: 'tweak 工作流归档会跳过 delta-spec 与知识合并，携带规范工件的变更不得用 tweak 归档',
+    fixSteps: [
+      '改用 hotfix 工作流归档（mumuspec new <name> --workflow hotfix）',
+      '或将 delta-specs/ 与 constraints/ 内容迁出到 hotfix 变更后再归档',
+    ],
+    forceable: false,
+  },
   // Completeness gate artifacts (goal-p0-dispatch-gate, C4) — KP-0060 axiom 3:
   // guard refuses to consume invalid artifacts, never degrades.
   'E-CHANGE-020': {

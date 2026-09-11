@@ -6,88 +6,7 @@
 ## 规范链摘要
 
 - **Project**: mumuspec (typescript)
-
-| Layer | Scope | Docs | SHALL | SHALL NOT |
-|---|---|---|---|---|
-| 0 | `.` | prd+tech+spec | 121 | 73 |
-
-### 当前路径适用红线（SHALL NOT 全文，含父层继承 — `.`）
-
-- 禁止引入未被请求的抽象层（YAGNI）
-- 禁止在标准库/平台特性已满足需求时引入新依赖
-- 禁止生成未被请求的样板代码（boilerplate）
-- 禁止用复杂方案替代简单方案（boring over clever）
-- 禁止在 temp/ 之外存放非规范文件（功能性状态文件 constraints.yaml / audit.log / agents-hash.json 除外，见 TEMP-4 白名单）
-- 禁止将 temp/ 内容提交至 git（gitignore 兜底 + pre-commit 检查）
-- 禁止 temp/ 长期积压未整理内容（每次归档必须触发清理）
-- 禁止在 temp/ 中存放活跃变更的工件（变更工件在 changes/<name>/ 下）
-- 禁止约束内容使用无具体含义的占位符文本
-- 禁止跳过 spec 校验直接构建（mumuspec validate 必须通过）
-- 不可以在根级规范中定义具体模块的实现细节（这一要求分层到子目录）
-- 禁止绕过变更状态机直接修改代码（无变更上下文）
-- 禁止变更后不更新版本号（package.json 与 src/cli.ts 版本必须一致）
-- Module-level `spec.md` SHALL NOT coexist with `tech.md` in the same `.mumuspec/` directory
-- Module-level `design.md` SHALL NOT coexist with `prd.md` in the same `.mumuspec/` directory
-- The loader SHALL NOT hardcode a fixed number of layers (e.g., 3) for loading spec context
-- The loader SHALL NOT load both `prd.md` and `tech.md` with the same fixed depth strategy
-- The system SHALL NOT enforce `single_active_change` globally when per-scope enforcement is active
-- The system SHALL NOT create changes in root `.mumuspec/changes/` when the affected scope is within a subdirectory
-- finalize-archive SHALL NOT delete old spec.md/design.md without explicit user confirmation
-- finalize-archive SHALL NOT run on already-archived changes
-- Init SHALL NOT overwrite existing `prd.md` or `tech.md` files without `--force` flag
-- Init SHALL NOT require user interaction during generation (fully automatic, review after)
-- 禁止在文档中记录思考过程、推理链或生成过程回顾（除非用户明确要求）
-- 禁止在文档中记录生成该文档所用到的要求、命令、提示词等元信息
-- 禁止在文档中写对齐来源、修改说明类元注释（如"（与 XX 对齐）"、"本次更新了…"）
-- 禁止保留过期或无效的文档内容（类比代码死代码——应删除而非注释保留）
-- 禁止生成多余的说明性注释
-- 禁止术语表条目与 spec.md / tech.md / prd.md 中的定义相互矛盾
-- 禁止省略术语的英文对照（原文引用场景依赖英文符号）
-- 禁止将术语表用作实现规范约束的场所（约束入 spec.md，术语入 glossary.md）
-- SHALL NOT 将通用能力标记为专用工具以提高"重要性"（分层基于风险等级）
-- SHALL NOT 在执行通用能力时要求用户显式确认（除非用户在配置中显式启用）
-- SHALL NOT 跳过专用工具的前置校验（即使"看起来没问题"）
-- SHALL NOT 在用户未确认时执行不可逆操作
-- SHALL NOT 通用能力组合产生副作用（通用能力必须是纯只读的）
-- SHALL NOT 专用工具的能力降级为 general，除非风险变化经过评估并走契约变更流程
-- SHALL NOT 允许运行时动态修改命令的能力层级（必须修改代码 + 评审）
-- SHALL NOT 通过 `mumuspec capability` 查询不到的层级作为执行依据
-- 禁止无 enforcement 声明的 SHALL 进入强制面（E-SPEC-004 恒可见，不得被低强度折叠丢弃）
-- 禁止以 `--force` 越过 E-SPEC-015（forceable: false；唯一出路是补 annotation、改写为可提取文本或声明 manual）
-- 禁止自动注解产出与约束语义无关的通道映射（如"样板代码→no-side-effect"，F8 教训）
-- 禁止手工编辑由 CLI 管理的审计与状态工件：decisions.md 追加（须 `decisions append`，手工编辑破坏 content_hash → E-CHANGE-007）、`.mumuspec.yaml` 状态字段（须 `state set` / `state layer`，受保护字段绕过须审计 E-STATE-001）、suite hash（须 `test-cases lock-suite`）
-- 禁止 LLM 自行计算或手写 hash 类字段（design_content_hash / suites_hash）
-- 禁止 skill 指示使用状态机不存在的目标阶段（如 verify-fail / archive-reopen）
-- 禁止在无对应命令的情况下将确定性步骤写入 skill（先命令后文档）
-- 禁止以自由文本形式声明"设计完备"（完备性结论必须可由工件状态推导）。
-- 禁止把"完备"与"正确"混同：完备性工件不得包含正确性断言（正确性由 test-cases 锁定与 Verify 承担）。
-- 禁止在无人工签收记录的情况下因 LLM 判定"完备"而放行阶段转换。
-- 禁止降级或绕过机械四分类的一票否决。
-- 禁止生成 `.cursorrules` 与 `.windsurfrules`（遗留格式）。
-- 禁止在 Rules 文件中内联全量规范上下文（渐进式披露职责归 MCP，Rules 文件受 32KiB 容量预算约束）。
-- 禁止在目标位置已存在用户手写的 AGENTS.md / CLAUDE.md 时静默覆盖。
-- 禁止将相对固定的执行逻辑以 LLM 现场发挥方式实现（LLM 不充当引擎）。
-- 禁止在无对应校验器的情况下引入新的 LLM 结构化产出物（先校验器后消费者）。
-- 禁止代码静默消费校验失败的规则（fail-open）。
-- SHALL NOT 将约束密度直接判定为"好/坏"质量分（密度是调节信号，质量判定归 spec-compliance / drift-score）。
-- 禁止 LLM 自行计算或手写该指标值（与 hash 类字段同一纪律：确定性推导归代码）。
-- 禁止自动修改 constraint_strength 配置（无人工签收不放行，红线 bp_04 同源）。
-- 禁止建议逻辑绕过 evaluator 结果自行采样（建议必须引用本轮 metric 数值）。
-- SHALL NOT 在 types.ts 或任何共享模块中保留可与之漂移的权重副本。
-- SHALL NOT 引入运行时从注册表动态推导 map 的机制（评估器集合可变，动态推导无稳定语义）。
-- SHALL NOT 在 rename 前执行版本 bump、CHANGELOG 写入、知识提取等一次性副作用。
-- SHALL NOT 用 try/catch 吞掉副作用失败（失败必须中断并留 audit 记录）。
-- SHALL NOT 仅以 `.mumuspec` 存在性判定模块（BOUNDARY-only 目录不是已注册模块）。
-- SHALL NOT 在 checker 与 builder 中保留语义不一致的独立实现。
-- SHALL NOT 存在产出物无消费者的死端（产出物与消费面必须同批交付）。
-- SHALL NOT 使自由度指标仅在 loop 工作流可计算。
-- SHALL NOT 因新增命令而改变既有 loop evaluate 通道的收敛语义（composite 权重与阈值不动）。
-- SHALL NOT 在 AGENTS.md 中内联指标数据（渐进式披露职责归命令与 MCP，Rules 文件受 32KiB 预算约束）。
-- SHALL NOT 以"下游硬过滤兜底"替代事实源自身干净（兜底是防线，不是许可）。
-- SHALL NOT 以行内代码标记承载对象标识符（配置键、命令名、字段名）——词法兜底通道会把字面量出现误判为行为发生。
-- SHALL NOT 为同一语义保留两条约束（重复即两条权威源，与单一权威源纪律同源）。
-
-> 完整约束正文经 MCP `get_spec_context` / `mumuspec context <path>` 渐进式加载（Rules 文件不内联全量规范）。
+（规范链尚未生成——运行 `mumuspec init` / `mumuspec context <path>` 加载渐进式规范链。）
 
 ## Ponytail 编码约束
 
@@ -106,82 +25,14 @@ SHALL: 先查可复用实现 / 最小可工作实现 / 有意简化用 `ponytail
 
 ## CLI 速查
 
-核心流程（CLI-first：确定性步骤必须经 CLI，禁手工编辑状态工件）:
-  mumuspec new <name>                         # Create a new change
-  mumuspec state                              # State machine management
-  mumuspec state init <name> <workflow>       # Initialize state for a change
-  mumuspec state transition <name> <event>    # Transition state
-  mumuspec state next <name>                  # Get next step
-  mumuspec state graph <name>                 # Visualize state machine
-  mumuspec state get <name> <field>           # Get a state field value
-  mumuspec state set <name> <field> <value>   # Set a state field value
-  mumuspec state check <name>                 # Check change state integrity (--recover to auto-fix drift)
-  mumuspec state scale <name>                 # Evaluate change scale and recommend verify mode
-  mumuspec state layer <name> <layer> <status># Set a build layer status (pending|in-progress|done)
-  mumuspec guard <change> <phase>             # Run phase guard check (use --apply to execute transition)
-  mumuspec decisions [change]                 # Display autonomous decision audit trail for a change
-  mumuspec decisions append [text]            # Append a decision to the change decisions.md
-  mumuspec test-cases                         # Test case management
-  mumuspec test-cases init <name>             # Initialize test cases for a change
-  mumuspec test-cases lock <name>             # Lock test cases
-  mumuspec test-cases hash <name>             # Compute current test-cases hash (read-only)
-  mumuspec test-cases verify <name>           # Verify test cases hash
-  mumuspec test-cases lock-suite <name>       # Lock a single layer test suite hash into state.suites_hash
-  mumuspec tasks                              # tasks.md helpers
-  mumuspec tasks next <name>                  # Locate the first unchecked task in tasks.md (read-only)
-  mumuspec validate                           # Validate all spec formats
-  mumuspec check                              # Full compliance check: SHALL/SHALL NOT + drift + agents-hash sync (+ --glossary)
-  mumuspec drift                              # Detect drift between specs and code
-  mumuspec drift detect                       # Deprecated alias of `mumuspec drift`
-  mumuspec capability [command]               # Query command capability tier (general/dedicated, risk, confirm, composable)
-  mumuspec finalize-archive <change-name>     # Post-archive cleanup: merge specs, update index, clean cache
-  mumuspec archive <name>                     # Archive a change
-
-其余命令:
-  mumuspec init [path]                        # Initialize MumuSpec with project analysis, auto-generated specs, design, and knowledge base
-  mumuspec context <path>                     # Get spec context for a directory (progressive disclosure)
-  mumuspec add-spec <scope>                   # Add a specification to a scope
-  mumuspec prohibitions <path>                # List SHALL NOT prohibitions applicable to a path (including inherited scopes)
-  mumuspec search <pattern>                   # Search code/spec nodes
-  mumuspec sync-specs                         # Synchronize distributed spec files (validate formats, generate missing files)
-  mumuspec annotate                           # Auto-annotate SHALL NOT prohibitions with machine-readable constraints
-  mumuspec status [name]                      # View change status
-  mumuspec list                               # List active changes
-  mumuspec discard <name>                     # Discard a change
-  mumuspec knowledge                          # Knowledge management
-  mumuspec impact                             # Analyze change impact with knowledge correlation
-  mumuspec onboard                            # Onboarding guided learning paths
-  mumuspec chat [query]                       # Ask questions about your project using the knowledge base
-  mumuspec git <subcommand> [args]            # Git operations - commit, push, tag, flow (git-master style)
-  mumuspec constraints                        # Manage dynamic constraint strength and tree-distributed constraints (0.12.1+)
-  mumuspec feedback                           # User feedback & session summary management
-  mumuspec change-feedbacks <change>          # List feedbacks linked to a change
-  mumuspec install                            # Install skills, MCP servers, and commands for AI coding agents
-  mumuspec hooks                              # Manage git hooks that auto-trigger MumuSpec guard checks
-  mumuspec dashboard                          # Show real-time status dashboard for the active change
-  mumuspec eval                               # Run eval scenarios to verify guard/skill behavior
-  mumuspec i18n                               # Manage internationalization and locale settings
-  mumuspec skill-path <name>                  # Resolve a skill file path with locale fallback
-  mumuspec skill                              # Skill authoring and management (MumuSpec Skill Protocol)
-  mumuspec bundle                             # Bundle, validate, and publish skills
-  mumuspec env                                # Environment detection and validation
-  mumuspec doctor                             # Environment diagnostics
-  mumuspec recommend [change]                 # Recommend workflow path (full/tweak/hotfix) based on change scope
-  mumuspec advise <bp_id> [change]            # Get advisor recommendation for a blocking point
-  mumuspec contract                           # Manage external contracts and boundaries
-  mumuspec loop                               # Dynamic loop workflow (Plan → Act → Evaluate)
-  mumuspec metrics [change]                   # Read-only freedom-metrics report (evaluator values + advisory suggestions)
-  mumuspec code-graph                         # Search and inspect the code structure graph
-  mumuspec grill-me                           # Phase-gate questioning engine — trigger at any stage when ambiguity exists
-  mumuspec sync                               # Sync code state to persistent spec (BOUNDARY.md, index.yaml, contracts)
-  mumuspec review                             # Module-level review dimension (D8) — per-module scoring
-  mumuspec merge <change>                     # Merge an archived change branch back to the main branch (--no-ff)
-  mumuspec audit-log                          # Display the append-only audit log (JSONL at .mumuspec/audit.log)
-  mumuspec trace <symbol>                     # Trace a symbol across the codebase (depth-first scan)
-  mumuspec graph                              # State machine graph inspection and verification
-  mumuspec tutorial                           # Interactive tutorial: complete your first MumuSpec change in 15 minutes
-  mumuspec meta-evolve                        # Meta-Spec Evolution: 评估规范有效性、提出改进建议
-  mumuspec team                               # Multi-role collaborative orchestration (Team mode)
+mumuspec init [path]                # Initialize MumuSpec
+mumuspec context <path>             # Get spec context (progressive disclosure)
+mumuspec new <name>                 # Create new change
+mumuspec status [name]              # View change status
+mumuspec guard <change> <phase>     # Phase guard check
+mumuspec validate / check / drift   # Validate / compliance / drift
+mumuspec archive <name> --confirm   # Archive change
+mumuspec doctor                     # Environment diagnostics
 
 ## MCP 入口
 
