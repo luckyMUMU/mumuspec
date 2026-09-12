@@ -109,6 +109,17 @@ pages:
       - hyperplan
       - decision
       - goal-p0-dispatch-gate
+  - id: KE-loop-convergence-judgment-hyperplan
+    title: Adversarial design review insights from loop-convergence-judgment
+    type: decision
+    status: confirmed
+    scope: loop-convergence-judgment
+    file: .mumuspec\knowledge\decisions\KE-loop-convergence-judgment-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - loop-convergence-judgment
   - id: KE-onboard-cli-hyperplan
     title: Adversarial design review insights from onboard-cli
     type: decision
@@ -917,6 +928,17 @@ pages:
       - lesson
       - decisions
       - goal-p0-dispatch-gate
+  - id: KE-loop-convergence-judgment-lessons
+    title: Lessons from loop-convergence-judgment decisions
+    type: lesson
+    status: confirmed
+    scope: loop-convergence-judgment
+    file: .mumuspec\knowledge\lessons\KE-loop-convergence-judgment-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - loop-convergence-judgment
   - id: KE-onboard-cli-lessons
     title: Lessons from onboard-cli decisions
     type: lesson

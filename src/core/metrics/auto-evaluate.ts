@@ -34,25 +34,16 @@ import { designBuildFirstPassEvaluator } from './design-build-first-pass.js';
 // ════════════════════════════════════════════════════════════════════
 // History Tracker (for stability window check)
 // ════════════════════════════════════════════════════════════════════
+// P1-2 (loop-convergence-judgment): 稳定性窗口历史不再寄存在进程内内存 Map——
+// `loop evaluate` 每次是新进程，模块级 Map 无重建路径导致窗口恒 false。
+// 改为从持久化事实源派生：`EvaluatorContext.roundHistory`（loop.rounds[].evaluation.progress，
+// 存于 .mumuspec.yaml，与 loop_state.progress_trend 同源），跨进程有效。
 
-const historyMap = new Map<string, number[]>();
-
-/** Get or create history for a change. */
-function getHistory(changeName: string): number[] {
-  if (!historyMap.has(changeName)) {
-    historyMap.set(changeName, []);
-  }
-  return historyMap.get(changeName)!;
-}
-
-/** Record progress for stability analysis. */
-function recordProgress(changeName: string, progress: number, windowSize: number): void {
-  const history = getHistory(changeName);
-  history.push(progress);
-  // Keep only the last N+1 entries (need N+1 to check N consecutive)
-  while (history.length > windowSize + 1) {
-    history.shift();
-  }
+/** 从持久化轮次记录提取进度历史（不含当前轮——当前轮 progress 由调用方追加）。 */
+function deriveHistory(ctx: EvaluatorContext): number[] {
+  return ctx.roundHistory
+    .map((r) => r.evaluation?.progress)
+    .filter((p): p is number => typeof p === 'number');
 }
 
 /** Check if the last N consecutive rounds all exceeded the threshold. */
@@ -62,9 +53,13 @@ function isStableConvergence(history: number[], threshold: number, windowSize: n
   return recent.every(v => v >= threshold);
 }
 
-/** Clear history for a change (used in tests and reset). */
-export function clearHistory(changeName: string): void {
-  historyMap.delete(changeName);
+/**
+ * Clear history for a change.
+ * @deprecated P1-2 后稳定窗口历史来自持久化 roundHistory，进程内无历史可清——保留为
+ * no-op 以兼容既有测试/reset 调用。
+ */
+export function clearHistory(_changeName: string): void {
+  // no-op（P1-2）
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -107,7 +102,7 @@ export async function autoEvaluate(
       goalAchieved: false,
       metrics,
       recommendation: 'All auto-evaluators failed. Please use manual evaluation.',
-      history: getHistory(ctx.changeName),
+      history: deriveHistory(ctx),
     };
   }
 
@@ -119,10 +114,9 @@ export async function autoEvaluate(
   // 3. Compute weighted progress
   const progress = activeMetrics.reduce((sum, m) => sum + m.value * m.weight, 0);
 
-  // 4. Check convergence conditions
+  // 4. Check convergence conditions（P1-2: 历史 = 持久化轮次 + 当前轮，不再依赖进程内 Map）
   const allAboveMin = activeMetrics.every(m => m.value >= config.minAcceptable);
-  recordProgress(ctx.changeName, progress, config.stabilityWindow);
-  const history = getHistory(ctx.changeName);
+  const history = [...deriveHistory(ctx), progress];
   const stableMet = isStableConvergence(history, config.threshold, config.stabilityWindow);
 
   const goalAchieved = progress >= config.threshold && allAboveMin && stableMet;
@@ -167,11 +161,18 @@ export async function hybridEvaluate(
   // Weighted hybrid: auto * autoWeight + manual * manualWeight
   const hybridProgress = autoResult.progress * hybrid.autoWeight + manualProgress * hybrid.manualWeight;
 
+  // P1-2.3: 与 autoEvaluate 统一判据——单看 hybridProgress 会让 hybrid 模式绕过稳定窗口
+  // 与 allAboveMin（E14 第三层）。复用 autoResult 的持久化 history 与归一化 metrics。
+  const active = autoResult.metrics.filter(m => m.weight > 0);
+  const allAboveMin = active.every(m => m.value >= config.minAcceptable);
+  const stableMet = isStableConvergence(autoResult.history, config.threshold, config.stabilityWindow);
+  const goalAchieved = hybridProgress >= config.threshold && allAboveMin && stableMet;
+
   return {
     ...autoResult,
     progress: hybridProgress,
-    goalAchieved: hybridProgress >= config.threshold,
-    recommendation: autoResult.goalAchieved
+    goalAchieved,
+    recommendation: goalAchieved
       ? 'Hybrid convergence confirmed.'
       : `Hybrid progress: ${Math.round(hybridProgress * 100)}% (${Math.round(autoResult.progress * 100)}% auto + ${Math.round(manualProgress * 100)}% manual)`,
   };

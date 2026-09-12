@@ -26,6 +26,7 @@ import {
   EvaluateMode,
 } from '../core/types-loop.js';
 import type { MetricsSnapshot } from '../core/metrics/types.js';
+import { DEFAULT_CONVERGENCE_CONFIG } from '../core/metrics/types.js';
 import {
   autoEvaluate,
   hybridEvaluate,
@@ -62,6 +63,15 @@ export function initLoop(
   const useWorktree = input.use_worktree ?? true;
   const autoCommit = input.auto_commit ?? true;
   const evalMode = input.evaluate_mode ?? 'manual';
+
+  // P1-2 附带（配置层）：auto/hybrid 模式的稳定窗口需 stabilityWindow 条历史才可能收敛；
+  // max_rounds 小于窗口 → 收敛数学上不可达（exhausted 先触发）。默认 3 >= 3，默配置静默。
+  if (evalMode !== 'manual' && maxRounds < DEFAULT_CONVERGENCE_CONFIG.stabilityWindow) {
+    console.warn(
+      `⚠ loop ${evalMode} 模式稳定窗口需 ${DEFAULT_CONVERGENCE_CONFIG.stabilityWindow} 条历史，` +
+      `而 max_rounds=${maxRounds} — 收敛不可达（将先 exhausted）。建议 max_rounds >= ${DEFAULT_CONVERGENCE_CONFIG.stabilityWindow}`,
+    );
+  }
 
   let worktreePath: string | undefined;
   let originalBranch: string | undefined;
@@ -292,7 +302,10 @@ export async function evaluateRound(
   loop.progress_trend.push(finalEvaluation.progress);
 
   // Determine next phase
-  if (finalEvaluation.goal_achieved || finalEvaluation.progress >= CONVERGENCE_THRESHOLD) {
+  // P1-2.2 (loop-convergence-judgment): 去掉 progress 单轮短路——`converged` 只由
+  // goal_achieved 驱动。稳定窗口由 autoEvaluate/hybridEvaluate 内部基于持久化轮次判定
+  // （E14 第二层）；同时修复 E16：converged 与 goal_achieved 不再发散（此前"已收敛仍提交"）。
+  if (finalEvaluation.goal_achieved) {
     loop.phase = 'converged';
   } else if (finalEvaluation.needs_user_input) {
     loop.phase = 'blocked';

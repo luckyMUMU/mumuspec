@@ -406,10 +406,11 @@ describe('evaluateRound — convergence via progress threshold', () => {
     mockSpawnSync.mockImplementation(() => ({ stdout: 'mock-sha', status: 0 }));
   });
 
-  it('converges when progress >= 0.85 (CONVERGENCE_THRESHOLD)', async () => {
+  it('does NOT converge on high progress alone (P1-2: single-round short-circuit removed)', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
+      max_rounds: 3,
       rounds: [{
         round: 1,
         started_at: '2025-01-15T10:00:00.000Z',
@@ -420,9 +421,9 @@ describe('evaluateRound — convergence via progress threshold', () => {
     });
     seedChange('ch1', loopState);
 
-    // progress=0.85 should trigger convergence
+    // P1-2.2: 去掉 `|| progress >= CONVERGENCE_THRESHOLD` 后，单轮高分不再置 converged
     const evaluation: LoopEvaluation = {
-      progress: 0.85,
+      progress: 0.9,
       goal_achieved: false,
       issues: [],
       needs_user_input: false,
@@ -431,8 +432,8 @@ describe('evaluateRound — convergence via progress threshold', () => {
     const result = await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
 
     const savedState = mockChangeStates.get('ch1');
-    expect(savedState.loop_state.phase).toBe('converged');
-    expect(result.should_continue).toBe(false);
+    expect(savedState.loop_state.phase).toBe('plan'); // 未达 max_rounds → 继续
+    expect(result.should_continue).toBe(true);
   });
 
   it('does NOT converge when progress is just below threshold (0.849)', async () => {
@@ -464,10 +465,11 @@ describe('evaluateRound — convergence via progress threshold', () => {
     expect(result.should_continue).toBe(true);
   });
 
-  it('converges when progress > threshold even with issues', async () => {
+  it('converges when goal_achieved is true even with issues, and does NOT commit (E16)', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
+      auto_commit: true,
       rounds: [{
         round: 1,
         started_at: '2025-01-15T10:00:00.000Z',
@@ -478,9 +480,10 @@ describe('evaluateRound — convergence via progress threshold', () => {
     });
     seedChange('ch1', loopState);
 
+    // P1-2.2: convergence 由 goal_achieved 驱动（任带 issues）；should_commit=false（E16 修复）
     const evaluation: LoopEvaluation = {
       progress: 0.9,
-      goal_achieved: false,
+      goal_achieved: true,
       issues: ['minor warning', 'edge case'],
       next_focus: 'polish',
       needs_user_input: false,
@@ -491,6 +494,7 @@ describe('evaluateRound — convergence via progress threshold', () => {
     const savedState = mockChangeStates.get('ch1');
     expect(savedState.loop_state.phase).toBe('converged');
     expect(result.should_continue).toBe(false);
+    expect(result.should_commit).toBe(false);
   });
 });
 

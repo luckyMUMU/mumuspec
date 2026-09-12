@@ -31,10 +31,31 @@ import {
 } from '../../../src/core/metrics/auto-evaluate.js';
 import { generateHtmlReport } from '../../../src/core/metrics/html-reporter.js';
 import type { Evaluator, EvaluatorContext, MetricResult } from '../../../src/core/metrics/types.js';
+import type { LoopRound } from '../../../src/core/types-loop.js';
 
 // ════════════════════════════════════════════════════════════════════
 // Mock Evaluators
 // ════════════════════════════════════════════════════════════════════
+
+/** 构造含 evaluation.progress 的持久化轮次历史（P1-2: 稳定性窗口事实源） */
+function roundsWithProgress(values: number[]): LoopRound[] {
+  return values.map((v, i) => ({
+    round: i + 1,
+    started_at: '2025-01-15T10:00:00.000Z',
+    completed_at: '2025-01-15T10:05:00.000Z',
+    plan: 'p',
+    actions: [],
+    evaluation: {
+      progress: v,
+      goal_achieved: false,
+      issues: [],
+      needs_user_input: false,
+      next_focus: undefined,
+      block_reason: undefined,
+      suggestions: [],
+    },
+  }));
+}
 
 function createMockEvaluator(name: string, value: number, weight: number): Evaluator {
   return {
@@ -152,34 +173,46 @@ describe('R-0002 — Auto-Evaluate Engine', () => {
 
   // ─── TC-06: Convergence detection ───
   describe('TC-06: Convergence Detection', () => {
-    it('does NOT converge on first round even if above threshold', async () => {
+    // P1-2 (loop-convergence-judgment): 稳定窗口历史来自持久化 roundHistory——
+    // 跨进程语义：上个进程已完成的轮次在 roundHistory 中，当前进程只做追加+判定。
+    it('does NOT converge on first round even if above threshold (window empty)', async () => {
       registerEvaluator(createMockEvaluator('m1', 0.95, 0.35));
       registerEvaluator(createMockEvaluator('m2', 0.95, 0.25));
       registerEvaluator(createMockEvaluator('m3', 0.95, 0.25));
       registerEvaluator(createMockEvaluator('m4', 0.95, 0.15));
 
-      const result = await autoEvaluate(baseCtx);
+      const result = await autoEvaluate(baseCtx); // roundHistory = []
 
       // Progress should be high but not converged (needs 3 consecutive)
       expect(result.progress).toBeGreaterThan(0.85);
       expect(result.goalAchieved).toBe(false);
     });
 
-    it('converges after 3 consecutive rounds above threshold', async () => {
+    it('converges once accumulated history reaches 3 consecutive rounds above threshold', async () => {
       registerEvaluator(createMockEvaluator('m1', 0.95, 0.35));
       registerEvaluator(createMockEvaluator('m2', 0.95, 0.25));
       registerEvaluator(createMockEvaluator('m3', 0.95, 0.25));
       registerEvaluator(createMockEvaluator('m4', 0.95, 0.15));
 
-      // Round 1
-      await autoEvaluate(baseCtx);
-      // Round 2
-      await autoEvaluate(baseCtx);
-      // Round 3
-      const result = await autoEvaluate(baseCtx);
+      // 上个进程持久化了 2 轮达标历史（跨进程语义，不含进程内 Map）
+      const ctx: EvaluatorContext = { ...baseCtx, roundHistory: roundsWithProgress([0.95, 0.95]) };
+      const result = await autoEvaluate(ctx); // 历史 2 条 + 当前轮 1 条 = 3 条
 
       expect(result.progress).toBeGreaterThan(0.85);
       expect(result.goalAchieved).toBe(true);
+    });
+
+    it('does NOT converge if history contains a below-threshold round', async () => {
+      registerEvaluator(createMockEvaluator('m1', 0.95, 0.35));
+      registerEvaluator(createMockEvaluator('m2', 0.95, 0.25));
+      registerEvaluator(createMockEvaluator('m3', 0.95, 0.25));
+      registerEvaluator(createMockEvaluator('m4', 0.95, 0.15));
+
+      const ctx: EvaluatorContext = { ...baseCtx, roundHistory: roundsWithProgress([0.95, 0.5]) };
+      const result = await autoEvaluate(ctx);
+
+      // 最近 3 条 = [0.95, 0.5, 当前]——中间轮低于 threshold → 窗口不连续
+      expect(result.goalAchieved).toBe(false);
     });
 
     it('does NOT converge if any metric is below minAcceptable', async () => {
@@ -188,9 +221,8 @@ describe('R-0002 — Auto-Evaluate Engine', () => {
       registerEvaluator(createMockEvaluator('m3', 0.95, 0.25));
       registerEvaluator(createMockEvaluator('m4', 0.1, 0.15)); // Very low
 
-      await autoEvaluate(baseCtx);
-      await autoEvaluate(baseCtx);
-      const result = await autoEvaluate(baseCtx);
+      const ctx: EvaluatorContext = { ...baseCtx, roundHistory: roundsWithProgress([0.95, 0.95]) };
+      const result = await autoEvaluate(ctx);
 
       // m4 is below minAcceptable (0.5), so no convergence
       expect(result.goalAchieved).toBe(false);
@@ -287,6 +319,30 @@ describe('R-0002 — Auto-Evaluate Engine', () => {
       const result = await hybridEvaluate(baseCtx, 0.9);
 
       expect(result.progress).toBeCloseTo(0.76, 1);
+    });
+
+    // P1-2.3 (loop-convergence-judgment): hybrid 与 auto 判据统一——不再只看 hybridProgress
+    it('does NOT converge on hybridProgress alone when stability window is empty', async () => {
+      registerEvaluator(createMockEvaluator('m1', 0.9, 0.5));
+      registerEvaluator(createMockEvaluator('m2', 0.9, 0.5));
+
+      // hybridProgress = 0.9*0.7 + 1.0*0.3 = 0.93 ≥ 0.85，但 roundHistory 空 → 窗口不足
+      const result = await hybridEvaluate(baseCtx, 1.0);
+
+      expect(result.progress).toBeGreaterThan(0.85);
+      expect(result.goalAchieved).toBe(false);
+    });
+
+    it('converges when window is full across all three conditions', async () => {
+      registerEvaluator(createMockEvaluator('m1', 0.9, 0.5));
+      registerEvaluator(createMockEvaluator('m2', 0.9, 0.5));
+
+      const ctx: EvaluatorContext = { ...baseCtx, changeName: 'hybrid-test', roundHistory: roundsWithProgress([0.9, 0.9]) };
+      const result = await hybridEvaluate(ctx, 1.0);
+
+      // hybridProgress=0.93 ≥ 0.85 && allAboveMin && 窗口连续 3 轮 → 收敛
+      expect(result.progress).toBeGreaterThan(0.85);
+      expect(result.goalAchieved).toBe(true);
     });
   });
 });
