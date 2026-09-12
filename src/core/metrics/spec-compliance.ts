@@ -53,7 +53,8 @@ export const specComplianceEvaluator: Evaluator = {
       return {
         name: 'spec-compliance',
         value: complianceRate,
-        weight: 0.25,
+        // P1-3 (evaluator-weight-single-source): 单一权威源——引用 defaultWeight
+        weight: specComplianceEvaluator.defaultWeight,
         details: `${passed}/${total} constraints passed (${Math.round(complianceRate * 100)}%)`,
         rawData: { passed, failed, total },
       };

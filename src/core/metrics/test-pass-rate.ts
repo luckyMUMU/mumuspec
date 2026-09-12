@@ -45,7 +45,9 @@ export const testPassRateEvaluator: Evaluator = {
       return {
         name: 'test-pass-rate',
         value: passRate,
-        weight: 0.35,
+        // P1-3 (evaluator-weight-single-source): 单一权威源——引用 defaultWeight，
+        // 不再写字面量（D2 重平衡此前从未生效，见 E15）
+        weight: testPassRateEvaluator.defaultWeight,
         details: `${numPassed}/${numTotal} tests passed (${Math.round(passRate * 100)}%)`,
         rawData: { passed: numPassed, failed: numFailed, total: numTotal },
       };

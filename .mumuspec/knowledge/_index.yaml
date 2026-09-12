@@ -76,6 +76,17 @@ pages:
       - hyperplan
       - decision
       - docs-tree-alignment
+  - id: KE-evaluator-weight-single-source-hyperplan
+    title: Adversarial design review insights from evaluator-weight-single-source
+    type: decision
+    status: confirmed
+    scope: evaluator-weight-single-source
+    file: .mumuspec\knowledge\decisions\KE-evaluator-weight-single-source-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - evaluator-weight-single-source
   - id: KE-freedom-metrics-loop-closure-hyperplan
     title: Adversarial design review insights from freedom-metrics-loop-closure
     type: decision
@@ -873,6 +884,17 @@ pages:
       - lesson
       - decisions
       - docs-tree-alignment
+  - id: KE-evaluator-weight-single-source-lessons
+    title: Lessons from evaluator-weight-single-source decisions
+    type: lesson
+    status: confirmed
+    scope: evaluator-weight-single-source
+    file: .mumuspec\knowledge\lessons\KE-evaluator-weight-single-source-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - evaluator-weight-single-source
   - id: KE-freedom-metrics-loop-closure-lessons
     title: Lessons from freedom-metrics-loop-closure decisions
     type: lesson

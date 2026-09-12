@@ -31,7 +31,13 @@ export interface MetricResult {
   name: string;
   /** Normalized value [0, 1] */
   value: number;
-  /** Weight in composite score (normalized to sum=1 across active metrics) */
+  /**
+   * Weight in composite score (normalized to sum=1 across active metrics).
+   * `weight === 0` means the metric does NOT participate in the composite —
+   * it is still collected into `metrics` for observation/advisory purposes,
+   * but excluded from `autoEvaluate` progress (nullResult 与 constraint-density
+   * 都依赖此语义：0 = 不参与，≠ 失败值）。
+   */
   weight: number;
   /** Human-readable detail message */
   details: string;
