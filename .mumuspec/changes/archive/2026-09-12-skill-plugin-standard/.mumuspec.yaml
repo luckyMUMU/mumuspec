@@ -1,8 +1,8 @@
 name: skill-plugin-standard
-phase: verify
+phase: archive-completed
 workflow: full
 created_at: 2026-09-12T15:31:52.587Z
-updated_at: 2026-09-12 16:41:50
+updated_at: 2026-09-12T16:42:44.094Z
 scope: .
 affected_scopes: []
 build_layers:
@@ -105,3 +105,10 @@ verification_report: verify.md
 verify_mode: full
 verify_result: pass
 branch_status: handled
+knowledge_extraction:
+  completed: true
+  pages_created_count: 8
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

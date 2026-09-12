@@ -175,6 +175,17 @@ pages:
       - hyperplan
       - decision
       - self-improvement-loop-p0
+  - id: KE-skill-plugin-standard-hyperplan
+    title: Adversarial design review insights from skill-plugin-standard
+    type: decision
+    status: confirmed
+    scope: skill-plugin-standard
+    file: .mumuspec\knowledge\decisions\KE-skill-plugin-standard-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - skill-plugin-standard
   - id: KE-2026-09-09-completeness-artifacts-freedom-metrics-patterns
     title: Architecture patterns from 2026-09-09-completeness-artifacts-freedom-metrics
     type: pattern
@@ -285,6 +296,17 @@ pages:
       - pattern
       - architecture
       - self-improvement-loop-p0
+  - id: KE-skill-plugin-standard-patterns
+    title: Architecture patterns from skill-plugin-standard
+    type: pattern
+    status: confirmed
+    scope: skill-plugin-standard
+    file: .mumuspec\knowledge\patterns\KE-skill-plugin-standard-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - skill-plugin-standard
   - id: KP-0035
     title: 完整目录结构示例
     type: pattern
@@ -725,6 +747,17 @@ pages:
       - q4
       - risk
       - onboard-cli
+  - id: KE-skill-plugin-standard-q4-risk
+    title: Residual risks from skill-plugin-standard
+    type: risk
+    status: confirmed
+    scope: skill-plugin-standard
+    file: .mumuspec\knowledge\risks\KE-skill-plugin-standard-q4-risk.md
+    tags:
+      - auto-extracted
+      - q4
+      - risk
+      - skill-plugin-standard
   - id: KP-0015
     title: Knowledge Layer 后端故障风险与降级策略
     type: risk
@@ -790,6 +823,50 @@ pages:
       - project-status
       - risk
     verified_at: 2026-07-31T16:19:01.701Z
+  - id: KE-skill-plugin-standard-q3-8bfe112d
+    title: "Rationale from skill-plugin-standard: GM-002：漂移比对是否需要剥离版本行？"
+    type: rationale
+    status: confirmed
+    scope: skill-plugin-standard
+    file: .mumuspec\knowledge\rationales\KE-skill-plugin-standard-q3-8bfe112d.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - skill-plugin-standard
+  - id: KE-skill-plugin-standard-q3-9ccaa678
+    title: "Rationale from skill-plugin-standard: GM-004：publishBundle 应否改为 fail-closed？"
+    type: rationale
+    status: confirmed
+    scope: skill-plugin-standard
+    file: .mumuspec\knowledge\rationales\KE-skill-plugin-standard-q3-9ccaa678.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - skill-plugin-standard
+  - id: KE-skill-plugin-standard-q3-a09c0b12
+    title: "Rationale from skill-plugin-standard: GM-001：插件包应否成为安装单元？"
+    type: rationale
+    status: confirmed
+    scope: skill-plugin-standard
+    file: .mumuspec\knowledge\rationales\KE-skill-plugin-standard-q3-a09c0b12.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - skill-plugin-standard
+  - id: KE-skill-plugin-standard-q3-fc76f74f
+    title: "Rationale from skill-plugin-standard: GM-003：skill-drift 是否可以 import src/install？"
+    type: rationale
+    status: confirmed
+    scope: skill-plugin-standard
+    file: .mumuspec\knowledge\rationales\KE-skill-plugin-standard-q3-fc76f74f.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - skill-plugin-standard
   - id: KP-0012
     title: 为什么规范独立于代码：约束应描述行为而非实现
     type: rationale
@@ -1016,6 +1093,17 @@ pages:
       - lesson
       - decisions
       - self-improvement-loop-p0
+  - id: KE-skill-plugin-standard-lessons
+    title: Lessons from skill-plugin-standard decisions
+    type: lesson
+    status: confirmed
+    scope: skill-plugin-standard
+    file: .mumuspec\knowledge\lessons\KE-skill-plugin-standard-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - skill-plugin-standard
   - id: KL-0006
     title: 开放问题
     type: lesson
