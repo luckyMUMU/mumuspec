@@ -27,8 +27,9 @@ Last updated: 2026-09-12
 | AGENTS | 1 |
 | RULES | 1 |
 | CHECK | 2 |
+| SKILL | 4 |
 | GIT | 3 |
-| **Total** | **105** |
+| **Total** | **109** |
 
 ## SPEC Domain
 
@@ -1219,6 +1220,55 @@ Last updated: 2026-09-12
 **Fix Steps**:
 1. 查看消息中的源名与异常原因
 2. 修复该检测源后重新运行 mumuspec check
+
+## SKILL Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `W-SKILL-001` | SKILL_COPY_DRIFT | WARN | 技能源与已安装副本的正文不一致（比对已剥离 frontmatter 版本行，故版本戳印不产生噪声） | Yes |
+| `E-SKILL-002` | PLUGIN_MANIFEST_INVALID | ERROR | 插件或市场清单未通过官方规范校验（name 形态、语义化版本、相对路径、source 存在性等） | No |
+| `E-SKILL-003` | PLUGIN_REGISTRY_WRITE_FAILED | ERROR | 宿主插件登记文件不可写或内容不是合法 JSON——安装整体失败，不留"已复制但未登记"的中间态 | No |
+| `E-BUNDLE-001` | BUNDLE_PUBLISH_UNIMPLEMENTED | ERROR | bundle publish 能力未实现——动作未完成时 fail-closed，不得返回假成功 | No |
+
+### `W-SKILL-001`: SKILL_COPY_DRIFT
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 技能源与已安装副本的正文不一致（比对已剥离 frontmatter 版本行，故版本戳印不产生噪声）
+
+**Fix Steps**:
+1. 核对诊断中给出的源路径与安装路径差异
+2. 重新安装技能以同步副本：mumuspec install --agent <agent> --force
+
+### `E-SKILL-002`: PLUGIN_MANIFEST_INVALID
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 插件或市场清单未通过官方规范校验（name 形态、语义化版本、相对路径、source 存在性等）
+
+**Fix Steps**:
+1. 按违例列表逐条修正 path + rule + message 指向的字段
+2. 重新执行最小构建（mumuspec bundle plugin）确认清单通过校验器
+
+### `E-SKILL-003`: PLUGIN_REGISTRY_WRITE_FAILED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 宿主插件登记文件不可写或内容不是合法 JSON——安装整体失败，不留"已复制但未登记"的中间态
+
+**Fix Steps**:
+1. 检查登记文件权限与其 JSON 结构（version + plugins 两字段）
+2. 修复后重新安装；或用 --dry-run 先查看待登记内容
+
+### `E-BUNDLE-001`: BUNDLE_PUBLISH_UNIMPLEMENTED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: bundle publish 能力未实现——动作未完成时 fail-closed，不得返回假成功
+
+**Fix Steps**:
+1. 改用插件标准产出：mumuspec bundle plugin --out <dir>
+2. 发布登记需宿主侧配合，当前不提供自动发布
 
 ## GIT Domain
 

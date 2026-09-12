@@ -510,15 +510,18 @@ describe('publishBundle', () => {
     }
   });
 
-  it('should succeed for valid bundle', () => {
+  it('should fail-closed for a valid bundle — publishing is unimplemented', () => {
+    // 此前本用例断言 success: true，而实现是占位返回——那是 fail-open：
+    // 调用方会以为已经发布。动作未完成时的正确行为是失败并给出理由。
     const dir = createTmpProject();
     try {
       createSkillsDir(dir);
       const createResult = createBundle(dir);
       const manifestPath = join(createResult.outputPath!, 'mumuspec-skills.json');
       const result = publishBundle(manifestPath);
-      expect(result.success).toBe(true);
-      expect(result.bundlePath).toBe(manifestPath);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('E-BUNDLE-001');
+      expect(result.error).toContain('bundle plugin');
     } finally {
       cleanup(dir);
     }

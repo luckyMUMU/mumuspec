@@ -196,7 +196,7 @@ mumuspec state init <name> full
 从 Knowledge Layer PageIndex 加载 `affected_scopes` 的历史设计知识：
 
 ```bash
-mumuspec knowledge context --scopes <affected_scopes>
+mumuspec knowledge context <scope-path> --scopes <affected_scopes>
 ```
 
 **加载内容**：
@@ -210,7 +210,7 @@ mumuspec knowledge context --scopes <affected_scopes>
 加载 affected_scopes 相关的外部契约和对外契约：
 
 ```bash
-mumuspec contract list --scopes <affected_scopes>
+mumuspec contract list --scopes
 mumuspec contract compat-check --change <name>
 ```
 
@@ -276,7 +276,7 @@ mumuspec decisions append --phase open --change <name> --text "<决策摘要：�
 - proposal.md, delta-specs/, constraints/ 全部创建且内容完整
 - `code-graph/impact-analysis.json` 存在且非空（供影响分析用，守卫不校验）
 - `affected_scopes` 定义在 `.mumuspec.yaml`
-- `brainstorming_completed` / `knowledge_context_loaded` 已在过程中执行
+- 需求探索与历史知识加载已在过程中执行（记录于 decisions.md）
 - **用户已确认** (BP-3)
 
 守卫真正校验的出口条件（`open_to_design`）：
@@ -321,7 +321,7 @@ mumuspec state next <change-name>
 
 Open 阶段可能触发上下文压缩。恢复时运行：
 ```bash
-mumuspec state check <change-name> open --recover
+mumuspec state check <change-name> --recover
 ```
 
 脚本输出结构化恢复上下文（阶段、已完成字段、待完成字段、恢复动作）。按恢复动作决定下一步。
@@ -337,7 +337,7 @@ mumuspec state check <change-name> open --recover
 | "需求很清楚，不需要 brainstorming" | brainstorming 不可跳过 — 必须加载 skill |
 | "一轮 Q&A 足够了" | 不可将一轮 Q&A 视为充分澄清 |
 | "影响范围很小，跳过图谱分析" | 影响分析是 Phase Guard 必检项 |
-| "历史知识不重要" | knowledge_context_loaded 是阶段守卫检查项 |
+| "历史知识不重要" | 知识加载是过程要求（agent 自律），守卫不校验该字段；跳过会失去历史决策与风险依据 |
 | "用户没反对，直接创建工件" | 不反对 ≠ 同意 — BP-1 必须显式确认 |
 | "变更名我来定" | 命名必须用户确认 — 不可自动生成 |
 | "delta-specs 只要 SHALL 就行" | delta-specs 必须含 SHALL 和 SHALL NOT |
@@ -345,13 +345,17 @@ mumuspec state check <change-name> open --recover
 
 ---
 
-## 领域 Skill 提示
+## 领域 Skill 提示（伴随能力）
 
-| 场景 | 推荐 Skill | required |
+> 下列条目均为**伴随能力（companion，包外增强）**：可用则用，不可用不阻断流程，按本文内联步骤执行。
+> **包内自足的必须步骤**是本文的编号步骤本身，不依赖任何外部 skill。
+> 可用性由 `mumuspec skill companions` 统一枚举（代码侧探测，非模型现场判断）。
+
+| 场景 | 伴随能力 | companion |
 |------|-----------|----------|
-| 需求探索 | `brainstorming` | true |
-| 需求不明确 | `interview-me` | false |
-| 代码影响分析 | `gitnexus-impact-analysis` | true |
-| 代码结构理解 | `gitnexus-exploring` | false |
-| 工作区隔离 | `using-git-worktrees` | true |
-| 规范草案 | `spec-driven-development` | true |
+| 需求探索 | `brainstorming` | 是 |
+| 需求不明确 | `interview-me` | 可选 |
+| 代码影响分析 | `gitnexus-impact-analysis` | 是 |
+| 代码结构理解 | `gitnexus-exploring` | 可选 |
+| 工作区隔离 | `using-git-worktrees` | 是 |
+| 规范草案 | `spec-driven-development` | 是 |

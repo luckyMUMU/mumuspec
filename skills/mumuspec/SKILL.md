@@ -310,7 +310,7 @@ rebuild_limit: 5
 
 ---
 
-## Required Skill 注册表
+## 伴随能力（companion）注册表
 
 > 以下列出各阶段声明的 required skill 及其实际可用状态。当 skill 不可用时，使用对应阶段的 inline fallback。
 

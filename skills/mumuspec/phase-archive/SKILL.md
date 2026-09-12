@@ -37,7 +37,7 @@ description: "MumuSpec Phase 5: Archive。以 /phase-archive 启动。Git 合并
 ### Step 1: 入口状态验证
 
 ```bash
-mumuspec state check <name> archive
+mumuspec state check <name>
 ```
 
 ### Step 2: 归档最终确认 — BLOCKING POINT (BP-17)
@@ -196,7 +196,7 @@ Archive 阶段 CI CRITICAL 失败
 ## 上下文压缩恢复
 
 ```bash
-mumuspec state check <change-name> archive --recover
+mumuspec state check <change-name> --recover
 ```
 
 脚本输出结构化恢复上下文（归档状态、已完成步骤）。
@@ -220,11 +220,15 @@ mumuspec state check <change-name> archive --recover
 
 ---
 
-## 领域 Skill 提示
+## 领域 Skill 提示（伴随能力）
 
-| 场景 | 推荐 Skill | required |
+> 下列条目均为**伴随能力（companion，包外增强）**：可用则用，不可用不阻断流程，按本文内联步骤执行。
+> **包内自足的必须步骤**是本文的编号步骤本身，不依赖任何外部 skill。
+> 可用性由 `mumuspec skill companions` 统一枚举（代码侧探测，非模型现场判断）。
+
+| 场景 | 伴随能力 | companion |
 |------|-----------|----------|
-| 分支完成 | `finishing-a-development-branch` | true |
-| CI/CD 集成 | `ci-cd-and-automation` | true |
-| 文档归档 | `documentation-and-adrs` | true |
-| 发布准备 | `shipping-and-launch` | false |
+| 分支完成 | `finishing-a-development-branch` | 是 |
+| CI/CD 集成 | `ci-cd-and-automation` | 是 |
+| 文档归档 | `documentation-and-adrs` | 是 |
+| 发布准备 | `shipping-and-launch` | 可选 |

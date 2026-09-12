@@ -10,11 +10,43 @@ import {
   generateAuthoringProtocol,
   AUTHORING_PROTOCOL,
 } from '../../skill-authoring/protocol.js';
+import { resolveCompanions } from '../../install/skill-companions.js';
 
 export function registerSkillCommands(program: Command): void {
   const authoringCmd = program
     .command('skill')
     .description('Skill authoring and management (MumuSpec Skill Protocol)');
+
+  // 伴随能力枚举：把"外部能力是否可用"从模型现场判断改为代码侧探测。
+  // 缺失只出现在清单里，不阻断阶段流程（此前 28 个 required 声明可达率为 0，
+  // 而强断言恒为空转且降级不留痕）。
+  authoringCmd
+    .command('companions')
+    .description('Enumerate companion capabilities and their availability (missing ones do not block)')
+    .option('--json', 'output as JSON')
+    .option('--missing', 'only list unresolved companions')
+    .action((options) => {
+      const resolved = resolveCompanions();
+      const rows = options.missing ? resolved.filter((r) => r.resolved === null) : resolved;
+
+      if (options.json) {
+        console.log(JSON.stringify({ total: resolved.length, items: rows }, null, 2));
+        return;
+      }
+
+      const available = resolved.filter((r) => r.resolved !== null).length;
+      console.log(`\nCompanion capabilities: ${available}/${resolved.length} available\n`);
+      for (const r of rows) {
+        const mark = r.resolved ? '✓' : '·';
+        console.log(`  ${mark} ${r.name}`);
+        console.log(`      ${r.purpose}  [${r.phases.join(', ')}]`);
+        if (r.resolved) console.log(`      ${r.resolved}`);
+      }
+      const missing = resolved.length - available;
+      if (missing > 0) {
+        console.log(`\n${missing} companion(s) unresolved — 不阻断流程，按各阶段技能的内联步骤执行。`);
+      }
+    });
 
   authoringCmd
     .command('init')

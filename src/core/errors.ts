@@ -1045,6 +1045,60 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     min_strength: 'low',
   },
 
+  // SKILL domain（技能分发与安装：副本漂移、插件清单、登记文件）
+  'W-SKILL-001': {
+    code: 'W-SKILL-001',
+    name: 'SKILL_COPY_DRIFT',
+    severity: 'WARN',
+    description: '技能源与已安装副本的正文不一致（比对已剥离 frontmatter 版本行，故版本戳印不产生噪声）',
+    fixSteps: [
+      '核对诊断中给出的源路径与安装路径差异',
+      '重新安装技能以同步副本：mumuspec install --agent <agent> --force',
+    ],
+    forceable: true,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'E-SKILL-002': {
+    code: 'E-SKILL-002',
+    name: 'PLUGIN_MANIFEST_INVALID',
+    severity: 'ERROR',
+    description: '插件或市场清单未通过官方规范校验（name 形态、语义化版本、相对路径、source 存在性等）',
+    fixSteps: [
+      '按违例列表逐条修正 path + rule + message 指向的字段',
+      '重新执行最小构建（mumuspec bundle plugin）确认清单通过校验器',
+    ],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'E-SKILL-003': {
+    code: 'E-SKILL-003',
+    name: 'PLUGIN_REGISTRY_WRITE_FAILED',
+    severity: 'ERROR',
+    description: '宿主插件登记文件不可写或内容不是合法 JSON——安装整体失败，不留"已复制但未登记"的中间态',
+    fixSteps: [
+      '检查登记文件权限与其 JSON 结构（version + plugins 两字段）',
+      '修复后重新安装；或用 --dry-run 先查看待登记内容',
+    ],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'E-BUNDLE-001': {
+    code: 'E-BUNDLE-001',
+    name: 'BUNDLE_PUBLISH_UNIMPLEMENTED',
+    severity: 'ERROR',
+    description: 'bundle publish 能力未实现——动作未完成时 fail-closed，不得返回假成功',
+    fixSteps: [
+      '改用插件标准产出：mumuspec bundle plugin --out <dir>',
+      '发布登记需宿主侧配合，当前不提供自动发布',
+    ],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+
   // GIT domain（git.ts 统一封装的错误）
   'E-GIT-001': {
     code: 'E-GIT-001',

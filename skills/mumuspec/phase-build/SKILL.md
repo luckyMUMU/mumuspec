@@ -43,7 +43,7 @@ description: "MumuSpec Phase 3: Build。以 /phase-build 启动。自下向上�
 ### Step 1: 入口状态验证
 
 ```bash
-mumuspec state check <name> build
+mumuspec state check <name>
 ```
 
 **幂等性**：读取 `.mumuspec.yaml` 的 `phase` 确认仍在 build，读取 `base-ref.txt`，使用 `mumuspec tasks next <name>` 定位第一个未完成任务（行号 + 剩余计数）。已提交的任务不重复提交。
@@ -123,7 +123,7 @@ mumuspec state set <name> tdd_mode tdd   # 默认 tdd，可配置 (default_tdd_m
 
 - 选择 `executing-plans`：`mumuspec state set <name> build_mode executing-plans`
 - 选择 `subagent-driven-development`：确认平台有真实后台子 agent 能力后，`mumuspec state set <name> build_mode subagent-driven-development`
-  （**注意**：不存在 `subagent_dispatch` 字段——分发粒度由 `mumuspec state layers` 的并行组决定，见 Step 5）
+  （分发粒度由 `mumuspec state layers` 的并行组决定，见 Step 5）
 
 #### 执行隔离 — BLOCKING POINT (BP-11)
 
@@ -229,14 +229,15 @@ k. 勾选 tasks.md 对应任务
 
 - CRITICAL 审查发现（安全漏洞、数据丢失风险、构建/测试失败）必须先修复
 - 非 CRITICAL 审查发现若接受，记录接受理由和影响范围到 tasks.md
-- 若 skill 不可用，跳过但记录 `<!-- review skipped: skill unavailable -->`
+- 若 `requesting-code-review` 不可用，SHALL 执行自审（按 安全 / 边界条件 / 错误路径 / 可维护性 四个角度）
+  并把审查发现写入 tasks.md；CRITICAL 发现必须先修复 —— **不允许无条件跳过**（与 TDD/调试门禁同等强度）
 
 ### Step 8: 上下文管理
 
 Build 是最长阶段，可能跨多个任务：
 
 - **每个任务完成后**：立即勾选 tasks.md 对应任务，提交代码，使状态持久化
-- **上下文压缩后**：运行 `mumuspec state check <change-name> build --recover`
+- **上下文压缩后**：运行 `mumuspec state check <change-name> --recover`
 - **长任务拆分**：单个任务超过 200 行代码变更时，考虑拆分为多个子任务和提交
 
 ---
@@ -275,7 +276,7 @@ mumuspec guard <change-name> verify --apply
 > 检查项清单以 [docs/reference/phase-guards.md#build_to_verify](../../docs/reference/phase-guards.md)
 > 为唯一权威源——本 skill 不再重复列举，避免"文档有、代码无"的第三态。
 
-> **Ponytail 检查不属于守卫**：`ponytail_compliance_checked` 字段并不存在。Ponytail 合规由
+> **Ponytail 检查不属于守卫**：守卫不校验 Ponytail 合规状态。合规由
 > `mumuspec check` 的 `checkPonytail()` 独立通道承担（`E-PONYTAIL-001..004`）。
 
 ## 自动流转到下一阶段
@@ -292,7 +293,7 @@ mumuspec state next <change-name>
 ## 上下文压缩恢复
 
 ```bash
-mumuspec state check <change-name> build --recover
+mumuspec state check <change-name> --recover
 ```
 
 恢复后：
@@ -320,20 +321,24 @@ mumuspec state check <change-name> build --recover
 
 ---
 
-## 领域 Skill 提示
+## 领域 Skill 提示（伴随能力）
 
-| 场景 | 推荐 Skill | required |
+> 下列条目均为**伴随能力（companion，包外增强）**：可用则用，不可用不阻断流程，按本文内联步骤执行。
+> **包内自足的必须步骤**是本文的编号步骤本身，不依赖任何外部 skill。
+> 可用性由 `mumuspec skill companions` 统一枚举（代码侧探测，非模型现场判断）。
+
+| 场景 | 伴随能力 | companion |
 |------|-----------|----------|
-| 实现计划 | `writing-plans` | true |
-| 上下文管理 | `context-engineering` | true |
-| TDD 实现 | `test-driven-development` | true (固定) |
-| 执行方式 | `executing-plans` / `subagent-driven-development` | true |
-| 源码验证 | `source-driven-development` | false |
+| 实现计划 | `writing-plans` | 是 |
+| 上下文管理 | `context-engineering` | 是 |
+| TDD 实现 | `test-driven-development` | 是（固定） |
+| 执行方式 | `executing-plans` / `subagent-driven-development` | 是 |
+| 源码验证 | `source-driven-development` | 可选 |
 | 调试修复 | `systematic-debugging` | false (触发时) |
-| 疑虑驱动 | `doubt-driven-development` | false |
-| 工作区隔离 | `using-git-worktrees` | true (worktree 模式) |
-| 代码审查 | `requesting-code-review` | true (退出前) |
-| UI 组件构建 | `frontend-ui-engineering` | false |
-| API 设计 | `api-and-interface-design` | false |
-| 安全敏感 | `security-and-hardening` | false |
-| 性能敏感 | `performance-optimization` | false |
+| 疑虑驱动 | `doubt-driven-development` | 可选 |
+| 工作区隔离 | `using-git-worktrees` | 是（worktree 模式） |
+| 代码审查 | `requesting-code-review` | 是（退出前） |
+| UI 组件构建 | `frontend-ui-engineering` | 可选 |
+| API 设计 | `api-and-interface-design` | 可选 |
+| 安全敏感 | `security-and-hardening` | 可选 |
+| 性能敏感 | `performance-optimization` | 可选 |

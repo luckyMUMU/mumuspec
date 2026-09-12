@@ -28,6 +28,42 @@ import type { DriftResult, GuardResult } from '../../core/types-workflow.js';
 import { loadChangeState } from '../../change/state.js';
 import { detectArchiveStateDrift } from '../../change/archive-consistency.js';
 import { detectConstraintSourceDrift } from '../../spec/constraint-provenance.js';
+import { detectSkillDrift } from '../../guard/skill-drift.js';
+import { discoverSkills } from '../../bundle/plugin-package.js';
+import { listInstalledPlugins } from '../../install/plugin-install.js';
+import { homedir } from 'node:os';
+
+/**
+ * 技能漂移检测源：比对技能源正文与已安装副本正文（比对前剥离 frontmatter 版本行）。
+ *
+ * 只对"两侧都存在"的技能产出诊断——"未安装"属覆盖度问题而非内容漂移，
+ * 若纳入本源，每个未安装技能都会恒亮一条告警，而恒亮的告警会训练读者忽略整条通道。
+ */
+function collectSkillDrift(root: string): DriftResult[] {
+  const home = homedir();
+  const userSkillsDir = join(home, '.workbuddy', 'skills');
+  const cacheRoot = join(home, '.workbuddy', 'plugins', 'cache');
+  const skills = discoverSkills(root);
+
+  const pairs = skills.map((s) => ({
+    name: s.name,
+    sourcePath: s.path,
+    installPath: join(userSkillsDir, s.name, 'SKILL.md'),
+  }));
+
+  for (const id of listInstalledPlugins(cacheRoot)) {
+    const [plugin, market, version] = id.split('@');
+    for (const s of skills) {
+      pairs.push({
+        name: `${s.name} (plugin ${id})`,
+        sourcePath: s.path,
+        installPath: join(cacheRoot, market, plugin, version, 'skills', s.name, 'SKILL.md'),
+      });
+    }
+  }
+
+  return detectSkillDrift(pairs.filter((p) => existsSync(p.installPath)));
+}
 
 /** Aggregated `mumuspec check` payload — machine-consumable (LOOP-4 L1). */
 interface CheckJsonPayload {
@@ -327,6 +363,7 @@ export function registerSpecCommands(program: Command): void {
           ['agents-hash', () => detectAgentsDrift(root)],
           ['archive-state', () => detectArchiveStateDrift(root)],
           ['constraint-source', () => detectConstraintSourceDrift(root)],
+          ['skill-drift', () => collectSkillDrift(root)],
         ];
         for (const [label, runSource] of driftSources) {
           try {

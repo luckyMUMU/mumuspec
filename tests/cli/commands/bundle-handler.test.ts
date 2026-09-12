@@ -289,7 +289,9 @@ describe('bundle command handlers', () => {
   // ── publish subcommand ──
 
   describe('bundle publish handler', () => {
-    it('should print success with registry placeholder', async () => {
+    it('should print the ready message when publish reports success', async () => {
+      // publishBundle 已改为 fail-closed（E-BUNDLE-001），故此用例只覆盖
+      // 成功分支的输出形态；失败分支由 packager 层测试覆盖。
       mockPublishBundle.mockReturnValue({
         success: true,
         bundlePath: '/path/to/bundle.zip',
@@ -304,7 +306,6 @@ describe('bundle command handlers', () => {
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('Bundle ready for publishing: /path/to/bundle.zip')
       );
-      expect(logSpy).toHaveBeenCalledWith('  (Registry integration coming soon)');
     });
 
     it('should exit(1) on publish failure', async () => {

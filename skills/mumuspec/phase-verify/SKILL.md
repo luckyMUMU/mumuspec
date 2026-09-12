@@ -40,7 +40,7 @@ description: "MumuSpec Phase 4: Verify。以 /phase-verify 启动。规范校验
 ### Step 1: 入口状态验证
 
 ```bash
-mumuspec state check <name> verify
+mumuspec state check <name>
 ```
 
 ### Step 1b: 规模评估
@@ -267,7 +267,7 @@ mumuspec state next <change-name>
 ## 上下文压缩恢复
 
 ```bash
-mumuspec state check <change-name> verify --recover
+mumuspec state check <change-name> --recover
 ```
 
 脚本输出结构化恢复上下文（阶段、验证状态、分支状态、恢复动作）。
@@ -290,15 +290,19 @@ mumuspec state check <change-name> verify --recover
 
 ---
 
-## 领域 Skill 提示
+## 领域 Skill 提示（伴随能力）
 
-| 场景 | 推荐 Skill | required |
+> 下列条目均为**伴随能力（companion，包外增强）**：可用则用，不可用不阻断流程，按本文内联步骤执行。
+> **包内自足的必须步骤**是本文的编号步骤本身，不依赖任何外部 skill。
+> 可用性由 `mumuspec skill companions` 统一枚举（代码侧探测，非模型现场判断）。
+
+| 场景 | 伴随能力 | companion |
 |------|-----------|----------|
-| 完成验证 | `verification-before-completion` | true |
-| 代码审查 | `requesting-code-review` | true |
-| 接收反馈 | `receiving-code-review` | true |
-| 回退决策 | `systematic-debugging` | false |
-| 浏览器验证 | `browser-testing-with-devtools` | false |
-| 安全验证 | `security-and-hardening` | false |
-| 性能回归 | `performance-optimization` | false |
-| 分支处理 | `finishing-a-development-branch` | true |
+| 完成验证 | `verification-before-completion` | 是 |
+| 代码审查 | `requesting-code-review` | 是 |
+| 接收反馈 | `receiving-code-review` | 是 |
+| 回退决策 | `systematic-debugging` | 可选 |
+| 浏览器验证 | `browser-testing-with-devtools` | 可选 |
+| 安全验证 | `security-and-hardening` | 可选 |
+| 性能回归 | `performance-optimization` | 可选 |
+| 分支处理 | `finishing-a-development-branch` | 是 |

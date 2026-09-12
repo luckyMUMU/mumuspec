@@ -167,6 +167,13 @@ mumuspec guard <name> build --apply
 - **不执行**知识提取（无 cognitive-map.yaml）
 - **不执行**delta-spec 合并（无 delta-specs/）
 
+> **陷阱（静默失败）**：`archive` 依据 `workflow === 'tweak'` 直接跳过 delta-spec 合并、工件合并与知识提取，
+> 且**不报任何错**。若误在 tweak 中创建了 `delta-specs/`，规范增量会静默丢失（只留在归档目录里），
+> 而 `validate` / `check` 一路全绿。
+> **补救**：`mumuspec finalize-archive <change-name> --keep-old` —— 无条件执行 delta 合并 / prohibitions 更新 /
+> index 重建 / code-graph 快照（marker 幂等，可安全重跑）；随后重新生成 Rules 文件消除 E-AGENTS-001。
+> **本质**：tweak 与 hotfix 的差别不在 phase 列表（两者都 skip design），而在归档侧是否执行合并副作用。
+
 ---
 
 ## 升级条件
@@ -216,28 +223,32 @@ mumuspec state set <name> phase design
 
 ---
 
-## 领域 Skill 提示
+## 领域 Skill 提示（伴随能力）
+
+> 下列条目均为**伴随能力（companion，包外增强）**：可用则用，不可用不阻断流程，按本文内联步骤执行。
+> **包内自足的必须步骤**是本文的编号步骤本身，不依赖任何外部 skill。
+> 可用性由 `mumuspec skill companions` 统一枚举（代码侧探测，非模型现场判断）。
 
 ### Hotfix
 
-| 场景 | 推荐 Skill | required |
+| 场景 | 伴随能力 | companion |
 |------|-----------|----------|
-| 根因调查 | `systematic-debugging` | true (触发时) |
-| 安全边界 | `security-and-hardening` | false |
-| 验证 | `verification-before-completion` | true |
-| 分支处理 | `finishing-a-development-branch` | true |
-| CI/CD | `ci-cd-and-automation` | true |
-| 归档 | `documentation-and-adrs` | true |
+| 根因调查 | `systematic-debugging` | 是（触发时） |
+| 安全边界 | `security-and-hardening` | 可选 |
+| 验证 | `verification-before-completion` | 是 |
+| 分支处理 | `finishing-a-development-branch` | 是 |
+| CI/CD | `ci-cd-and-automation` | 是 |
+| 归档 | `documentation-and-adrs` | 是 |
 
 ### Tweak
 
-| 场景 | 推荐 Skill | required |
+| 场景 | 伴随能力 | companion |
 |------|-----------|----------|
-| 验证 | `verification-before-completion` | true |
-| 分支处理 | `finishing-a-development-branch` | true |
-| CI/CD | `ci-cd-and-automation` | true |
-| 归档 | `documentation-and-adrs` | true |
-| 调试（触发时） | `systematic-debugging` | false |
+| 验证 | `verification-before-completion` | 是 |
+| 分支处理 | `finishing-a-development-branch` | 是 |
+| CI/CD | `ci-cd-and-automation` | 是 |
+| 归档 | `documentation-and-adrs` | 是 |
+| 调试（触发时） | `systematic-debugging` | 可选 |
 
 ---
 

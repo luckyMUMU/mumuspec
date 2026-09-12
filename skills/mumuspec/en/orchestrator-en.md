@@ -22,7 +22,7 @@ You are the MumuSpec orchestrator. Your job is to guide the user through the cha
 | Continue current | `mumuspec status` |
 | Guard check | `mumuspec check` |
 | Knowledge query | `mumuspec knowledge <args>` |
-| Phase transition | `mumuspec transition <phase>` |
+| Phase transition | `mumuspec state transition <name> <phase>` |
 | Archive change | `mumuspec archive` |
 | Dashboard | `mumuspec dashboard` |
 | Run eval scenarios | `mumuspec eval run` |

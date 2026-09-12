@@ -200,14 +200,32 @@ export function registerContractCommands(program: Command): void {
       collectMarkdownFiles(changeDir, files);
 
       const referenced = new Set<string>();
-      const idPattern = /\b[A-Z]{2,8}-\d{1,4}\b/g;
+      // 契约 ID 形态为 <字母2-8>-<数字1-4>（如 AA-01 / API-001 / CONTRACT-001）。
+      //
+      // 两个必须的收窄（此前缺失，导致系统性假阳性）：
+      //  1. 负向后视 (?<![A-Z0-9-])：切断错误码里的片段——E-SPEC-015 中的
+      //     "SPEC-015"、W-SKILL-001 中的 "SKILL-001" 都不是契约 ID。
+      //  2. 显式排除项目内既有的编号约定（Enforcement / 阻塞点 / 开放问题 /
+      //     grill-me 条目），它们是变更工件的编号，不是契约注册表的键。
+      // 教训与 60 条 E-GUARD-003 同族：约定无关的模式套在合法含有其它 ID 约定的文本上。
+      const idPattern = /(?<![A-Z0-9-])([A-Z]{2,8}-\d{1,4})(?![\dA-Z-])/g;
+      const NON_CONTRACT_PREFIXES = new Set(['ENF', 'BP', 'OQ', 'GM', 'DS']);
+
+      function collectContractIds(content: string): void {
+        let match: RegExpExecArray | null;
+        idPattern.lastIndex = 0;
+        while ((match = idPattern.exec(content)) !== null) {
+          const id = match[1];
+          const prefix = id.slice(0, id.indexOf('-'));
+          if (NON_CONTRACT_PREFIXES.has(prefix)) continue;
+          referenced.add(id);
+        }
+      }
+
       for (const file of files) {
         const content = readText(file);
         if (!content) continue;
-        let match: RegExpExecArray | null;
-        while ((match = idPattern.exec(content)) !== null) {
-          referenced.add(match[0]);
-        }
+        collectContractIds(content);
       }
 
       const problems: Array<{ id: string; status?: string; file?: string }> = [];

@@ -17,11 +17,57 @@ import {
   formatInstalledSkills,
 } from '../../install/installer.js';
 import { createAgentInstallSubcommand } from '../helpers.js';
+import { join, resolve } from 'node:path';
+import { installPluginPackage } from '../../install/plugin-install.js';
 
 export function registerInstallCommands(program: Command): void {
   const installCmd = program
     .command('install')
     .description('Install skills, MCP servers, and commands for AI coding agents');
+
+  // --- host-standard plugin package install ---
+  installCmd
+    .command('plugin')
+    .description('安装宿主标准插件包到插件缓存并登记（幂等，登记失败即整体失败）')
+    .option('--from <dir>', '插件包目录', 'dist-plugin')
+    .option('--marketplace <name>', '市场名', 'mumuspec')
+    .option('--scope <scope>', '安装范围：user 或 project', 'user')
+    .option('--dry-run', '只报告计划，不写盘')
+    .action((options) => {
+      const home =
+        process.platform === 'win32' ? process.env.USERPROFILE || '' : process.env.HOME || '';
+      if (!home) {
+        console.error('✗ 无法解析用户主目录（USERPROFILE / HOME 均未设置）');
+        process.exit(1);
+      }
+      const pluginsRoot = join(home, '.workbuddy', 'plugins');
+
+      const result = installPluginPackage(resolve(options.from), {
+        cacheRoot: join(pluginsRoot, 'cache'),
+        registryPath: join(pluginsRoot, 'installed_plugins.json'),
+        marketplaceName: options.marketplace,
+        scope: options.scope === 'project' ? 'project' : 'user',
+        dryRun: options.dryRun === true,
+      });
+
+      if (!result.ok) {
+        console.error(`✗ ${result.error}`);
+        for (const v of result.violations ?? []) {
+          console.error(`  ✗ [${v.path}] (${v.rule}) ${v.message}`);
+        }
+        process.exit(1);
+      }
+
+      console.log(`${options.dryRun ? '·  计划（未写盘）' : '✓ 已安装'}: ${result.installPath}`);
+      if (result.registryEntry) {
+        console.log(
+          `  登记键: ${options.marketplace} (version=${result.registryEntry.version}, scope=${result.registryEntry.scope})`,
+        );
+      }
+      if (options.dryRun) {
+        console.log('  注册表未改动（--dry-run）；去掉该开关即实际写入。');
+      }
+    });
 
   // --- catpaw skill install ---
   installCmd

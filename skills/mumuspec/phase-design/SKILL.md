@@ -44,7 +44,7 @@ description: "MumuSpec Phase 2: Design。以 /phase-design 启动。认知框架
 ### Step 1: 入口状态验证
 
 ```bash
-mumuspec state check <name> design
+mumuspec state check <name>
 ```
 
 验证通过后进入 Step 2。脚本在验证失败时输出具体失败原因。
@@ -428,8 +428,6 @@ mumuspec guard <change-name> build --apply
 > 检查项清单以 [docs/reference/phase-guards.md#design_to_build](../../docs/reference/phase-guards.md)
 为唯一权威源——本 skill 不再重复列举，避免“文档有、代码无”的第三态。
 
-> **本节此前列举的 `design_layers_covered`、`each_layer_shall_defined`、`ponytail_constraints_defined`
-> 在代码中并不存在**，已删除；`design_layers_covered` 的职责由 I1 断链检查
 > （`state.design_coverage`）承担。
 
 ---
@@ -448,7 +446,7 @@ mumuspec state next <change-name>
 ## 上下文压缩恢复
 
 ```bash
-mumuspec state check <change-name> design --recover
+mumuspec state check <change-name> --recover
 ```
 
 恢复时优先读取：
@@ -475,21 +473,25 @@ mumuspec state check <change-name> design --recover
 | "测试用例可以 Build 阶段再写" | 测试用例是设计的一部分 — Design 阶段锁定 |
 | "用户没确认 Q3，先继续" | Q3 必须 confirmed/rejected/modified — 不可跳过 |
 | "认知框架 5 轮太多了，提前收敛" | 强制收敛仅在达到 5 轮上限后触发 |
-| "Ponytail 约束不需要检查" | ponytail_constraints_defined 是阶段守卫必检项 |
+| "Ponytail 约束不需要检查" | Ponytail 合规由 `mumuspec check` 的独立通道检查（E-PONYTAIL-*），不是阶段守卫项 |
 | "design.md 可以不写 Enforcement" | 所有 Enforcement 检查必须定义（非 TBD） |
 
 ---
 
-## 领域 Skill 提示
+## 领域 Skill 提示（伴随能力）
 
-| 场景 | 推荐 Skill | required | 阶段 |
+> 下列条目均为**伴随能力（companion，包外增强）**：可用则用，不可用不阻断流程，按本文内联步骤执行。
+> **包内自足的必须步骤**是本文的编号步骤本身，不依赖任何外部 skill。
+> 可用性由 `mumuspec skill companions` 统一枚举（代码侧探测，非模型现场判断）。
+
+| 场景 | 伴随能力 | companion | 阶段 |
 |------|-----------|----------|------|
-| Q1 信息采集 | `gitnexus-exploring` | true | Stage 1 |
-| Q2 提问 + Q3 推理 | `brainstorming` | true | Stage 2-3 |
-| Q4 安全盲区 | `security-and-hardening` | false | Stage 3 |
-| Q4 性能盲区 | `performance-optimization` | false | Stage 3 |
-| Q4 疑虑驱动 | `doubt-driven-development` | false | Stage 3 |
-| 深度追问共识 | `grill-me` | true | Step 2.5 |
-| 对抗审查 | `hyperplan` | conditional | Step 4 |
-| 接口设计 | `api-and-interface-design` | false | Step 3 |
-| 决策记录 | `documentation-and-adrs` | true | Step 8 |
+| Q1 信息采集 | `gitnexus-exploring` | 是 | Stage 1 |
+| Q2 提问 + Q3 推理 | `brainstorming` | 是 | Stage 2-3 |
+| Q4 安全盲区 | `security-and-hardening` | 可选 | Stage 3 |
+| Q4 性能盲区 | `performance-optimization` | 可选 | Stage 3 |
+| Q4 疑虑驱动 | `doubt-driven-development` | 可选 | Stage 3 |
+| 深度追问共识 | `grill-me` | 是 | Step 2.5 |
+| 对抗审查 | `hyperplan` | 条件 | Step 4 |
+| 接口设计 | `api-and-interface-design` | 可选 | Step 3 |
+| 决策记录 | `documentation-and-adrs` | 是 | Step 8 |

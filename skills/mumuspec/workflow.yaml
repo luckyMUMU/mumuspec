@@ -421,10 +421,8 @@ workflow:
       - delta-specs/ has at least one spec file
       - affected_scopes defined
       - code-graph/impact-analysis.json exists
-      - single_active_change: true
-      - worktree_created: true
-      - brainstorming_completed: true
-      - knowledge_context_loaded: true
+      - decisions.md content_hash matches (E-CHANGE-007)
+      - decisions_log.counts.open > 0
 
     open_to_build_hotfix:
       - proposal.md exists

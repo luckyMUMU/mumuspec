@@ -1,8 +1,8 @@
 name: skill-plugin-standard
-phase: design
+phase: build
 workflow: full
 created_at: 2026-09-12T15:31:52.587Z
-updated_at: 2026-09-12T15:52:07.452Z
+updated_at: 2026-09-12T15:55:29.325Z
 scope: .
 affected_scopes: []
 build_layers:
@@ -31,10 +31,11 @@ build_layers:
     status: pending
     parallel_group: 5
 test_cases:
-  design_locked: false
+  design_locked: true
   suites_locked: false
   suites_locked_layers: []
   suites_hash: {}
+  design_content_hash: 52a2b73f26232d5d
 rollback_count: 0
 rebuild_count: 0
 rollback_limit: 3
@@ -73,8 +74,18 @@ dist_spec:
   tech: .mumuspec/tech.md
 schema_version: 1.0.0
 design_coverage:
-  covered_layers: []
-  expected_layers: []
+  covered_layers:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+  expected_layers:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
   unreachable_from: null
-  checked_at: 2026-09-12T15:44:25.228Z
+  checked_at: 2026-09-12T15:55:29.112Z
   enforced: true

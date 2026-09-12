@@ -53,8 +53,9 @@ layer: 3
 | `registerMetaEvolveCommand` | `meta-evolve.ts` | meta-evolve（2026-08-22 补录） |
 | `registerTeamCommands` | `team.ts` | team（init / clarify / run / status / confirm / scaffold / info） |
 | `registerCapabilityCommand` | `capability.ts` | capability（2026-09-07 新增，P0-A 命令能力分层查询） |
+| `registerCognitiveMapCommands` | `cognitive-map.ts` | cognitive-map（0.23.0 接线：此前实现完整且有测试却从未注册，属死模块，见 skill-plugin-standard 变更 R5/ENF-17） |
 
-> 注：`check` 命令由 `spec.ts` 的 `registerSpecCommands` 注册（ponytail 合并自原 check.ts，防止 commander 重复注册崩溃），**不属于** `guard.ts`。`knowledge-*.ts` / `cognitive-map.ts` / `loop-experiment.ts` 等子文件仅导出被父命令模块内部调用的子注册函数，不在 index.ts 顶层注册，故不列入上表。
+> 注：`check` 命令由 `spec.ts` 的 `registerSpecCommands` 注册（ponytail 合并自原 check.ts，防止 commander 重复注册崩溃），**不属于** `guard.ts`。`knowledge-*.ts` / `loop-experiment.ts` 等子文件仅导出被父命令模块内部调用的子注册函数，不在 index.ts 顶层注册，故不列入上表；**`cognitive-map.ts` 曾在同一理由下被排除，但实测其内无父模块调用它，故已改为顶层注册**——"由父模块调用"必须是真的有调用点，不能靠归类豁免。
 
 ### 命令文件清单（43 个 .ts 文件）
 
