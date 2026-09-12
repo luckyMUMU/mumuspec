@@ -1,0 +1,28 @@
+# Open Questions: self-improvement-loop-p0
+# LLM-drafted; each resolution cites a human-signed decision entry in decisions.md.
+version: 1
+change: self-improvement-loop-p0
+items:
+  - id: OQ-1
+    question: >-
+      P0-1 落盘粒度：相位聚合 vs 逐约束枚举？（GuardResult 只枚举失败、无"通过约束"清单，
+      逐 error.code 记 passed:false 会让 passRate 恒 0，是空数据集镜像谎言；逐约束枚举需改造
+      src/guard/ 全部 check 函数，改动面过大）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-12T05:53:14.710Z"
+  - id: OQ-2
+    question: >-
+      loop experiment 的 adopt 无对象：补 commit 让 arm 真正产出可采纳改动，还是定性封存？
+      （arm 差异仅一行注释、方向来自静态启发式、度量退化为文件存在性——补 commit 会让噪声获得
+      可采纳通道，比空转更危险）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-12T05:53:21.868Z"
+  - id: OQ-3
+    question: >-
+      meta-evolve --apply 未实现：本轮实现真实改写（约束强度调整）还是 fail-closed？
+      （真实 apply 依赖 scoring 数据积累且触碰 constraint_strength 红线，须人工签收）
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-12T05:53:21.868Z"

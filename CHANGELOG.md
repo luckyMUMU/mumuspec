@@ -5,6 +5,11 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0-alpha.0] — archive auto-bump (2026-09-12)
+
+### Changed
+- 归档自动升版：变更 self-improvement-loop-p0（full workflow）归档触发
+
 ## [Unreleased] — 设计与实现的视野正交性（I1 / I2 / I3）
 
 把方法论"自顶向下设计，自下而上实现"落成三条可判定不变量。依据：

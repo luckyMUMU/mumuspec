@@ -18,6 +18,7 @@ const {
   mockExecuteTransition,
   mockRequiresUserConfirmation,
   mockRunPhaseGuard,
+  mockRecordCheck,
 } = vi.hoisted(() => ({
   mockFindProjectRoot: vi.fn(),
   mockLoadConfig: vi.fn(),
@@ -26,6 +27,7 @@ const {
   mockExecuteTransition: vi.fn(),
   mockRequiresUserConfirmation: vi.fn(),
   mockRunPhaseGuard: vi.fn(),
+  mockRecordCheck: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../../src/core/utils.js', async (importOriginal) => {
@@ -63,6 +65,11 @@ vi.mock('../../../src/guard/phase-guard.js', () => ({
   runPhaseGuard: mockRunPhaseGuard,
 }));
 
+vi.mock('../../../src/meta-evolution/stats.js', () => ({
+  recordCheck: (...args: unknown[]) => mockRecordCheck(...args),
+  resolveEvolutionRoot: (root: string) => root,
+}));
+
 // ════════════════════════════════════════════════════════════════════
 // Tests
 // ════════════════════════════════════════════════════════════════════
@@ -87,6 +94,7 @@ describe('guard command handler', () => {
     mockExecuteTransition.mockReset();
     mockRequiresUserConfirmation.mockReset();
     mockRunPhaseGuard.mockReset();
+    mockRecordCheck.mockClear();
     mockFindProjectRoot.mockReturnValue('/fake/root');
     mockLoadConfig.mockReturnValue({ constraint_strength: { technical_design: 'standard' } });
     mockRunPhaseGuard.mockReturnValue({ passed: true, errors: [], warnings: [] });
@@ -133,6 +141,40 @@ describe('guard command handler', () => {
     );
     // Should return early after JSON output
     expect(mockLoadChangeState).not.toHaveBeenCalled();
+  });
+
+  // ── P0-1: guard 落盘 CheckRecord (self-improvement-loop-p0) ──
+
+  it('records a phase-aggregate CheckRecord after a passing guard', async () => {
+    mockRunPhaseGuard.mockReturnValue({ passed: true, errors: [], warnings: [] });
+
+    const { registerGuardCommand } = await import('../../../src/cli/commands/guard.js');
+    const program = new Command();
+    registerGuardCommand(program);
+
+    await program.parseAsync(['guard', 'my-change', 'design'], { from: 'user' });
+
+    expect(mockRecordCheck).toHaveBeenCalledWith('/fake/root', {
+      constraintId: 'guard:design',
+      passed: true,
+      falsePositive: false,
+    });
+  });
+
+  it('records a falsePositive CheckRecord on --force bypass (E13 producer)', async () => {
+    mockRunPhaseGuard.mockReturnValue({ passed: false, errors: [{ code: 'E-X', message: 'boom' }], warnings: [] });
+
+    const { registerGuardCommand } = await import('../../../src/cli/commands/guard.js');
+    const program = new Command();
+    registerGuardCommand(program);
+
+    await program.parseAsync(['guard', 'my-change', 'design', '--force'], { from: 'user' });
+
+    expect(mockRecordCheck).toHaveBeenCalledWith('/fake/root', {
+      constraintId: 'guard:design:force',
+      passed: false,
+      falsePositive: true,
+    });
   });
 
   // ── Guard passed ──

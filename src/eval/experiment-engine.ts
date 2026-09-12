@@ -303,6 +303,12 @@ function findTestFilesWithPatterns(srcDir: string): string[] {
 
 /**
  * Initialize an experiment with generated directions.
+ *
+ * P0-5 (self-improvement-loop-p0): experiment mode is NOT wired end-to-end —
+ * arms never produce commits, direction generation is a static heuristic, and
+ * change execution is a file-existence simulation. Adopting such noise would be
+ * worse than idling, so the experiment is created disabled and the CLI rejects
+ * `adopt` until the mode is actually connected (P1+).
  */
 export function initExperiment(
   projectRoot: string,
@@ -327,7 +333,7 @@ export function initExperiment(
   const state: ExperimentState = {
     name: input.name,
     goal: input.goal,
-    enabled: true,
+    enabled: false, // P0-5: 未接通，禁止 adopt
     phase: 'init',
     maxMetaRounds: input.config.maxMetaRounds ?? DEFAULT_META_ROUNDS,
     currentMetaRound: 0,
@@ -342,7 +348,7 @@ export function initExperiment(
     originalBranch,
     baseCommit,
     createdAt: now(),
-    notes: [],
+    notes: ['P0-5: experiment mode 未接通 — init 置 disabled，adopt 不可用'],
   };
 
   saveExperimentState(projectRoot, state);
@@ -352,7 +358,7 @@ export function initExperiment(
     actor: 'user',
     action: 'experiment.init',
     change: input.name,
-    result: `success: ${directions.length} directions`,
+    result: `success: ${directions.length} directions (mode DISABLED — experimental, not wired)`,
   });
 
   return state;
@@ -556,6 +562,7 @@ function runEvalInWorktree(worktreePath: string): ExperimentEvalResults {
 
 /**
  * Simulate change execution by checking directory structure and state.
+ * P0-5: SIMULATED — 只做文件存在性检查，不承载真实执行语义；不得作为度量被下游消费。
  * ponytail: structural check only — real execution requires AI agent
  */
 function simulateChangeExecution(
@@ -627,6 +634,7 @@ function simulateChangeExecution(
 
 /**
  * Compute quality score from eval results.
+ * P0-5: SIMULATED — 输入来自文件存在性检查与空用例集，不承载真实度量语义。
  */
 function computeQualityScore(evalResults: ExperimentEvalResults): number {
   if (evalResults.totalScenarios === 0) return 0.5;
@@ -637,6 +645,7 @@ function computeQualityScore(evalResults: ExperimentEvalResults): number {
 
 /**
  * Compute performance score from arm execution.
+ * P0-5: SIMULATED — 输入来自文件存在性检查与空用例集，不承载真实度量语义。
  */
 function computePerformanceScore(
   arm: ExperimentArm,
@@ -653,6 +662,7 @@ function computePerformanceScore(
 
 /**
  * Compute robustness score from change execution results.
+ * P0-5: SIMULATED — 输入来自文件存在性检查与空用例集，不承载真实度量语义。
  */
 function computeRobustnessScore(changeResults: ExperimentChangeResults): number {
   const phaseRatio = changeResults.phasesCompleted / Math.max(changeResults.totalPhases, 1);
@@ -871,6 +881,13 @@ export function adoptImprovements(
   const state = loadExperimentState(projectRoot, experimentName);
   if (!state) throw new Error(`Experiment not found: ${experimentName}`);
 
+  // P0-5: 未接通时明确拒绝，不把结构缺失伪装成运行失败（"Cherry-pick failed"）
+  if (state.enabled === false) {
+    throw new Error(
+      'experiment mode 未接通，不可采纳 — arms 不产生 commit，adopt 无对象（self-improvement-loop-p0 P0-5 封存）',
+    );
+  }
+
   state.phase = 'adopting';
   const adopted: string[] = [];
   const errors: string[] = [];
@@ -957,7 +974,8 @@ export function getExperimentStatus(
   experimentName: string,
 ): ExperimentStatusSummary | null {
   const state = loadExperimentState(projectRoot, experimentName);
-  if (!state || !state.enabled) return null;
+  // P0-5: enabled 现在表示"模式已接通"，不 gate 可见性——封存的实验仍应可 status 查看
+  if (!state) return null;
 
   const completed = state.arms.filter((a) => a.status === 'completed').length;
   const failed = state.arms.filter((a) => a.status === 'failed').length;
@@ -965,6 +983,7 @@ export function getExperimentStatus(
   return {
     name: state.name,
     phase: state.phase,
+    enabled: state.enabled,
     currentMetaRound: state.currentMetaRound,
     maxMetaRounds: state.maxMetaRounds,
     directionCount: state.directions.length,

@@ -1,0 +1,40 @@
+# Assumptions: self-improvement-loop-p0
+# LLM-drafted; each resolution cites a human-signed decision entry in decisions.md.
+version: 1
+change: self-improvement-loop-p0
+items:
+  - id: AS-1
+    assumption: >-
+      CheckRecord 类型本轮不扩展（不加 failedCodes 字段），相位聚合是最小可行版本；
+      逐约束归因与通过清单推迟到 P1。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T05:53:14.710Z"
+  - id: AS-2
+    assumption: >-
+      复用既有 recordCheck / readCheckRecords（src/meta-evolution/stats.ts 的 append-only + rotation），
+      不引入新存储机制、不新增依赖（Ponytail L2 复用 / L5 不引新依赖）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T05:53:14.710Z"
+  - id: AS-3
+    assumption: >-
+      本变更不修改 constraint_strength 配置、不自动调整 evaluator 权重、不新增 evaluator、
+      不修 E14/E15/E16/E17 收敛判据（P1 范围，本变更只接通数据面与封存实验环）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T05:53:21.868Z"
+  - id: AS-4
+    assumption: >-
+      MUMUSPEC_EVOLUTION_ROOT 为空时以 git rev-parse --git-common-dir 推导主仓根；
+      非 git 环境回退 projectRoot。stats.jsonl 落在主仓根后不再随 loop worktree 删除丢失。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T05:53:14.710Z"
+  - id: AS-5
+    assumption: >-
+      P0-4 的 auto-eval 失败保留"回退 manual"设计（只读采集失败不是副作用失败，不需中断），
+      仅补 audit 使降级可追溯；提交失败（副作用）才中断。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T05:53:21.868Z"

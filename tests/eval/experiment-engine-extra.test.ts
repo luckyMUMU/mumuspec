@@ -146,6 +146,20 @@ describe('adoptImprovements — git log error path', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════
+// adoptImprovements — P0-5 封存语义
+// ════════════════════════════════════════════════════════════════════
+
+describe('adoptImprovements — enabled=false (P0-5 sealed)', () => {
+  it('throws "mode 未接通" instead of cherry-picking (fail-closed, not silent)', () => {
+    const root = freshRoot();
+    const state = makeState({ enabled: false, selectedDirections: ['dir-1'] });
+    saveState(root, state);
+
+    expect(() => adoptImprovements(root, 'exp-test')).toThrow('未接通');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════
 // cleanupExperiment — non-dry-run path with real git worktree remove
 // ════════════════════════════════════════════════════════════════════
 

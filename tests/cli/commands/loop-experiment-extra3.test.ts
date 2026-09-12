@@ -37,11 +37,13 @@ vi.mock('../../../src/eval/experiment-engine.js', () => ({
 
 let logSpy: ReturnType<typeof vi.spyOn>;
 let errorSpy: ReturnType<typeof vi.spyOn>;
+let warnSpy: ReturnType<typeof vi.spyOn>;
 let exitSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => { throw new Error('exit'); }) as () => never);
   mockFindProjectRoot.mockReturnValue('/fake/root');
   mockInitExperiment.mockReset();
@@ -209,6 +211,7 @@ describe('select subcommand', () => {
 
 describe('adopt subcommand', () => {
   it('adopts without dry-run and shows adopted + errors', async () => {
+    mockLoadExperimentState.mockReturnValue({ name: 'exp-clean', enabled: true });
     mockAdoptImprovements.mockReturnValue({
       adopted: ['d1', 'd2'],
       errors: ['failed to merge d3'],
@@ -225,6 +228,7 @@ describe('adopt subcommand', () => {
   });
 
   it('adopts with no errors', async () => {
+    mockLoadExperimentState.mockReturnValue({ name: 'exp-clean', enabled: true });
     mockAdoptImprovements.mockReturnValue({ adopted: ['d5'], errors: [] });
     const { registerExperimentCommands } = await import('../../../src/cli/commands/loop-experiment.js');
     const loopCmd = new Command();
@@ -275,6 +279,7 @@ describe('adopt subcommand', () => {
   });
 
   it('exits 1 when adopt throws', async () => {
+    mockLoadExperimentState.mockReturnValue({ name: 'exp-bad', enabled: true });
     mockAdoptImprovements.mockImplementation(() => { throw new Error('merge conflict'); });
     const { registerExperimentCommands } = await import('../../../src/cli/commands/loop-experiment.js');
     const loopCmd = new Command();
@@ -282,6 +287,19 @@ describe('adopt subcommand', () => {
     await loopCmd.parseAsync(['experiment', 'adopt', 'exp-bad'], { from: 'user' }).catch(() => {});
     expect(errorSpy).toHaveBeenCalledWith('Error: merge conflict');
     expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('rejects adopt with exit 1 when experiment is sealed (enabled=false, P0-5)', async () => {
+    mockLoadExperimentState.mockReturnValue({ name: 'exp-sealed', enabled: false });
+    const { registerExperimentCommands } = await import('../../../src/cli/commands/loop-experiment.js');
+    const loopCmd = new Command();
+    registerExperimentCommands(loopCmd);
+    await loopCmd.parseAsync(['experiment', 'adopt', 'exp-sealed'], { from: 'user' }).catch(() => {});
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('未接通'));
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    // 未接通时绝不落到 cherry-pick（mockAdoptImprovements 不应被调用）
+    expect(mockAdoptImprovements).not.toHaveBeenCalled();
   });
 
   it('exits 1 when not in project', async () => {
@@ -590,6 +608,20 @@ describe('init subcommand extras', () => {
     await loopCmd.parseAsync(['experiment', 'init', 'exp1', '--goal', 'do something'], { from: 'user' }).catch(() => {});
     expect(errorSpy).toHaveBeenCalledWith('Error: init failed');
     expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('init warns that experiment mode is not wired (P0-5)、state.enabled=false by engine', async () => {
+    mockInitExperiment.mockReturnValue({
+      name: 'exp', goal: 'g', enabled: false, directions: [], maxMetaRounds: 3,
+      demoChangeName: 'x', baseCommit: '', arms: [], status: 'initialized',
+    });
+    const { registerExperimentCommands } = await import('../../../src/cli/commands/loop-experiment.js');
+    const loopCmd = new Command();
+    registerExperimentCommands(loopCmd);
+    await loopCmd.parseAsync(['experiment', 'init', 'exp', '--goal', 'g'], { from: 'user' });
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Experiment Initialized'));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('未接通'));
   });
 
   it('init uses NaN fallback for direction count', async () => {

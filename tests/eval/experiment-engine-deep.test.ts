@@ -373,7 +373,8 @@ describe('initExperiment', () => {
 
     expect(state.name).toBe('exp-1');
     expect(state.goal).toBe('improve coverage');
-    expect(state.enabled).toBe(true);
+    // P0-5: 未接通模式默认 disabled，adopt 不可用
+    expect(state.enabled).toBe(false);
     expect(state.phase).toBe('init');
     expect(state.maxMetaRounds).toBe(2);
     expect(state.originalBranch).toBe('main');
@@ -430,13 +431,16 @@ describe('state management', () => {
     expect(result).toBeNull();
   });
 
-  it('getExperimentStatus returns null when disabled', () => {
+  it('getExperimentStatus returns summary (enabled=false) for sealed experiment', () => {
     const root = freshRoot();
     const state = makeState({ enabled: false });
     saveState(root, state);
 
+    // P0-5: 封存的实验仍可 status 查看——可见性不被 enabled 屏蔽
     const result = getExperimentStatus(root, 'exp-test');
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('exp-test');
+    expect(result!.enabled).toBe(false);
   });
 
   it('getExperimentStatus computes arm counts correctly', () => {

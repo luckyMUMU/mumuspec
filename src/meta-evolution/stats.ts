@@ -10,13 +10,46 @@
 
 import { appendFile, mkdir, readdir, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { dirname, join, resolve } from 'node:path';
 import { readText, writeText } from '../core/utils.js';
 import type { CheckRecord } from './types.js';
 
 const STATS_DIR = '.mumuspec/evolution';
 const STATS_FILE = 'stats.jsonl';
 const MAX_RECORDS = 1000;
+const EVOLUTION_ROOT_ENV = 'MUMUSPEC_EVOLUTION_ROOT';
+
+/**
+ * Resolve the project root that owns `.mumuspec/evolution/`.
+ *
+ * Records must land in the MAIN repository root, not a loop worktree:
+ * `.mumuspec/evolution/` is not gitignored, so inside a worktree it is an
+ * untracked file that would be lost with `worktree remove --force`.
+ * Resolution order: `MUMUSPEC_EVOLUTION_ROOT` override → the parent of
+ * `git rev-parse --git-common-dir` (main repo root even when cwd is a linked
+ * worktree) → caller-supplied projectRoot.
+ */
+export function resolveEvolutionRoot(projectRoot: string): string {
+  const override = process.env[EVOLUTION_ROOT_ENV];
+  if (override) return override;
+
+  try {
+    const r = spawnSync('git', ['rev-parse', '--git-common-dir'], {
+      cwd: projectRoot,
+      encoding: 'utf-8',
+      timeout: 10_000,
+    });
+    if (r.status === 0 && r.stdout.trim()) {
+      // git-common-dir may be relative to cwd or absolute; resolve handles both.
+      return dirname(resolve(projectRoot, r.stdout.trim()));
+    }
+  } catch {
+    // fall through to projectRoot
+  }
+
+  return projectRoot;
+}
 
 /**
  * Get the stats file path for a project.
