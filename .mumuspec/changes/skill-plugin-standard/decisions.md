@@ -24,3 +24,7 @@ Open 阶段新发现两处（不在本变更范围，记录待立项）：D-new-
 ## [design] 2026-09-12T15:50:03.671Z
 
 Design 阶段决策裁决（覆盖 D1-D6，并闭合三个开放问题）：D1 交付形态取新增并行路径不替换既有 bundle 语义；D2 分发唯一形式以宿主可识别为准，自研描述符降为内部工件；D3 编排器单源化——包内含全部技能、入口唯一、中文丰富版降为被引用资源；D4 漂移检测接入点唯一取 spec.ts 的 driftSources 数组；D5 注册已实现但未接线的 cognitive-map 命令（实现它，而非改文本迁就）；D6 修正全部四类命令签名漂移（state check 的 phase 参数、cognitive-map 未注册、contract list --scopes 无值、knowledge context 缺 path）。OQ-1 安装侧写宿主登记文件：默认写入并新增 dry-run，失败 fail-closed 不静默；OQ-2 cognitive-map 处置：注册命令（用户裁决）；OQ-3 frontmatter 版本戳印：保留戳印但漂移比对剥离版本行——戳印服务宿主侧可读性，剥离服务比对正确性，两者不冲突。
+
+## [build] 2026-09-12T16:20:49.675Z
+
+Build 阶段裁决：一、分层编号方向以引擎为准——state layer 的自下而上校验把 L0 当作最底层（拒绝低层未完成先置高层 done），故 build_layers 重编号为 L0 src/core、L1 src/bundle、L2 src/install∥src/guard、L3 src/cli、L4 根层；原编号方向相反属我方约定错误，不加 --force 绕过。二、测试用例文件按同一语义换位并重新锁定。三、接受的假设见 assumptions.yaml（AS-1..AS-7），其中 AS-1（宿主登记文件结构仅有磁盘实证、无官方文档）为残余风险，以 dry-run 与 fail-closed 兜底。

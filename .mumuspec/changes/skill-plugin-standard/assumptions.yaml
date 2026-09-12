@@ -1,0 +1,72 @@
+# Assumptions: skill-plugin-standard
+# LLM-drafted; each resolution cites a human-signed decision entry in decisions.md.
+version: 1
+change: skill-plugin-standard
+items:
+  - id: AS-1
+    assumption: >-
+      宿主插件登记文件（installed_plugins.json）的 version 2 / 键为「插件名@市场名」/
+      条目含 scope-installPath-version-installedAt-lastUpdated 结构，源自磁盘实证；
+      官方规范文档未覆盖该文件（marketplace-format 将其标为 Claude 侧结构）。
+      即"写入是否被宿主采信"无法被本仓库验证。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T16:20:49.675Z"
+      mitigation: >-
+        dry-run 供核对待登记内容；登记文件不可写或不可解析即整体 fail-closed，
+        不留"已复制未登记"的中间态；不成功也不伪造成功。
+
+  - id: AS-2
+    assumption: >-
+      skills/ 目录的两种既有布局（扁平 skills/<name>/SKILL.md 与嵌套
+      skills/mumuspec/<name>/SKILL.md）是历史事实，且**容器目录自身也可以是技能**
+      （skills/mumuspec/SKILL.md 与 skills/mumuspec/phase-*/SKILL.md 并存）。
+      本变更为此改造发现逻辑，不重构目录结构（重构会打断既有安装路径）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T16:20:49.675Z"
+
+  - id: AS-3
+    assumption: >-
+      复用既有扩展点与注册表：漂移检测接入 spec.ts 的 driftSources 数组（逐源隔离已就绪）、
+      新码注册进 core/errors.ts 的 ERROR_CODES。不引入新存储、新框架、新运行时依赖
+      （Ponytail L2 复用 / L5 不引新依赖）；清单校验器用标准库 JSON + 正则实现，
+      不引入 schema 库。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T16:20:49.675Z"
+
+  - id: AS-4
+    assumption: >-
+      既有自研 bundle 格式（createBundle / validateBundle / installBundle / listBundles）
+      保留原语义不动，仅 publishBundle 由占位成功改为 fail-closed。
+      理由是限制爆炸半径：既有 10 个测试只须改 1 处断言。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T16:20:49.675Z"
+
+  - id: AS-5
+    assumption: >-
+      伴随能力探测的搜索面以实测路径集为准（用户级 skills/ → 插件缓存 → 市场目录含
+      external_plugins）。市场目录命中**不等于已安装**，但如实上报为"有可见来源"，
+      由使用者决定是否采信；缺失项不阻断流程。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T16:20:49.675Z"
+
+  - id: AS-6
+    assumption: >-
+      package.json 版本号由归档流程负责 bump，本变更不自行改版本；
+      仅把 README / STATUS.md 的版本对齐到 package.json 现值（版本一致性是既有硬约束）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T16:20:49.675Z"
+
+  - id: AS-7
+    assumption: >-
+      技能文本改动的目标是"消除漂移与第三态"，不是重写既有正确内容：
+      幽灵字段逐处删除、命令签名按注册表修正、tweak 静默失败陷阱段按 A/B 面差集**回填**
+      （该段在源缺失、旧副本尚存，属内容丢失而非有意删除）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-12T16:20:49.675Z"
