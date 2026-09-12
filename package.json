@@ -1,6 +1,6 @@
 {
   "name": "mumuspec",
-  "version": "0.23.0-alpha.1",
+  "version": "0.23.0-alpha.2",
   "description": "MumuSpec — Spec-as-DSL: write specs in natural language, let AI generate code. A domain-specific language for vibe coding.",
   "type": "module",
   "main": "dist/index.js",
