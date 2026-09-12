@@ -227,3 +227,41 @@ Phase 3 (收敛层：文档/规范)  ← 依赖 1 与 2 的最终形态
 ---
 
 > **导航**：本计划与 `review/archive-lifecycle-defects-2026-09-12.md`、`review/self-improvement-loop-analysis-2026-09-12.md` 共享同一元结论——**引擎执行了动作却没留下可判定的事实**。三份文档的修复应共用同一套 fail-closed 纪律。
+
+---
+
+## 8. 实施结果（2026-09-12 完成，三项 BP 均按推荐选项执行）
+
+**BP 裁决**：BP-1 = A（设计止于当前层）／BP-2 = A（层间自下而上、层内并行）／BP-3 = B（不动强度矩阵，I1 落为恒可见工件）。
+
+### 8.1 验收标准逐条核验
+
+| # | 标准 | 结果 | 证据 |
+|---|------|------|------|
+| 1 | `state layers` 输出并行组，同层多 scope 不再静默吞掉 | ✅ | 夹具：L1 双 scope 输出 `candidate L1 (unverified)`；`state layer` 不带 `--scope` 报歧义并列出候选（exit 1）；`plan-parallel --apply` 后 `parallel groups: [core] [guard, spec]` |
+| 2 | 断链 fixture 报 I1 且带证据 | ✅ | 夹具 L0+L2 → `E-GUARD-009 设计覆盖断链（I1）：覆盖了 L2 但缺少 L1`，detail 给 `covered/expected`；`state.design_coverage` 落盘 `{covered:[0,2], expected:[0,1,2], unreachable_from:1, enforced:true}` |
+| 3 | 越界引用报 I2 | ✅ | `checkLayerParallelism()` → `W-BUILD-001`（单测覆盖：耦合对带 `evidence` 文件级证据；单 scope 层直接跳过不调用 planner） |
+| 4 | `phase-guards.md` 漂移清零 | ✅ | 审计脚本：22 个错误码 + 9 个 guard 函数 + 2 个字段引用**全部存在**；`DRIFT ZERO` |
+| 5 | 新 Requirement 通过 check 且无 R2 假阳性 | ✅ | `mumuspec check` exit 0；`mumuspec validate` unverifiable = 0；新增 `SHALL NOT` 故意不带行内标记 |
+
+**回归**：`npx vitest run` → 262 files / 5007 tests 全绿（唯一 error 为已知良性的 `onTaskUpdate` 超时）；
+`npm run ci:check` → 0 error。
+
+### 8.2 实施中偏离计划的三处（均已在文档标注理由）
+
+1. **`initBuildLayers` 不自动填 `parallel_group`**。计划原文即"`parallel_group` 只是显式化'已验证可并行'的子集"，
+   但初版实现让它等于层号——那会使候选组与已声明组永远相同，`plan-parallel` 永不到期。改为只在调用方显式传入时写入。
+2. **I1 的强度语义被实测校正**。原计划表述"默认 TD=medium → WARN"。实测本项目 `technical_design: high`
+   （`.mumuspec/config.yaml:64`）→ **在本仓库 I1 是阻塞级**；medium 夹具验证 `W-GUARD-009` + `enforced:false`。
+   `W-GUARD-009` 经 `applyStrengthToGuardResult` 折叠后**确实存活**，"恒可见"成立。
+3. **多做了两类同源缺陷修复**（计划外，但同属"文档有、代码无"）：四份 phase skill 的 guard 目标阶段全部写错
+   （出口门禁从未执行）；错误码注册表 ↔ 发出点 ↔ 生成文档三者不闭合。
+
+### 8.3 遗留项（需人工裁决，未擅自处理）
+
+- **14 个遗留码命名**：`E-` 前缀 + `severity: WARN`（`E-GUARD-007`/`E-PONYTAIL-001`/`E-CONTRACT-003`…）
+  与新 `W-` 前缀风格并存。重命名属破坏性变更，**只提出不执行**。
+- **`E-DESIGN-001/002/009` 已注册但无发出点**：可能是为其它通道预留，删除同样属破坏性变更。
+- **D6**：`mumuspec merge` 在分支模型下自相矛盾，仍只能手工 `git merge --no-ff`。
+- **fail-open 前置依赖**：本计划新增的 `W-` 类检查依赖 `self-improvement-loop-remediation-plan` 的 fail-closed 落地，
+  否则一旦 guard 的 issue 被灌进 loop，这些告警会变成噪声源。

@@ -122,7 +122,8 @@ mumuspec state set <name> tdd_mode tdd   # 默认 tdd，可配置 (default_tdd_m
 ```
 
 - 选择 `executing-plans`：`mumuspec state set <name> build_mode executing-plans`
-- 选择 `subagent-driven-development`：确认平台有真实后台子 agent 能力后，`mumuspec state set <name> subagent_dispatch confirmed` + `mumuspec state set <name> build_mode subagent-driven-development`
+- 选择 `subagent-driven-development`：确认平台有真实后台子 agent 能力后，`mumuspec state set <name> build_mode subagent-driven-development`
+  （**注意**：不存在 `subagent_dispatch` 字段——分发粒度由 `mumuspec state layers` 的并行组决定，见 Step 5）
 
 #### 执行隔离 — BLOCKING POINT (BP-11)
 
@@ -133,34 +134,62 @@ mumuspec state set <name> tdd_mode tdd   # 默认 tdd，可配置 (default_tdd_m
 
 **worktree**：**立即执行**加载 `using-git-worktrees` skill。
 
-### Step 5: 逐层实现（自下向上 + 红绿 TDD）
+### Step 5: 按并行组实现（组内并行 + 组间自下而上）
 
-#### 加载 TDD Skill
+> **视野纪律**：设计时视野向上（Level 0..N），实现时视野向下（Level N 及其更低层）。
+> 层内模块默认**可并行**——只要它们之间不存在直接调用边。并行度是设计完备性的投影：
+> 同层模块无法并行，说明设计没闭合，应回退 Design 而不是靠加班解决。
 
-**立即执行**：使用 Skill 工具加载 `test-driven-development` skill。跳过此步骤被禁止。
+#### 先取事实：并行组
 
-> **MumuSpec 约束**：`tdd_mode` 遵循配置（默认 `tdd`，可配置为 non-tdd）。默认下即使 hotfix/tweak 也不豁免 TDD。
+```bash
+mumuspec state layers <name>            # 层级表 + 并行组 + 候选组（只读）
+mumuspec state plan-parallel <name>     # 读 code-graph 验证候选组（只读）
+mumuspec state plan-parallel <name> --apply   # 写回 parallel_group / depends_on
+```
 
-#### 每层实现流程
+- `parallel groups: [[a, b], [c]]` 即"可同时开工的模块集合"。
+- 若命令报出 **same-layer coupling**（`scopes ⇄ scopes`，附调用边证据），说明该"同层"是伪装的：
+  两个 scope 实际耦合。**回退 Design** 重新划层，或合并为一个模块；不要并行硬做。
+- 输出 `candidate L<n> (same layer, unverified)` 时，先跑 `plan-parallel` 再开工。
+
+#### 执行顺序
 
 ```
-a. 加载该层规范 + test-cases/layer-N/cases.md
+按 layer 自下而上：L0 → L1 → ... → Ln
+  每个 layer 内部：组内各 scope 并行（可分发并行子 agent），组间按 depends_on 串行
+```
+
+层间顺序由 CLI 在写入时强制：低层未全部 `done` 时，`mumuspec state layer <name> <n> done` 会被拒绝
+（`--force` 可越过，仅用于计划变更）。
+
+#### 每个 scope 的实现流程
+
+```
+a. 加载该 scope 的规范 + test-cases/layer-N-cases.md
 b. RED: 依据 cases.md 编写测试套件 → 验证测试失败
 c. 锁定该层测试套件：`mumuspec test-cases lock-suite <name> --layer N`（确定性写入 state.suites_hash）
 d. GREEN: 编写实现代码使所有测试通过
 e. REFACTOR: 重构优化（不改测试）
-f. 运行该层 Enforcement 检查（SHALL + SHALL NOT）
+f. 运行该 scope 的 Enforcement 检查（SHALL + SHALL NOT）
 g. Ponytail 合规检查（见 Step 5b）
 h. 代码图谱增量更新
-i. `mumuspec state layer <name> N done`
+i. `mumuspec state layer <name> N done --scope <scope>`（同层多 scope 时必须带 --scope）
 j. 提交代码（worktree 内 git commit）
 k. 勾选 tasks.md 对应任务
 ```
 
+> **禁止越界**：实现 Level N 的模块时，不得引用同层兄弟模块未经冻结契约（`BOUNDARY.md`）导出的符号。
+> 若确实需要，说明层内契约未冻结 → 回退 Design 补契约。
+
 #### Step 5a: 执行方式分支
 
-- `build_mode: executing-plans`：在主会话中按计划逐任务执行
-- `build_mode: subagent-driven-development`：主窗口仅协调，通过后台子 agent 分发任务
+| `build_mode` | 含义 | 与并行组的关系 |
+|--------------|------|----------------|
+| `executing-plans` | 主会话按计划逐任务执行 | 组内串行执行 |
+| `subagent-driven-development` | 主窗口仅协调，后台子 agent 分发 | **以并行组为单位分发**：一组一个子 agent；跨组遵守 layer 顺序 |
+
+分发粒度由 `mumuspec state layers` 输出的并行组决定，**不靠 agent 自行判断**。
 
 #### Step 5b: Ponytail 合规检查 — MumuSpec 独有
 
@@ -214,51 +243,40 @@ Build 是最长阶段，可能跨多个任务：
 
 ## 退出条件
 
+过程要求（agent 自律，非守卫检查项）：
+
 - 所有 tasks.md 任务勾选 `[x]`
-- 代码已提交
-- 项目构建/测试显式运行并通过
-- `isolation` 已写入 `branch` 或 `worktree`
-- `build_mode` 已写入
-- `tdd_mode` 与配置一致（默认 `tdd`）
-- `build_layers` 全部 `status = done`
-- `build_layers_completed_in_bottom_up_order: true`
-- 每层 Enforcement 检查通过
-- 代码图谱已更新
-- `test_cases.design_locked: true` + `design_content_hash` 匹配
-- `test_cases.suites_locked: true` + 所有层套件 hash 匹配
-- 所有测试套件通过（green state）
-- `ponytail_compliance_checked: true`
+- 代码已提交；项目构建/测试显式运行并通过
+- `isolation` / `build_mode` / `tdd_mode` 已写入且与配置一致
+- 每个 scope 的 Enforcement 检查通过；代码图谱已更新
 - 代码审查已执行（或记录跳过）
-- `decisions_log.counts.build > 0` + content_hash 匹配
-- **Phase Guard**：运行 `mumuspec guard <name> build --apply`
+
+守卫真正校验的出口条件（`build_to_verify`，权威清单见
+[docs/reference/phase-guards.md#build_to_verify](../../docs/reference/phase-guards.md)）：
+
+- `build_layers` 全部 `status = done`（`E-GUARD-002`）
+- `test_cases.design_locked` / `suites_locked`（`W-GUARD-004`）
+- 同层 scope 无直接调用边（`W-BUILD-001`）
+- `workflow=full` 时 `assumptions.yaml` 完备性门禁（`E-GUARD-008`）
+- **Phase Guard**：`mumuspec guard <name> verify --apply`
 
 ---
 
-## Phase Guard 调用
+## Phase Guard 调用（出口门禁）
 
 ```bash
-mumuspec guard <change-name> build --apply
+mumuspec guard <change-name> verify --apply
 ```
 
-Guard 检查项（`build_to_verify`）：
-- all tasks.md items checked
-- code committed
-- build_command passed (if configured)
-- isolation field set
-- build_mode field set
-- tdd_mode matches default_tdd_mode
-- build_layers all status = done
-- build_layers_completed_in_bottom_up_order: true
-- each layer enforcement passed
-- code-graph updated after changes
-- test_cases.design_locked: true + hash matches
-- test_cases.suites_locked: true
-- all layer suite hashes match suite-map.yaml
-- all test suites passed (green state)
-- ponytail_compliance_checked: true
-- decisions_log.counts.build > 0 + hash matches
+> **参数语义（此前文档写错，2026-09-12 修正）**：`guard <change> <phase>` 的 `<phase>` 是**目标**阶段，
+> 不是当前阶段。离开 Build 意味着目标是 `verify`。此前本文档写成 `guard <name> build`，
+> 实际执行的是 `design_to_build`（即进入 Build 的那道门），**出口门禁从未被执行**。
+>
+> 检查项清单以 [docs/reference/phase-guards.md#build_to_verify](../../docs/reference/phase-guards.md)
+> 为唯一权威源——本 skill 不再重复列举，避免"文档有、代码无"的第三态。
 
----
+> **Ponytail 检查不属于守卫**：`ponytail_compliance_checked` 字段并不存在。Ponytail 合规由
+> `mumuspec check` 的 `checkPonytail()` 独立通道承担（`E-PONYTAIL-001..004`）。
 
 ## 自动流转到下一阶段
 
@@ -291,7 +309,7 @@ mumuspec state check <change-name> build --recover
 |-----------|---------|
 | "TDD 太慢，直接写代码" | TDD 不可豁免 — tdd_mode 遵循配置（默认 tdd） |
 | "测试用例可以改一下" | 测试不可变性 — design_locked 后不可改测试 |
-| "Ponytail 检查不重要" | ponytail_compliance_checked 是阶段守卫必检项 |
+| "Ponytail 检查不重要" | Ponytail 由 `mumuspec check` 独立校验（E-PONYTAIL-001..004），不是守卫项但同样会被拦 |
 | "调试时直接改代码" | 根因调查完成前不得修改源码 — 加载 systematic-debugging |
 | "规范不完整，直接改 delta-spec" | 中型变更必须用户确认 — BP-12 |
 | "范围扩大了，继续做" | 超 50% 阈值必须暂停 — BP-13 |

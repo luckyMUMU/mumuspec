@@ -132,21 +132,27 @@ brainstorming → delta-spec → 认知框架 → 设计 → TDD 实现 → 验�
 
 ## 退出条件
 
-- 归档脚本执行成功（exit code 0）
-- archive 目录 `archive/<change-name>/` 存在
-- 归档后 `.mumuspec.yaml` 包含 `archived: true`
-- `git_merge.merged: true`
-- delta-specs 合并到主 specs
-- prohibitions.md 更新
-- index.yaml 更新
-- 代码图谱快照更新
-- 规范变更提交到主分支
-- 知识提取完成（D1-D8）
-- 变更移动到 archive/
-- worktree 清理
-- 活跃变更槽位释放
+归档产物（`archiveChange()` + `mumuspec finalize-archive`，权威清单见
+[docs/reference/phase-guards.md#archive_complete](../../docs/reference/phase-guards.md)）：
 
-> **WARNING**：归档成功后，**不要**对旧的活跃变更名运行 `mumuspec guard <name> archive`；活跃目录已不存在。归档完整性由脚本 exit code 和归档目录状态判断。
+- 归档脚本执行成功（exit code 0）；`.finalized` 防重跑标记已写入（幂等，`--force` 覆盖）
+- 变更目录移动到 `archive/<date>-<name>/`
+- `phase: archive-completed`（**注意**：不存在 `archived` 字段——状态由 `phase` 表达）
+- `git_merge.merged` / `commit_sha` 已记录
+- delta-specs 合并到主 specs；prohibitions.md / index.yaml 重建
+- 代码图谱快照更新（`temp/codegraph.snapshot.json`）
+- 知识提取完成（D1-D8）
+- worktree 清理（`worktree remove --force`）
+
+**已知缺口（勿假设已自动完成）**：
+
+- **规范变更未自动提交到主分支**：`mumuspec merge` 在分支模型下自相矛盾（D6），
+  当前需人工 `git merge --no-ff <branch>` 完成。
+- **不存在"活跃变更槽位"结构**：活跃性是按分支动态判定的，没有 `active_change_slot_released` 这个动作。
+- **携带 delta-spec 的变更必须走 hotfix**：tweak 归档会静默跳过 delta 合并（D4）。
+
+> **WARNING**：归档成功后，**不要**对旧的活跃变更名运行 `mumuspec guard <name> archive-in-progress`；
+> 活跃目录已不存在。归档完整性由脚本 exit code 和归档目录状态判断。
 
 ---
 

@@ -154,7 +154,7 @@ graph LR
 | 约束项 | high | medium | low |
 |--------|------|--------|-----|
 | `design.md` 完整性 | 必需，覆盖所有 affected_scopes 层级 | 必需，至少根层 + 受影响层 | 可选，仅作为设计备注 |
-| 自顶向下设计顺序 | 强制 Level 0→N 逐层 | 推荐，允许模块内跳跃 | 关闭 |
+| 自顶向下设计顺序（I1 设计覆盖断链） | 强制 Level 0→N（阻塞） | 仅 WARN 且恒可见 | 不阻断（仍写 design_coverage 工件） |
 | 认知框架 Q1-Q4 | full 工作流强制启用，5 轮收敛，Q4 ≥3 维度 | 可选，最多 3 轮，Q4 ≥1 维度 | 关闭 |
 | Hyperplan 对抗审查 | 触发条件满足即执行，5 critic + 3 round | 用户显式触发，3 critic + 1 round | 关闭 |
 | 代码图谱验证 | 必需（确认无破坏性调用链） | 推荐（仅检查直接调用） | 关闭 |
@@ -413,6 +413,16 @@ reverse:
 
 > 与 [Spec Layer §3 继承规则](spec-layer.md#3-树状目录结构--渐进式披露) 一致：**子层可收紧不可放宽；SHALL NOT 累加不覆盖**。
 
+> **一般化（2026-09-12）**：这条"下层受上层约束、只可收紧不可放宽"是**自由度边界**在约束树上的
+> 实现形式。自由度边界把同一形状推广到设计与实现两级——设计 Level *N* 只受 Level 0..*N*-1 约束、
+> 层内自由；实现 Level *N* 只受设计已声明的边界约束、界内自由。
+>
+> 两者分工：**约束树**管"约束之间"的层级合法性（继承、收紧、冲突判定）；**`spec.md` 的
+> 「自由度边界（设计与实现）」Requirement** 管"约束从哪来"的合法性——一条没有可解析上游来源的
+> 约束即**越权约束**，它不属于任何层级，由 `src/spec/constraint-provenance.ts` 报
+> `E-CONSTRAINT-001` / `E-CONSTRAINT-002` / `W-CONSTRAINT-003`，接入 `mumuspec check`。
+> 完整定义与界内自由的含义见 [change-layer.md](change-layer.md)（§四大工作流规则 → 自由度边界）。
+
 #### 5.6.2 累加与覆盖语义
 
 | 约束类型 | 跨层语义 | 示例 |
@@ -538,7 +548,7 @@ interface ConstraintConflict {
 |-----------|---------|------|--------|-----|
 | `worktree_isolation` | RG | 强制 | 推荐（允许 branch 降级） | 关闭 |
 | `single_active_change` | RG | 强制（1 个） | 软警告（≤3 并行） | 关闭（无上限，WARN） |
-| `top_down_design` | TD | 强制（Level 0→N） | 推荐（允许模块内跳跃） | 关闭 |
+| `top_down_design` | TD | 强制（I1 断链阻塞 `E-GUARD-009`） | I1 断链仅 WARN（`W-GUARD-009`）且恒可见 | 不阻断（`state.design_coverage` 仍写入） |
 | `tdd_enforced` | TD | 强制（Red→Green→Refactor） | 测试存在即可 | 关闭 |
 
 > `workflow.*` 配置项若显式设置，**优先于** 强度等级（覆盖）。未设置时按强度等级求值。

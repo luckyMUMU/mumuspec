@@ -271,36 +271,35 @@ mumuspec decisions append --phase open --change <name> --text "<决策摘要：�
 
 ## 退出条件
 
+过程要求（agent 自律，非守卫检查项）：
+
 - proposal.md, delta-specs/, constraints/ 全部创建且内容完整
-- `code-graph/impact-analysis.json` 存在且非空
+- `code-graph/impact-analysis.json` 存在且非空（供影响分析用，守卫不校验）
 - `affected_scopes` 定义在 `.mumuspec.yaml`
-- `single_active_change: true`
-- `worktree_created: true`（或已记录降级）
-- `brainstorming_completed: true`
-- `knowledge_context_loaded: true`
+- `brainstorming_completed` / `knowledge_context_loaded` 已在过程中执行
 - **用户已确认** (BP-3)
-- **Phase Guard**：运行 `mumuspec guard <name> open --apply`；全部 PASS 后自动转换
+
+守卫真正校验的出口条件（`open_to_design`）：
+
+- proposal.md 存在且非空（`E-GUARD-001`）
+- decisions.md content_hash 匹配（`E-CHANGE-007`）
+- delta-specs/ 存在、affected_scopes 非空、`decisions_log.counts.open > 0`（`W` 级）
+- **Phase Guard**：`mumuspec guard <name> design --apply`；全部 PASS 后自动转换
 
 ---
 
 ## Phase Guard 调用
 
 ```bash
-mumuspec guard <change-name> open --apply
+mumuspec guard <change-name> design --apply
 ```
 
-Guard 检查项（`open_to_design`）：
-- proposal.md exists and non-empty
-- delta-specs/ has at least one spec file
-- affected_scopes defined
-- code-graph/impact-analysis.json exists
-- single_active_change: true
-- worktree_created: true
-- brainstorming_completed: true
-- decisions_log.counts.open > 0
-- decisions_log.content_hash matches
-- user_confirmed: true
-- knowledge_context_loaded: true
+> **参数语义（此前文档写错，2026-09-12 修正）**：`guard <change> <phase>` 的 `<phase>` 是**目标**阶段，
+> 不是当前阶段。离开 Open 意味着目标是 `design`。此前本文档写成 `guard <name> open`，
+> 实际会被判为未知目标阶段（`E-CHANGE-006`）。
+>
+> 检查项清单以 [docs/reference/phase-guards.md#open_to_design](../../docs/reference/phase-guards.md)
+为唯一权威源——本 skill 不再重复列举，避免“文档有、代码无”的第三态。
 
 必须使用 `--apply`，否则 `.mumuspec.yaml` 保持 `phase: open`。
 

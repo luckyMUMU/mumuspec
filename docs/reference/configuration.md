@@ -90,12 +90,15 @@ changes:
   tdd_mode: tdd                   # 默认值，可配置
   test_immutability: true         # 默认值，可配置
 
-# 工作流规则配置（四大工作流约束，默认全部开启可关闭）
+# 工作流规则配置（四大工作流约束）
+# 字面默认值仅为 getDefaultConfig() 初始取值；有效值由 resolveWorkflowRule() 求出
+# （显式 override > 强度矩阵 > 回退 true）。默认 technical_design: medium
+# → top_down_design / tdd_enforced 有效值为 false。
 workflow:
-  worktree_isolation: true        # 默认 true，可关闭
-  single_active_change: true      # 默认 true，可关闭（关闭后允许 N 个并行变更）
-  top_down_design: true           # 默认 true，可关闭
-  tdd_enforced: true              # 默认 true，可关闭
+  worktree_isolation: true        # 字面默认 true；RG=high 时有效值为 true
+  single_active_change: true      # 字面默认 true；RG=high 时有效值为 true
+  top_down_design: false          # 字面默认 false；TD=high 时有效值为 true
+  tdd_enforced: false             # 字面默认 false；TD=high 时有效值为 true
   max_active_changes: 3           # 仅当 single_active_change: false 时生效
 
 # 动态约束强度配置（0.12.0 新增）
@@ -315,16 +318,19 @@ knowledge:
 ### workflow.*
 
 **类型**: object
-**默认值**: 全部 `true`
+**默认值**: `worktree_isolation`/`single_active_change` 字面 `true`；`top_down_design`/`tdd_enforced` 字面 `false`
 
-四大工作流规则均为默认开启的可配置约束:
+> **口径澄清（2026-09-12）**：`workflow.*` 的字面默认值不是有效值。有效值由
+> `resolveWorkflowRule()` 按"显式 override > 强度矩阵 > 回退 `true`"求出，矩阵见
+> `src/core/config-tree.ts` 的 `WORKFLOW_STRENGTH_MATRIX`。默认 `technical_design: medium`
+> 下 `top_down_design` 与 `tdd_enforced` 的有效值为 `false`（此前本文档误称"默认 true"）。
 
 ```yaml
 workflow:
-  worktree_isolation: true        # 默认 true,可关闭
-  single_active_change: true      # 默认 true,可关闭(关闭后允许 N 个并行变更,上限默认 3)
-  top_down_design: true           # 默认 true,可关闭
-  tdd_enforced: true              # 默认 true,可关闭
+  worktree_isolation: true        # 字面默认 true
+  single_active_change: true      # 字面默认 true（关闭后允许 N 个并行变更,上限默认 3）
+  top_down_design: false          # 字面默认 false；TD=high 时有效值为 true
+  tdd_enforced: false             # 字面默认 false；TD=high 时有效值为 true
 ```
 
 #### workflow.worktree_isolation
@@ -342,9 +348,12 @@ workflow:
 
 #### workflow.top_down_design
 
-- **默认值**: `true`
-- **关闭行为**: 跳过自顶向下设计顺序检查,允许自下向上实现
-- **关闭时 WARN**: "已关闭自顶向下设计,允许自下向上实现"
+- **默认值**: `false`（字面值；有效值由 TD 强度决定——`high`→`true`，`medium`/`low`→`false`）
+- **开启行为**: I1 设计覆盖断链 → **阻塞**（`E-GUARD-009`）
+- **关闭行为**: 设计覆盖断链降级为恒可见告警（`W-GUARD-009`），**不跳过检查**；
+  三种强度下均写入结构化事实 `state.design_coverage`，不存在"关闭即静默"的状态
+- **相关命令**: `mumuspec state layers <name>`（层级与并行组视图）
+
 
 #### workflow.tdd_enforced
 
@@ -503,7 +512,7 @@ constraint_strength:
 | 约束项 | high | medium | low |
 |--------|------|--------|-----|
 | design.md 完整性 | 必需,覆盖所有 affected 层级 | 必需,至少根层 + 受影响层 | 可选 |
-| 自顶向下设计顺序 | 强制 Level 0→N | 推荐,允许模块内跳跃 | 关闭 |
+| 自顶向下设计顺序（I1 断链） | 强制 Level 0→N（阻塞） | 仅 WARN 且恒可见 | 不阻断（仍写 design_coverage） |
 | 认知框架 Q1-Q4 | 强制 5 轮收敛,Q4 ≥3 维度 | 可选,最多 3 轮 | 关闭 |
 | Hyperplan 对抗审查 | 触发即执行,5 critic + 3 round | 用户显式触发,3 critic + 1 round | 关闭 |
 | 代码图谱验证 | 必需 | 推荐 | 关闭 |

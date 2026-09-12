@@ -109,7 +109,7 @@ Step 3: 阶段判定（按序检查，首个匹配生效）
 **推荐工作流**：
 
 ```
-标准：mumuspec guard <name> <phase> --apply
+标准：mumuspec guard <name> <target-phase> --apply   # <target-phase> 是**目标**阶段，不是当前阶段（离开 open 用 design，离开 design 用 build，离开 build 用 verify，离开 verify 用 archive-in-progress）
   → 失败 → 按错误码修复 → 重跑直到通过
 例外：mumuspec state transition <name> <next-phase> --confirm
   → 仅当确知状态正确而 guard 误报时使用；操作被审计
@@ -119,11 +119,15 @@ Step 3: 阶段判定（按序检查，首个匹配生效）
 
 | 错误码 | 错误信息 | 修复命令 |
 |--------|---------|---------|
-| E-DESIGN-001 | cognitive-map.yaml 不存在 | 在 `.mumuspec.yaml` 中设置正确的 `q1_count` 值 |
-| E-DESIGN-002 | Q1 已知的已知为空 | 确保 `cognitive_framework.q1_count > 0` |
-| E-DESIGN-005 | Q4 扫描仅 N 个维度 | 添加 Q4 entries 并更新 `q4_scans_completed >= 3` |
-| E-DESIGN-006 | 认知地图未收敛 | 设置 `converged: true` 和 `q2_pending: 0` |
+| W-DESIGN-001 | cognitive-map.yaml 不存在 | 产出 `cognitive-map.yaml`（或关闭 `cognitive_framework`） |
+| W-DESIGN-002 | Q1 已知的已知为空 | 确保 `cognitive_framework.q1_count > 0` |
+| W-DESIGN-005 | Q4 扫描仅 N 个维度 | 添加 Q4 entries 并更新 `q4_scans_completed >= 3` |
+| W-DESIGN-006 | 认知地图未收敛 | 设置 `converged: true` 和 `q2_pending: 0` |
+| E-GUARD-009 / W-GUARD-009 | 设计覆盖断链（I1） | `mumuspec state layers <name>` 查层级，补齐缺层 design 产物 |
+| W-BUILD-001 | 同层 scope 耦合（I3） | `mumuspec state plan-parallel <name>`，拆层或合并模块 |
 | E-CHANGE-006 | Unknown target phase | 使用 `state transition`，不用 `guard` |
+
+> 认知框架四项均为**告警**（`W-DESIGN-*`）；判某码是否真会触发请看发出点，而不是注册表。
 
 **快速修复命令模板**：
 

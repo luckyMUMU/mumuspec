@@ -47,9 +47,17 @@ export {
   computeTestCasesHash,
   initBuildLayers,
   updateBuildLayerStatus,
+  getBuildLayerView,
+  buildLayerView,
   lockTestSuite,
   getNextTask,
 } from './lifecycle.js';
+
+export type { BuildLayerView } from './lifecycle.js';
+
+// ── Design-build orthogonality (I3) — parallel group planning ──
+export { planParallelGroups } from './parallel-planner.js';
+export type { ParallelPlan, ScopeCoupling } from './parallel-planner.js';
 
 // ── Archive sub-processes ──
 export {

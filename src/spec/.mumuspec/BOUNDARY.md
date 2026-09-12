@@ -74,6 +74,25 @@ layer: 2
 
 **错误码**：`E-SPEC-013`（未定义目录）、`E-SPEC-014`（未定义文件）
 
+### Constraint Provenance（constraint-provenance.ts）
+
+约束来源闭合检查 — 「下层受上层约束」的可判定形式。校验每条约束的 `source_specs`
+可解析为存在的规范文件与标题；无来源即**越权约束**。与 `change/archive-consistency.ts` 同构。
+
+| 函数/类型 | 签名 | 用途 |
+|------|------|------|
+| `detectConstraintSourceDrift` | `(projectRoot: string) => DriftResult[]` | 约束来源闭合检查（接入 `mumuspec check` 的 drift 数组） |
+| `resolveSourceSpec` | `(projectRoot: string, ref: string) => SourceSpecResolution` | 解析单条来源引用 `<相对路径>#<标题>` |
+| `collectHeadings` | `(filePath: string) => string[]` | 读取 Markdown 标题文本 |
+| `normalizeHeading` | `(text: string) => string` | 标题/锚点归一化（忽略大小写与空白、连字符、下划线、间隔号） |
+| `iterateConstraintEntries` | `(files: ConstraintsFile[]) => Generator<...>` | 遍历约束文件全部条目（forward/reverse × 两维度） |
+| `SourceSpecResolution` | 接口类型 | `{ ok: boolean; reason?: 'file-missing' \| 'anchor-missing' }` |
+
+**错误码**：`E-CONSTRAINT-001`（缺 source_specs）、`E-CONSTRAINT-002`（来源文件不存在，均 ERROR）、
+`W-CONSTRAINT-003`（来源锚点未命中标题，WARN）
+
+> **锚点匹配刻意宽松**：归一化后子串匹配。锚点服务于「来源可追溯」，不是精确指针——误报比漏报更贵。
+
 ## 依赖声明
 
 ### 内部依赖
@@ -85,6 +104,7 @@ layer: 2
 | `yaml` | YAML 解析 |
 | `../core/types.js` | 核心类型定义 |
 | `../core/utils.js` | 通用工具 |
+| `../core/constraints-loader.js` | 约束树加载（`constraint-provenance.ts` 消费，读 constraints.yaml） |
 
 ### 外部依赖
 
@@ -108,6 +128,7 @@ layer: 2
 
 | 日期 | 变更 | 影响 |
 |------|------|------|
+| 2026-09-12 | 新增 `constraint-provenance.ts` — 约束来源闭合检查（`source_specs` 此前零消费者） | 新对外函数 `detectConstraintSourceDrift` / `resolveSourceSpec` / `collectHeadings` / `normalizeHeading` / `iterateConstraintEntries`；新增内部依赖 `../core/constraints-loader.js`；错误码面新增 `E-CONSTRAINT-001/002`、`W-CONSTRAINT-003`（接入 `mumuspec check` 的 drift 数组，使 `check` 可因此 exit 1） |
 | 2026-08-29 | 白名单补 `templates`（cognitive-map 查找路径）与 `discarded`（discard 终态目的地）；`serializeSpecFile` 保真修复（frontmatter 未知字段 round-trip 不再丢失） | 新初始化项目与 discard 流程不再误报 E-SPEC-013；annotate 等 round-trip 命令安全 |
 | 2026-08-29 | **Verifier 语义收紧（P0）**：新增 `verifier-classify.ts`（四分类纯函数 + 共享正则提取）；`parser.ts` 解析 `manual(...)` 保留字（`EnforcementRule.kind`）；`validator.ts` 分类驱动发射 E-SPEC-015（SHALL NOT unverifiable，门控 `constraint_strength.enforcement_strict`，默认 false→warning）与 E-SPEC-004（SHALL unverifiable，恒可见）；`GuardResult` 新增 `coverage` 字段；`annotation.ts` 修复「样板/DRY→no-side-effect」错配 | 新对外函数 `classifyConstraint`/`classifyRequirements`/`computeEnforcementCoverage`/`isRegexCheckable`/`extractRegexPatterns`；`validateAllSpecs` 返回体新增 `coverage`；错误码面新增 E-SPEC-015（见 `src/core` 边界变更） |
 | 2026-08-22 | 新增 `structure-validator.ts` — `.mumuspec/` 目录结构白名单校验 | 新增 `validateMumuSpecStructure` 导出函数，校验未定义目录/文件 |

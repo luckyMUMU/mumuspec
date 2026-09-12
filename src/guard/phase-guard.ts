@@ -1,13 +1,16 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ChangeState, GuardResult } from '../core/types.js';
 import { readText, computeHash, resolveWithinRoot } from '../core/utils.js';
-import { getChangeDir, loadChangeState, verifyTestCases } from '../change/manager.js';
+import { getChangeDir, loadChangeState, saveChangeState, verifyTestCases } from '../change/manager.js';
+import { planParallelGroups } from '../change/parallel-planner.js';
 import { validateArtifact, extractDecisionRefs, type ArtifactKind } from '../change/artifact-validator.js';
 import { applyStrengthToGuardResult } from './checker.js';
 import { parseSpecFile, parseTechFile } from '../spec/parser.js';
 import { classifyRequirements, missingManualEvidence, type ClassifiedItem } from '../spec/verifier-classify.js';
 import type { ConstraintStrengthField } from '../core/config.js';
+import { resolveWorkflowRule } from '../core/constraint-evaluator.js';
+import { WORKFLOW_RULE_DIMENSION, WORKFLOW_STRENGTH_MATRIX } from '../core/config-tree.js';
 import { parse as parseYaml } from 'yaml';
 
 /**
@@ -172,7 +175,7 @@ export function runPhaseGuard(
       if (state.workflow === 'hotfix' || state.workflow === 'tweak') {
         rawResult = checkOpenToBuildHotfix(state, projectRoot, changeName, expectedTddMode);
       } else {
-        rawResult = checkDesignToBuild(state, projectRoot, changeName, expectedTddMode);
+        rawResult = checkDesignToBuild(state, projectRoot, changeName, expectedTddMode, options.strength);
       }
       break;
     case 'verify':
@@ -328,6 +331,7 @@ function checkDesignToBuild(
   projectRoot: string,
   changeName: string,
   expectedTddMode: string = 'tdd',
+  strength?: ConstraintStrengthField,
 ): GuardResult {
   const errors: { code: string; message: string; detail?: string }[] = [];
   const warnings: { code: string; message: string; detail?: string }[] = [];
@@ -375,7 +379,7 @@ function checkDesignToBuild(
   // Check tdd_mode（CHG-5: 比对 expectedTddMode，非法报错，旧变更不匹配仅 WARN）
   checkTddMode(state, expectedTddMode, errors, warnings);
 
-  // DS-001: Structured Design Template check (E-DESIGN-009)
+  // DS-001: Structured Design Template check (W-DESIGN-009 — advisory, not E-)
   // CHG-5 (0.20): downgraded from error to warning — design structure is a
   // process constraint (HOW), not a result constraint. LLM may design freely.
   if (existsSync(designPath)) {
@@ -393,8 +397,11 @@ function checkDesignToBuild(
     }
   }
 
-  // DS-004: Cross-artifact consistency check (E-DESIGN-010)
-  // 过程 BP（BP-10 设计工件一致性）→ 降级为 warning，不阻塞转换
+  // DS-004: Cross-artifact consistency check — the helper tags its findings
+  // `E-DESIGN-010`, but they are advisory on this path (process constraint
+  // BP-10), so the code is remapped to W-DESIGN-010 before entering warnings.
+  // Do not "fix" this to E- : that would silently turn a design-review hint
+  // into a blocking gate.
   const consistencyWarnings = checkCrossArtifactConsistencySync(state, projectRoot, changeName).map(
     (e) => ({ ...e, code: 'W-DESIGN-010' }),
   );
@@ -454,7 +461,110 @@ function checkDesignToBuild(
   // LLM drafts open-questions.yaml; human signs off via decisions.md.
   checkCompletenessGate(projectRoot, changeName, 'open-questions', errors);
 
+  // I1 设计向上闭合 (design-build orthogonality) — coverage must have no gap.
+  checkDesignCoverage(state, projectRoot, changeName, strength, errors, warnings);
+
   return { passed: errors.length === 0, errors, warnings };
+}
+
+/**
+ * I1 — 设计向上闭合 (design-build orthogonality, 2026-09-12).
+ *
+ * Designing Level N means the field of view is Level 0..N, so covering N
+ * without covering some lower level is a broken chain: the design skipped a
+ * layer it depends on. This is the machine-checkable half of the "自顶向下设计"
+ * slogan; the other half (implementation looks down) is I2/I3 in the build and
+ * verify guards.
+ *
+ * Two deliberate design choices (plan BP-3, option B):
+ * - **The verdict is always persisted** (`state.design_coverage`). An advisory
+ *   check that leaves no artifact is indistinguishable from a check that never
+ *   ran — the exact failure mode recorded in archive-lifecycle-defects D1–D4.
+ * - **Strength decides block vs warn**, by consuming the previously dead
+ *   `workflow.top_down_design` rule (`config.ts` / `config-io.ts` /
+ *   `config-tree.ts` all defined it; no consumer existed until now).
+ *   No new configuration is introduced.
+ */
+function checkDesignCoverage(
+  state: ChangeState,
+  projectRoot: string,
+  changeName: string,
+  strength: ConstraintStrengthField | undefined,
+  errors: { code: string; message: string; detail?: string }[],
+  warnings: { code: string; message: string; detail?: string }[],
+): void {
+  const covered = collectCoveredLayers(state, projectRoot, changeName);
+  const highest = covered.length > 0 ? Math.max(...covered) : -1;
+  const expected = highest < 0 ? [] : Array.from({ length: highest + 1 }, (_, i) => i);
+  const missing = expected.filter((n) => !covered.includes(n));
+  const unreachableFrom = missing.length > 0 ? missing[0] : null;
+
+  const enforced = strength
+    ? resolveWorkflowRule('top_down_design', strength, WORKFLOW_RULE_DIMENSION, WORKFLOW_STRENGTH_MATRIX)
+    : false;
+
+  const next: NonNullable<ChangeState['design_coverage']> = {
+    covered_layers: covered,
+    expected_layers: expected,
+    unreachable_from: unreachableFrom,
+    checked_at: new Date().toISOString(),
+    enforced,
+  };
+
+  // Persist the fact (best-effort: a read-only guard run must not crash)
+  try {
+    const previous = state.design_coverage;
+    if (
+      !previous ||
+      previous.unreachable_from !== next.unreachable_from ||
+      previous.covered_layers.join(',') !== next.covered_layers.join(',') ||
+      previous.enforced !== next.enforced
+    ) {
+      state.design_coverage = next;
+      state.updated_at = next.checked_at;
+      saveChangeState(projectRoot, changeName, state);
+    }
+  } catch {
+    // state persistence is opportunistic; the guard verdict below still stands
+  }
+
+  if (unreachableFrom === null) return;
+
+  const message =
+    `设计覆盖断链（I1 设计向上闭合）：覆盖了 L${highest} 但缺少 L${unreachableFrom}`;
+  const detail =
+    `covered=[${covered.join(', ')}] expected=[${expected.join(', ')}] — ` +
+    `补 design 产物或修正 build_layers 层级编号`;
+
+  if (enforced) {
+    errors.push({ code: 'E-GUARD-009', message, detail });
+  } else {
+    warnings.push({
+      code: 'W-GUARD-009',
+      message: `${message}（top_down_design=false → advisory）`,
+      detail,
+    });
+  }
+}
+
+/**
+ * Layers the design actually covers: `build_layers` layer numbers ∪ the layer
+ * suites present under `test-cases/layer-N-cases.md`.
+ */
+function collectCoveredLayers(
+  state: ChangeState,
+  projectRoot: string,
+  changeName: string,
+): number[] {
+  const covered = new Set<number>(state.build_layers.map((l) => l.layer));
+  const testCasesDir = join(getChangeDir(projectRoot, changeName), 'test-cases');
+  if (existsSync(testCasesDir)) {
+    for (const file of readdirSync(testCasesDir)) {
+      const match = file.match(/^layer-(\d+)-cases\.md$/);
+      if (match) covered.add(parseInt(match[1], 10));
+    }
+  }
+  return [...covered].sort((a, b) => a - b);
 }
 
 /**
@@ -607,6 +717,10 @@ function checkBuildToVerify(
     });
   }
 
+  // I3 层内默认可并行 — same-layer scopes must be uncoupled, otherwise the
+  // layer split was a claim the code does not support (design not closed).
+  checkLayerParallelism(state, projectRoot, changeName, warnings);
+
   // Check test cases locked — behavior constraint, downgraded to WARN for LLM freedom
   if (!state.test_cases.design_locked) {
     warnings.push({ code: 'W-GUARD-004', message: 'test_cases 设计锁定被重置（行为约束 — 结果约束为测试全绿）' });
@@ -629,6 +743,48 @@ function checkBuildToVerify(
   }
 
   return { passed: errors.length === 0, errors, warnings };
+}
+
+/**
+ * I3 — 层内默认可并行 (design-build orthogonality, 2026-09-12).
+ *
+ * Parallelism is not a capability to build; it is a property to *measure*. Two
+ * scopes sitting at the same layer are claiming "we can be implemented
+ * concurrently", which only holds if neither calls into the other's unfrozen
+ * implementation. A direct CALLS edge between them falsifies the claim.
+ *
+ * Emitted as a forceable WARN, never a hard block: the edge may legitimately
+ * go through a frozen contract, and a false block here would teach agents to
+ * distrust the guard. No multi-scope layer → nothing to check.
+ */
+function checkLayerParallelism(
+  state: ChangeState,
+  projectRoot: string,
+  changeName: string,
+  warnings: { code: string; message: string; detail?: string }[],
+): void {
+  const byLayer = new Map<number, string[]>();
+  for (const l of state.build_layers) {
+    byLayer.set(l.layer, [...(byLayer.get(l.layer) ?? []), l.scope]);
+  }
+  if (![...byLayer.values()].some((scopes) => scopes.length > 1)) return;
+
+  let coupled: { from_scope: string; to_scope: string; evidence: string[]; edge_count: number }[];
+  try {
+    coupled = planParallelGroups(projectRoot, changeName).coupled;
+  } catch {
+    return; // graph unavailable — stay silent rather than guess
+  }
+
+  for (const c of coupled) {
+    warnings.push({
+      code: 'W-BUILD-001',
+      message: `同层 scope 耦合：${c.from_scope} ⇄ ${c.to_scope}（${c.edge_count} 条直接调用边 → I3 不成立）`,
+      detail:
+        `${c.evidence.join('; ')} — 拆为不同 layer、或合并为一个模块；` +
+        `若耦合经冻结契约，用 --force 越过`,
+    });
+  }
 }
 
 /** verify_to_archive guard */

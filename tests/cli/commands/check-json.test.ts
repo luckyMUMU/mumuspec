@@ -208,19 +208,33 @@ describe('check action error handling (LOOP-4 L2)', () => {
     expect(errCall![0]).toContain('CHECK_ACTION_FAILED'); // registered in errors.ts
   });
 
-  it('TC-L2-1b: drift subsystem throws → E-CHECK-001 + exit 1, no crash', async () => {
+  it('TC-L2-1b: drift 源抛错 → 逐源隔离为 W-CHECK-002（盲区恒可见），其余源与合规结论不受影响', async () => {
     mockDetectDriftWithContracts.mockImplementation(() => {
       throw new Error('drift exploded');
     });
 
     const program = createProgram();
-    await expect(program.parseAsync(['node', 'mumuspec', 'check', '--json']))
-      .rejects.toThrow('process.exit called with code 1');
+    // 合规检查通过 → check 正常完成。单个 drift 源失败不再拖垮整个 check
+    // （旧行为会把其余源已产出的发现全部丢在一句 E-CHECK-001 后面）。
+    await program.parseAsync(['node', 'mumuspec', 'check', '--json']);
 
-    const errCall = errorSpy.mock.calls.find(
-      (c) => typeof c[0] === 'string' && c[0].includes('E-CHECK-001'),
-    );
-    expect(errCall).toBeDefined();
+    const payload = jsonPayloadFromLogs(logSpy) as {
+      compliance: { passed: boolean };
+      drift: { errors: { code?: string }[]; warnings: { code?: string; type: string; message: string }[] };
+      exitCode: number;
+    };
+
+    // 盲区必须上报，不许静默
+    const failed = payload.drift.warnings.find((d) => d.code === 'W-CHECK-002');
+    expect(failed, 'failed drift source must surface as a visible warning').toBeDefined();
+    expect(failed!.type).toBe('drift_source_failed');
+    expect(failed!.message).toContain('drift exploded');
+    expect(failed!.message).toContain('guard-contracts');
+
+    // 其余源与合规结论存活，退出码只反映真实合规状态
+    expect(payload.drift.errors).toEqual([]);
+    expect(payload.compliance.passed).toBe(true);
+    expect(payload.exitCode).toBe(0);
   });
 });
 

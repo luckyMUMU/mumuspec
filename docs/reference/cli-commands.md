@@ -90,7 +90,9 @@ mumuspec drift                          # 漂移检测
 mumuspec drift detect [--change <name>] # 漂移检测（可限定变更范围）
 mumuspec graph verify [--change <name>] # 校验变更状态机图一致性
 mumuspec audit-log [--limit <n>]        # 审计日志（JSONL 追加式，可按 --actor/--action/--result 过滤）
-mumuspec guard <change> <phase>         # 阶段守卫检查
+mumuspec guard <change> <target-phase>  # 阶段守卫检查（<target-phase> 是**目标**阶段：
+                                        # 离开 open 用 design，离开 design 用 build，
+                                        # 离开 build 用 verify，离开 verify 用 archive-in-progress）
 ```
 
 ## 状态机
@@ -100,7 +102,24 @@ mumuspec state init <name> <workflow>   # 初始化状态（full | hotfix | twea
 mumuspec state transition <name> <event>  # 状态转换（正向或回退）
 mumuspec state next <name>              # 获取下一步操作
 mumuspec state graph <name>             # 可视化状态机当前状态和可转换路径
+mumuspec state layer <name> <layer> <status> [--scope <scope>] [--force]
+                                        # 设置某层状态；同层多 scope 必须带 --scope；
+                                        # 低层未完成时拒绝置 done（--force 越过）
+mumuspec state layers <name> [--json]   # 层级表 + 并行组 + 候选组（只读）
+mumuspec state plan-parallel <name> [--apply] [--json]
+                                        # 读 code-graph 派生并行组；--apply 写回
+                                        # parallel_group / depends_on（设计与实现的正交性 I3）
 ```
+
+### 设计与实现的视野正交性（0.22+）
+
+| 命令 | 判定的不变量 |
+|------|--------------|
+| `state layers` | I3 的**事实视图**：同层多 scope = 候选并行组；同组 = 已声明的并行集合 |
+| `state plan-parallel` | I3 的**验证**：同层 scope 之间有直接调用边 → 不并行（输出证据文件:行） |
+| `state layer ... done` | I2 的**写时约束**：层间自下而上；同层多 scope 的歧义目标必须 `--scope` 消歧 |
+| `guard <name> build` | I1：`design_to_build` 检查设计覆盖断链（`E-GUARD-009` / `W-GUARD-009`），结论写入 `state.design_coverage` |
+| `guard <name> verify` | I3：`build_to_verify` 检查同层 scope 耦合（`W-BUILD-001`） |
 
 ## Git 合并管理（Archive 阶段）
 

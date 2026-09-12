@@ -27,6 +27,7 @@ import type { GlossaryCheckResult } from '../../guard/glossary-checker.js';
 import type { DriftResult, GuardResult } from '../../core/types-workflow.js';
 import { loadChangeState } from '../../change/state.js';
 import { detectArchiveStateDrift } from '../../change/archive-consistency.js';
+import { detectConstraintSourceDrift } from '../../spec/constraint-provenance.js';
 
 /** Aggregated `mumuspec check` payload — machine-consumable (LOOP-4 L1). */
 interface CheckJsonPayload {
@@ -314,12 +315,32 @@ export function registerSpecCommands(program: Command): void {
 
         let exitCode = result.passed ? 0 : 1;
 
-        // Drift (spec + contract + agents-hash sync)
-        const drifts: DriftResult[] = [
-          ...detectDriftWithContracts(root),
-          ...detectAgentsDrift(root),
-          ...detectArchiveStateDrift(root),
+        // Drift (spec + contract + agents-hash sync + constraint provenance)
+        //
+        // 每个检测源**逐源隔离**：任一源抛出异常不得中止整个 check——那会把其余源
+        // 的发现全部丢在一句泛化的 E-CHECK-001 后面（check 从"报告问题"退化成
+        // "自身崩溃"）。失败源记为一条恒可见的 drift（盲区必须上报，不许静默），
+        // 其余源照常产出。
+        const drifts: DriftResult[] = [];
+        const driftSources: [string, () => DriftResult[]][] = [
+          ['guard-contracts', () => detectDriftWithContracts(root)],
+          ['agents-hash', () => detectAgentsDrift(root)],
+          ['archive-state', () => detectArchiveStateDrift(root)],
+          ['constraint-source', () => detectConstraintSourceDrift(root)],
         ];
+        for (const [label, runSource] of driftSources) {
+          try {
+            drifts.push(...runSource());
+          } catch (err) {
+            drifts.push({
+              type: 'drift_source_failed',
+              code: 'W-CHECK-002',
+              severity: 'WARN',
+              message: `drift 检测源 "${label}" 抛出异常，该源本轮无结果：${(err as Error).message}`,
+              fixHint: '排查该检测源的失败原因（其余检测源的结果不受影响）',
+            });
+          }
+        }
         const driftErrors = drifts.filter((d) => d.severity === 'ERROR');
         const driftWarns = drifts.filter((d) => d.severity !== 'ERROR');
         if (driftErrors.length > 0) exitCode = 1;

@@ -73,18 +73,42 @@ if (statusVersionMatch) {
   fail('docs/STATUS.md not found');
 }
 
-// Check config.yaml version
+// Check config.yaml schema version.
+//
+// `.mumuspec/config.yaml` carries a **schema** version (canonical field:
+// `schema_version`, see `saveConfig()` in src/core/config-io.ts), NOT the
+// package version. Comparing it to `package.json` was a category error: the two
+// numbers are unrelated, so the warning could never legitimately be cleared —
+// a permanently-amber signal trains readers to ignore the whole warning channel.
 const configPath = join(root, '.mumuspec/config.yaml');
+const schemaSrcPath = join(root, 'src/core/schema-version.ts');
 if (existsSync(configPath)) {
-const configYaml = readFileSync(configPath, 'utf8');
-const configVersionMatch = configYaml.match(/^version:\s*([0-9][0-9.]*(?:-[a-z0-9.]+)?)/m);
-if (configVersionMatch) {
-  if (configVersionMatch[1] === pkgVersion) {
-    pass(`.mumuspec/config.yaml version matches package.json: ${pkgVersion}`);
-  } else {
-    warn(`config.yaml version (${configVersionMatch[1]}) ≠ package.json version (${pkgVersion}) — config version may lag intentionally`);
+  // Single source of truth: read the expected value out of the TypeScript
+  // module rather than duplicating the constant here.
+  let expectedSchemaVersion = null;
+  if (existsSync(schemaSrcPath)) {
+    const schemaSrc = readFileSync(schemaSrcPath, 'utf8');
+    const m = schemaSrc.match(/config:\s*'([^']+)'/);
+    if (m) expectedSchemaVersion = m[1];
   }
-}
+
+  const configYaml = readFileSync(configPath, 'utf8');
+  const schemaVersionMatch = configYaml.match(/^schema_version:\s*([0-9][0-9.]*(?:-[a-z0-9.]+)?)/m);
+  const legacyVersionMatch = configYaml.match(/^version:\s*([0-9][0-9.]*(?:-[a-z0-9.]+)?)/m);
+
+  if (schemaVersionMatch) {
+    if (!expectedSchemaVersion || schemaVersionMatch[1] === expectedSchemaVersion) {
+      pass(`.mumuspec/config.yaml schema_version matches CURRENT_SCHEMA_VERSION.config: ${schemaVersionMatch[1]}`);
+    } else {
+      fail(`config.yaml schema_version (${schemaVersionMatch[1]}) ≠ CURRENT_SCHEMA_VERSION.config (${expectedSchemaVersion})`);
+    }
+  } else if (legacyVersionMatch) {
+    warn(
+      `config.yaml 是遗留格式（无 schema_version，仅有 version: ${legacyVersionMatch[1]}）。` +
+        `该字段是**配置 schema 版本**，与 package.json 版本无关，本检查不再把两者相比。` +
+        `运行 \`mumuspec sync --migrate\` 可补齐 schema_version。`,
+    );
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -93,8 +117,11 @@ if (configVersionMatch) {
 console.log('\n📚 Error Code Documentation Drift Check\n');
 
 // Extract error codes from errors.ts
+// Prefix is not a filter: the registry holds advisory codes under both `E-`
+// (legacy, severity WARN) and `W-` (current). Matching only `E-` here made the
+// drift check blind to every `W-` code.
 const errorsContent = readFileSync(join(root, 'src/core/errors.ts'), 'utf8');
-const codeMatches = errorsContent.matchAll(/'(E-\w+-\d+)':\s*\{/g);
+const codeMatches = errorsContent.matchAll(/'([EW]-\w+-\d+)':\s*\{/g);
 const sourceCodes = new Set();
 for (const m of codeMatches) {
   sourceCodes.add(m[1]);
@@ -102,7 +129,7 @@ for (const m of codeMatches) {
 
 // Extract error codes from documentation
 const docContent = readFileSync(join(root, 'docs/reference/error-codes.md'), 'utf8');
-const docCodeMatches = docContent.matchAll(/`(E-\w+-\d+)`/g);
+const docCodeMatches = docContent.matchAll(/`([EW]-\w+-\d+)`/g);
 const docCodes = new Set();
 for (const m of docCodeMatches) {
   docCodes.add(m[1]);

@@ -1,5 +1,5 @@
 version: "0.2.0"
-last_updated: "2026-08-29"
+last_updated: "2026-09-12"
 # CHG-5 (0.20): TD=medium — process constraints are advisory (warn);
 # RG=high — result constraints (SHALL NOT, verify pass, artifacts) keep blocking.
 # This gives LLM freedom in HOW while keeping WHAT non-negotiable.
@@ -20,6 +20,24 @@ forward:
       enforcement: "manual(P1 候选：从命令注册表清单化生成校验；当前由 review 流程人工核对)"
       category: workflow-execution
       source_specs: [".mumuspec/spec.md#流程执行载体"]
+    - id: TD-F-003
+      content: "设计覆盖须无断链（覆盖 Layer N 必覆盖 Layer 0..N-1），且结论必须落为结构化工件 state.design_coverage，不得只留在日志里"
+      min_strength: medium
+      enforcement: "E-GUARD-009 / W-GUARD-009（phase-guard design_to_build；强度由 workflow.top_down_design 决定，medium 下为 WARN 恒可见）"
+      category: design-build-orthogonality
+      source_specs: [".mumuspec/spec.md#设计与实现的视野正交性"]
+    - id: TD-F-004
+      content: "同层多 scope 构成候选并行组：无直接调用边即同一组；有直接调用边即设计未闭合，须拆分或登记依赖"
+      min_strength: medium
+      enforcement: "mumuspec state plan-parallel（派生）+ W-BUILD-001（phase-guard build_to_verify 消费）"
+      category: design-build-orthogonality
+      source_specs: [".mumuspec/spec.md#设计与实现的视野正交性"]
+    - id: TD-F-005
+      content: "每条约束必须有可解析的上游来源（source_specs 指向存在的规范文件与标题）；无来源的约束即越权约束，不属于任何层级"
+      min_strength: medium
+      enforcement: "E-CONSTRAINT-001/002 + W-CONSTRAINT-003（src/spec/constraint-provenance.ts，接入 mumuspec check 的 drift 数组）"
+      category: design-build-orthogonality
+      source_specs: [".mumuspec/spec.md#自由度边界（设计与实现）"]
   requirement_goals:
     - id: RG-F-001
       content: "manual 类约束归档前必须持有 verify.md 验证记录（按 Enforcement ID 或约束原文锚定）"
@@ -41,6 +59,18 @@ reverse:
       enforcement: "F-3: test-cases lock-suite / test-cases lock 确定性命令"
       category: workflow-execution
       source_specs: [".mumuspec/spec.md#流程执行载体"]
+    - id: TD-R-003
+      content: "禁止同一 Layer 的多个 scope 被静默折叠为一个目标（层级状态写入必须按 (layer, scope) 定位；歧义即报错，不得取第一条）"
+      min_strength: high
+      enforcement: "mumuspec state layer：同层多 scope 未给 --scope 时报错列出候选；ENF-3 单元测试"
+      category: design-build-orthogonality
+      source_specs: [".mumuspec/spec.md#设计与实现的视野正交性"]
+    - id: TD-R-004
+      content: "禁止放宽上层给出的约束（下层只可收紧，不可放宽）；禁止以未被设计约束的理由驳回界内的实现选择"
+      min_strength: high
+      enforcement: "manual(设计评审核对：逐条确认 tighten-only 与界内自由。收紧规则本身由 constraint tree 的 resolveConstraintTree 承担)"
+      category: design-build-orthogonality
+      source_specs: [".mumuspec/spec.md#自由度边界（设计与实现）"]
   requirement_goals:
     - id: RG-R-001
       content: "SHALL NOT 红线无可验证通道时不得进入生效规范（unverifiable 恒 block，任何强度组合）"

@@ -18,6 +18,8 @@ import {
   lockTestSuite,
   getNextTask,
   updateBuildLayerStatus,
+  getBuildLayerView,
+  planParallelGroups,
 } from '../../change/manager.js';
 import type { ChangePhase } from '../../core/types.js';
 import {
@@ -663,7 +665,9 @@ export function registerStateCommands(program: Command): void {
     .argument('<name>', 'change name')
     .argument('<layer>', 'layer number', (v: string) => parseInt(v, 10))
     .argument('<status>', 'pending | in-progress | done')
-    .action((name, layer, status) => {
+    .option('--scope <scope>', 'select one scope when the layer holds several (parallel group)')
+    .option('--force', 'bypass the bottom-up ordering check', false)
+    .action((name, layer, status, options: { scope?: string; force?: boolean }) => {
       const root = findProjectRoot();
       if (!root) {
         console.error('Error: Not in a MumuSpec project.');
@@ -674,8 +678,118 @@ export function registerStateCommands(program: Command): void {
         process.exit(1);
       }
       try {
-        updateBuildLayerStatus(root, name, layer, status as 'pending' | 'in-progress' | 'done');
-        console.log(`✓ Layer ${layer} → ${status}`);
+        const { updated } = updateBuildLayerStatus(root, name, layer, status as 'pending' | 'in-progress' | 'done', {
+          scope: options.scope,
+          force: options.force,
+        });
+        console.log(`✓ Layer ${layer} (${updated.join(', ')}) → ${status}`);
+      } catch (err) {
+        console.error(`✗ ${(err as Error).message}`);
+        process.exit(1);
+      }
+    });
+
+  // design-build orthogonality (I3): read-only layer/parallel-group view.
+  // Same-layer scopes are *candidate* parallel groups; `state plan-parallel`
+  // is what turns a candidate into a verified claim.
+  stateCmd
+    .command('layers')
+    .description('Show build layers, candidate groups and declared parallel groups')
+    .argument('<name>', 'change name')
+    .option('--json', 'emit machine-readable JSON', false)
+    .action((name, options: { json?: boolean }) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+      try {
+        const view = getBuildLayerView(root, name);
+        if (options.json) {
+          console.log(JSON.stringify(view, null, 2));
+          return;
+        }
+        if (view.layers.length === 0) {
+          console.log(`(no build_layers defined for ${name})`);
+          return;
+        }
+        console.log(`Build layers (${view.layers.length}):`);
+        for (const l of [...view.layers].sort((a, b) => a.layer - b.layer || a.scope.localeCompare(b.scope))) {
+          const group = l.parallel_group !== undefined ? `group=${l.parallel_group}` : 'group=-';
+          const deps = l.depends_on?.length ? ` depends_on=[${l.depends_on.join(', ')}]` : '';
+          console.log(`  L${l.layer}  ${l.status.padEnd(11)} ${group.padEnd(10)} ${l.scope}${deps}`);
+        }
+        const groups = view.parallel_groups.map((g) => `[${g.scopes.join(', ')}]`);
+        console.log(`\nparallel groups: ${groups.length > 0 ? groups.join(' ') : '[]'}`);
+        // Only report groups whose parallel safety is still unverified — once
+        // `plan-parallel --apply` has written `parallel_group`, telling the user
+        // to verify again is noise (and it hides the real remaining work).
+        const candidates = view.candidate_groups.filter(
+          (g) => g.scopes.length > 1 && view.unverified_layer_groups.includes(g.layer),
+        );
+        if (candidates.length > 0) {
+          for (const c of candidates) {
+            console.log(`  candidate L${c.layer} (same layer, unverified): [${c.scopes.join(', ')}]`);
+          }
+          console.log('  → verify with: mumuspec state plan-parallel ' + name);
+        }
+        if (view.coupled_scopes.length > 0) {
+          console.log(`\n⚠ coupled scopes (not parallel): ${view.coupled_scopes.join(', ')}`);
+        }
+      } catch (err) {
+        console.error(`✗ ${(err as Error).message}`);
+        process.exit(1);
+      }
+    });
+
+  // design-build orthogonality (I3): derive parallel groups from the code graph
+  stateCmd
+    .command('plan-parallel')
+    .description('Derive parallel groups for same-layer scopes from the code graph')
+    .argument('<name>', 'change name')
+    .option('--apply', 'write the derived parallel_group/depends_on back into state', false)
+    .option('--json', 'emit machine-readable JSON', false)
+    .action((name, options: { apply?: boolean; json?: boolean }) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+      try {
+        const plan = planParallelGroups(root, name);
+        if (options.json) {
+          console.log(JSON.stringify(plan, null, 2));
+        } else {
+          if (!plan.graph_available) {
+            console.log('⚠ code graph is empty — verdicts are advisory only (run: mumuspec code-graph build)');
+          }
+          for (const g of plan.groups) {
+            console.log(`  group ${g.group}  L${g.layer}  [${g.scopes.join(', ')}]  parallel`);
+          }
+          if (plan.coupled.length === 0) {
+            console.log('\n✓ no same-layer coupling detected — declared groups hold');
+          } else {
+            console.log(`\n⚠ ${plan.coupled.length} same-layer coupling(s) — design not closed (I3):`);
+            for (const c of plan.coupled) {
+              console.log(`  ${c.from_scope} ⇄ ${c.to_scope}  (${c.edge_count} edge(s))`);
+              for (const e of c.evidence) console.log(`      ${e}`);
+            }
+            console.log('  → either the two scopes are really one module, or the layer split is wrong.');
+          }
+          if (plan.unmapped_scopes.length > 0) {
+            console.log(`\n  (no graph files matched: ${plan.unmapped_scopes.join(', ')})`);
+          }
+        }
+        if (options.apply) {
+          const state = loadChangeState(root, name);
+          if (!state) throw new Error(`Change not found: ${name}`);
+          state.build_layers = plan.entries;
+          state.updated_at = new Date().toISOString();
+          saveChangeState(root, name, state);
+          console.log(`\n✓ applied ${plan.entries.length} layer entr(ies) to ${name}`);
+        } else {
+          console.log('\n(read-only — re-run with --apply to persist)');
+        }
       } catch (err) {
         console.error(`✗ ${(err as Error).message}`);
         process.exit(1);

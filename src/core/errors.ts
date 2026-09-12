@@ -21,7 +21,23 @@ export interface ErrorCodeDef {
   always_enforce?: boolean;
 }
 
-/** All error code definitions */
+/**
+ * All error code definitions.
+ *
+ * **Code-prefix convention** (2026-09-12): `severity` is authoritative for the
+ * level; the prefix is a readability hint. Advisory codes emitted by the guards
+ * use the `W-<DOMAIN>-NNN` form (`W-DESIGN-*`, `W-GUARD-*`, `W-VERIFY-*`).
+ * A legacy set predating this convention carries a `WARN` severity under an
+ * `E-` prefix (`E-GUARD-007`, `E-PONYTAIL-001`, `E-CONTRACT-003`, …);
+ * renaming those is a breaking change for downstream consumers, so they are
+ * left as-is pending a human ruling.
+ *
+ * Every code the engine can emit MUST have an entry here — otherwise
+ * `checkMetadataFor()` silently falls back to
+ * `{ dimension: 'technical_design', min_strength: 'low' }` and the generated
+ * `docs/reference/error-codes.md` omits it. `tests/guard/error-code-registry.test.ts`
+ * enforces this.
+ */
 export const ERROR_CODES: Record<string, ErrorCodeDef> = {
   // SPEC domain
   'E-SPEC-001': {
@@ -154,6 +170,44 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     dimension: 'requirement_goals',
     min_strength: 'high',
     always_enforce: true,
+  },
+
+  // CONSTRAINT domain — 自由度边界：约束来源闭合（「下层受上层约束」的可判定形式）
+  // 由 src/spec/constraint-provenance.ts 发出，接入 `mumuspec check` 的 drift 数组。
+  // 注：drift 通道直接携带 severity，不经 applyStrengthToGuardResult 折叠；
+  // dimension / min_strength 在此仅用于文档化（与 E-SPEC-* 同域语义）。
+  'E-CONSTRAINT-001': {
+    code: 'E-CONSTRAINT-001',
+    name: 'CONSTRAINT_SOURCE_MISSING',
+    severity: 'ERROR',
+    description: '约束条目缺少 source_specs（越权约束 — 无上游来源，不属于任何层级）',
+    fixSteps: [
+      '为该约束补 source_specs，指向定义它的更高层规范标题',
+      '或删除该约束（无来源即无授权）',
+    ],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'medium',
+  },
+  'E-CONSTRAINT-002': {
+    code: 'E-CONSTRAINT-002',
+    name: 'CONSTRAINT_SOURCE_FILE_MISSING',
+    severity: 'ERROR',
+    description: '约束的来源文件不存在（悬空来源）',
+    fixSteps: ['修正 source_specs 的路径', '或删除该来源标注'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'medium',
+  },
+  'W-CONSTRAINT-003': {
+    code: 'W-CONSTRAINT-003',
+    name: 'CONSTRAINT_SOURCE_ANCHOR_MISSING',
+    severity: 'WARN',
+    description: '约束的来源锚点在目标文件中找不到对应标题（锚点漂移）',
+    fixSteps: ['把锚点改为目标规范中真实存在的标题（归一化后子串匹配）'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
   },
 
   // CHANGE domain
@@ -327,6 +381,16 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     dimension: 'requirement_goals',
     min_strength: 'high',
     always_enforce: true,
+  },
+  'W-VERIFY-001': {
+    code: 'W-VERIFY-001',
+    name: 'VERIFY_SHALL_RECORD_MISSING',
+    severity: 'WARN',
+    description: 'verify.md 未包含 SHALL / SHALL NOT 校验记录',
+    fixSteps: ['在 verify.md 中补充 SHALL / SHALL NOT 的逐条校验结论'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
   },
 
   // FINAL domain (finalize-archive — 归档收尾命令)
@@ -510,6 +574,76 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     dimension: 'requirement_goals',
     min_strength: 'high',
     always_enforce: true,
+  },
+  'E-GUARD-009': {
+    code: 'E-GUARD-009',
+    name: 'DESIGN_COVERAGE_GAP',
+    severity: 'ERROR',
+    description: '设计覆盖断链（I1 设计向上闭合）：覆盖了 Layer N 却缺少某个 Layer < N',
+    fixSteps: [
+      '为缺失的更低层补 design 产物（design.md 的层级映射或 test-cases/layer-N-cases.md）',
+      '或修正 build_layers 的层级编号',
+      '强度为 medium 时本项降级为 W-GUARD-009 告警（top_down_design=false）',
+    ],
+    forceable: true,
+    dimension: 'technical_design',
+    min_strength: 'high',
+    // Emitted as an ERROR only when top_down_design resolves true; the strength
+    // folding below must not silently re-downgrade an explicitly enabled rule.
+    always_enforce: true,
+  },
+  // BUILD domain
+  'W-BUILD-001': {
+    code: 'W-BUILD-001',
+    name: 'BUILD_LAYER_COUPLING',
+    severity: 'WARN',
+    description: '同层 scope 之间存在直接调用边（I3 层内默认可并行不成立 → 设计未闭合）',
+    fixSteps: [
+      '将两个 scope 拆为不同 layer，或合并为一个模块',
+      '确认耦合确实经由冻结契约后，用 --force 越过',
+    ],
+    forceable: true,
+    dimension: 'technical_design',
+    min_strength: 'medium',
+  },
+
+  // GUARD domain — advisory codes actually emitted by the guards.
+  //
+  // Like the W-DESIGN-* family below, these were emitted without a registry
+  // entry, so `checkMetadataFor()` fell back to
+  // { dimension: 'technical_design', min_strength: 'low' }. The values here are
+  // exactly that fallback → a documentation-only change with provably identical
+  // strength folding (`evaluateConstraint()` derives the action from the
+  // *dimension* strength alone; `min_strength` only labels the reason).
+  'W-GUARD-001': {
+    code: 'W-GUARD-001',
+    name: 'GUARD_PREREQUISITE_MISSING',
+    severity: 'WARN',
+    description: '阶段前置工件缺失或未锁定（test_cases / build_layers / tdd_mode 等行为约束）',
+    fixSteps: ['补齐缺失工件', '或用 mumuspec state set 写入缺省值并在 decisions.md 说明'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-GUARD-004': {
+    code: 'W-GUARD-004',
+    name: 'GUARD_TEST_IMMUTABILITY_MISMATCH',
+    severity: 'WARN',
+    description: '测试套件 hash 与 design_content_hash 不匹配（测试在锁定后被改动）',
+    fixSteps: ['回退 Design 重新锁定设计', '或用 mumuspec test-cases lock 重建 hash'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-GUARD-009': {
+    code: 'W-GUARD-009',
+    name: 'DESIGN_COVERAGE_GAP_ADVISORY',
+    severity: 'WARN',
+    description: '设计覆盖断链（I1）的告警形态：top_down_design 解析为 false 时不阻塞，但仍写入 state.design_coverage',
+    fixSteps: ['为缺失的更低层补 design 产物', '或在约束强度中把 technical_design 提为 high 使其阻塞'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
   },
 
   // PONYTAIL domain
@@ -710,6 +844,128 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     min_strength: 'medium',
   },
 
+  // DESIGN domain — advisory family actually emitted by the design guards.
+  //
+  // These were previously *unregistered*: `phase-guard.ts` pushed them while
+  // `ERROR_CODES` had no entry, so `checkMetadataFor()` fell back to
+  // { dimension: 'technical_design', min_strength: 'low' }. They are registered
+  // here with **exactly those fallback values**, which makes this a
+  // documentation-only change with provably identical strength folding —
+  // the registry no longer under-reports what the engine emits.
+  //
+  // Note: the registered E-DESIGN-001/002/009 have no emission site on the
+  // guard path (kept for compatibility; see docs/reference/phase-guards.md).
+  'W-DESIGN-001': {
+    code: 'W-DESIGN-001',
+    name: 'COGNITIVE_MAP_MISSING',
+    severity: 'WARN',
+    description: 'cognitive_framework.enabled 但 cognitive-map.yaml 不存在',
+    fixSteps: ['产出 cognitive-map.yaml', '或在 .mumuspec.yaml 中关闭 cognitive_framework'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-DESIGN-002': {
+    code: 'W-DESIGN-002',
+    name: 'COGNITIVE_Q1_EMPTY',
+    severity: 'WARN',
+    description: 'Q1 已知的已知为空（cognitive_framework.q1_count == 0）',
+    fixSteps: ['把 cognitive_framework.q1_count 更新为实际条目数'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-DESIGN-003': {
+    code: 'W-DESIGN-003',
+    name: 'COGNITIVE_Q2_PENDING',
+    severity: 'WARN',
+    description: 'Q2 存在未回答的问题（cognitive_framework.q2_pending > 0）',
+    fixSteps: ['回答或关闭 Q2 条目', '或达到轮次上限后显式收敛'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-DESIGN-004': {
+    code: 'W-DESIGN-004',
+    name: 'COGNITIVE_Q3_PENDING',
+    severity: 'WARN',
+    description: 'Q3 存在未确认的推导（cognitive_framework.q3_pending > 0）',
+    fixSteps: ['确认或驳回 Q3 推导', '或达到轮次上限后显式收敛'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-DESIGN-005': {
+    code: 'W-DESIGN-005',
+    name: 'COGNITIVE_Q4_INSUFFICIENT_SCANS',
+    severity: 'WARN',
+    description: 'Q4 盲区扫描维度不足（cognitive_framework.q4_scans_completed < 3）',
+    fixSteps: ['至少补充 3 个 Q4 blind-spot entry'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-DESIGN-006': {
+    code: 'W-DESIGN-006',
+    name: 'COGNITIVE_MAP_NOT_CONVERGED',
+    severity: 'WARN',
+    description: '认知地图未收敛（cognitive_framework.converged == false）',
+    fixSteps: ['清空 q2_pending / q3_pending 后置 converged: true'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-DESIGN-007': {
+    code: 'W-DESIGN-007',
+    name: 'GRILL_ME_INCOMPLETE',
+    severity: 'WARN',
+    description: 'grill-me 压力测试未完成（grill_me_result.completed == false）',
+    fixSteps: ['执行 grill-me 并写入 grill_me_result', '或在 decisions.md 记录跳过理由'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-DESIGN-008': {
+    code: 'W-DESIGN-008',
+    name: 'GRILL_ME_ROUNDS_EXCEEDED',
+    severity: 'WARN',
+    description: 'grill-me 追问轮次超出上限',
+    fixSteps: ['收敛剩余分支', '或调整 max_rounds 并记录决策'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-DESIGN-009': {
+    code: 'W-DESIGN-009',
+    name: 'DESIGN_SCHEMA_SECTION_MISSING',
+    severity: 'WARN',
+    description: 'design.md 缺少 templates/design-schema.yaml 要求的 section',
+    fixSteps: ['按 schema 补充缺失的 section'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-DESIGN-010': {
+    code: 'W-DESIGN-010',
+    name: 'CROSS_ARTIFACT_INCONSISTENCY',
+    severity: 'WARN',
+    description: 'proposal / design / delta-specs 跨工件不一致（调用点由 E-DESIGN-010 重映射而来）',
+    fixSteps: ['在 design.md 中补充对应 Layer 或 FR 引用', '或修正 proposal.md 使步骤与设计对齐'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+  'W-DESIGN-011': {
+    code: 'W-DESIGN-011',
+    name: 'GRILL_ME_DEFERRED_UNRESOLVED',
+    severity: 'WARN',
+    description: 'grill-me 存在未达成共识的 deferred 分支',
+    fixSteps: ['就 deferred 分支达成共识', '或在 decisions.md 显式接受该不确定性'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+
   // SECURITY domain
   'E-SECURITY-001': {
     code: 'E-SECURITY-001',
@@ -774,9 +1030,19 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     code: 'E-CHECK-001',
     name: 'CHECK_ACTION_FAILED',
     severity: 'ERROR',
-    description: 'mumuspec check 执行过程中发生未预期错误（compliance / drift / glossary 任一子系统抛错）',
+    description: 'mumuspec check 执行过程中发生未预期错误（compliance / glossary 或 check 主体流程抛错；drift 检测源的失败已逐源隔离为 W-CHECK-002，不再走到这里）',
     fixSteps: ['查看下方错误信息定位具体子系统', '修复后重新运行 mumuspec check'],
     forceable: false,
+  },
+  'W-CHECK-002': {
+    code: 'W-CHECK-002',
+    name: 'DRIFT_SOURCE_FAILED',
+    severity: 'WARN',
+    description: '某个 drift 检测源抛出异常——该源本轮无结果（盲区），其余检测源不受影响',
+    fixSteps: ['查看消息中的源名与异常原因', '修复该检测源后重新运行 mumuspec check'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
   },
 
   // GIT domain（git.ts 统一封装的错误）

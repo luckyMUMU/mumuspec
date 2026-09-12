@@ -27,6 +27,27 @@ export interface BuildLayer {
   layer: number;
   scope: string;
   status: LayerStatus;
+  /**
+   * Parallel group id (design-build orthogonality, I3).
+   *
+   * Entries sharing a group number sit at the same layer AND have no direct
+   * code edge between them → they may be implemented concurrently. Absent
+   * means "not yet verified as parallel" (the layer number alone is only a
+   * *candidate* group — see `mumuspec state plan-parallel`).
+   */
+  parallel_group?: number;
+  /**
+   * Build-layer entries this one depends on, formatted `L<layer>:<scope>`.
+   *
+   * Populated by the parallel planner (`mumuspec state plan-parallel --apply`)
+   * when two scopes share a layer number but ARE coupled by a direct CALLS
+   * edge — they cannot run concurrently, so the ordering must be declared
+   * instead of assumed.
+   *
+   * Note: entry references, not layer numbers. A layer number cannot express a
+   * dependency *inside* one layer, which is exactly the case I3 detects.
+   */
+  depends_on?: string[];
 }
 
 /** Test cases lock state */
@@ -161,6 +182,28 @@ export interface ChangeState {
   loop_state?: LoopState;
   /** Team orchestration state for multi-role collaborative mode */
   team_state?: TeamState;
+  /**
+   * Design coverage fact (design-build orthogonality, I1).
+   *
+   * Written by the `design_to_build` guard on every run so the coverage
+   * verdict is a *stored fact*, not a transient log line. The plan's BP-3
+   * ruling: advisory checks must still produce a structured artifact.
+   */
+  design_coverage?: DesignCoverage;
+}
+
+/** Structured result of the I1 design-coverage check (see types-workflow) */
+export interface DesignCoverage {
+  /** Layers the design artifacts actually cover (build_layers ∪ suite files) */
+  covered_layers: number[];
+  /** Layers 0..max(covered) that are required by closure */
+  expected_layers: number[];
+  /** Lowest layer missing from `covered_layers`, or null when closed */
+  unreachable_from: number | null;
+  /** When the coverage verdict was last computed */
+  checked_at: string;
+  /** Whether the active strength made this a blocking check */
+  enforced: boolean;
 }
 
 /** Phase guard check result */

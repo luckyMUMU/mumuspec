@@ -216,37 +216,38 @@ mumuspec state set <name> branch_status handled
 
 ## 退出条件
 
-- 验证报告通过
-- 分支已处理
-- `verification_report` 指向存在的验证报告文件
-- `branch_status: handled`
-- 所有 SHALL enforcements 通过
-- 所有 SHALL NOT enforcements 通过
-- 无 critical drift
-- 代码图谱完整性验证
-- 测试不可变性验证
-- `decisions_log.counts.verify > 0` + hash 匹配
-- **Phase Guard**：运行 `mumuspec guard <name> verify --apply`
+过程要求（agent 自律，非守卫检查项）：
+
+- 验证报告通过；`verification_report` 指向存在的报告文件
+- 所有 SHALL / SHALL NOT enforcements 通过；无 critical drift；代码图谱完整性已验证
+
+守卫真正校验的出口条件（`verify_to_archive`）：
+
+- verify.md 存在（`E-GUARD-001`）；build_layers 全部 done（`E-GUARD-002`）
+- `verify_result` ∈ {pass, pass-with-deviations}（`E-VERIFY-001`）
+- `branch_status: handled`（`E-VERIFY-002`）
+- strict 模式下 manual 约束在 verify.md 有验证记录（`E-VERIFY-003`）
+- **Phase Guard**：`mumuspec guard <name> archive-in-progress --apply`
 
 ---
 
 ## Phase Guard 调用
 
 ```bash
-mumuspec guard <change-name> verify --apply
+mumuspec guard <change-name> archive-in-progress --apply
 ```
 
-Guard 检查项（`verify_to_archive`）：
-- verify_result: pass
-- verify.md exists with report
-- all SHALL enforcements passed
-- all SHALL NOT enforcements passed
-- no critical drift detected
-- code-graph integrity verified
-- all build_layers verified bottom-up
-- all_delta_spec_requirements_implemented: true
-- test_immutability_verified: true
-- decisions_log.counts.verify > 0 + hash matches
+> **参数语义（此前文档写错，2026-09-12 修正）**：`guard <change> <phase>` 的 `<phase>` 是**目标**阶段，
+> 不是当前阶段。离开 Verify 意味着目标是 `archive-in-progress`。此前本文档写成 `guard <name> verify`，
+> 实际执行的是 `build_to_verify`（即进入 Verify 的那道门），**出口门禁从未被执行**。
+>
+> 检查项清单以 [docs/reference/phase-guards.md#verify_to_archive](../../docs/reference/phase-guards.md)
+为唯一权威源——本 skill 不再重复列举，避免“文档有、代码无”的第三态。
+
+> **本节此前列举的 `all SHALL enforcements passed`、`no critical drift detected`、
+> `code-graph integrity verified`、`all_delta_spec_requirements_implemented`、
+> `test_immutability_verified`、`decisions_log.*` 在守卫中并不存在**，已删除——
+> drift 类检查属 `mumuspec check`，测试不可变性属 `W-GUARD-004` 告警。
 
 ---
 

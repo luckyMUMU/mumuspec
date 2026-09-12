@@ -3,7 +3,7 @@
  */
 import { existsSync, readdirSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import type { ChangeState, Workflow } from '../core/types.js';
+import type { ChangeState, Workflow, BuildLayer } from '../core/types.js';
 import type { MumuSpecConfig } from '../core/config.js';
 import { readText, writeText, ensureDir, computeHash, now, appendAuditLog, getMumuSpecDir } from '../core/utils.js';
 import { MumuSpecError } from '../core/errors.js';
@@ -450,41 +450,188 @@ export function verifyTestCases(
   };
 }
 
-/** Initialize build layers for a change */
+/**
+ * Initialize build layers for a change.
+ *
+ * Design-build orthogonality (I3): a layer number may carry **several scopes**
+ * — same layer + no direct code edge = a parallel group. When the caller does
+ * not supply `parallel_group`, entries sharing a layer number are auto-assigned
+ * one shared group id, and the group ids are returned so callers can report
+ * them (`mumuspec state layers`).
+ */
 export function initBuildLayers(
   projectRoot: string,
   changeName: string,
-  layers: { layer: number; scope: string }[],
+  layers: { layer: number; scope: string; parallel_group?: number; depends_on?: string[] }[],
 ): void {
   const state = loadChangeState(projectRoot, changeName);
   if (!state) throw new Error(`Change not found: ${changeName}`);
 
-  state.build_layers = layers.map((l) => ({
-    layer: l.layer,
-    scope: l.scope,
-    status: 'pending' as const,
-  }));
+  state.build_layers = layers.map((l) => {
+    const entry: BuildLayer = {
+      layer: l.layer,
+      scope: l.scope,
+      status: 'pending' as const,
+    };
+    // `parallel_group` is deliberately NOT auto-filled from the layer number.
+    // The layer number is only a *candidate* group ("same layer, unverified");
+    // an explicit group id is how `planParallelGroups()` records the verified
+    // subset. Auto-filling would make the two indistinguishable, and the
+    // verification step (`mumuspec state plan-parallel`) would never be due.
+    if (l.parallel_group !== undefined) entry.parallel_group = l.parallel_group;
+    if (l.depends_on && l.depends_on.length > 0) entry.depends_on = [...l.depends_on];
+    return entry;
+  });
 
   state.updated_at = now();
   saveChangeState(projectRoot, changeName, state);
 }
 
-/** Update a build layer status */
+/** Resolve the build-layer entries matching a layer number (may be >1) */
+function findBuildLayers(state: ChangeState, layer: number): BuildLayer[] {
+  return (state.build_layers as BuildLayer[]).filter((l) => l.layer === layer);
+}
+
+/**
+ * Update a build layer status.
+ *
+ * Two design-build orthogonality rules are enforced here (write-time, per
+ * CLI-first — the invariant lives in the deterministic command, not in the
+ * caller's discipline):
+ *
+ * 1. **No silent first-match** (fixes the old `find(l => l.layer === layer)`
+ *    which, for a layer holding several scopes, always mutated the first one
+ *    and silently dropped the rest). Ambiguous targeting is an error listing
+ *    the candidate scopes; pass `scope` to select one.
+ * 2. **Bottom-up order** (I2/BP-2 A): a layer may only become `done` once every
+ *    lower layer is `done`. Scopes within one layer stay free to run in
+ *    parallel. `force` bypasses, for the rare case where the plan changed.
+ */
 export function updateBuildLayerStatus(
   projectRoot: string,
   changeName: string,
   layer: number,
   status: 'pending' | 'in-progress' | 'done',
-): void {
+  options: { scope?: string; force?: boolean } = {},
+): { updated: string[] } {
   const state = loadChangeState(projectRoot, changeName);
   if (!state) throw new Error(`Change not found: ${changeName}`);
 
-  const layerDef = state.build_layers.find((l) => l.layer === layer);
-  if (!layerDef) throw new Error(`Layer ${layer} not found in change ${changeName}`);
+  const candidates = findBuildLayers(state, layer);
+  if (candidates.length === 0) {
+    throw new Error(`Layer ${layer} not found in change ${changeName}`);
+  }
 
-  layerDef.status = status;
+  let targets: BuildLayer[];
+  if (options.scope !== undefined) {
+    const scoped = candidates.filter((l) => l.scope === options.scope);
+    if (scoped.length === 0) {
+      throw new Error(
+        `Layer ${layer} has no scope "${options.scope}" in change ${changeName} ` +
+          `(available: ${candidates.map((l) => l.scope).join(', ')})`,
+      );
+    }
+    targets = scoped;
+  } else if (candidates.length > 1) {
+    throw new Error(
+      `Layer ${layer} has ${candidates.length} scopes in change ${changeName} — ` +
+        `ambiguous target (available: ${candidates.map((l) => l.scope).join(', ')}). ` +
+        `Pass --scope <scope> to select one.`,
+    );
+  } else {
+    targets = candidates;
+  }
+
+  if (status === 'done' && !options.force) {
+    const blocking = (state.build_layers as BuildLayer[]).filter(
+      (l) => l.layer < layer && l.status !== 'done',
+    );
+    if (blocking.length > 0) {
+      throw new Error(
+        `Bottom-up ordering violated: layer ${layer} cannot be done while ` +
+          `${blocking.map((l) => `L${l.layer}/${l.scope}=${l.status}`).join(', ')} remain. ` +
+          `Complete lower layers first, or pass --force to override.`,
+      );
+    }
+  }
+
+  for (const t of targets) t.status = status;
   state.updated_at = now();
   saveChangeState(projectRoot, changeName, state);
+  return { updated: targets.map((t) => t.scope) };
+}
+
+/**
+ * Build-layer view used by `mumuspec state layers` and the phase guards.
+ *
+ * Three levels of grouping, from claim to verified fact:
+ * - `candidate_groups` — same layer number. Grouping by number alone is only a
+ *   *candidate*: it asserts nothing about coupling.
+ * - `parallel_groups` — entries sharing a `parallel_group` id. This is the
+ *   claim "these may be implemented concurrently", recorded on the state.
+ * - `coupled_scopes` — scopes carrying `depends_on`, i.e. the planner found a
+ *   direct code edge and refused to claim parallelism (I3 counter-example).
+ */
+export interface BuildLayerView {
+  layers: BuildLayer[];
+  /** Candidate groups = same layer number (parallel-capable by construction) */
+  candidate_groups: { layer: number; scopes: string[] }[];
+  /** Claimed parallel sets = entries sharing a `parallel_group` id */
+  parallel_groups: { group: number; layer: number; scopes: string[] }[];
+  /** Scopes whose coupling to a same-layer sibling was detected (not parallel) */
+  coupled_scopes: string[];
+  /**
+   * Layer numbers where several scopes coexist but no `parallel_group` has
+   * been recorded yet — i.e. "same layer number" is still only a *candidate*
+   * grouping. Consumers must not print "verify me" advice once empty.
+   */
+  unverified_layer_groups: number[];
+}
+
+/** Build the grouped view of a change's build layers */
+export function getBuildLayerView(projectRoot: string, changeName: string): BuildLayerView {
+  const state = loadChangeState(projectRoot, changeName);
+  if (!state) throw new Error(`Change not found: ${changeName}`);
+  return buildLayerView(state.build_layers as BuildLayer[]);
+}
+
+/** Pure grouping helper (shared by the CLI and the guards) */
+export function buildLayerView(layers: BuildLayer[]): BuildLayerView {
+  const byLayer = new Map<number, BuildLayer[]>();
+  for (const l of layers) {
+    const bucket = byLayer.get(l.layer) ?? [];
+    bucket.push(l);
+    byLayer.set(l.layer, bucket);
+  }
+
+  const candidateGroups = [...byLayer.entries()]
+    .map(([layer, entries]) => ({ layer, scopes: entries.map((e) => e.scope) }))
+    .sort((a, b) => a.layer - b.layer);
+
+  const groupIds = [
+    ...new Set(layers.map((l) => l.parallel_group).filter((g): g is number => g !== undefined)),
+  ].sort((a, b) => a - b);
+  const parallelGroups = groupIds.map((group) => {
+    const members = layers.filter((l) => l.parallel_group === group);
+    return {
+      group,
+      layer: members[0]?.layer ?? -1,
+      scopes: members.map((m) => m.scope),
+    };
+  });
+
+  const unverifiedLayerGroups = candidateGroups
+    .filter((g) => g.scopes.length > 1)
+    .filter((g) => !layers.some((l) => l.layer === g.layer && l.parallel_group !== undefined))
+    .map((g) => g.layer);
+
+  return {
+    layers,
+    candidate_groups: candidateGroups,
+    parallel_groups: parallelGroups,
+    coupled_scopes: layers.filter((l) => (l.depends_on?.length ?? 0) > 0).map((l) => l.scope),
+    unverified_layer_groups: unverifiedLayerGroups,
+  };
 }
 
 /**

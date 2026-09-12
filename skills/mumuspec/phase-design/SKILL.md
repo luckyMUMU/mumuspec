@@ -77,10 +77,15 @@ entries:
 
 | 错误 | 根因 | 修复 |
 |------|------|------|
-| `E-DESIGN-001 cognitive-map.yaml 不存在` | `.mumuspec.yaml` 中 `cognitive_framework.q1_count == 0` | 在 `.mumuspec.yaml` 中更新 `q1_count` 为实际条目数 |
-| `E-DESIGN-002 Q1 已知的已知为空` | 同上 | 确保 `q1_count > 0` |
-| `E-DESIGN-005 Q4 扫描仅 0 个维度` | `q4_scans_completed < 3` | 至少添加 3 个 Q4 blind-spot entries，设置 `q4_scans_completed >= 3` |
-| `E-DESIGN-006 认知地图未收敛` | `converged: false` | 设置 `converged: true` 且 `q2_pending = 0` |
+| `W-DESIGN-001 cognitive-map.yaml 不存在` | `cognitive_framework.enabled` 但无地图文件 | 产出 `cognitive-map.yaml` |
+| `W-DESIGN-002 Q1 已知的已知为空` | `cognitive_framework.q1_count == 0` | 在 `.mumuspec.yaml` 中把 `q1_count` 更新为实际条目数 |
+| `W-DESIGN-005 Q4 扫描不足` | `q4_scans_completed < 3` | 至少添加 3 个 Q4 blind-spot entries |
+| `W-DESIGN-006 认知地图未收敛` | `converged: false` | 先清空 `q2_pending` / `q3_pending` 再置 `converged: true` |
+
+> **口径修正（2026-09-12）**：上表此前写作 `E-DESIGN-001/002/005/006`，但在
+> `src/core/errors.ts` 中**并不存在**这些错误码——认知框架相关结论全部以
+> `W-DESIGN-001..006` 的**告警**发出（`src/guard/phase-guard.ts:412-427`）。
+> 把它们当成 `E-` 会让人误以为认知框架是硬门，从而在 WARN 出现时不敢推进。
 
 #### Required Skill 降级策略
 
@@ -392,59 +397,40 @@ mumuspec decisions append --phase design --change <name> --text "<本组决策�
 
 ## 退出条件
 
-- design.md 存在且内容完整
-- cognitive-map.yaml 存在且已收敛
-- constraints/new-shall.md 或 new-shall-not.md 存在
-- 所有 Enforcement 检查已定义（非 TBD）
-- code-graph 验证无破坏性调用链
-- build_layers 定义
-- design_layers_covered: [0,1,2,3]
-- test-cases/ 存在，每层至少一个 cases.md
-- `test_cases.design_locked: true`
-- `test_cases.design_content_hash` 匹配
-- `tdd_mode` 匹配配置值 (default_tdd_mode)
+过程要求（agent 自律，非守卫检查项）：
+
+- design.md 内容完整；cognitive-map.yaml 已收敛
 - Hyperplan 硬约束已合并、开放问题已解决（若触发）
-- grill-me：`grill_me_result.completed == true`、`rounds <= 10`
-- 认知框架：Q1 > 0、Q2/Q3 无待处理（或达上限）、Q4 扫描 ≥ 3 维度、已收敛
-- `ponytail_constraints_defined: true`
+- grill-me 已执行；认知框架 Q1 > 0、Q2/Q3 无待处理（或达上限）、Q4 扫描 ≥ 3 维度
 - **用户已确认** (BP-4)
-- **Phase Guard**：运行 `mumuspec guard <name> design --apply`
+
+守卫真正校验的出口条件（`design_to_build`）：
+
+- design.md 存在且非空（`E-GUARD-001`）
+- constraints/ 有 new-shall.md 或 new-shall-not.md；build_layers 已定义；test_cases.design_locked（`W` 级）
+- design.md 结构化段落完整（`W-DESIGN-009`）、跨工件一致（`W-DESIGN-010`）
+- **I1 设计覆盖断链**：覆盖 L*N* 必覆盖 L0..*N*-1（`E-GUARD-009` / `W-GUARD-009`，结论写入 `state.design_coverage`）
+- 完备性门禁：open-questions.yaml（`E-GUARD-008`）
+- **Phase Guard**：`mumuspec guard <name> build --apply`
 
 ---
 
 ## Phase Guard 调用
 
 ```bash
-mumuspec guard <change-name> design --apply
+mumuspec guard <change-name> build --apply
 ```
 
-Guard 检查项（`design_to_build`）：
-- design.md exists and non-empty
-- constraints/ exists
-- all enforcement checks defined
-- code-graph verified no broken call chains
-- build_layers defined
-- design_layers_covered
-- each_layer_shall_defined: true
-- test-cases/ exists with cases.md per layer
-- test_cases.design_locked: true
-- test_cases.design_content_hash matches
-- tdd_mode matches default_tdd_mode
-- hyperplan_result.hard_constraints merged（若触发）
-- hyperplan_result.open_questions resolved（若触发）
-- cognitive_framework.enabled: true
-- cognitive_framework.cognitive_map_ref exists
-- cognitive_framework.q1_count > 0
-- cognitive_framework.q2_pending == 0 or rounds >= 5
-- cognitive_framework.q3_pending == 0 or rounds >= 5
-- cognitive_framework.q4_scans_completed >= 3
-- cognitive_framework.converged: true
-- grill_me_result.completed: true
-- grill_me_result.rounds <= 10
-- ponytail_constraints_defined: true
-- decisions_log.counts.design > 0
-- decisions_log.content_hash matches
-- user_confirmed: true
+> **参数语义（此前文档写错，2026-09-12 修正）**：`guard <change> <phase>` 的 `<phase>` 是**目标**阶段，
+> 不是当前阶段。离开 Design 意味着目标是 `build`。此前本文档写成 `guard <name> design`，
+> 实际执行的是 `open_to_design`（即进入 Design 的那道门），**出口门禁从未被执行**。
+>
+> 检查项清单以 [docs/reference/phase-guards.md#design_to_build](../../docs/reference/phase-guards.md)
+为唯一权威源——本 skill 不再重复列举，避免“文档有、代码无”的第三态。
+
+> **本节此前列举的 `design_layers_covered`、`each_layer_shall_defined`、`ponytail_constraints_defined`
+> 在代码中并不存在**，已删除；`design_layers_covered` 的职责由 I1 断链检查
+> （`state.design_coverage`）承担。
 
 ---
 

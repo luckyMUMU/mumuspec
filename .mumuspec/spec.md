@@ -1,7 +1,7 @@
 ---
 layer: 0
 scope: "."
-last_updated: "2026-09-05"
+last_updated: "2026-09-12"
 prohibitions:
   - text: "禁止引入未被请求的抽象层（YAGNI）"
     annotation:
@@ -488,9 +488,13 @@ index_drift 检查与 index 构建必须采用同一模块判定标准。
 - 判定标准统一为："目录含 `.mumuspec` 且 `.mumuspec` 内存在 prd.md 或 tech.md"。
 - checker（src/guard/checker.ts index_drift 检测）与 rebuildIndexYaml（finalize-archive）双方按此标准对齐，实现上以共享的判定函数为准（禁止两处各写一份判定逻辑）。
 
+通道卫生说明（依「约束通道与约束语义一致」）：本节的 SHALL NOT 判定目标是"模块注册谓词是否被绕过"这一语义，
+不是某个字面量是否出现。故这两条文本**不含行内代码标记**——避免派生 R2 词法通道，把"路径提及"误判为"违规"。
+其强制通道为下方 ENF-3 单元测试（enforced-strong）+ manual。
+
 ### SHALL NOT
 
-- SHALL NOT 仅以 `.mumuspec` 存在性判定模块（BOUNDARY-only 目录不是已注册模块）。
+- SHALL NOT 仅凭 .mumuspec 目录的存在性判定模块（BOUNDARY-only 目录不是已注册模块）。
 - SHALL NOT 在 checker 与 builder 中保留语义不一致的独立实现。
 
 ### Enforcement
@@ -605,3 +609,72 @@ agent 必须能读取自由度信号，而非仅由引擎内部消费。
 
 - ENF-1: manual(设计评审核对：新增或修改 SHALL NOT 时逐条确认行内代码标记仅用于通道字面量，且不与既有约束语义重复)
 
+
+## Requirement: 设计与实现的视野正交性
+
+"自顶向下设计，自下而上实现"按**依赖视野**（而非时间顺序）定义：
+设计 Level N 时视野为 Level 0..N，实现 Level N 时视野为 Level N 及其更低层。
+
+核心等式：**实现侧的并行度是设计侧完备性的可测量投影**——同层模块无法并行，
+不是实现能力不足，而是设计未闭合。三条可判定不变量：
+
+- I1 设计向上闭合：覆盖须无断链，反面即"断链"。
+- I2 实现向下自足：只依赖本层契约与更低层，反面即"越界"。
+- I3 层内默认可并行：层内模块只经冻结契约耦合，反面即"设计未闭合"。
+
+### SHALL
+
+- 设计 Level N 的产物 SHALL 声明其覆盖的层级，且覆盖须无断链（覆盖 N 必覆盖 0..N-1）。
+- 同一 Level 的多个模块，若彼此不存在直接调用边，SHALL 归入同一并行组（parallel_group 字段）。
+- 层内并行的准入条件 SHALL 为"契约已冻结 + 测试已锁定"（test_cases.design_locked 是前置条件，不是可选项）。
+- 层间实现顺序 SHALL 为自下而上：低层未全部完成时，高层 SHALL NOT 被标记为 done。
+
+### SHALL NOT
+
+- 同层模块 SHALL NOT 依赖兄弟模块未经冻结契约导出的符号。
+- 设计产物 SHALL NOT 在存在缺层的情况下被当作完备（断链即回退 Design 阶段）。
+
+### Enforcement
+
+- ENF-1: enforced-strong(phase-guard design_to_build：I1 覆盖断链检测 E-GUARD-009/W-GUARD-009，并将结论写入 state.design_coverage)
+- ENF-2: enforced-strong(phase-guard build_to_verify 与 mumuspec state plan-parallel：同层 scope 直接调用边检测 W-BUILD-001)
+- ENF-3: enforced-strong(单元测试：state layer 对同层多 scope 的歧义目标必须报错；低层未完成时必须拒绝置 done)
+
+## Requirement: 自由度边界（设计与实现）
+
+LLM 的实现自由度是**区间**，不是标量：上游给出约束（下界），界内的一切选择自由。
+
+- **设计 Level N**：约束只可来自 Level 0..N-1 的规范与上层约束。本层的模块划分、接口组织、
+  抽象取舍**自由**——只要不越出上层已给的约束。
+- **实现 Level N**：约束只可来自**设计已声明的边界**（冻结契约、本层及更低层规范、已锁定的测试）。
+  边界内的算法、数据结构、函数划分**自由**。
+
+两个层级的自由度都遵循同一形状：**受上游约束，界内自由**。区别只在"上游"是谁——
+设计的上游是更高层的规范，实现的上游是设计本身。
+
+反面两类（机器可判定）：
+
+- **越权约束**：一条约束没有可解析的上游来源——它不属于任何层级，是凭空发明，会压窄本应自由的空间。
+- **越界实现**：实现引用了超出设计边界的符号（同层兄弟未经冻结契约导出的符号、上层内部实现）。
+
+与前三条不变量的关系：I1（设计向上闭合）与 I2（实现向下自足）是这两道边界的可判定形式；
+I3（层内默认可并行）是界内自由的推论——界内既然自由，同层模块就不存在必须串行的理由。
+界内自由度的**度量**由既有 constraint-density evaluator 承担（密度越高 = 自由度越低）；
+边界的**继承规则**由约束树的 tighten-only（下层可收紧、不可放宽）承担。
+
+### SHALL
+
+- 每条约束 SHALL 声明其上游来源（constraints.yaml 的 source_specs 字段），且每条来源 SHALL 可解析为存在的规范文件与标题。
+- 设计的产物 SHALL 声明其边界：覆盖层级（state.design_coverage）与本层对外契约。
+- 界内的实现选择 SHALL 仅当违反已声明边界时才被驳回。
+
+### SHALL NOT
+
+- SHALL NOT 存在无上游来源的约束——越权约束不属于任何层级，会凭空压窄自由空间。
+- SHALL NOT 放宽上层给出的约束：下层只可收紧，不可放宽。
+
+### Enforcement
+
+- ENF-1: enforced-strong(constraint-provenance 检查：E-CONSTRAINT-001/002 与 W-CONSTRAINT-003，接入 mumuspec check 的 drift 数组)
+- ENF-2: enforced-strong(既有边界通道：I1 E-GUARD-009/W-GUARD-009；I2 W-BUILD-001；I3 mumuspec state plan-parallel)
+- ENF-3: manual(设计评审核对：界内的实现选择不得被作为缺陷驳回，仅当其违反已声明边界时才可驳回)

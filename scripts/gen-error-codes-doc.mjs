@@ -36,8 +36,13 @@ for (let i = 0; i < lines.length; i++) {
     continue;
   }
   
-  // Detect error code key: 'E-XXX-NNN': {
-  const codeMatch = line.match(/^\s*'E-(\w+)-(\d+)':\s*\{/);
+  // Detect error code key: 'E-XXX-NNN': { / 'W-XXX-NNN': {
+  //
+  // The prefix is NOT a filter: the registry carries advisory codes under both
+  // `E-` (legacy, severity WARN) and `W-` (current). Matching only `E-` made
+  // 15 emitted codes invisible to this doc — the same "channel silently drops
+  // facts" failure the codes themselves are meant to catch.
+  const codeMatch = line.match(/^\s*'([EW])-(\w+)-(\d+)':\s*\{/);
   if (codeMatch) {
     domainCounts.set(currentDomain, (domainCounts.get(currentDomain) || 0) + 1);
     
@@ -96,7 +101,9 @@ for (let i = 0; i < lines.length; i++) {
       }
     }
     
-    const code = `E-${codeMatch[1]}-${codeMatch[2]}`;
+    // Keep the real prefix — do NOT hardcode `E-`, or `W-DESIGN-001` renders
+    // as `E-W-DESIGN`.
+    const code = `${codeMatch[1]}-${codeMatch[2]}-${codeMatch[3]}`;
     domainMap.get(currentDomain).push({
       code,
       name: nameMatch ? nameMatch[1] : 'UNKNOWN',

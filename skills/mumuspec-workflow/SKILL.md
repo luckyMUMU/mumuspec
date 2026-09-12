@@ -35,7 +35,7 @@ lifecycle correctly.
 |-------|--------|------------------|
 | open | `mumuspec new <name>`; write proposal.md; log decisions | proposal.md non-empty (E-CHANGE-*) |
 | design | Write design.md; draft open-questions.yaml; propose test cases | completeness gate on open-questions.yaml (fail-closed); design.md exists |
-| build | Implement bottom-up layer by layer; run `mumuspec guard <change> build` | all build_layers done (E-GUARD-002); assumptions.yaml gate (full workflow) |
+| build | Implement bottom-up per parallel group; run `mumuspec guard <change> verify` (`<phase>` is the TARGET phase) | all build_layers done (E-GUARD-002); same-layer coupling (W-BUILD-001); assumptions.yaml gate (full workflow) |
 | verify | Run tests; `mumuspec check`; `mumuspec drift`; fix or record drift | verify_result=pass (E-VERIFY-001); branch handled (E-VERIFY-002) |
 | archive | `mumuspec archive <name> --confirm` | BP-17 human confirmation |
 
@@ -46,7 +46,7 @@ Presets: `hotfix` / `tweak` skip the design phase (open → build shortcut).
 ```bash
 mumuspec new <name>            # create change (single active change enforced)
 mumuspec status [name]         # current phase, layers, counters
-mumuspec guard <name> <phase>  # phase-gate check (use --apply to transition)
+mumuspec guard <name> <target-phase>  # phase-gate check (use --apply to transition; <phase> is the TARGET phase)
 mumuspec validate              # spec format validation
 mumuspec check                 # compliance + drift + glossary (exit code = verdict)
 mumuspec drift [--change <n>]  # spec↔code drift detection (--fix for auto-fix)

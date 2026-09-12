@@ -497,12 +497,17 @@ graph TB
 
 | 检查项 | 通过标准 | 失败错误码 |
 |--------|---------|-----------|
-| `cognitive_map.exists` | cognitive-map.yaml 存在 | E-DESIGN-001 |
-| `cognitive_map.q1_count > 0` | Q1 至少有 1 条 | E-DESIGN-002 |
-| `cognitive_map.q2_pending == 0` | Q2 无待回答问题（或达到轮次上限） | E-DESIGN-003 |
-| `cognitive_map.q3_pending == 0` | Q3 无待确认推导（或达到轮次上限） | E-DESIGN-004 |
-| `cognitive_map.q4_scans_completed` | Q4 扫描已执行（至少 3 个维度） | E-DESIGN-005 |
-| `cognitive_map.converged == true` | 认知地图已收敛（或达到轮次上限强制收敛） | E-DESIGN-006 |
+| `cognitive_map.exists` | cognitive-map.yaml 存在 | `W-DESIGN-001` |
+| `cognitive_map.q1_count > 0` | Q1 至少有 1 条 | `W-DESIGN-002` |
+| `cognitive_map.q2_pending == 0` | Q2 无待回答问题（或达到轮次上限） | `W-DESIGN-003` |
+| `cognitive_map.q3_pending == 0` | Q3 无待确认推导（或达到轮次上限） | `W-DESIGN-004` |
+| `cognitive_map.q4_scans_completed` | Q4 扫描已执行（至少 3 个维度） | `W-DESIGN-005` |
+| `cognitive_map.converged == true` | 认知地图已收敛（或达到轮次上限强制收敛） | `W-DESIGN-006` |
+
+> **口径修正（2026-09-12）**：上表此前列的是 `E-DESIGN-001..006`。代码实际发出的是
+> `W-DESIGN-001..006`（`src/guard/phase-guard.ts:412-427`）——认知框架全部是**告警**，
+> 不是硬门。注册表中的 `E-DESIGN-001/002` 在守卫路径上**没有发出点**（保留兼容，勿据此
+> 判断认知框架会阻塞）。判断某码是否真会触发，看发出点，不要看注册表。
 
 > hotfix/tweak 工作流跳过 Design 阶段，不执行认知框架，无 cognitive-map.yaml 产出，Phase Guard 不检查认知框架相关项。
 

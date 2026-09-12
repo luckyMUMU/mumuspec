@@ -47,7 +47,7 @@ mumuspec state init <name> hotfix
 
 运行 Phase Guard 转换 open → build：
 ```bash
-mumuspec guard <name> open --apply
+mumuspec guard <name> build --apply
 ```
 
 > **注意**：hotfix 走 `open_to_build_hotfix` 守卫，不走 `open_to_design`。不执行认知框架，无 cognitive-map.yaml。
@@ -128,7 +128,7 @@ mumuspec state init <name> tweak
 
 运行 Phase Guard 转换 open → build：
 ```bash
-mumuspec guard <name> open --apply
+mumuspec guard <name> build --apply
 ```
 
 > **注意**：tweak 走 `open_to_build_tweak` 守卫，不走 `open_to_design`。

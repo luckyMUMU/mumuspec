@@ -5,6 +5,94 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — 设计与实现的视野正交性（I1 / I2 / I3）
+
+把方法论"自顶向下设计，自下而上实现"落成三条可判定不变量。依据：
+`review/design-build-orthogonality-plan-2026-09-12.md`。核心等式：**实现侧并行度 = 设计侧完备性的可测量投影**。
+
+### Added
+- **I1 设计向上闭合**（`design_to_build`）：覆盖 L*N* 必覆盖 L0..*N*-1，否则 `E-GUARD-009`；
+  `workflow.top_down_design` 解析为 false 时降级为恒可见 `W-GUARD-009`。结论**恒写入** `state.design_coverage`。
+- **I2 层间自下而上**：`mumuspec state layer` 写入时校验——低层未完成即拒绝把高层置 `done`（`--force` 可越过）。
+- **I3 层内默认可并行**：同层 scope 之间存在直接调用边 → `W-BUILD-001`（可 force）。
+- 新命令 `mumuspec state layers <name> [--json]`（层级 / 候选并行组 / 已声明并行组）。
+- 新命令 `mumuspec state plan-parallel <name> [--apply]`（读 code-graph 派生并行组）。
+- 新模块 `src/change/parallel-planner.ts`；新工件 `state.design_coverage`。
+- `BuildLayer` 新增可选 `parallel_group?: number` / `depends_on?: string[]`。
+- 根规范新增 Requirement「设计与实现的视野正交性」；`constraints.yaml` 登记 TD-R-003。
+
+### Changed
+- `mumuspec state layer` 改为按 `(layer, scope)` 定位：同层多 scope 不带 `--scope` 报歧义并列出候选，
+  不再静默只改第一条（原 `find(l => l.layer === layer)` 的隐式串行假设）。
+- `mumuspec state layers` 仅在并行组**尚未验证**时才提示 `plan-parallel`。
+- `workflow.top_down_design` 从零消费者的死配置接入守卫判定；**不新增布尔配置，不改强度矩阵默认值**。
+
+### Fixed
+- **60 条 `E-GUARD-003` 假阳性清零**：改写 `.mumuspec/spec.md` 中"仅以 `.mumuspec` 存在性判定模块"的
+  SHALL NOT 文本，去掉制造 R2 词法通道的 bare 目录名行内标记。`mumuspec check` 恢复 exit 0。
+- **四份 phase skill 的出口门禁从未执行**：`guard <change> <phase>` 的 `<phase>` 是**目标**阶段，
+  skill 里填成了当前阶段。已修正为 open→design / design→build / build→verify / verify→archive-in-progress。
+- **错误码注册表闭合**：补注册 15 个"已发出但未注册"的告警码（`W-DESIGN-001..011`、`W-GUARD-001/004/009`、
+  `W-VERIFY-001`），取值与既有回退默认一致 → **零行为变更**；`E-BUILD-PARALLEL` 按命名约定改名为 `W-BUILD-001`。
+- **文档生成器与 CI 校验只认 `E-` 前缀**：`gen-error-codes-doc.mjs` 正则与拼接均硬编码前缀（渲染出畸形的
+  `E-W-DESIGN`），`ci-check.mjs` 两侧同理，导致所有 `W-` 码对文档与 CI 双向隐形。已放宽为 `[EW]-`。
+- `docs/reference/phase-guards.md` 按代码实况重写（并列出"非本守卫职责"）；认知框架检查的真实码为
+  `W-DESIGN-001..006` 而非文档原先声称的 `E-DESIGN-*`。
+- README 版本号与 `package.json` 对齐。
+
+### Added (tests)
+- `tests/guard/error-code-registry.test.ts`：守卫发出的每个码必须已注册、`W-DESIGN-001..011` 必须在册、
+  **生成的 error-codes.md 必须覆盖注册表全部条目**。
+- `tests/guard/design-build-orthogonality.test.ts`（I1 四种情形 / I3 耦合与跳过）。
+- `tests/change/parallel-layers.test.ts`（同层定位、自下而上顺序、候选 vs 已声明并行组）。
+
+## [Unreleased] — 自由度边界（设计与实现）
+
+把"自由度"从标量代理指标（`constraint-density`）推广为**区间定义**：上游给出约束（下界），
+界内的一切选择自由。设计 Level *N* 只受 Level 0..*N*-1 约束、层内自由；实现 Level *N* 只受
+设计已声明的边界约束、界内自由。核心等式：**受上游约束，界内自由**——区别只在"上游"是谁。
+
+### Added
+- 根规范新增 Requirement「自由度边界（设计与实现）」：两类反面（**越权约束** = 无上游来源的约束；
+  **越界实现** = 引用超出设计边界的符号）+ SHALL / SHALL NOT / ENF-1..3。
+- 新模块 `src/spec/constraint-provenance.ts` — 把 `source_specs` 从**零消费者字段**变成可判定通道
+  （与 `change/archive-consistency.ts` 同构）：`E-CONSTRAINT-001`（缺来源，越权约束）、
+  `E-CONSTRAINT-002`（来源文件不存在）、`W-CONSTRAINT-003`（来源锚点未命中标题）。
+- 新错误码域 CONSTRAINT（3 码），已注册进 `ERROR_CODES` 并进入生成的 `docs/reference/error-codes.md`。
+- `constraints.yaml` 登记 `TD-F-005` / `TD-R-004`，其 `source_specs` 指向新 Requirement（自我 dogfooding）。
+
+### Changed
+- `mumuspec check` 的 drift 数组新增 `detectConstraintSourceDrift(root)`：约束来源不可解析时
+  `check` 会 exit 1（此前约束写没写来源，无人核对）。
+- `error-code-registry` 测试的扫描面从 `src/guard` 扩到 `src/guard` + `src/spec`——这条不变量
+  属于"会发错误码的层"，不只属于一个目录。
+- `docs/design/change-layer.md` 新增 §自由度边界；`docs/design/constraint-strength.md` §5.6.1
+  补"约束树 tighten-only 是自由度边界在约束树上的实现形式"的挂钩说明。
+- `src/spec/.mumuspec/BOUNDARY.md` 补新导出与新增内部依赖 `../core/constraints-loader.js`。
+
+### Notes
+- **锚点匹配刻意宽松**：归一化（忽略大小写与空白/连字符/下划线/间隔号）后子串匹配，
+  使 `#流程执行载体` 命中 `## Requirement: 流程执行载体（CLI-first）`。锚点服务于"来源可追溯"，
+  不是精确指针——误报比漏报更贵。
+- 新增的 `SHALL NOT` 条目**故意不带行内代码标记**（判定目标是语义而非字面量出现），
+  靠块级 Enforcement 落到 R3 manual；`mumuspec validate` 的 `unverifiable` 计数保持 0。
+
+### Fixed
+- **`mumuspec check` 的 drift 汇聚改为逐源隔离**：此前任一检测源抛出异常会把整个 check
+  打进 `E-CHECK-001` 兜底——其余源已产出的发现全部丢弃，check 从"报告问题"退化为"自身崩溃"。
+  现在每个源独立执行，失败源记为恒可见的 `W-CHECK-002 DRIFT_SOURCE_FAILED`（盲区必须上报，
+  不许静默），其余源照常产出。该缺陷由接入 `detectConstraintSourceDrift` 后的守卫测试暴露。
+- **`ci-check.mjs` 把两个无关的版本号相比**：原先拿 `.mumuspec/config.yaml` 的遗留 `version`
+  （配置 **schema** 版本）比 `package.json` 版本，这条警告**永远无法合法消除**——长期琥珀色信号
+  会训练读者忽略整个警告通道。改为与权威源 `CURRENT_SCHEMA_VERSION.config`
+  （`src/core/schema-version.ts`，脚本内读取而非复制常量）比较；遗留格式降为**可行动**提示
+  （指向 `mumuspec sync --migrate`）。同时把仓库自身 config 按 `migrateSchema` 的语义补齐
+  `schema_version: 1.0.0`（该字段此前只在内存中自动迁移，从未落盘）→ CI 首次 **0 error / 0 warning**。
+
+### Added (tests)
+- `tests/spec/constraint-provenance.test.ts`（16 例：归一化匹配 / 三态反面 / 来源正确必须静默 /
+  本仓库自我 dogfooding / 错误码在册）。
+
 ## [0.22.0-alpha.3] — archive auto-bump (2026-09-11)
 
 ### Changed

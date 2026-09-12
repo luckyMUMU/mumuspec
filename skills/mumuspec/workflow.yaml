@@ -155,10 +155,9 @@ workflow:
         - 加载 brainstorming skill
         - 需求探索与澄清（多轮）
       on_exit:
-        - 运行 mumuspec guard <name> open --apply
-        - 验证 proposal.md + delta-specs/ 非空
-        - 验证 impact-analysis.json 存在
-        - 验证 brainstorming_completed: true
+        - 运行 mumuspec guard <name> design --apply   # <phase> = 目标阶段（离开 open）
+        - 验证 proposal.md 存在且非空 (E-GUARD-001)
+        - 验证 decisions.md content_hash 匹配 (E-CHANGE-007)
         - 用户必须确认 (BP-3)
 
     design:
@@ -187,9 +186,10 @@ workflow:
         - Stage 3: Q3 推理 + Q4 扫描
         - Stage 4: 设计生成
       on_exit:
-        - 运行 mumuspec guard <name> design --apply
+        - 运行 mumuspec guard <name> build --apply   # <phase> = 目标阶段（离开 design）
         - 锁定 test-cases (design_locked: true)
         - 计算 design_content_hash
+        - I1 设计覆盖无断链（state.design_coverage，E-GUARD-009 / W-GUARD-009）
         - 认知框架必须收敛
         - 用户必须确认 (BP-4)
 
@@ -224,9 +224,10 @@ workflow:
         - 创建 tasks.md (自底向上排序)
         - 选择 isolation/build_mode (BP-10)
       on_exit:
-        - 运行 mumuspec guard <name> build --apply
+        - 运行 mumuspec guard <name> verify --apply   # <phase> = 目标阶段（离开 build）
         - 所有 build_layers 完成 (status = done)
-        - Ponytail 合规检查通过
+        - 同层 scope 无直接调用边 (W-BUILD-001)
+        - Ponytail 合规检查通过（mumuspec check，非守卫项）
         - 代码审查已执行（或记录跳过）
         - tests suites locked + hash 匹配
 
@@ -254,11 +255,11 @@ workflow:
         - 加载 verification-before-completion skill
         - 运行规范一致性校验
       on_exit:
-        - 运行 mumuspec guard <name> verify --apply
+        - 运行 mumuspec guard <name> archive-in-progress --apply   # <phase> = 目标阶段（离开 verify）
         - verify_result: pass
         - verification_report 已记录
         - branch_status: handled
-        - 所有 drift 已处理
+        - 所有 drift 已处理（mumuspec drift，非守卫项）
 
     archive:
       name: phase-archive

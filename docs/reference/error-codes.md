@@ -3,30 +3,32 @@
 > **Auto-generated** from `src/core/errors.ts`. Do not edit manually.
 > Run `node scripts/gen-error-codes-doc.mjs` to regenerate.
 
-Last updated: 2026-09-11
+Last updated: 2026-09-12
 
 ## Summary
 
 | Domain | Count |
 |--------|-------|
 | SPEC | 15 |
+| CONSTRAINT | 3 |
 | CHANGE | 14 |
-| VERIFY | 3 |
+| VERIFY | 4 |
 | FINAL | 1 |
 | HOOK | 1 |
 | MERGE | 10 |
-| GUARD | 8 |
+| GUARD | 12 |
+| BUILD | 1 |
 | PONYTAIL | 4 |
 | CONTRACT | 11 |
 | KNOWLEDGE | 3 |
-| DESIGN | 4 |
+| DESIGN | 15 |
 | SECURITY | 3 |
 | STATE | 1 |
 | AGENTS | 1 |
 | RULES | 1 |
-| CHECK | 1 |
+| CHECK | 2 |
 | GIT | 3 |
-| **Total** | **84** |
+| **Total** | **105** |
 
 ## SPEC Domain
 
@@ -198,6 +200,43 @@ Last updated: 2026-09-11
 2. 或改写文本使引号词可被正则兜底提取（enforced-weak）
 3. 或声明 Enforcement `- ID: manual(原因)`
 
+## CONSTRAINT Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `E-CONSTRAINT-001` | CONSTRAINT_SOURCE_MISSING | ERROR | 约束条目缺少 source_specs（越权约束 — 无上游来源，不属于任何层级） | No |
+| `E-CONSTRAINT-002` | CONSTRAINT_SOURCE_FILE_MISSING | ERROR | 约束的来源文件不存在（悬空来源） | No |
+| `W-CONSTRAINT-003` | CONSTRAINT_SOURCE_ANCHOR_MISSING | WARN | 约束的来源锚点在目标文件中找不到对应标题（锚点漂移） | No |
+
+### `E-CONSTRAINT-001`: CONSTRAINT_SOURCE_MISSING
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 约束条目缺少 source_specs（越权约束 — 无上游来源，不属于任何层级）
+
+**Fix Steps**:
+1. 为该约束补 source_specs，指向定义它的更高层规范标题
+2. 或删除该约束（无来源即无授权）
+
+### `E-CONSTRAINT-002`: CONSTRAINT_SOURCE_FILE_MISSING
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 约束的来源文件不存在（悬空来源）
+
+**Fix Steps**:
+1. 修正 source_specs 的路径
+2. 或删除该来源标注
+
+### `W-CONSTRAINT-003`: CONSTRAINT_SOURCE_ANCHOR_MISSING
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: 约束的来源锚点在目标文件中找不到对应标题（锚点漂移）
+
+**Fix Steps**:
+1. 把锚点改为目标规范中真实存在的标题（归一化后子串匹配）
+
 ## CHANGE Domain
 
 | Code | Name | Severity | Description | Forceable |
@@ -355,6 +394,7 @@ Last updated: 2026-09-11
 | `E-VERIFY-001` | VERIFY_RESULT_NOT_PASS | ERROR | verify_result 不为 pass（验证未通过不等于通过；偏差须走 accept-deviations 旁路） | No |
 | `E-VERIFY-002` | BRANCH_STATUS_UNHANDLED | ERROR | 变更分支状态未处理（branch_status 未标记 handled） | No |
 | `E-VERIFY-003` | MANUAL_EVIDENCE_MISSING | ERROR | verify.md 缺少 manual 类约束的验证记录（按 Enforcement ID 或约束文本锚定） | Yes |
+| `W-VERIFY-001` | VERIFY_SHALL_RECORD_MISSING | WARN | verify.md 未包含 SHALL / SHALL NOT 校验记录 | No |
 
 ### `E-VERIFY-001`: VERIFY_RESULT_NOT_PASS
 
@@ -386,6 +426,15 @@ Last updated: 2026-09-11
 1. 在 verify.md 中为每条 manual 约束补充验证记录（引用其 Enforcement ID 或原文）
 2. 或将约束的 Enforcement 改为可自动执行的通道后重新验证
 3. 或走 accept-deviations 旁路并记录偏差
+
+### `W-VERIFY-001`: VERIFY_SHALL_RECORD_MISSING
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: verify.md 未包含 SHALL / SHALL NOT 校验记录
+
+**Fix Steps**:
+1. 在 verify.md 中补充 SHALL / SHALL NOT 的逐条校验结论
 
 ## FINAL Domain
 
@@ -542,6 +591,10 @@ Last updated: 2026-09-11
 | `E-GUARD-006` | GUARD_HYPERPLAN_OPEN_QUESTIONS | ERROR | hyperplan 开放问题未解决 | No |
 | `E-GUARD-007` | GUARD_PRE_COMMIT_TIMEOUT | WARN | Pre-commit 检查超过 5s | Yes |
 | `E-GUARD-008` | GUARD_COMPLETENESS_GATE_BLOCK | ERROR | 完备性门禁阻塞（工件缺失 / 存在未消解 open 项 / 工件为空 / 声明路径缺人工签收） | No |
+| `E-GUARD-009` | DESIGN_COVERAGE_GAP | ERROR | 设计覆盖断链（I1 设计向上闭合）：覆盖了 Layer N 却缺少某个 Layer < N | Yes |
+| `W-GUARD-001` | GUARD_PREREQUISITE_MISSING | WARN | 阶段前置工件缺失或未锁定（test_cases / build_layers / tdd_mode 等行为约束） | No |
+| `W-GUARD-004` | GUARD_TEST_IMMUTABILITY_MISMATCH | WARN | 测试套件 hash 与 design_content_hash 不匹配（测试在锁定后被改动） | No |
+| `W-GUARD-009` | DESIGN_COVERAGE_GAP_ADVISORY | WARN | 设计覆盖断链（I1）的告警形态：top_down_design 解析为 false 时不阻塞，但仍写入 state.design_coverage | No |
 
 ### `E-GUARD-001`: GUARD_ARTIFACT_MISSING
 
@@ -621,6 +674,63 @@ Last updated: 2026-09-11
 **Fix Steps**:
 1. 起草并消解 open-questions.yaml / assumptions.yaml（resolution.decision_ref 指向 decisions.md 条目）
 2. 或在 design.md 声明 <!-- no-open-questions --> / <!-- no-assumptions --> 并先落 decisions.md 签收条目
+
+### `E-GUARD-009`: DESIGN_COVERAGE_GAP
+
+- **Severity**: ERROR
+- **Forceable**: Yes
+- **Description**: 设计覆盖断链（I1 设计向上闭合）：覆盖了 Layer N 却缺少某个 Layer < N
+
+**Fix Steps**:
+1. 为缺失的更低层补 design 产物（design.md 的层级映射或 test-cases/layer-N-cases.md）
+2. 或修正 build_layers 的层级编号
+3. 强度为 medium 时本项降级为 W-GUARD-009 告警（top_down_design=false）
+
+### `W-GUARD-001`: GUARD_PREREQUISITE_MISSING
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: 阶段前置工件缺失或未锁定（test_cases / build_layers / tdd_mode 等行为约束）
+
+**Fix Steps**:
+1. 补齐缺失工件
+2. 或用 mumuspec state set 写入缺省值并在 decisions.md 说明
+
+### `W-GUARD-004`: GUARD_TEST_IMMUTABILITY_MISMATCH
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: 测试套件 hash 与 design_content_hash 不匹配（测试在锁定后被改动）
+
+**Fix Steps**:
+1. 回退 Design 重新锁定设计
+2. 或用 mumuspec test-cases lock 重建 hash
+
+### `W-GUARD-009`: DESIGN_COVERAGE_GAP_ADVISORY
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: 设计覆盖断链（I1）的告警形态：top_down_design 解析为 false 时不阻塞，但仍写入 state.design_coverage
+
+**Fix Steps**:
+1. 为缺失的更低层补 design 产物
+2. 或在约束强度中把 technical_design 提为 high 使其阻塞
+
+## BUILD Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `W-BUILD-001` | BUILD_LAYER_COUPLING | WARN | 同层 scope 之间存在直接调用边（I3 层内默认可并行不成立 → 设计未闭合） | Yes |
+
+### `W-BUILD-001`: BUILD_LAYER_COUPLING
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 同层 scope 之间存在直接调用边（I3 层内默认可并行不成立 → 设计未闭合）
+
+**Fix Steps**:
+1. 将两个 scope 拆为不同 layer，或合并为一个模块
+2. 确认耦合确实经由冻结契约后，用 --force 越过
 
 ## PONYTAIL Domain
 
@@ -840,6 +950,17 @@ Last updated: 2026-09-11
 | `E-DESIGN-009` | DESIGN_SCHEMA_SECTION_MISSING | ERROR | design.md 缺少 templates/design-schema.yaml 要求的必填 section | No |
 | `E-DESIGN-010` | CROSS_ARTIFACT_INCONSISTENCY | ERROR | proposal 与 design 跨工件不一致（Plan 步骤未映射到 Layers、FR 未被 design 引用） | No |
 | `E-DESIGN-002` | COGNITIVE_Q1_EMPTY | ERROR | Q1 已知的已知为空 | No |
+| `W-DESIGN-001` | COGNITIVE_MAP_MISSING | WARN | cognitive_framework.enabled 但 cognitive-map.yaml 不存在 | No |
+| `W-DESIGN-002` | COGNITIVE_Q1_EMPTY | WARN | Q1 已知的已知为空（cognitive_framework.q1_count == 0） | No |
+| `W-DESIGN-003` | COGNITIVE_Q2_PENDING | WARN | Q2 存在未回答的问题（cognitive_framework.q2_pending > 0） | No |
+| `W-DESIGN-004` | COGNITIVE_Q3_PENDING | WARN | Q3 存在未确认的推导（cognitive_framework.q3_pending > 0） | No |
+| `W-DESIGN-005` | COGNITIVE_Q4_INSUFFICIENT_SCANS | WARN | Q4 盲区扫描维度不足（cognitive_framework.q4_scans_completed < 3） | No |
+| `W-DESIGN-006` | COGNITIVE_MAP_NOT_CONVERGED | WARN | 认知地图未收敛（cognitive_framework.converged == false） | No |
+| `W-DESIGN-007` | GRILL_ME_INCOMPLETE | WARN | grill-me 压力测试未完成（grill_me_result.completed == false） | No |
+| `W-DESIGN-008` | GRILL_ME_ROUNDS_EXCEEDED | WARN | grill-me 追问轮次超出上限 | No |
+| `W-DESIGN-009` | DESIGN_SCHEMA_SECTION_MISSING | WARN | design.md 缺少 templates/design-schema.yaml 要求的 section | No |
+| `W-DESIGN-010` | CROSS_ARTIFACT_INCONSISTENCY | WARN | proposal / design / delta-specs 跨工件不一致（调用点由 E-DESIGN-010 重映射而来） | No |
+| `W-DESIGN-011` | GRILL_ME_DEFERRED_UNRESOLVED | WARN | grill-me 存在未达成共识的 deferred 分支 | No |
 
 ### `E-DESIGN-001`: COGNITIVE_MAP_MISSING
 
@@ -880,6 +1001,112 @@ Last updated: 2026-09-11
 **Fix Steps**:
 1. 检查 proposal.md 和 spec.md 是否已加载
 2. 重新执行 Stage 1 信息采集
+
+### `W-DESIGN-001`: COGNITIVE_MAP_MISSING
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: cognitive_framework.enabled 但 cognitive-map.yaml 不存在
+
+**Fix Steps**:
+1. 产出 cognitive-map.yaml
+2. 或在 .mumuspec.yaml 中关闭 cognitive_framework
+
+### `W-DESIGN-002`: COGNITIVE_Q1_EMPTY
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: Q1 已知的已知为空（cognitive_framework.q1_count == 0）
+
+**Fix Steps**:
+1. 把 cognitive_framework.q1_count 更新为实际条目数
+
+### `W-DESIGN-003`: COGNITIVE_Q2_PENDING
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: Q2 存在未回答的问题（cognitive_framework.q2_pending > 0）
+
+**Fix Steps**:
+1. 回答或关闭 Q2 条目
+2. 或达到轮次上限后显式收敛
+
+### `W-DESIGN-004`: COGNITIVE_Q3_PENDING
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: Q3 存在未确认的推导（cognitive_framework.q3_pending > 0）
+
+**Fix Steps**:
+1. 确认或驳回 Q3 推导
+2. 或达到轮次上限后显式收敛
+
+### `W-DESIGN-005`: COGNITIVE_Q4_INSUFFICIENT_SCANS
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: Q4 盲区扫描维度不足（cognitive_framework.q4_scans_completed < 3）
+
+**Fix Steps**:
+1. 至少补充 3 个 Q4 blind-spot entry
+
+### `W-DESIGN-006`: COGNITIVE_MAP_NOT_CONVERGED
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: 认知地图未收敛（cognitive_framework.converged == false）
+
+**Fix Steps**:
+1. 清空 q2_pending / q3_pending 后置 converged: true
+
+### `W-DESIGN-007`: GRILL_ME_INCOMPLETE
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: grill-me 压力测试未完成（grill_me_result.completed == false）
+
+**Fix Steps**:
+1. 执行 grill-me 并写入 grill_me_result
+2. 或在 decisions.md 记录跳过理由
+
+### `W-DESIGN-008`: GRILL_ME_ROUNDS_EXCEEDED
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: grill-me 追问轮次超出上限
+
+**Fix Steps**:
+1. 收敛剩余分支
+2. 或调整 max_rounds 并记录决策
+
+### `W-DESIGN-009`: DESIGN_SCHEMA_SECTION_MISSING
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: design.md 缺少 templates/design-schema.yaml 要求的 section
+
+**Fix Steps**:
+1. 按 schema 补充缺失的 section
+
+### `W-DESIGN-010`: CROSS_ARTIFACT_INCONSISTENCY
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: proposal / design / delta-specs 跨工件不一致（调用点由 E-DESIGN-010 重映射而来）
+
+**Fix Steps**:
+1. 在 design.md 中补充对应 Layer 或 FR 引用
+2. 或修正 proposal.md 使步骤与设计对齐
+
+### `W-DESIGN-011`: GRILL_ME_DEFERRED_UNRESOLVED
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: grill-me 存在未达成共识的 deferred 分支
+
+**Fix Steps**:
+1. 就 deferred 分支达成共识
+2. 或在 decisions.md 显式接受该不确定性
 
 ## SECURITY Domain
 
@@ -970,17 +1197,28 @@ Last updated: 2026-09-11
 
 | Code | Name | Severity | Description | Forceable |
 |------|------|----------|-------------|-----------|
-| `E-CHECK-001` | CHECK_ACTION_FAILED | ERROR | mumuspec check 执行过程中发生未预期错误（compliance / drift / glossary 任一子系统抛错） | No |
+| `E-CHECK-001` | CHECK_ACTION_FAILED | ERROR | mumuspec check 执行过程中发生未预期错误（compliance / glossary 或 check 主体流程抛错；drift 检测源的失败已逐源隔离为 W-CHECK-002，不再走到这里） | No |
+| `W-CHECK-002` | DRIFT_SOURCE_FAILED | WARN | 某个 drift 检测源抛出异常——该源本轮无结果（盲区），其余检测源不受影响 | No |
 
 ### `E-CHECK-001`: CHECK_ACTION_FAILED
 
 - **Severity**: ERROR
 - **Forceable**: No
-- **Description**: mumuspec check 执行过程中发生未预期错误（compliance / drift / glossary 任一子系统抛错）
+- **Description**: mumuspec check 执行过程中发生未预期错误（compliance / glossary 或 check 主体流程抛错；drift 检测源的失败已逐源隔离为 W-CHECK-002，不再走到这里）
 
 **Fix Steps**:
 1. 查看下方错误信息定位具体子系统
 2. 修复后重新运行 mumuspec check
+
+### `W-CHECK-002`: DRIFT_SOURCE_FAILED
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: 某个 drift 检测源抛出异常——该源本轮无结果（盲区），其余检测源不受影响
+
+**Fix Steps**:
+1. 查看消息中的源名与异常原因
+2. 修复该检测源后重新运行 mumuspec check
 
 ## GIT Domain
 

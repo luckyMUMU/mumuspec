@@ -39,7 +39,56 @@ MumuSpec 变更生命周期遵循四大工作流规则，这些规则是**按约
 
 1. **Worktree 隔离**（`workflow.worktree_isolation`，维度 RG）：每个变更在独立 worktree 中进行，物理隔离主分支，支持零上下文恢复。
 2. **单一活跃变更**（`workflow.single_active_change`，维度 RG）：同时只允许一个活跃变更，强制单一任务专注，避免规范与代码的并行冲突。
-3. **自顶向下设计**（`workflow.top_down_design`，维度 TD）：Design 阶段自顶向下逐层细化（根→模块→叶子），Build 阶段自下向上实现（叶子→模块→根）。
+3. **自顶向下设计**（`workflow.top_down_design`，维度 TD）：按**依赖视野**约束设计与实现的方向——
+   设计 Level N 时视野为 Level 0..N（向上闭合），实现 Level N 时视野为 Level N 及其更低层（向下自足）。
+   该规则可判定化为三条不变量：
+
+   | 编号 | 不变量 | 反面（机器可判定） | 检查通道 |
+   |------|--------|-------------------|----------|
+   | I1 | 设计向上闭合：覆盖 Layer N 必覆盖 0..N-1 | 断链 | `E-GUARD-009` / `W-GUARD-009`（design_to_build，结论写入 `state.design_coverage`） |
+   | I2 | 实现向下自足：只依赖本层契约与更低层 | 越界 | 同层 scope 直接调用边检测（`W-BUILD-001`） |
+   | I3 | 层内默认可并行：层内只经冻结契约耦合 | 设计未闭合 | `mumuspec state plan-parallel` 派生并行组 |
+
+   **核心等式**：实现侧的并行度是设计侧完备性的可测量投影——同层模块无法并行，不是实现能力不足，
+   而是设计没闭合。因此"默认并行"不需要额外机制去实现，只需要去检测它为什么做不到。
+
+   **两级事实，不要混同**：同层号只是**候选**并行组（`build_layers` 写入时**不**自动填
+   `parallel_group`）；`parallel_group` 是**已验证**的子集，只由 `mumuspec state plan-parallel --apply`
+   写入。因此 `mumuspec state layers` 在出现"`candidate L<n> (same layer, unverified)`"时，
+   说明该层的并行安全性尚未验证——先跑 `plan-parallel` 再开工，而不是默认它可并行。
+
+   ##### 自由度边界（设计与实现）
+
+   上述三条不变量描述的是**边界**；边界**之内**是什么，需要另作声明。
+
+   LLM 的自由度是**区间**，不是标量——上游给出约束，界内的一切选择自由。
+
+   | 层级 | 上游（约束来源） | 界内（自由） |
+   |------|-----------------|-------------|
+   | 设计 Level N | Level 0..*N*-1 的规范与上层约束 | 本层的模块划分、接口组织、抽象取舍 |
+   | 实现 Level N | 设计已声明的边界（冻结契约 + 本层及更低层规范 + 已锁定测试） | 算法、数据结构、函数划分 |
+
+   两个层级形状相同：**受上游约束，界内自由**。区别只在"上游"是谁——设计的上游是更高层规范，
+   实现的上游是设计本身。
+
+   反面两类（机器可判定）：
+
+   | 反面 | 定义 | 检查通道 |
+   |------|------|----------|
+   | 越权约束 | 约束没有可解析的上游来源（不属于任何层级，凭空发明） | `E-CONSTRAINT-001` / `E-CONSTRAINT-002` / `W-CONSTRAINT-003`（`src/spec/constraint-provenance.ts`，接入 `mumuspec check` 的 drift 数组） |
+   | 越界实现 | 实现引用超出设计边界的符号 | I2（`W-BUILD-001`） |
+
+   三方挂钩：**边界**由 I1/I2 判定；**边界的继承规则**由约束树的 tighten-only 承担（下层可收紧、
+   不可放宽，见 [constraint-strength.md](constraint-strength.md)）；**界内自由度的度量**由既有
+   `constraint-density` evaluator 承担（密度越高 = 自由度越低；weight=0，仅作调节信号，见 `mumuspec metrics`）。
+
+   > **实践推论**：实现方案**只在违反已声明边界时**才可被驳回。界内的选择不因"未被设计约束"
+   > 而成为缺陷——否则实现会把设计没说的偏好当成硬约束，自由度被静默收回。
+
+   强度语义：`high` → I1 违规阻塞（`E-GUARD-009`）；`medium` → 降级为恒可见告警（`W-GUARD-009`）；
+   `low` → 不阻断；三种强度下结构化工件 `state.design_coverage` 都始终写入，不静默失效。
+   层间实现顺序为自下而上（`mumuspec state layer` 在写时校验：低层未完成时拒绝把高层置 `done`，
+   `--force` 可越过）；层内各 scope 并行不受此约束。
 4. **红绿 TDD 强制**（`workflow.tdd_enforced`，维度 TD）：测试用例是设计产出，Design 后锁定不可变更；Build 阶段执行红绿 TDD 循环（Red→Green→Refactor）。
 
 > 即使在 `low` 强度下关闭 `tdd_enforced`，测试不可变性约束（test-cases/ 与测试套件 hash 锁定）的 `design_locked` 仍然强制（属 TD 维度 medium 强度）；仅 `suites_hash` 与红绿循环顺序要求放宽。
@@ -52,7 +101,7 @@ MumuSpec 变更生命周期遵循四大工作流规则，这些规则是**按约
 |-----------|------|------|--------|-----|
 | `worktree_isolation` | RG | 强制（block） | 推荐（warn，允许 branch 降级） | 关闭（info） |
 | `single_active_change` | RG | 强制 1 个 | 软警告 ≤3 并行 | 关闭（无上限，WARN） |
-| `top_down_design` | TD | 强制 Level 0→N | 推荐（允许模块内跳跃） | 关闭 |
+| `top_down_design` | TD | 强制 Level 0→N（I1 断链阻塞） | 推荐：I1 断链仅 WARN 且恒可见 | 关闭（不阻断，仍写 design_coverage 工件） |
 | `tdd_enforced` | TD | 强制 Red→Green→Refactor | 测试存在即可 | 关闭 |
 
 **求值优先级**: `workflow.*` 显式设置 > `constraint_strength.overrides.workflow.*` > `constraint_strength.<dimension>` 强度等级 > 默认值（high）。
@@ -66,11 +115,16 @@ MumuSpec 变更生命周期遵循四大工作流规则，这些规则是**按约
 ```yaml
 # .mumuspec.yaml
 workflow:
-  worktree_isolation: true        # 默认 true，可关闭
-  single_active_change: true      # 默认 true，可关闭（关闭后允许 N 个并行变更，上限默认 3）
-  top_down_design: true           # 默认 true，可关闭
-  tdd_enforced: true              # 默认 true，可关闭
+  worktree_isolation: true        # 字面默认 true；有效值由强度矩阵决定
+  single_active_change: true      # 字面默认 true，可关闭（关闭后允许 N 个并行变更，上限默认 3）
+  top_down_design: false          # 字面默认 false；TD=high 时矩阵生效为 true，medium/low 为 false
+  tdd_enforced: false             # 字面默认 false；同上，由 TD 强度决定
 ```
+
+> **默认值口径（2026-09-12 澄清）**：`workflow.*` 的字面默认值只是 `getDefaultConfig()` 的初始
+> 取值，**不构成有效值**。实际生效值由 `resolveWorkflowRule()` 按"显式 override > 强度矩阵 >
+> 回退 true"求出（见 `src/core/config-tree.ts` 的 `WORKFLOW_STRENGTH_MATRIX`）。
+> 本项目默认 `technical_design: medium` → `top_down_design` 与 `tdd_enforced` 的有效值为 **false**。
 
 **方式 2: 通过约束强度等级联动（推荐，0.12.0+）**
 
