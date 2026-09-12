@@ -1,11 +1,35 @@
 name: skill-plugin-standard
-phase: open
+phase: design
 workflow: full
 created_at: 2026-09-12T15:31:52.587Z
-updated_at: 2026-09-12T15:31:52.588Z
+updated_at: 2026-09-12T15:52:07.452Z
 scope: .
 affected_scopes: []
-build_layers: []
+build_layers:
+  - layer: 0
+    scope: .
+    status: pending
+    parallel_group: 1
+  - layer: 1
+    scope: src/cli
+    status: pending
+    parallel_group: 2
+  - layer: 2
+    scope: src/install
+    status: pending
+    parallel_group: 3
+  - layer: 2
+    scope: src/guard
+    status: pending
+    parallel_group: 3
+  - layer: 3
+    scope: src/bundle
+    status: pending
+    parallel_group: 4
+  - layer: 4
+    scope: src/core
+    status: pending
+    parallel_group: 5
 test_cases:
   design_locked: false
   suites_locked: false
@@ -20,23 +44,27 @@ tdd_mode: tdd
 isolation: branch
 branch: mumuspec/skill-plugin-standard
 single_active_change: true
-user_confirmed: false
+user_confirmed: true
 decisions_log:
-  counts: {}
+  counts:
+    open: 5
+    design: 1
+  content_hash: c42fdf1891e3201b
 rollback_history: []
 cognitive_framework:
   enabled: true
-  q1_count: 0
+  q1_count: 7
   q2_pending: 0
   q3_pending: 0
-  q4_scans_completed: 0
-  converged: false
-  rounds_completed: 0
+  q4_scans_completed: 4
+  converged: true
+  rounds_completed: 3
+  cognitive_map_ref: cognitive-map.yaml
 hyperplan_result:
-  triggered: false
+  triggered: true
   hard_constraints_merged: true
   open_questions_resolved: true
-  degraded: false
+  degraded: true
 feedback_log:
   entries: []
   session_links: []
@@ -44,3 +72,9 @@ dist_spec:
   prd: .mumuspec/prd.md
   tech: .mumuspec/tech.md
 schema_version: 1.0.0
+design_coverage:
+  covered_layers: []
+  expected_layers: []
+  unreachable_from: null
+  checked_at: 2026-09-12T15:44:25.228Z
+  enforced: true

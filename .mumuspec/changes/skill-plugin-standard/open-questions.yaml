@@ -1,0 +1,54 @@
+# Open Questions: skill-plugin-standard
+# LLM-drafted; each resolution cites a human-signed decision entry in decisions.md.
+version: 1
+change: skill-plugin-standard
+items:
+  - id: OQ-1
+    question: >-
+      安装侧是否写入宿主插件登记文件（installed_plugins.json）？该文件无官方文档，
+      仅有磁盘实证（version 2，键为「插件名@市场名」）。写入有被宿主忽略或冲突的风险；
+      不写入则"已安装"这一事实没有可判定落点。
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-12T15:43:59.473Z"
+      answer: >-
+        默认写入，并新增 dry-run 供核对；登记文件不可写或不可解析时 fail-closed，
+        不得静默跳过登记（不留"装了但没登记"的中间态）。
+
+  - id: OQ-2
+    question: >-
+      cognitive-map 命令模块已完整实现（init/sync）且有测试，但从未注册进 program，
+      而 phase-design 的整个 Step 2 建立在它之上。注册命令（实现它）还是改技能文本
+      改用 state set 通道（删掉它）？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-12T15:50:03.671Z"
+      answer: >-
+        注册命令。实现已存在且有测试，缺的只是接线；"实现它"优于"改文本迁就"，
+        并可使 cognitive_framework 计数获得确定性生产通道。
+
+  - id: OQ-3
+    question: >-
+      installer-ops 的 stampSkillVersion() 会把两侧 frontmatter 的 metadata.version
+      都写成运行时包版本。包清单成为版本单一源后，该戳印是否仍需保留？若不保留，
+      漂移比对可简化为整文件比较；若保留，比对必须先剥离版本行。
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-12T15:50:03.671Z"
+      answer: >-
+        保留戳印，比对时剥离版本行。两者各服务一个目的：戳印服务宿主侧可读性
+        （副本自身表明其代次），剥离服务比对正确性（避免必然差异被当作漂移信号）。
+        不采用"删除戳印以简化比对"，那会把可读性让位给实现便利。
+
+  - id: OQ-4
+    question: >-
+      技能文本的 required 语义二分后，"包内自足的必须步骤"与"包外增强的伴随能力"
+      在技能文本中的呈现形式（同一张表加一列，还是拆成两节）需要定形，否则
+      9 件技能文本会出现两种写法。
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-12T15:50:03.671Z"
+      answer: >-
+        同一张表加一列（列名 companion/required），不拆节。理由：拆节会使两份清单
+        各自演化、重新引入"同一语义多处维护"；加列保持单表可逐行对照。
+        伴随能力的替代路径仍按既有编号体例（Fallback A-F）续编，作为带编号与产出的显式步骤。

@@ -1,0 +1,167 @@
+# 认知地图：skill-plugin-standard
+# 条目内容由 Agent 撰写（Q1-Q4 推理属决策域）；计数写入 .mumuspec.yaml 的 cognitive_framework
+version: 1
+change: skill-plugin-standard
+converged: true
+grill_me:
+  completed: true
+  rounds: 3
+entries:
+  # ── Q1 已知的已知（有 file:line 或实跑证据）──
+  - quadrant: Q1
+    category: known-known
+    question: 宿主插件标准的权威定义在哪？
+    answer: >-
+      市场内 plugin-dev 插件的 skills/plugin-structure/references/manifest-reference.md
+      与 plugin-finder 插件的 skills/plugin-discovery/references/marketplace-format.md。
+      含 name 正则 ^[a-z][a-z0-9]*(-[a-z0-9]+)*$、semver、路径须 ./ 开头禁 ../、
+      source 三态、category 九项枚举、installed_plugins.json version 2 结构。
+    confidence: high
+    source: 官方规范文档逐字读取
+  - quadrant: Q1
+    category: known-known
+    question: 技能副本与源的当前一致率？
+    answer: >-
+      7/7 内容不一致（逐件 sha256 比对），而 frontmatter 版本号被 stampSkillVersion()
+      （installer-ops.ts:346）统一戳成 0.19.2-alpha.10，版本号一致掩盖内容隔代。
+    confidence: high
+    source: 哈希比对实测
+  - quadrant: Q1
+    category: known-known
+    question: 声明的外部 required 能力可达率？
+    answer: >-
+      0/28。11 个仅存在于市场目录（marketplaces/.../superpowers/skills/，市场目录 ≠ 已安装），
+      17 个无任何来源（含 grill-me、hyperplan、gitnexus-*）。
+    confidence: high
+    source: 穷举扫描 50,508 文件的差集
+  - quadrant: Q1
+    category: known-known
+    question: 漂移检测的接入点在哪？
+    answer: >-
+      src/cli/commands/spec.ts:325-330 的 driftSources 数组；逐源隔离已在 :331-343 实现，
+      新源抛错只记 W-CHECK-002 不牵连其它源。
+    confidence: high
+    source: 源码逐行读取
+  - quadrant: Q1
+    category: known-known
+    question: 自研 bundle 格式的状态？
+    answer: >-
+      package.ts 面向不存在的 .mumuspec/skills/，版本回退硬编码 '0.12.2'，
+      publishBundle 为占位实现却 return {success:true}（fail-open）；
+      既有 10 个测试覆盖该格式。
+    confidence: high
+    source: src/bundle/packager.ts 读取
+  - quadrant: Q1
+    category: known-known
+    question: cognitive-map 命令为何无法执行？
+    answer: >-
+      src/cli/commands/cognitive-map.ts:46 导出 registerCognitiveMapCommands 且实现完整、
+      有测试 tests/cli/commands/cognitive-map-handler.test.ts，
+      但 src/cli/index.ts 无任何 cognitive 引用 → 55 个顶层命令中不含它。
+    confidence: high
+    source: --help 枚举 + index.ts grep
+  - quadrant: Q1
+    category: known-known
+    question: 是否存在并发写入者？
+    answer: >-
+      存在。loop-signal-bandwidth 在本次会话中被另一进程完整归档（ec2aa12 → 65f83fa → cd22488），
+      版本推到 0.23.0-alpha.4；ec2aa12 的 git add -A 扫入本变更全部 10 件工件，
+      cd22488 的 merge（23:40:14）把已跟踪文件写回提交时点，静默丢弃其后编辑。
+    confidence: high
+    source: git log 时间线 + 全目录 mtime 取证
+
+  # ── Q2 已知的未知（均已在 Design 前闭合）──
+  - quadrant: Q2
+    category: known-unknown
+    question: 安装侧写宿主登记文件是否有风险？
+    answer: 无官方文档，仅磁盘实证；裁决为默认写入 + dry-run + fail-closed。
+    confidence: medium
+    source: 用户裁决（decisions.md 15:43:59.473Z）
+    options: ["写入并 dry-run", "只产出不登记", "登记但需人工确认"]
+  - quadrant: Q2
+    category: known-unknown
+    question: cognitive-map 死模块是注册还是改文本？
+    answer: 注册（实现它优于改文本迁就），用户裁决。
+    confidence: high
+    source: 用户裁决（decisions.md 15:50:03.671Z）
+    options: ["注册命令", "改技能文本", "仅记录待立项"]
+  - quadrant: Q2
+    category: known-unknown
+    question: 版本戳印留存还是删除？
+    answer: 保留戳印（服务宿主侧可读性），比对时剥离版本行（服务比对正确性）。
+    confidence: high
+    source: decisions.md 15:50:03.671Z
+    options: ["保留+剥离比对", "删除戳印简化比对"]
+
+  # ── Q3 推理链（已确认，自动转化为 SHALL/SHALL NOT 草案）──
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: GM-001：插件包应否成为安装单元？
+    answer: >-
+      应当。Q1 条目「7/7 不一致 + 版本号掩盖」与「0/28 可达率」同源于"散装复制"，
+      整包化后单一权威源、漂移可比对、包内自足三项同时成立。
+    confidence: high
+    source: grill-me 轮次 1
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: GM-002：漂移比对是否需要剥离版本行？
+    answer: >-
+      需要。stampSkillVersion() 使两侧版本必然不同；纳入比对会让告警恒亮，
+      而恒亮告警会训练读者忽略整条告警通道。
+    confidence: high
+    source: grill-me 轮次 2
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: GM-003：skill-drift 是否可以 import src/install？
+    answer: >-
+      不可以。同层反向引用会破坏 I2/I3，使 layer 2 不可并行。
+      设计为接收已解析路径对的纯函数，由 src/cli 注入。
+    confidence: high
+    source: grill-me 轮次 3
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: GM-004：publishBundle 应否改为 fail-closed？
+    answer: >-
+      应当。占位实现返回成功会让调用方以为已发布，属项目红线所禁的 fail-open；
+      动作未实现时的正确行为是失败并给出理由。
+    confidence: high
+    source: grill-me 轮次 3
+
+  # ── Q4 盲区扫描（4 个维度，≥3 达标）──
+  - quadrant: Q4
+    category: blind-spot
+    question: 隐藏耦合维度：新模块间是否存在未识别的调用边？
+    answer: >-
+      已扫描。唯一风险边为 skill-drift → src/install，设计阶段已切断（纯函数 + 注入）。
+      其余新模块依赖方向单向（cli → install/guard → bundle → core），无环。
+    confidence: medium
+    source: 依赖方向逐模块核对
+  - quadrant: Q4
+    category: blind-spot
+    question: 规范继承冲突维度：新 SHALL NOT 是否派生语义无关的词法通道？
+    answer: >-
+      已扫描并规避：全部 SHALL NOT 不使用行内代码标记承载对象标识符，改由块级
+      Enforcement 走 R3 manual。实测 validate unverifiable 保持 0。
+    confidence: high
+    source: mumuspec validate 实跑
+  - quadrant: Q4
+    category: blind-spot
+    question: 契约束兼容性维度：哪些既有消费者会因本变更改变行为？
+    answer: >-
+      publishBundle 语义变更（1 处测试断言）；WORKBUDDY_PACKAGES 结构变更（1 处结构测试）；
+      stampSkillVersion 口径变更（1 处测试）。均已在 impact-analysis 登记并排入测试改写。
+    confidence: high
+    source: 调用面 grep + impact-analysis.json
+  - quadrant: Q4
+    category: blind-spot
+    question: 外部写入者维度：如何防止在途工件被再次静默丢弃？
+    answer: >-
+      无法阻止外部进程，但可改变自身暴露面：每阶段完成即 git commit（已跟踪文件才可恢复）；
+      恢复一律走 CLI 重放而非手工编辑；每步前后校验 decisions_log.content_hash。
+      残余风险：commit 与外部 merge 之间的窗口仍可能丢一次。
+    confidence: medium
+    source: 本轮两次实际丢失事件
