@@ -60,21 +60,33 @@ describe('success-path returned weight === defaultWeight (P1-3 single source)', 
   });
 
   it('drift-score returns its defaultWeight (0.2, not the stale 0.25)', async () => {
-    spawnSyncMock.mockReturnValue({ stdout: '{"totalViolations":1,"totalChecks":10}', status: 0 });
+    // E17 新契约：drift --json 输出顶层数组（多行美化）
+    spawnSyncMock.mockReturnValue({
+      stdout: '[\n  { "type": "E-AGENTS-001", "severity": "ERROR", "message": "drift" }\n]\n',
+      status: 0,
+    });
 
     const result = await driftScoreEvaluator.evaluate(ctx(root));
     expect(result.weight).toBe(driftScoreEvaluator.defaultWeight);
     expect(result.weight).toBe(0.2);
-    expect(result.value).toBeCloseTo(0.9);
+    expect(result.value).toBeCloseTo(0.9); // 1 条 / 10 饱和 = 0.9
   });
 
   it('spec-compliance returns its defaultWeight (0.2, not the stale 0.25)', async () => {
-    spawnSyncMock.mockReturnValue({ stdout: '{"passed":9,"failed":1,"total":10}', status: 0 });
+    // E17 新契约：check --json 输出 {compliance:{errors,coverage:{total}}}（多行美化）
+    spawnSyncMock.mockReturnValue({
+      stdout: JSON.stringify({
+        compliance: { passed: false, errors: [{ code: 'E-X', message: 'x' }], warnings: [], coverage: { total: 10 } },
+        drift: { errors: [], warnings: [] },
+        exitCode: 1,
+      }, null, 2),
+      status: 1, // check 报问题 → exit 1，但 stdout 含 payload，照常计算（低分不是跳过）
+    });
 
     const result = await specComplianceEvaluator.evaluate(ctx(root));
     expect(result.weight).toBe(specComplianceEvaluator.defaultWeight);
     expect(result.weight).toBe(0.2);
-    expect(result.value).toBeCloseTo(0.9);
+    expect(result.value).toBeCloseTo(0.9); // 9/10 通过
   });
 
   it('code-delta no-change branch returns its defaultWeight (0.1, not the stale 0.15)', async () => {

@@ -1,13 +1,40 @@
 /**
  * Drift Score Evaluator — Auto-Evaluate Engine (R-0002)
  *
- * Uses AST Guard semantic constraint detection to measure drift.
- * Higher score = fewer constraint violations = less drift.
- * Depends on R-0003 (AST Guard).
+ * Uses `mumuspec drift --json` to measure spec↔code drift. Higher score = fewer
+ * drift findings = more stable.
+ *
+ * E17 (evaluator-data-source-fix): 数据源从 `drift detect --format json` 改为
+ * `drift --json`——drift 命令无 `--format`，且 `--json` 输出顶层数组 `DriftResult[]`
+ * （原解析找 `report.totalViolations/totalChecks` 永远 NaN）。新语义：漂移条数按
+ * DRIFT_SATURATION 有界归一化（1 条满分减 1/10，10 条归零）——不再虚构不存在的分母。
  */
 
 import { spawnSync } from 'node:child_process';
 import type { Evaluator, EvaluatorContext, MetricResult } from './types.js';
+
+/**
+ * Drift 条数饱和上限：达到该条数时 score 归零。
+ * 有界归一化语义（同 constraint-density 的 cap 思维），替代不存在的 totalChecks 分母。
+ */
+export const DRIFT_SATURATION = 10;
+
+/** 从 stdout 解析 JSON：优先整段（多行美化输出），失败则从首个结构字符 `{`/`[` 切片。 */
+function parseJsonFrom(stdout: string): unknown {
+  const trimmed = stdout.trim();
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    // 前导噪音行（如日志）后才是 JSON——从首个结构字符切
+    const brace = stdout.indexOf('{');
+    const bracket = stdout.indexOf('[');
+    let start = -1;
+    if (brace >= 0 && bracket >= 0) start = Math.min(brace, bracket);
+    else start = Math.max(brace, bracket);
+    if (start < 0) return null;
+    return JSON.parse(stdout.slice(start)) as unknown;
+  }
+}
 
 export const driftScoreEvaluator: Evaluator = {
   name: 'drift-score',
@@ -17,41 +44,38 @@ export const driftScoreEvaluator: Evaluator = {
     const cwd = ctx.worktreePath || ctx.projectRoot;
 
     try {
-      // Run guard check with drift detection
       const result = spawnSync(
-        'npx', ['mumuspec', 'drift', 'detect', '--format', 'json'],
-        { cwd, encoding: 'utf-8', timeout: 30_000 }
+        'npx', ['mumuspec', 'drift', '--json'],
+        // E17: win32 上 npx 是 npx.cmd，无 shell 无法 exec（constraint-density 同款修复）
+        { cwd, encoding: 'utf-8', timeout: 30_000, shell: process.platform === 'win32' },
       );
 
-      if (result.status !== 0 && !result.stdout) {
-        return nullResult('drift detection unavailable');
+      if (result.error) {
+        return nullResult(`drift command failed to start: ${result.error.message}`);
       }
 
-      // Parse drift report
-      const output = result.stdout ?? '';
-      const lines = output.split('\n').filter(l => l.trim());
-      const jsonLine = lines.find(l => l.startsWith('{'));
-      if (!jsonLine) {
-        return nullResult('no drift report');
+      const parsed = parseJsonFrom(result.stdout ?? '');
+      if (parsed === null) {
+        return nullResult('drift produced no JSON output');
       }
 
-      const report = JSON.parse(jsonLine);
-      const totalViolations = report.totalViolations ?? report.violations ?? 0;
-      const totalChecks = report.totalChecks ?? report.checks ?? 1;
+      // drift --json 顶层是数组（可能为空）。status 非 0 但 stdout 可解析时照常计算——
+      // 有漂移恰是低分的来源。
+      const drifts = Array.isArray(parsed) ? parsed : [];
+      const violations = drifts.length;
 
-      // Drift score = 1 - (violations / checks), clamped to [0, 1]
-      const driftScore = Math.max(0, Math.min(1, 1 - (totalViolations / totalChecks)));
+      const driftScore = Math.max(0, Math.min(1, 1 - violations / DRIFT_SATURATION));
 
       return {
         name: 'drift-score',
         value: driftScore,
         // P1-3 (evaluator-weight-single-source): 单一权威源——引用 defaultWeight
         weight: driftScoreEvaluator.defaultWeight,
-        details: `${totalViolations} violations in ${totalChecks} checks (drift: ${Math.round((1 - driftScore) * 100)}%)`,
-        rawData: { violations: totalViolations, checks: totalChecks },
+        details: `${violations} drift item(s) (score: ${Math.round((1 - driftScore) * 100)}% penalty; 0 = clean, ${DRIFT_SATURATION}+ = saturated)`,
+        rawData: { violations, saturation: DRIFT_SATURATION },
       };
-    } catch {
-      return nullResult('drift detection failed');
+    } catch (err) {
+      return nullResult(`drift detection failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   },
 };
