@@ -36,7 +36,8 @@ export const codeDeltaEvaluator: Evaluator = {
         return {
           name: 'code-delta',
           value: 1.0,
-          weight: 0.15,
+          // P1-3 (evaluator-weight-single-source): 单一权威源——引用 defaultWeight
+          weight: codeDeltaEvaluator.defaultWeight,
           details: 'No changes detected — code stable',
           rawData: { linesChanged: 0 },
         };
@@ -59,7 +60,8 @@ export const codeDeltaEvaluator: Evaluator = {
       return {
         name: 'code-delta',
         value: convergenceScore,
-        weight: 0.15,
+        // P1-3 (evaluator-weight-single-source): 单一权威源——引用 defaultWeight
+        weight: codeDeltaEvaluator.defaultWeight,
         details: `${linesChanged} lines changed (${Math.round(ratio * 100)}% of codebase)`,
         rawData: { linesChanged, insertions, deletions, totalLines },
       };

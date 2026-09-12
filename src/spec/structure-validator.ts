@@ -29,6 +29,10 @@ const DEFINED_DIRECTORIES = new Set([
   // doc-governance-decisions (2026-09-06): temp/ is the designated scratch
   // area (root spec.md TEMP-1) — creating it must not trigger E-SPEC-013.
   'temp',
+  // self-improvement-loop-p0 (P0-1): meta-evolution stats persist to
+  // .mumuspec/evolution/ (stats.jsonl) — guard writes land there; P0-1 落盘时
+  // 未登记白名单，validate 报 E-SPEC-013，此处补登（evaluator-weight-single-source 变更收尾）。
+  'evolution',
 ]);
 
 /** Defined top-level files under .mumuspec/ */

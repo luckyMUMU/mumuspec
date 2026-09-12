@@ -38,6 +38,16 @@ describe('validateMumuSpecStructure — workflow.yaml whitelist', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('TC-3: evolution/ is a whitelisted directory (P0-1 stats landing dir)', () => {
+    mkdirSync(join(testDir, '.mumuspec', 'evolution'));
+    const result = validateMumuSpecStructure(testDir);
+    const evolutionErrors = result.errors.filter(
+      (e) => e.code === 'E-SPEC-013' && (e.detail ?? '').includes('evolution'),
+    );
+    expect(evolutionErrors).toHaveLength(0);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('TC-2: still rejects undefined root files (whitelist not loosened)', () => {
     writeFileSync(join(testDir, '.mumuspec', 'random-junk.md'), 'junk');
     const result = validateMumuSpecStructure(testDir);

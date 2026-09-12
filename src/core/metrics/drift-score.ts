@@ -45,7 +45,8 @@ export const driftScoreEvaluator: Evaluator = {
       return {
         name: 'drift-score',
         value: driftScore,
-        weight: 0.25,
+        // P1-3 (evaluator-weight-single-source): 单一权威源——引用 defaultWeight
+        weight: driftScoreEvaluator.defaultWeight,
         details: `${totalViolations} violations in ${totalChecks} checks (drift: ${Math.round((1 - driftScore) * 100)}%)`,
         rawData: { violations: totalViolations, checks: totalChecks },
       };
