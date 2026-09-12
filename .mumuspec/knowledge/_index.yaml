@@ -76,6 +76,17 @@ pages:
       - hyperplan
       - decision
       - docs-tree-alignment
+  - id: KE-evaluator-data-source-fix-hyperplan
+    title: Adversarial design review insights from evaluator-data-source-fix
+    type: decision
+    status: confirmed
+    scope: evaluator-data-source-fix
+    file: .mumuspec\knowledge\decisions\KE-evaluator-data-source-fix-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - evaluator-data-source-fix
   - id: KE-evaluator-weight-single-source-hyperplan
     title: Adversarial design review insights from evaluator-weight-single-source
     type: decision
@@ -895,6 +906,17 @@ pages:
       - lesson
       - decisions
       - docs-tree-alignment
+  - id: KE-evaluator-data-source-fix-lessons
+    title: Lessons from evaluator-data-source-fix decisions
+    type: lesson
+    status: confirmed
+    scope: evaluator-data-source-fix
+    file: .mumuspec\knowledge\lessons\KE-evaluator-data-source-fix-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - evaluator-data-source-fix
   - id: KE-evaluator-weight-single-source-lessons
     title: Lessons from evaluator-weight-single-source decisions
     type: lesson
