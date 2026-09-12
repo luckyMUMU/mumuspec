@@ -1,0 +1,57 @@
+name: self-improvement-loop-p0
+phase: verify
+workflow: full
+created_at: 2026-09-12T05:51:22.956Z
+updated_at: 2026-09-12T06:20:02.725Z
+scope: .
+affected_scopes: []
+build_layers: []
+test_cases:
+  design_locked: false
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/self-improvement-loop-p0
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    design: 2
+    build: 1
+  content_hash: a91d8c4b4153e508
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+design_coverage:
+  covered_layers:
+    - 0
+  expected_layers:
+    - 0
+  unreachable_from: null
+  checked_at: 2026-09-12T05:53:57.817Z
+  enforced: true

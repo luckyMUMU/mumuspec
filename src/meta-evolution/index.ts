@@ -14,4 +14,4 @@ export * from './knowledge-evolution.js';
 export * from './skill-recommender.js';
 
 // stats.ts uses async/await for file I/O — export individually
-export { getStatsFilePath, recordCheck, readCheckRecords, rotateStatsIfNeeded, clearStats } from './stats.js';
+export { getStatsFilePath, resolveEvolutionRoot, recordCheck, readCheckRecords, rotateStatsIfNeeded, clearStats } from './stats.js';

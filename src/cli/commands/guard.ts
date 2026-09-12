@@ -9,6 +9,7 @@ import { executeTransition, requiresUserConfirmation, activateProjectWorkflow } 
 import type { ChangePhase } from '../../core/types.js';
 import { runPhaseGuard } from '../../guard/phase-guard.js';
 import { commitChangeBranch } from '../../change/branch.js';
+import { recordCheck, resolveEvolutionRoot } from '../../meta-evolution/stats.js';
 
 export function registerGuardCommand(program: Command): void {
   program
@@ -20,7 +21,7 @@ export function registerGuardCommand(program: Command): void {
     .option('--force', 'proceed despite guard errors (flexible guard)')
     .option('--confirm', 'user confirmed (required for blocking transitions)')
     .option('--json', 'output as JSON')
-    .action((change, phase, options) => {
+    .action(async (change, phase, options) => {
       const root = findProjectRoot();
       if (!root) {
         console.error('Error: Not in a MumuSpec project.');
@@ -56,6 +57,15 @@ export function registerGuardCommand(program: Command): void {
         }
       }
 
+      // P0-1: 每次守卫运行都落盘相位聚合 CheckRecord（主仓根，避免随 worktree 丢失）。
+      // 失败 code 只作归因、不参与 passRate 分母——逐约束枚举推迟到 P1（self-improvement-loop-p0）。
+      const evolutionRoot = resolveEvolutionRoot(root);
+      try {
+        await recordCheck(evolutionRoot, { constraintId: `guard:${phase}`, passed: result.passed, falsePositive: false });
+      } catch (err) {
+        console.error(`⚠ stats 落盘失败（不影响守卫判定）: ${err instanceof Error ? err.message : String(err)}`);
+      }
+
       if (options.json) {
         console.log(JSON.stringify(result, null, 2));
         return;
@@ -78,6 +88,16 @@ export function registerGuardCommand(program: Command): void {
           phase,
           result: 'bypassed',
         });
+        // E13: --force 是 falsePositive 的唯一天然采样点——绕过时落一条 falsePositive 记录
+        try {
+          await recordCheck(evolutionRoot, {
+            constraintId: `guard:${phase}:force`,
+            passed: false,
+            falsePositive: true,
+          });
+        } catch (err) {
+          console.error(`⚠ stats 落盘失败: ${err instanceof Error ? err.message : String(err)}`);
+        }
         console.warn(`⚠ Phase guard failed but --force specified, continuing: ${change} → ${phase}`);
         console.warn(`  风险提示: 已强制通过阶段守卫，本次绕过已记录到 audit.log (guard.force)`);
       } else {

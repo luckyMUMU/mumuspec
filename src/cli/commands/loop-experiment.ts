@@ -98,6 +98,8 @@ export function registerExperimentCommands(loopCmd: Command): void {
           console.log(`       ${dir.description.substring(0, 60)}...`);
         }
         console.log('');
+        console.warn('⚠  experiment mode 未接通（P0-5 封存）：arms 不产生 commit、方向为静态启发式、');
+        console.warn('   度量为文件存在性模拟 — adopt 不可用。请勿在未接通状态下把实验结果当作可采纳改进。');
         console.log('Next: mumuspec loop experiment spawn');
       } catch (err) {
         console.error(`Error: ${(err as Error).message}`);
@@ -278,12 +280,17 @@ export function registerExperimentCommands(loopCmd: Command): void {
       }
 
       try {
+        const state = loadExperimentState(root, name);
+        if (!state) {
+          console.error(`Error: Experiment not found: ${name}`);
+          process.exit(1);
+        }
+        // P0-5: 未接通时 adopt（含 dry-run 预览）一律拒绝，exit 1
+        if (state.enabled === false) {
+          console.error('✗ experiment mode 未接通，不可采纳 — arms 不产生 commit，adopt 无对象（P0-5 封存）');
+          process.exit(1);
+        }
         if (options.dryRun) {
-          const state = loadExperimentState(root, name);
-          if (!state) {
-            console.error(`Error: Experiment not found: ${name}`);
-            process.exit(1);
-          }
           console.log(`[DRY-RUN] Would adopt ${state.selectedDirections.length} direction(s):`);
           for (const dirId of state.selectedDirections) {
             const dir = state.directions.find((d) => d.id === dirId);
@@ -335,6 +342,7 @@ export function registerExperimentCommands(loopCmd: Command): void {
           console.log('');
           console.log(`  Experiment: ${status.name}`);
           console.log(`  Phase:      ${status.phase}`);
+          console.log(`  Mode:       ${status.enabled ? 'wired' : 'experimental (未接通, adopt 不可用)'}`);
           console.log(`  Arms:       ${status.armsCompleted}/${status.armsTotal} completed`);
           if (status.armsFailed > 0) {
             console.log(`  Failed:     ${status.armsFailed}`);
@@ -350,7 +358,8 @@ export function registerExperimentCommands(loopCmd: Command): void {
           }
           console.log(`${experiments.length} experiment(s):`);
           for (const exp of experiments) {
-            console.log(`  ${exp.name} [${exp.phase}] — ${exp.armsCompleted}/${exp.armsTotal} arms`);
+            const mode = exp.enabled ? '' : ' [experimental (未接通)]';
+            console.log(`  ${exp.name} [${exp.phase}] — ${exp.armsCompleted}/${exp.armsTotal} arms${mode}`);
           }
         }
       } catch (err) {
@@ -408,6 +417,8 @@ export function registerExperimentCommands(loopCmd: Command): void {
       console.log('╔══════════════════════════════════════════════════════════╗');
       console.log('║  Experiment Mode — Parallel Evolution Loop              ║');
       console.log('╚══════════════════════════════════════════════════════════╝');
+      console.log('');
+      console.log('Status: experimental (未接通) — adopt 不可用');
       console.log('');
       console.log('Workflow: plan → spawn → run → compare → adopt → cleanup');
       console.log('');

@@ -60,12 +60,13 @@ describe('meta-evolve command', () => {
     );
   });
 
-  it('--apply --confirm lists Goal Preservation anchors', async () => {
+  it('--apply --confirm fails closed (P0-3: not implemented — exit 1, no fake success)', async () => {
     const program = createProgram();
-    await program.parseAsync(['node', 'mumuspec', 'meta-evolve', '--apply', '--confirm']);
+    await expect(
+      program.parseAsync(['node', 'mumuspec', 'meta-evolve', '--apply', '--confirm']),
+    ).rejects.toThrow('process.exit called with code 1');
 
-    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('PROTECTED');
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('not implemented'));
   });
 
   it('--propose outputs markdown proposal', async () => {
@@ -74,6 +75,32 @@ describe('meta-evolve command', () => {
 
     const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('# Meta-Spec Evolution Proposal');
+  });
+
+  // P0-2 (self-improvement-loop-p0): 空数据集与健康必须可区分
+  it('--analyze prints "No check records accumulated yet" when stats empty (honest, not fake health)', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'mumuspec', 'meta-evolve', '--analyze']);
+
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('No check records accumulated yet.');
+  });
+
+  it('--propose does NOT claim "Constraints are healthy" on empty data', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'mumuspec', 'meta-evolve', '--propose']);
+
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('无法评估约束健康度');
+    expect(output).not.toContain('Constraints are healthy');
+  });
+
+  it('--analyze declares knowledge index unavailable when index file missing (P0-2)', async () => {
+    const program = createProgram();
+    await program.parseAsync(['node', 'mumuspec', 'meta-evolve', '--analyze']);
+
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('knowledge index unavailable — skipped');
   });
 
   it('exits when not in a mumuspec project', async () => {

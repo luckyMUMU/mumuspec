@@ -6,7 +6,7 @@
  * - cleanupWorktrees (parsing, dry-run, merged/non-merged branches)
  * - evaluateRound convergence via progress threshold (not goal_achieved)
  * - evaluateRound with auto_commit=false (no commit attempt)
- * - commitRound failure path (non-fatal)
+ * - commitRound failure path (P0-4: fail-closed — throws + audits, no silent swallow)
  * - detectStagnation boundary conditions (exactly STAGNATION_LIMIT entries)
  * - evaluateRound with next_focus and issues (exercises buildCommitMessage branches)
  */
@@ -578,9 +578,10 @@ describe('evaluateRound — commitRound failure', () => {
   beforeEach(() => {
     mockChangeStates.clear();
     activeChangeName = null;
+    mockSpawnSync.mockReset();
   });
 
-  it('does not throw when git commit fails', async () => {
+  it('throws and audits when git commit fails (P0-4: fail-closed, no silent swallow)', async () => {
     const loopState = createLoopState({
       phase: 'act',
       current_round: 1,
@@ -597,7 +598,6 @@ describe('evaluateRound — commitRound failure', () => {
     seedChange('ch1', loopState);
 
     // Make git commands fail
-    mockSpawnSync.mockReset();
     mockSpawnSync.mockImplementation(() => {
       throw new Error('git add failed: not a git repo');
     });
@@ -609,14 +609,15 @@ describe('evaluateRound — commitRound failure', () => {
       needs_user_input: false,
     };
 
-    // Should NOT throw
-    await evaluateRound(PROJECT_ROOT, 'ch1', evaluation);
+    // P0-4: 副作用失败必须中断并留 audit（红线：不用 try/catch 吞掉副作用失败）
+    await expect(evaluateRound(PROJECT_ROOT, 'ch1', evaluation)).rejects.toThrow('git');
 
-    const savedState = mockChangeStates.get('ch1');
-    // Phase should still advance to plan
-    expect(savedState.loop_state.phase).toBe('plan');
-    // But no commit_sha since commit failed
-    expect(savedState.loop_state.rounds[0].commit_sha).toBeUndefined();
+    // audit 已记录 result:'fail'
+    const appendAuditLogMock = await import('../../src/core/utils.js').then((m) => (m.appendAuditLog as unknown) as ReturnType<typeof vi.fn>);
+    const auditCalls = appendAuditLogMock.mock.calls.filter((c) => c[0] && c[1] && c[1].action === 'loop.commit');
+    expect(auditCalls.length).toBeGreaterThan(0);
+    expect(auditCalls[0][1].result).toBe('fail');
+    expect(auditCalls[0][1].error).toContain('git add failed');
   });
 });
 

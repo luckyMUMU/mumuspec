@@ -267,7 +267,20 @@ export async function evaluateRound(
       }
       loop.metrics_history.push(snapshot);
     } catch (err) {
-      // Auto-evaluation failed — fall back to manual and log warning
+      // Auto-evaluation failed — fall back to manual and log warning.
+      // P0-4: 只读采集失败不中断，但必须留 audit 使降级可追溯（区别于副作用失败）。
+      try {
+        appendAuditLog(getMumuSpecDir(projectRoot), {
+          actor: 'engine',
+          action: 'loop.auto-evaluate',
+          change: changeName,
+          phase: 'evaluate',
+          result: 'fail',
+          error: `auto-evaluate failed, falling back to manual: ${(err as Error).message}`,
+        });
+      } catch {
+        // audit 本身失败不改变降级行为（main loop 仍继续 manual）
+      }
       console.warn(`Auto-evaluate failed, falling back to manual: ${(err as Error).message}`);
       finalEvaluation = evaluation;
     }
@@ -301,8 +314,21 @@ export async function evaluateRound(
       currentRound.commit_message = commitMsg.message;
       state.loop_state = loop;
       saveChangeState(projectRoot, changeName, state, state.scope);
-    } catch {
-      // Non-fatal: commit failure doesn't block the loop
+    } catch (err) {
+      // P0-4: 副作用失败必须中断并留 audit（红线：不用 try/catch 吞掉副作用失败）
+      try {
+        appendAuditLog(getMumuSpecDir(projectRoot), {
+          actor: 'engine',
+          action: 'loop.commit',
+          change: changeName,
+          phase: 'evaluate',
+          result: 'fail',
+          error: err instanceof Error ? err.message : String(err),
+        });
+      } catch {
+        // audit 落盘失败不掩盖原始提交失败
+      }
+      throw err;
     }
   }
 

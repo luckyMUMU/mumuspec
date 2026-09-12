@@ -301,6 +301,8 @@ export interface ExperimentInitInput {
 export interface ExperimentStatusSummary {
   name: string;
   phase: ExperimentPhase;
+  /** Whether the mode is wired end-to-end (P0-5: 未接通时为 false，adopt 不可用) */
+  enabled: boolean;
   currentMetaRound: number;
   maxMetaRounds: number;
   directionCount: number;

@@ -9,11 +9,14 @@
  * Requires being inside a MumuSpec project.
  */
 import type { Command } from 'commander';
-import { findProjectRoot } from '../../core/utils.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { findProjectRoot, getMumuSpecDir } from '../../core/utils.js';
 import { generateReport } from '../../meta-evolution/scoring.js';
 import { analyzeAllFreshness } from '../../meta-evolution/knowledge-evolution.js';
 import { recommendSkills } from '../../meta-evolution/skill-recommender.js';
 import { PRESERVATION_ANCHORS } from '../../meta-evolution/impact-analysis.js';
+import { readCheckRecords } from '../../meta-evolution/stats.js';
 import type { CheckRecord } from '../../meta-evolution/types.js';
 import { DEFAULT_SCORING_CONFIG } from '../../meta-evolution/types.js';
 
@@ -26,7 +29,7 @@ export function registerMetaEvolveCommand(program: Command): void {
     .option('--apply', '应用已确认的提案')
     .option('--confirm', '确认执行 apply')
     .option('--scope <scope...>', '指定评估 scope')
-    .action((options) => {
+    .action(async (options) => {
       const root = findProjectRoot();
       if (!root) {
         console.error('Error: Not in a MumuSpec project.');
@@ -45,30 +48,34 @@ export function registerMetaEvolveCommand(program: Command): void {
       }
 
       if (options.propose) {
-        runPropose(root, options.scope ?? []);
+        await runPropose(root, options.scope ?? []);
         return;
       }
 
       // Default: --analyze
-      runAnalyze(root, options.scope ?? []);
+      await runAnalyze(root, options.scope ?? []);
     });
 }
 
-function runAnalyze(_root: string, scopes: string[]): void {
+/** 知识 layer 输入是否可得（索引文件存在即视为可得；freshness 数据面未接线属 E7 独立缺口） */
+function knowledgeIndexAvailable(root: string): boolean {
+  return existsSync(join(getMumuSpecDir(root), 'knowledge', '_index.yaml'));
+}
+
+async function runAnalyze(root: string, scopes: string[]): Promise<void> {
   // TC-META-09: CLI --analyze output contains expected header
   console.log('┌──────────────────────────────────────────────────────┐');
   console.log('│  Meta-Spec Evolution: Effectiveness Score Report      │');
   console.log('└──────────────────────────────────────────────────────┘');
   console.log('');
 
-  // In production: read from stats file
-  // ponytail: empty report placeholder until stats are accumulated
-  const emptyRecords: CheckRecord[] = [];
-  const report = generateReport(emptyRecords, DEFAULT_SCORING_CONFIG, PRESERVATION_ANCHORS);
+  // P0-2: 读真实 CheckRecord——空数据集与健康必须可区分
+  const records: CheckRecord[] = await readCheckRecords(root);
+  const report = generateReport(records, DEFAULT_SCORING_CONFIG, PRESERVATION_ANCHORS);
 
   if (report.totalEvaluated === 0) {
     console.log('  No check records accumulated yet.');
-    console.log('  Run `mumuspec check` a few times to populate stats.');
+    console.log('  Run `mumuspec guard` a few times to populate stats.');
   } else {
     for (const s of report.scores) {
       const flag = s.reliable ? '' : ' [low confidence]';
@@ -76,13 +83,19 @@ function runAnalyze(_root: string, scopes: string[]): void {
     }
   }
 
-  // Knowledge layer evolution
-  const evolutionActions = analyzeAllFreshness([]);
-  if (evolutionActions.length > 0) {
+  // Knowledge layer evolution (P0-2: 索引不可得显式声明，不传空数组冒充"无动作")
+  if (!knowledgeIndexAvailable(root)) {
     console.log('');
-    console.log('  Knowledge Evolution Actions:');
-    for (const action of evolutionActions) {
-      console.log(`    ${action.pageId}: ${action.action} (${action.reason})`);
+    console.log('  knowledge index unavailable — skipped');
+  } else {
+    // E7: 无 PageRefInfo 生产者——索引存在但 freshness 数据面未接通，不虚构评估
+    const evolutionActions = analyzeAllFreshness([]);
+    if (evolutionActions.length > 0) {
+      console.log('');
+      console.log('  Knowledge Evolution Actions:');
+      for (const action of evolutionActions) {
+        console.log(`    ${action.pageId}: ${action.action} (${action.reason})`);
+      }
     }
   }
 
@@ -100,15 +113,22 @@ function runAnalyze(_root: string, scopes: string[]): void {
   console.log(`  Generated: ${report.generatedAt}`);
 }
 
-function runPropose(_root: string, _scopes: string[]): void {
+async function runPropose(root: string, _scopes: string[]): Promise<void> {
   // TC-META-06: --propose outputs markdown proposal
-  const emptyRecords: CheckRecord[] = [];
-  const report = generateReport(emptyRecords, DEFAULT_SCORING_CONFIG, PRESERVATION_ANCHORS);
+  // P0-2: 读真实 CheckRecord——空数据集不再打出"Constraints are healthy"以外的假健康
+  const records: CheckRecord[] = await readCheckRecords(root);
+  const report = generateReport(records, DEFAULT_SCORING_CONFIG, PRESERVATION_ANCHORS);
 
   console.log('# Meta-Spec Evolution Proposal');
   console.log('');
   console.log(`Generated at: ${report.generatedAt}`);
   console.log('');
+
+  if (report.totalEvaluated === 0) {
+    console.log('No check records accumulated yet — 无法评估约束健康度（空数据集 ≠ 健康）。');
+    console.log('Run `mumuspec guard` a few times to populate stats.');
+    return;
+  }
 
   if (report.recommendations.length === 0) {
     console.log('No issues detected. Constraints are healthy.');
@@ -136,12 +156,8 @@ function runPropose(_root: string, _scopes: string[]): void {
 }
 
 function runApply(_root: string): void {
-  // Goal Preservation: list protected entries
-  console.log('Goal Preservation anchors (protected):');
-  for (const id of PRESERVATION_ANCHORS) {
-    console.log(`  [PROTECTED] ${id}`);
-  }
-  // ponytail: actual modification logic deferred until scoring data is accumulated
-  console.log('');
-  console.log('Applying evolution proposals... (placeholder - data accumulation pending)');
+  // P0-3: --apply 未实现即 fail-closed——不再占位 exit 0（占位会让"命令成功"成为谎言）
+  console.error('Error: meta-evolve --apply is not implemented (P0-3 fail-closed).');
+  console.error('  --apply 需要真实改写约束强度并依赖 scoring 数据积累 + 人工签收，见 roadmap R-0005。');
+  process.exit(1);
 }
