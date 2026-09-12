@@ -120,6 +120,17 @@ pages:
       - hyperplan
       - decision
       - p0-calibration-hardening
+  - id: KE-self-improvement-loop-p0-hyperplan
+    title: Adversarial design review insights from self-improvement-loop-p0
+    type: decision
+    status: confirmed
+    scope: self-improvement-loop-p0
+    file: .mumuspec\knowledge\decisions\KE-self-improvement-loop-p0-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - self-improvement-loop-p0
   - id: KE-2026-09-09-completeness-artifacts-freedom-metrics-patterns
     title: Architecture patterns from 2026-09-09-completeness-artifacts-freedom-metrics
     type: pattern
@@ -219,6 +230,17 @@ pages:
       - pattern
       - architecture
       - p0-calibration-hardening
+  - id: KE-self-improvement-loop-p0-patterns
+    title: Architecture patterns from self-improvement-loop-p0
+    type: pattern
+    status: confirmed
+    scope: self-improvement-loop-p0
+    file: .mumuspec\knowledge\patterns\KE-self-improvement-loop-p0-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - self-improvement-loop-p0
   - id: KP-0035
     title: 完整目录结构示例
     type: pattern
@@ -895,6 +917,17 @@ pages:
       - lesson
       - decisions
       - p0-calibration-hardening
+  - id: KE-self-improvement-loop-p0-lessons
+    title: Lessons from self-improvement-loop-p0 decisions
+    type: lesson
+    status: confirmed
+    scope: self-improvement-loop-p0
+    file: .mumuspec\knowledge\lessons\KE-self-improvement-loop-p0-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - self-improvement-loop-p0
   - id: KL-0006
     title: 开放问题
     type: lesson

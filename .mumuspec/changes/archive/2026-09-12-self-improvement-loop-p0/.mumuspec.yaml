@@ -1,8 +1,8 @@
 name: self-improvement-loop-p0
-phase: verify
+phase: archive-completed
 workflow: full
 created_at: 2026-09-12T05:51:22.956Z
-updated_at: 2026-09-12T06:20:02.725Z
+updated_at: 2026-09-12T06:20:58.753Z
 scope: .
 affected_scopes: []
 build_layers: []
@@ -55,3 +55,12 @@ design_coverage:
   unreachable_from: null
   checked_at: 2026-09-12T05:53:57.817Z
   enforced: true
+branch_status: handled
+verify_result: pass
+knowledge_extraction:
+  completed: true
+  pages_created_count: 3
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false
