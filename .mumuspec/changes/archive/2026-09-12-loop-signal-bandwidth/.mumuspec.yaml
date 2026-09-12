@@ -1,0 +1,60 @@
+name: loop-signal-bandwidth
+phase: archive-completed
+workflow: hotfix
+created_at: 2026-09-12T15:34:29.540Z
+updated_at: 2026-09-12T15:35:44.649Z
+scope: .
+affected_scopes: []
+build_layers:
+  - layer: 0
+    scope: .
+    status: done
+test_cases:
+  design_locked: false
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/loop-signal-bandwidth
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    build: 1
+  content_hash: 972017634fb5b8e0
+rollback_history: []
+cognitive_framework:
+  enabled: false
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+verify_result: pass
+branch_status: handled
+knowledge_extraction:
+  completed: true
+  pages_created_count: 2
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

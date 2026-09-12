@@ -16,6 +16,7 @@ import {
   saveChangeState,
   getActiveChange,
 } from './manager.js';
+import { runPhaseGuard } from '../guard/phase-guard.js';
 import {
   LoopState,
   LoopRound,
@@ -250,12 +251,29 @@ export async function evaluateRound(
       // Convert auto-evaluate result to LoopEvaluation.
       // suggestions MUST be carried through — an advisory that is produced but
       // never reachable is a dead-end output (freedom-metrics-loop-closure, D1).
+      //
+      // P1-1 (E11): auto/hybrid 分支此前把 issues/needs_user_input 硬覆盖为空——
+      // 生产者有（CLI --issue/--needs-user）、通道有、终点被写死。现透传调用方
+      // 信号，并主动采集本轮守卫失败事实（runPhaseGuard error.code）拼入 issues，
+      // 让下一轮 plan 获得 >1 标量的反思带宽（GEPA：标量指标 → 盲搜）。
+      const collectedIssues = [...evaluation.issues];
+      try {
+        // 只读采集——失败不影响主流程（区别于副作用失败；P0-4 纪律）
+        const guardResult = runPhaseGuard(projectRoot, changeName, 'build');
+        for (const err of guardResult.errors) {
+          const tag = `[guard:${err.code}] ${err.message}`;
+          if (!collectedIssues.includes(tag)) collectedIssues.push(tag);
+        }
+      } catch {
+        // guard 采集失败：静默跳过（不把采集器失败当 loop 失败）
+      }
+
       finalEvaluation = {
         progress: evalResult.progress,
         goal_achieved: evalResult.goalAchieved,
-        issues: [],
+        issues: collectedIssues,
         next_focus: evalResult.recommendation,
-        needs_user_input: false,
+        needs_user_input: evaluation.needs_user_input,
         suggestions: evalResult.suggestions ?? [],
       };
 

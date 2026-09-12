@@ -131,6 +131,17 @@ pages:
       - hyperplan
       - decision
       - loop-convergence-judgment
+  - id: KE-loop-signal-bandwidth-hyperplan
+    title: Adversarial design review insights from loop-signal-bandwidth
+    type: decision
+    status: confirmed
+    scope: loop-signal-bandwidth
+    file: .mumuspec\knowledge\decisions\KE-loop-signal-bandwidth-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - loop-signal-bandwidth
   - id: KE-onboard-cli-hyperplan
     title: Adversarial design review insights from onboard-cli
     type: decision
@@ -961,6 +972,17 @@ pages:
       - lesson
       - decisions
       - loop-convergence-judgment
+  - id: KE-loop-signal-bandwidth-lessons
+    title: Lessons from loop-signal-bandwidth decisions
+    type: lesson
+    status: confirmed
+    scope: loop-signal-bandwidth
+    file: .mumuspec\knowledge\lessons\KE-loop-signal-bandwidth-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - loop-signal-bandwidth
   - id: KE-onboard-cli-lessons
     title: Lessons from onboard-cli decisions
     type: lesson
