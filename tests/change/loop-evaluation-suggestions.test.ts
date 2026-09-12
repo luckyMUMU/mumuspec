@@ -18,6 +18,7 @@ vi.mock('node:child_process', () => ({
 
 const mockChangeStates = new Map<string, any>();
 let activeChangeName: string | null = null;
+const mockRunPhaseGuard = vi.fn(() => ({ passed: true, errors: [], warnings: [] }));
 
 vi.mock('../../src/change/manager.js', () => ({
   loadChangeState: vi.fn((_root: string, changeName: string) => mockChangeStates.get(changeName) ?? null),
@@ -60,6 +61,10 @@ vi.mock('../../src/core/metrics/auto-evaluate.js', () => ({
     history: [0.6],
   })),
   hybridEvaluate: vi.fn(),
+}));
+
+vi.mock('../../src/guard/phase-guard.js', () => ({
+  runPhaseGuard: (...args: unknown[]) => mockRunPhaseGuard(...args),
 }));
 
 import { evaluateRound } from '../../src/change/loop-engine.js';
@@ -160,5 +165,71 @@ describe('advisory suggestions persistence (ENF-2)', () => {
 
     const loop = mockChangeStates.get('loop-d').loop_state;
     expect(loop.rounds[loop.rounds.length - 1].evaluation.suggestions).toBeUndefined();
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════
+// P1-1 (E11): 信号带宽回填——issues 透传 + guard 失败事实采集
+// ════════════════════════════════════════════════════════════════════
+
+describe('P1-1 signal pass-through (E11)', () => {
+  beforeEach(() => {
+    mockRunPhaseGuard.mockReset();
+    mockRunPhaseGuard.mockReturnValue({ passed: true, errors: [], warnings: [] });
+  });
+
+  it('auto mode passes through caller-supplied issues (no longer hardcoded to [])', async () => {
+    seed('loop-e');
+    await evaluateRound(PROJECT_ROOT, 'loop-e', {
+      progress: 0.6,
+      goal_achieved: false,
+      issues: ['pre-existing issue'],
+      needs_user_input: false,
+    }, { mode: 'auto' });
+
+    const loop = mockChangeStates.get('loop-e').loop_state;
+    const recorded = loop.rounds[loop.rounds.length - 1].evaluation;
+    expect(recorded.issues).toContain('pre-existing issue');
+  });
+
+  it('auto mode passes through needs_user_input (no longer hardcoded to false)', async () => {
+    seed('loop-f');
+    await evaluateRound(PROJECT_ROOT, 'loop-f', {
+      progress: 0.6,
+      goal_achieved: false,
+      issues: [],
+      needs_user_input: true,
+      block_reason: 'needs approval',
+    }, { mode: 'auto' });
+
+    const loop = mockChangeStates.get('loop-f').loop_state;
+    const recorded = loop.rounds[loop.rounds.length - 1].evaluation;
+    expect(recorded.needs_user_input).toBe(true);
+  });
+
+  it('collects guard failure codes into issues ([guard:<code>] tagged, deduped)', async () => {
+    mockRunPhaseGuard.mockReturnValue({
+      passed: false,
+      errors: [
+        { code: 'E-GUARD-001', message: 'proposal.md 不存在' },
+        { code: 'E-GUARD-001', message: 'proposal.md 不存在' }, // duplicate code
+      ],
+      warnings: [],
+    });
+
+    seed('loop-g');
+    await evaluateRound(PROJECT_ROOT, 'loop-g', {
+      progress: 0.6,
+      goal_achieved: false,
+      issues: [],
+      needs_user_input: false,
+    }, { mode: 'auto' });
+
+    const loop = mockChangeStates.get('loop-g').loop_state;
+    const recorded = loop.rounds[loop.rounds.length - 1].evaluation;
+    const guardTags = recorded.issues.filter((i: string) => i.startsWith('[guard:'));
+    expect(guardTags).toHaveLength(1); // deduped by code+message
+    expect(guardTags[0]).toContain('E-GUARD-001');
+    expect(guardTags[0]).toContain('proposal.md');
   });
 });

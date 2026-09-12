@@ -1,0 +1,173 @@
+{
+  "change": "skill-plugin-standard",
+  "base_ref": "c72d35129500a90fa3990f21886abd29ebb254e3",
+  "analyzed_at": "2026-09-12",
+  "analysis_method": "grep 调用面 + 逐点读取装配处（非推断）",
+  "affected_scopes": ["."],
+  "new_modules": [
+    {
+      "path": "src/bundle/plugin-package.ts",
+      "purpose": "按宿主插件标准产出包：.codebuddy-plugin/plugin.json + marketplace.json + skills/<name>/SKILL.md 布局",
+      "rationale": "现有 src/bundle/packager.ts 是自研格式（面向不存在的 .mumuspec/skills/，版本回退硬编码 '0.12.2'），且不被宿主识别。标准格式作为新增产出面，不替换既有描述符以限制爆炸半径"
+    },
+    {
+      "path": "src/install/plugin-install.ts",
+      "purpose": "安装到 plugins/cache/<marketplace>/<plugin>/<version>/ 并幂等登记 installed_plugins.json（v2，key name@marketplace）",
+      "rationale": "安装侧目标布局由宿主既有磁盘事实确定（plugins/cache/workbuddy-builtin/... + plugins/installed_plugins.json）"
+    },
+    {
+      "path": "src/guard/skill-drift.ts",
+      "purpose": "技能源与安装态的内容漂移检测，比前剥离 frontmatter 版本字段",
+      "rationale": "installer-ops.ts:346 的 stampSkillVersion() 使两侧版本必然不同，纳入比对会把噪声当信号"
+    },
+    {
+      "path": "src/install/skill-companions.ts",
+      "purpose": "伴随能力（companion）的声明与可用性探测，由代码枚举而非模型现场判断",
+      "rationale": "实测 28 个被声明 required 的外部 skill 可达率 0/28；引擎归代码（KP-0060），探测结果必须可枚举"
+    }
+  ],
+  "affected_files": [
+    {
+      "path": "src/cli/commands/spec.ts",
+      "lines": "324-343",
+      "why": "drift 源注册表（driftSources 数组）。新增 ['skill-drift', () => detectSkillDrift(root)] 即接通消费者；逐源隔离机制已存在，新源失败只损失自身并记 W-CHECK-002",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "src/core/errors.ts",
+      "lines": "ERROR_CODES 注册表",
+      "why": "新码 W-SKILL-001 必须注册，否则 checkMetadataFor() 静默回退 {dimension:'technical_design', min_strength:'low'} 且生成文档不收录（tests/guard/error-code-registry.test.ts 会拦截）",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "src/bundle/packager.ts",
+      "lines": "251-273",
+      "why": "publishBundle 为占位实现却 return {success:true}（fail-open）。改为 fail-closed。注意既有测试 tests/bundle/packager.test.ts:517-528 断言成功路径，须同步改写",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "src/install/installer-registry.ts",
+      "lines": "135-143",
+      "why": "WORKBUDDY_PACKAGES 为 7 包；编排器 mumuspec 与 sync 不在其中（不可达）。插件包化后安装单元由包承载，此清单需与包内容保持一致",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "src/install/installer-ops.ts",
+      "lines": "297-352, 530-560",
+      "why": "stampSkillVersion() 与 installSkill 的存在即失败语义（:338-340）。插件安装走新路径，但戳印与版本单一源的口径需统一",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "src/cli/commands/bundle.ts",
+      "lines": "全文",
+      "why": "新增 plugin 子命令（产出侧入口），保留既有 create/validate/install/list",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "scripts/ci-check.mjs",
+      "lines": "校验段",
+      "why": "技能漂移检测进 CI（与 check 消费同一函数，保证单一口径）",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "skills/mumuspec/workflow.yaml",
+      "lines": "424-427",
+      "why": "open_to_design 检查项仍列 single_active_change / worktree_created / brainstorming_completed / knowledge_context_loaded 四个幽灵字段；同文件正文与引擎均已不读",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "skills/mumuspec/phase-design/SKILL.md",
+      "lines": "431-432(已声明删除), 478(Red Flags 仍称必检)",
+      "why": "同文件自相矛盾：正文声明 ponytail_constraints_defined 等已删除，Red Flags 仍称其为守卫必检项",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "skills/mumuspec/phase-open/SKILL.md",
+      "lines": "279(声明非守卫项), 340(Red Flags 仍称守卫检查项)",
+      "why": "同上，knowledge_context_loaded 与 worktree_created 的双重口径",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "skills/mumuspec/phase-build/SKILL.md",
+      "lines": "197-204(code 审查门禁)",
+      "why": "唯一存在无条件逃逸口的门禁（若 skill 不可用则跳过）；风险最高的门禁强度最低，与 TDD/调试门禁的'跳过被禁止'倒挂",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "skills/mumuspec/workflow-presets/SKILL.md",
+      "lines": "归档段",
+      "why": "源缺失 tweak 静默失败陷阱段与 finalize-archive --keep-old 补救；旧安装副本尚存该段，属内容丢失",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "skills/mumuspec/SKILL.md",
+      "lines": "全文",
+      "why": "中文编排器与 mumuspec-workflow 双入口；阶段分发规则现有四处定义。收敛为入口唯一 + 资源文件",
+      "change_type": "MODIFIED"
+    },
+    {
+      "path": "skills/mumuspec-workflow/SKILL.md",
+      "lines": "全文",
+      "why": "入装编排器；承载决策核（预设检测 / 阶段判定 / 守卫错误速查）后成为唯一入口",
+      "change_type": "MODIFIED"
+    }
+  ],
+  "affected_tests": [
+    { "path": "tests/bundle/packager.test.ts", "why": "publishBundle 成功断言需改为 fail-closed", "action": "UPDATE" },
+    { "path": "tests/bundle/bundle.test.ts", "why": "bundle 描述符行为面", "action": "REVIEW" },
+    { "path": "tests/cli/commands/bundle-handler.test.ts", "why": "mock 了 packager 五个函数；新增子命令需补 mock 与断言", "action": "UPDATE" },
+    { "path": "tests/install/installer-registry.test.ts", "why": "WORKBUDDY_PACKAGES 结构变更", "action": "REVIEW" },
+    { "path": "tests/install/skill-version-stamp.test.ts", "why": "版本单一源口径变更的可能影响", "action": "REVIEW" },
+    { "path": "tests/guard/error-code-registry.test.ts", "why": "新码 W-SKILL-001 必须入册且生成文档覆盖", "action": "AUTO（既有守卫自动拦截）" },
+    { "path": "tests/guard/skill-registry.test.ts", "why": "新增：守卫目标阶段合法性 / 幽灵字段名 / 包路径可命中", "action": "ADD" },
+    { "path": "tests/bundle/plugin-package.test.ts", "why": "新增：清单字段逐字段比对、source 指向存在目录、包版本单一源", "action": "ADD" },
+    { "path": "tests/install/plugin-install.test.ts", "why": "新增：幂等、登记键 name@marketplace、非法 JSON fail-closed", "action": "ADD" },
+    { "path": "tests/guard/skill-drift.test.ts", "why": "新增：改正文报警、仅改版本行不报警", "action": "ADD" }
+  ],
+  "call_chains": [
+    {
+      "chain": "mumuspec check → checkCompliance() + driftSources[] → detectSkillDrift()",
+      "impact": "新 drift 源接入点单一，逐源隔离已就绪（spec.ts:331-343），新源抛错只记 W-CHECK-002"
+    },
+    {
+      "chain": "mumuspec install → installer.ts → installSkill() → getAgentSkillDir() → stampSkillVersion()",
+      "impact": "插件安装为并行新路径，不改变既有逐文件安装的分支语义；两者共享版本单一源口径"
+    },
+    {
+      "chain": "mumuspec bundle → packager.ts → createBundle/validateBundle/installBundle/publishBundle",
+      "impact": "仅 publishBundle 语义变更（占位成功 → fail-closed）；其余保留以限制爆炸半径"
+    },
+    {
+      "chain": "skills/** → (install) → ~/.workbuddy/skills/** 或 plugins/cache/**",
+      "impact": "漂移检测的比对两端；比对前需剥离 frontmatter 版本行"
+    }
+  ],
+  "breaking_changes": [
+    {
+      "item": "publishBundle 返回值语义",
+      "from": "占位实现返回 success:true",
+      "to": "fail-closed（未实现即失败并给出理由）",
+      "consumer_impact": "tests/bundle/packager.test.ts 的成功断言；CLI bundle publish 的退出码",
+      "mitigation": "同批改写测试；CLI 输出明确区分'未实现'与'失败'"
+    },
+    {
+      "item": "技能分发形态",
+      "from": "逐文件复制到 ~/.workbuddy/skills/",
+      "to": "新增标准插件包（既不删除既有逐文件安装，也不改变其分支语义）",
+      "consumer_impact": "安装目标与登记文件为新增，无既有消费者",
+      "mitigation": "保留既有路径；漂移检测同时覆盖两种安装形态"
+    },
+    {
+      "item": "技能文本 required 语义",
+      "from": "统一 required: true（其中 28 项无可达实体）",
+      "to": "required（包内自足）与 companion（包外增强，可枚举）二分",
+      "consumer_impact": "6 份技能文本的领域 Skill 提示表；tests/guard 新增注册表断言",
+      "mitigation": "不删除任何声明，仅重新归类并补探测；fallback 升格为显式步骤"
+    }
+  ],
+  "unresolved_questions": [
+    "安装侧写入宿主 plugins/installed_plugins.json 是否会被宿主接受（无官方文档，仅磁盘实证）——若不确定则退化为'产出侧 + 独立目录安装 + 报告待手工登记'",
+    "companion 探测的搜索面是否应包含市场目录（当前实测路径集 + marketplaces/ 下的 external_plugins）",
+    "包版本成为版本单一源后，frontmatter 的 metadata.version 戳印是否仍需保留"
+  ]
+}
