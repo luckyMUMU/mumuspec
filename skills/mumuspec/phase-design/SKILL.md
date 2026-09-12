@@ -354,7 +354,7 @@ build_layers:
 计算 test-cases/ 的 hash，设置 `test_cases.design_locked = true`：
 
 ```bash
-mumuspec test-cases lock --change <name>
+mumuspec test-cases lock <name>
 ```
 
 **必须使用平台用户输入/确认机制暂停等待用户确认锁定。**

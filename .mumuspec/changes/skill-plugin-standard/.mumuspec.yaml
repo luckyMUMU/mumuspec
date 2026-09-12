@@ -1,8 +1,8 @@
 name: skill-plugin-standard
-phase: build
+phase: verify
 workflow: full
 created_at: 2026-09-12T15:31:52.587Z
-updated_at: 2026-09-12T16:20:49.735Z
+updated_at: 2026-09-12 16:41:50
 scope: .
 affected_scopes: []
 build_layers:
@@ -61,7 +61,8 @@ decisions_log:
     open: 5
     design: 1
     build: 1
-  content_hash: adf82b36feedcb8d
+    verify: 1
+  content_hash: 44c177d74bb150fb
 rollback_history: []
 cognitive_framework:
   enabled: true
@@ -100,3 +101,7 @@ design_coverage:
   unreachable_from: null
   checked_at: 2026-09-12T15:55:29.112Z
   enforced: true
+verification_report: verify.md
+verify_mode: full
+verify_result: pass
+branch_status: handled

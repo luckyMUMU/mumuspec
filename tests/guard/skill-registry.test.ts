@@ -136,6 +136,41 @@ describe('技能文本：命令签名命中注册表（ENF-16）', () => {
     expect(all).not.toMatch(/knowledge context[ \t]+--scopes/);
   });
 
+  it('技能文本引用的命令参数签名命中注册表', () => {
+    // 只校验命令与子命令名不够——本轮实测漏掉 6 处 flag 级漂移
+    // （validate --change / drift detect / check --change）。此断言补上参数签名面。
+    const problems = new Set<string>();
+
+    for (const file of skillFiles) {
+      for (const line of readFileSync(file, 'utf8').split('\n')) {
+        const m = /mumuspec[ \t]+([a-z][a-z-]*)(?:[ \t]+([a-z][a-z-]*))?/.exec(line);
+        if (!m) continue;
+        const [, topName, subToken] = m;
+        const topCmd = program.commands.find((c) => c.name() === topName);
+        if (!topCmd) continue;
+
+        let node: { options?: Array<{ long?: string }>; commands?: Array<unknown> } = topCmd;
+        if (subToken) {
+          const sub = topCmd.commands.find((c) => c.name() === subToken);
+          if (sub) node = sub;
+        }
+
+        const opts = new Set(
+          (node.options ?? []).map((o) => o.long).filter((l): l is string => Boolean(l)),
+        );
+        for (const fm of line.matchAll(/(?:^|[\s`])(--[a-z][a-z-]*)/g)) {
+          if (!opts.has(fm[1])) {
+            problems.add(
+              `${fm[1]}  @ mumuspec ${topName}${subToken && node !== topCmd ? ' ' + subToken : ''}  (${rel(file)})`,
+            );
+          }
+        }
+      }
+    }
+
+    expect([...problems]).toEqual([]);
+  });
+
   it('cognitive-map 命令已注册且含 init/sync', () => {
     expect(topLevel.has('cognitive-map')).toBe(true);
     const subs = topLevel.get('cognitive-map')!;

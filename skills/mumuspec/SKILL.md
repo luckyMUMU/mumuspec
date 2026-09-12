@@ -210,7 +210,7 @@ mumuspec decisions append --phase <p> --change <n> --text "..."  # 追加决策
 mumuspec audit-log [--limit <n>] [--actor <a>] [--action <act>]  # 审计日志（JSONL）
 mumuspec trace <symbol> [--depth <n>] [--scope <path>]           # 符号深度遍历
 mumuspec graph verify [--change <n>]   # 状态机图一致性校验
-mumuspec drift detect [--change <n>]   # 漂移检测（可限定变更）
+mumuspec drift [--change <n>]   # 漂移检测（可限定变更）
 mumuspec contract verify [--change <n>]  # 契约漂移校验
 mumuspec contract compat-check [--change <n>]  # 契约引用兼容性检查
 mumuspec contract drift [--change <n>] # 契约漂移检测

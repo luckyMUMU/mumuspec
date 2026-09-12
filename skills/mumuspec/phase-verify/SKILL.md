@@ -63,7 +63,7 @@ mumuspec state scale <change-name>
 
 ```bash
 RECORDED_HASH=$(mumuspec state get <change-name> design_content_hash)
-CURRENT_HASH=$(mumuspec test-cases hash --change <name>)
+CURRENT_HASH=$(mumuspec test-cases hash <name>)
 ```
 
 - 若 hash 匹配：test-cases/ 不需重新全量读取
@@ -106,15 +106,15 @@ CURRENT_HASH=$(mumuspec test-cases hash --change <name>)
 - Enforcement 检查：所有 lint 规则通过
 
 ```bash
-mumuspec validate --change <name>
-mumuspec check --shall --change <name>
-mumuspec check --shall-not --change <name>
+mumuspec validate
+mumuspec check --shall
+mumuspec check --shall-not
 ```
 
 #### 3b: 漂移检测
 
 ```bash
-mumuspec drift detect --change <name>
+mumuspec drift --change <name>
 ```
 
 检测类型：
@@ -138,7 +138,7 @@ mumuspec graph verify --change <name>
 #### 3d: 测试不可变性验证
 
 ```bash
-mumuspec test-cases verify --change <name>
+mumuspec test-cases verify <name>
 ```
 
 - test-cases hash 一致

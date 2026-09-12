@@ -28,3 +28,7 @@ Design 阶段决策裁决（覆盖 D1-D6，并闭合三个开放问题）：D1 �
 ## [build] 2026-09-12T16:20:49.675Z
 
 Build 阶段裁决：一、分层编号方向以引擎为准——state layer 的自下而上校验把 L0 当作最底层（拒绝低层未完成先置高层 done），故 build_layers 重编号为 L0 src/core、L1 src/bundle、L2 src/install∥src/guard、L3 src/cli、L4 根层；原编号方向相反属我方约定错误，不加 --force 绕过。二、测试用例文件按同一语义换位并重新锁定。三、接受的假设见 assumptions.yaml（AS-1..AS-7），其中 AS-1（宿主登记文件结构仅有磁盘实证、无官方文档）为残余风险，以 dry-run 与 fail-closed 兜底。
+
+## [verify] 2026-09-12T16:41:37.434Z
+
+Verify 阶段结论：pass，无 CRITICAL、无接受偏差。全部维度实跑通过（check exit 0 / validate unverifiable=0 / drift 0 error 0 warn / graph verify 通过 / test-cases verify 通过 / contract verify 无 critical drift / knowledge 全 fresh / vitest 271 文件全通过 / ci:check 0 error 0 warning）。分支隔离降级记录：isolation=branch 与 branch=mumuspec/skill-plugin-standard 已声明，但该分支实际从未建立，四个提交全部落在 master，隔离降级为就地开发（本平台 git 无法自建嵌套 ref 目录，属已知环境约束）。影响：产物正确性不受影响，但削弱变更隔离防线——期间另一路进程的 git add -A 曾把本变更在途工件扫入其提交并因 merge 静默回退本变更未提交编辑（本轮实际发生两次）。处置：branch_status 置 handled，不做事后补分支（重写已合并提交风险大于收益）。后续建议：isolation 声明缺少与真实 HEAD 的一致性校验，应独立立项。Verify 阶段另发现并修复 9 处 flag 级命令签名漂移（validate --change / drift detect / check --change / test-cases {lock,hash,verify} --change），并新增参数签名守卫断言，使该类缺陷此后可被机械拦住。

@@ -32,7 +32,7 @@ You are the MumuSpec orchestrator. Your job is to guide the user through the cha
 | Audit log | `mumuspec audit-log [--limit <n>] [--actor <a>] [--action <act>]` |
 | Trace symbol | `mumuspec trace <symbol> [--depth <n>] [--scope <path>]` |
 | Graph verify | `mumuspec graph verify [--change <n>]` |
-| Drift detect | `mumuspec drift detect [--change <n>]` |
+| Drift detect | `mumuspec drift [--change <n>]` |
 | Contract verify | `mumuspec contract verify [--change <n>]` |
 | Contract compat | `mumuspec contract compat-check [--change <n>]` |
 | Contract drift | `mumuspec contract drift [--change <n>]` |
