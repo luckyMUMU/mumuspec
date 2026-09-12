@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Command } from 'commander';
 
 const mockFindProjectRoot = vi.fn();
+const mockReadCheckRecords = vi.fn(async () => []);
 
 vi.mock('../../../src/core/utils.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../src/core/utils.js')>();
@@ -16,6 +17,10 @@ vi.mock('../../../src/core/utils.js', async (importOriginal) => {
     findProjectRoot: mockFindProjectRoot,
   };
 });
+
+vi.mock('../../../src/meta-evolution/stats.js', () => ({
+  readCheckRecords: (...args: unknown[]) => mockReadCheckRecords(...args),
+}));
 
 const { registerMetaEvolveCommand } = await import('../../../src/cli/commands/meta-evolve.js');
 
@@ -37,6 +42,8 @@ describe('meta-evolve command', () => {
     }) as typeof process.exit);
 
     mockFindProjectRoot.mockReturnValue('/fake/project');
+    mockReadCheckRecords.mockReset();
+    mockReadCheckRecords.mockResolvedValue([]);
   });
 
   // TC-META-09
@@ -92,6 +99,23 @@ describe('meta-evolve command', () => {
 
     const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('无法评估约束健康度');
+    expect(output).not.toContain('Constraints are healthy');
+  });
+
+  it('--propose does NOT claim "Constraints are healthy" when data exists but samples are insufficient (P0-2)', async () => {
+    // 1 条记录、1 次失败：passRate=0.0，但 sampleSize=1 < minSampleSize(5) → 不可靠
+    mockReadCheckRecords.mockResolvedValue([{
+      timestamp: '2026-09-12T00:00:00.000Z',
+      constraintId: 'guard:build',
+      passed: false,
+      falsePositive: false,
+    }]);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'mumuspec', 'meta-evolve', '--propose']);
+
+    const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('样本均不足');
     expect(output).not.toContain('Constraints are healthy');
   });
 

@@ -130,6 +130,14 @@ async function runPropose(root: string, _scopes: string[]): Promise<void> {
     return;
   }
 
+  // 有数据但全部样本不足（< minSampleSize）也不得宣称健康——不可靠 ≠ 健康（P0-2 验证暴露）
+  const unreliableCount = report.scores.filter((s) => !s.reliable).length;
+  if (report.recommendations.length === 0 && unreliableCount === report.scores.length && report.scores.length > 0) {
+    console.log(`已积累 ${report.totalEvaluated} 条约束记录但样本均不足（< minSampleSize）— 暂无可靠评价，不宣称健康。`);
+    console.log('Continue running `mumuspec guard` to accumulate more data.');
+    return;
+  }
+
   if (report.recommendations.length === 0) {
     console.log('No issues detected. Constraints are healthy.');
     return;
