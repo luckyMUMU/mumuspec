@@ -1,43 +1,49 @@
-# Test Cases — skill-plugin-standard (Layer 1: src/cli 接线)
+# Test Cases — skill-plugin-standard (Layer 1: src/bundle 清单校验器)
 
-## L1-1 漂移诊断进入 check 的 drift 数组
+## L3-1 name 正则正负样例
 
-- Given: 存在漂移的技能副本
-- When: 运行 mumuspec check --json
-- Then: payload.drift.warnings 含 code 为 W-SKILL-001 的条目（ENF-10）
+- Given: 候选 name 集合（api-tester / API Tester / code_review / -git-workflow / test- / 9lives）
+- When: 调用 validatePluginManifest
+- Then: 仅 api-tester 通过；其余各产出一条 name 规则违例（ENF-1）
 
-## L1-2 drift 源逐源隔离
+## L3-2 version 必须语义化
 
-- Given: skill-drift 源抛错
-- When: 运行 check
-- Then: 记一条 W-CHECK-002 且其余 drift 源结果存活，exit code 不受影响（不牵连）
+- Given: version 为 "1.0" 与 "1.0.0-alpha.1"
+- When: 校验
+- Then: "1.0" 违例；"1.0.0-alpha.1" 通过（ENF-1）
 
-## L1-3 ci-check 与 check 消费同一函数
+## L3-3 description 长度边界
 
-- Given: scripts/ci-check.mjs 与 spec.ts 的漂移检测
-- When: 静态检查二者引用同一导出
-- Then: 同一 detectSkillDrift 被两处引用（无第二份实现）（ENF-10）
+- Given: description 分别为 30 / 80 / 260 字符
+- When: 校验
+- Then: 30 与 260 违例，80 通过（ENF-1）
 
-## L1-4 cognitive-map 命令已注册
+## L3-4 author 双形态
 
-- Given: src/cli/commands/cognitive-map.ts 导出 registerCognitiveMapCommands
-- When: 构建 program 并枚举命令
-- Then: 顶层命令集合含 cognitive-map，且含 init / sync 子命令（ENF-17）
+- Given: author 为 {name} 对象、纯字符串、缺 name 的对象
+- When: 校验
+- Then: 前两者通过，第三者违例（ENF-1）
 
-## L1-5 命令模块 ↔ 注册表双向闭包
+## L3-5 组件路径正负样例
 
-- Given: src/cli/commands/*.ts 中的 register* 导出集合
-- When: 与 index.ts 的注册调用集合比对
-- Then: 双向差集为空（有模块无注册即失败）（ENF-17）
+- Given: commands 取值 "./commands" / "commands" / "../shared" / "/abs" / ".\\commands"
+- When: 校验
+- Then: 仅 "./commands" 通过；其余违例（ENF-2）
 
-## L1-6 bundle plugin 子命令产出可用包
+## L3-6 source 必须指向存在目录
 
-- Given: 仓库根
-- When: 运行 mumuspec bundle plugin --out <tmp>
-- Then: 产出 .codebuddy-plugin/plugin.json 与 marketplace.json，且通过校验器（ENF-1）
+- Given: 市场条目 source 指向存在目录与不存在目录
+- When: validateMarketplaceManifest({ marketplaceRoot })
+- Then: 前者通过，后者产出 source 违例（ENF-3）
 
-## L1-7 install --plugin 干跑不写盘
+## L3-7 category 取规范枚举
 
-- Given: 已构建的插件包
-- When: 运行 mumuspec install --plugin --dry-run
-- Then: 输出待安装路径与待登记条目，磁盘无变化（R1 风险缓解）
+- Given: category 为 "development" 与 "misc"
+- When: 校验市场条目
+- Then: 前者通过，"misc" 违例（ENF-1）
+
+## L3-8 包版本无硬编码回退
+
+- Given: 运行时包版本为 X
+- When: 构建清单
+- Then: 清单 version === X；源码中不出现 '0.12.2' 之类的硬编码回退（ENF-4）

@@ -157,18 +157,19 @@ mumuspec check                                                # 新增 drift 源
 
 ## 5. 实现分层（Implementation Layers）
 
-层级按**依赖深度**（深 → 浅），同层 scope 间无直接调用边 ⇒ 候选并行组：
+层级按**依赖深度**编号，**L0 = 最底层（最先构建）**，与引擎 `state layer` 的自下而上校验一致
+（引擎拒绝"低层未完成先置高层为 done"，故编号方向以引擎为准，见 decisions.md）。
 
 | Layer | scope | 内容 | 依赖 |
 |---|---|---|---|
-| 4 | `src/core` | `errors.ts` 注册 4 个新码 | 无（最底层） |
-| 3 | `src/bundle` | `plugin-manifest.ts`（纯校验器） | layer 4 |
-| 2 | `src/install` | `plugin-install.ts`、`skill-companions.ts` | layer 3、4 |
-| 2 | `src/guard` | `skill-drift.ts`（接收路径对，**不 import install**） | layer 4 |
-| 1 | `src/cli` | `bundle.ts`(+plugin 子命令)、`install.ts`(--plugin)、`spec.ts`(drift 源)、`index.ts`(注册 cognitive-map) | layer 0–2 |
-| 0 | `.` | `skills/**` 文本修正、`scripts/ci-check.mjs` 接入 | layer 1 |
+| 0 | `src/core` | `errors.ts` 注册 4 个新码 | 无（最底层） |
+| 1 | `src/bundle` | `plugin-manifest.ts`（纯校验器）、`plugin-package.ts`（产出侧） | L0 |
+| 2 | `src/install` | `plugin-install.ts`、`skill-companions.ts` | L0、L1 |
+| 2 | `src/guard` | `skill-drift.ts`（接收路径对，**不 import install**） | L0 |
+| 3 | `src/cli` | `bundle.ts`(+plugin 子命令)、`install.ts`(plugin 子命令)、`skill.ts`(companions)、`spec.ts`(drift 源)、`index.ts`(注册 cognitive-map) | L0–L2 |
+| 4 | `.` | `skills/**` 文本修正、`scripts/ci-check.mjs` 接入 | L0–L3 |
 
-**层内并行说明**：layer 2 的两个 scope（`src/install`、`src/guard`）**互不引用**——`skill-drift` 刻意设计为接收已解析路径对，避免向 `src/install` 借符号（I2）。故 layer 2 是**候选并行组**，须由 `mumuspec state plan-parallel --apply` 依据 code-graph 实际调用边验证后才登记为 `parallel_group`（层号只是候选，不是已验证事实）。
+**层内并行说明**：L2 的两个 scope（`src/install`、`src/guard`）**互不引用**——`skill-drift` 刻意设计为接收已解析路径对，避免向 `src/install` 借符号（I2）。故 L2 是**候选并行组**，须由 `mumuspec state plan-parallel --apply` 依据 code-graph 实际调用边验证后才登记为 `parallel_group`（层号只是候选，不是已验证事实）。
 
 **视野纪律**：设计侧视野向上（layer 0..4 全覆盖，无断链）；实现侧视野向下（实现 layer N 只依赖 ≤N 的契约）。
 

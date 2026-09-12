@@ -2,40 +2,40 @@ name: skill-plugin-standard
 phase: build
 workflow: full
 created_at: 2026-09-12T15:31:52.587Z
-updated_at: 2026-09-12T15:55:29.325Z
+updated_at: 2026-09-12T16:19:41.945Z
 scope: .
 affected_scopes: []
 build_layers:
   - layer: 0
-    scope: .
-    status: pending
+    scope: src/core
+    status: done
     parallel_group: 1
   - layer: 1
-    scope: src/cli
-    status: pending
+    scope: src/bundle
+    status: done
     parallel_group: 2
   - layer: 2
     scope: src/install
-    status: pending
+    status: done
     parallel_group: 3
   - layer: 2
     scope: src/guard
-    status: pending
+    status: done
     parallel_group: 3
   - layer: 3
-    scope: src/bundle
-    status: pending
+    scope: src/cli
+    status: done
     parallel_group: 4
   - layer: 4
-    scope: src/core
-    status: pending
+    scope: .
+    status: done
     parallel_group: 5
 test_cases:
   design_locked: true
   suites_locked: false
   suites_locked_layers: []
   suites_hash: {}
-  design_content_hash: 52a2b73f26232d5d
+  design_content_hash: 86ba0bf98bd1480e
 rollback_count: 0
 rebuild_count: 0
 rollback_limit: 3
