@@ -26,3 +26,6 @@
 {"timestamp":"2026-09-12T16:35:43.527Z","constraintId":"guard:verify","passed":true,"falsePositive":false}
 {"timestamp":"2026-09-12T16:42:23.306Z","constraintId":"guard:archive-in-progress","passed":true,"falsePositive":false}
 {"timestamp":"2026-09-12T16:42:40.020Z","constraintId":"guard:archive-in-progress","passed":true,"falsePositive":false}
+{"timestamp":"2026-09-13T06:06:10.954Z","constraintId":"guard:build","passed":false,"falsePositive":false}
+{"timestamp":"2026-09-13T06:07:39.585Z","constraintId":"guard:build","passed":true,"falsePositive":false}
+{"timestamp":"2026-09-13T06:16:22.667Z","constraintId":"guard:verify","passed":false,"falsePositive":false}

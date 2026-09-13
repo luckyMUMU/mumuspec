@@ -1,8 +1,8 @@
-name: prd-alignment-agent-integration
-phase: discarded
+name: enforcement-coverage
+phase: verify
 workflow: full
-created_at: 2026-09-08T13:26:09.364Z
-updated_at: 2026-09-13T06:00:09.733Z
+created_at: 2026-09-13T06:00:19.033Z
+updated_at: 2026-09-13T06:21:21.955Z
 scope: .
 affected_scopes: []
 build_layers: []
@@ -18,18 +18,14 @@ rebuild_limit: 5
 build_mode: executing-plans
 tdd_mode: tdd
 isolation: branch
-branch: mumuspec/prd-alignment-agent-integration
+branch: mumuspec/enforcement-coverage
 single_active_change: true
-user_confirmed: false
+user_confirmed: true
 decisions_log:
-  counts: {}
-rollback_history:
-  - from: open
-    to: discarded
-    reason: No reason provided
-    timestamp: 2026-09-13T06:00:09.734Z
-    counted: false
-    event: discard
+  counts:
+    design: 2
+  content_hash: 1504a9e3e4829eba
+rollback_history: []
 cognitive_framework:
   enabled: true
   q1_count: 0
@@ -50,3 +46,9 @@ dist_spec:
   prd: .mumuspec/prd.md
   tech: .mumuspec/tech.md
 schema_version: 1.0.0
+design_coverage:
+  covered_layers: []
+  expected_layers: []
+  unreachable_from: null
+  checked_at: 2026-09-13T06:06:10.891Z
+  enforced: true

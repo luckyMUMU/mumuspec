@@ -3,7 +3,7 @@
 > **Auto-generated** from `src/core/errors.ts`. Do not edit manually.
 > Run `node scripts/gen-error-codes-doc.mjs` to regenerate.
 
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 
 ## Summary
 
@@ -11,7 +11,7 @@ Last updated: 2026-09-12
 |--------|-------|
 | SPEC | 15 |
 | CONSTRAINT | 3 |
-| CHANGE | 14 |
+| CHANGE | 15 |
 | VERIFY | 4 |
 | FINAL | 1 |
 | HOOK | 1 |
@@ -29,7 +29,7 @@ Last updated: 2026-09-12
 | CHECK | 2 |
 | SKILL | 4 |
 | GIT | 3 |
-| **Total** | **109** |
+| **Total** | **110** |
 
 ## SPEC Domain
 
@@ -256,6 +256,7 @@ Last updated: 2026-09-12
 | `E-CHANGE-012` | CHANGE_TWEAK_CARRIES_SPEC | ERROR | tweak 工作流归档会跳过 delta-spec 与知识合并，携带规范工件的变更不得用 tweak 归档 | No |
 | `E-CHANGE-020` | CHANGE_ARTIFACT_SCHEMA_INVALID | ERROR | 完备性工件 schema 非法（open-questions.yaml / assumptions.yaml 违反 schema v1） | No |
 | `E-CHANGE-021` | CHANGE_RESOLUTION_CHAIN_BROKEN | ERROR | 工件 resolution 链断裂（decision_ref 在 decisions.md 中无对应条目，或 deferred 缺 note） | No |
+| `E-CHANGE-022` | DELTA_MERGE_INCOMPLETE | ERROR | 归档合并 delta-spec 存在未解决文件（目标缺失或读写失败），delta 内容未被合并，禁止静默归档 | No |
 
 ### `E-CHANGE-001`: CHANGE_ALREADY_ACTIVE
 
@@ -387,6 +388,17 @@ Last updated: 2026-09-12
 - **Severity**: ERROR
 - **Forceable**: No
 - **Description**: 工件 resolution 链断裂（decision_ref 在 decisions.md 中无对应条目，或 deferred 缺 note）
+
+### `E-CHANGE-022`: DELTA_MERGE_INCOMPLETE
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 归档合并 delta-spec 存在未解决文件（目标缺失或读写失败），delta 内容未被合并，禁止静默归档
+
+**Fix Steps**:
+1. 为 delta 文件命名后缀对应的目标 scope 创建 .mumuspec/tech.md 或 .mumuspec/prd.md（<-scope>-tech.md / <-scope>-prd.md）
+2. 或修正 delta 文件命名后缀使其匹配已存在的目标 scope
+3. 或确认 delta 内容已废弃后删除该 delta-spec 文件，重新执行归档
 
 ## VERIFY Domain
 

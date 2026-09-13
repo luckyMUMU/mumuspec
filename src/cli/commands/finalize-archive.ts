@@ -129,8 +129,17 @@ export function registerFinalizeArchiveCommand(program: Command): void {
 
       // ── Step B1: Merge delta-specs ──
       try {
-        mergeDeltaSpecsToMain(root, changeName, archivedDir, archiveState);
-        results.push('✓ delta-specs merged');
+        const deltaResult = mergeDeltaSpecsToMain(root, changeName, archivedDir, archiveState);
+        // Fail-closed parity with archive: unresolved deltas must be visible,
+        // never folded into a green "merged" line.
+        for (const u of deltaResult.unresolved) {
+          warnings.push(`⚠ delta-specs merge unresolved: ${u.file} — ${u.reason}`);
+        }
+        if (deltaResult.merged.length > 0) {
+          results.push(`✓ delta-specs merged (${deltaResult.merged.length})`);
+        } else if (deltaResult.unresolved.length === 0) {
+          results.push('✓ delta-specs merged');
+        }
       } catch (err) {
         warnings.push(`⚠ delta-specs merge: ${(err as Error).message}`);
       }

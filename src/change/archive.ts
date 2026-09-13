@@ -175,7 +175,23 @@ export function archiveChange(
   // both are retry-safe (marker check / filename-keyed pages).
 
   if (!isTweak) {
-    mergeDeltaSpecsToMain(projectRoot, changeName, changeDir);
+    const deltaResult = mergeDeltaSpecsToMain(projectRoot, changeName, changeDir);
+    // Fail-closed (E-CHANGE-022): a delta that could not be merged must abort
+    // the archive — merging is not "best effort", it is the archive's contract.
+    if (deltaResult.unresolved.length > 0) {
+      appendAuditLog(getMumuSpecDir(projectRoot), {
+        actor: 'user',
+        action: 'change.archive',
+        change: changeName,
+        workflow: state.workflow,
+        result: 'failed',
+        error: `delta merge unresolved: ${deltaResult.unresolved.map((u) => `${u.file} — ${u.reason}`).join(' | ')}`,
+      });
+      throw new MumuSpecError('E-CHANGE-022', {
+        '未解决的 delta 文件': deltaResult.unresolved.map((u) => `${u.file}（${u.reason}）`).join('; '),
+        '已合并': deltaResult.merged.length > 0 ? deltaResult.merged.join(', ') : '无',
+      });
+    }
     mergeChangeArtifacts(projectRoot, changeName, changeDir, state);
     extractKnowledgeToGlobal(projectRoot, changeName, changeDir, state);
   }
@@ -348,63 +364,106 @@ export function bumpVersionForArchiveIdempotent(
   return bumped;
 }
 
-/** Merge delta-specs into the appropriate scope's tech.md or prd.md */
+/** Outcome of one delta-spec file's merge attempt (E-CHANGE-022, 2026-09-13). */
+export interface DeltaMergeResult {
+  /** Target paths successfully merged. */
+  merged: string[];
+  /** Files skipped because the idempotency marker already exists (legal, decidable). */
+  skippedIdempotent: string[];
+  /** Files that could NOT be merged — target missing or I/O failure. */
+  unresolved: { file: string; reason: string }[];
+}
+
+/**
+ * Merge delta-specs into the appropriate scope's tech.md or prd.md.
+ *
+ * Fail-closed (E-CHANGE-022): a delta file whose target cannot be resolved, or
+ * whose read/write fails, is reported in `unresolved` instead of being silently
+ * dropped — the caller (archiveChange) must abort the archive. Idempotent
+ * marker hits are a decidable, legal skip and never count as unresolved.
+ */
 export function mergeDeltaSpecsToMain(
   projectRoot: string,
   changeName: string,
   changeDir: string,
   _state?: ChangeState,
-): void {
+): DeltaMergeResult {
+  const result: DeltaMergeResult = { merged: [], skippedIdempotent: [], unresolved: [] };
   const deltaSpecsDir = join(changeDir, 'delta-specs');
-  if (!existsSync(deltaSpecsDir)) return;
+  if (!existsSync(deltaSpecsDir)) return result;
 
+  let entries: string[];
   try {
-    const entries = readdirSync(deltaSpecsDir);
-    const specFiles = entries.filter((f: string) => f.endsWith('.md'));
+    entries = readdirSync(deltaSpecsDir);
+  } catch (err) {
+    result.unresolved.push({
+      file: 'delta-specs/',
+      reason: `delta-specs 目录不可读: ${(err as Error).message}`,
+    });
+    return result;
+  }
+  const specFiles = entries.filter((f: string) => f.endsWith('.md'));
 
-    if (specFiles.length === 0) return;
+  if (specFiles.length === 0) return result;
 
-    for (const specFile of specFiles) {
-      const specContent = readFileSync(join(deltaSpecsDir, specFile), 'utf8');
-      const marker = `<!-- delta-merged from ${changeName}/${specFile} -->`;
+  for (const specFile of specFiles) {
+    const marker = `<!-- delta-merged from ${changeName}/${specFile} -->`;
 
-      // P0-2 Fix: Determine target path
-      let targetPath: string | null = null;
-      if (specFile.endsWith('-tech.md')) {
-        const scopePath = specFile.replace(/-tech\.md$/, '');
-        const targetDir = scopePath === '.' || scopePath === '' ? projectRoot : join(projectRoot, scopePath);
-        const targetTechPath = join(targetDir, '.mumuspec', 'tech.md');
-        const targetSpecPath = join(targetDir, '.mumuspec', 'spec.md');
-        if (existsSync(targetTechPath)) targetPath = targetTechPath;
-        else if (existsSync(targetSpecPath)) targetPath = targetSpecPath;
-      } else if (specFile.endsWith('-prd.md')) {
-        const scopePath = specFile.replace(/-prd\.md$/, '');
-        const targetDir = scopePath === '.' || scopePath === '' ? projectRoot : join(projectRoot, scopePath);
-        const targetPrdPath = join(targetDir, '.mumuspec', 'prd.md');
-        const targetDesignPath = join(targetDir, '.mumuspec', 'design.md');
-        if (existsSync(targetPrdPath)) targetPath = targetPrdPath;
-        else if (existsSync(targetDesignPath)) targetPath = targetDesignPath;
-      }
-      if (!targetPath) {
-        const mumuDir = getMumuSpecDir(projectRoot);
-        const mainSpecPath = join(mumuDir, 'spec.md');
-        if (existsSync(mainSpecPath)) targetPath = mainSpecPath;
-      }
-      if (!targetPath) continue;
+    // P0-2 Fix: Determine target path
+    let targetPath: string | null = null;
+    if (specFile.endsWith('-tech.md')) {
+      const scopePath = specFile.replace(/-tech\.md$/, '');
+      const targetDir = scopePath === '.' || scopePath === '' ? projectRoot : join(projectRoot, scopePath);
+      const targetTechPath = join(targetDir, '.mumuspec', 'tech.md');
+      const targetSpecPath = join(targetDir, '.mumuspec', 'spec.md');
+      if (existsSync(targetTechPath)) targetPath = targetTechPath;
+      else if (existsSync(targetSpecPath)) targetPath = targetSpecPath;
+    } else if (specFile.endsWith('-prd.md')) {
+      const scopePath = specFile.replace(/-prd\.md$/, '');
+      const targetDir = scopePath === '.' || scopePath === '' ? projectRoot : join(projectRoot, scopePath);
+      const targetPrdPath = join(targetDir, '.mumuspec', 'prd.md');
+      const targetDesignPath = join(targetDir, '.mumuspec', 'design.md');
+      if (existsSync(targetPrdPath)) targetPath = targetPrdPath;
+      else if (existsSync(targetDesignPath)) targetPath = targetDesignPath;
+    }
+    if (!targetPath) {
+      const mumuDir = getMumuSpecDir(projectRoot);
+      const mainSpecPath = join(mumuDir, 'spec.md');
+      if (existsSync(mainSpecPath)) targetPath = mainSpecPath;
+    }
+    // Fail-closed: an unresolvable target means the delta would silently
+    // evaporate. Record it — the caller aborts the archive (E-CHANGE-022).
+    if (!targetPath) {
+      result.unresolved.push({
+        file: specFile,
+        reason: '无法解析合并目标：scope 的 tech.md/prd.md/spec.md 均不存在（命名后缀须为 <-scope>-tech.md 或 <-scope>-prd.md）',
+      });
+      continue;
+    }
 
+    try {
       // P0-2 Fix: Idempotency check - skip if already merged
       const existing = readFileSync(targetPath, 'utf8');
       if (existing.includes(marker)) {
-        continue;  // Already merged, skip to prevent duplication
+        result.skippedIdempotent.push(specFile);  // Already merged, skip to prevent duplication
+        continue;
       }
 
       // Atomic write via writeText (tmp + rename)
+      const specContent = readFileSync(join(deltaSpecsDir, specFile), 'utf8');
       const merged = `${existing}\n\n${marker}\n${specContent}\n`;
       writeText(targetPath, merged);
+      result.merged.push(targetPath);
+    } catch (err) {
+      // Fail-closed: I/O failure must surface, not be swallowed — a silently
+      // dropped delta looks identical to a successful archive.
+      result.unresolved.push({
+        file: specFile,
+        reason: `合并读写失败 (${targetPath}): ${(err as Error).message}`,
+      });
     }
-  } catch {
-    // Non-fatal
   }
+  return result;
 }
 
 /**

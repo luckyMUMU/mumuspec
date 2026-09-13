@@ -57,7 +57,7 @@ function lockTestCases(projectRoot, changeName): string;
 function appendDecision(projectRoot, changeName, phase, decision): void;
 
 // archive.ts — 归档子流程
-function mergeDeltaSpecsToMain(projectRoot, changeName, changeDir, state): void;
+function mergeDeltaSpecsToMain(projectRoot, changeName, changeDir, state): DeltaMergeResult; // fail-closed：unresolved 非空时归档抛 E-CHANGE-022
 function mergeChangeArtifacts(projectRoot, changeName, changeDir, state): void;
 function extractKnowledgeToGlobal(projectRoot, changeName, changeDir, state): void;
 ```

@@ -265,8 +265,25 @@ export function registerSpecCommands(program: Command): void {
       result.warnings.push(...structureResult.warnings);
       result.passed = result.errors.length === 0;
 
+      // E-SPEC-015 exit triad (annotate / lexical rewrite / declare manual) as a
+      // per-item remediation hint — same constant feeds text and JSON channels.
+      const remediationFor = (polarity: string): string =>
+        polarity === 'shall-not'
+          ? '(a) mumuspec annotate <scope> 补 frontmatter 注解 | (b) 改写文本使其含反引号词法锚点（长度>2） | (c) Requirement 块声明 Enforcement: manual(...)'
+          : 'Requirement 块声明 Enforcement: manual(...)（SHALL 当前无自动通道）';
+
+      const coverage = result.coverage
+        ? {
+            ...result.coverage,
+            unverifiable_items: (result.coverage.unverifiable_items ?? []).map((it) => ({
+              ...it,
+              remediation: remediationFor(it.polarity),
+            })),
+          }
+        : undefined;
+
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        console.log(JSON.stringify({ ...result, coverage }, null, 2));
         return;
       }
 
@@ -290,8 +307,8 @@ export function registerSpecCommands(program: Command): void {
       }
 
       // P0 verifier semantics: enforcement coverage report (proposal §3.5)
-      if (result.coverage && result.coverage.total > 0) {
-        const c = result.coverage;
+      if (coverage && coverage.total > 0) {
+        const c = coverage;
         console.log(`\nEnforcement Coverage (${c.total} constraints):`);
         console.log(
           `  enforced-strong: ${c.enforced_strong}  enforced-weak: ${c.enforced_weak}` +
@@ -305,6 +322,7 @@ export function registerSpecCommands(program: Command): void {
           console.log('  Unverifiable (migration checklist):');
           for (const item of c.unverifiable_items) {
             console.log(`    - [${item.polarity}] ${item.text} (${item.source})`);
+            console.log(`      修复路径: ${item.remediation}`);
           }
         }
       }

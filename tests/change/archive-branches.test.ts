@@ -1,6 +1,6 @@
 /**
  * Branch coverage tests for src/change/archive.ts — uncovered branches:
- * mergeDeltaSpecsToMain (scopePath empty, outer catch),
+ * mergeDeltaSpecsToMain (scopePath empty, fail-closed E-CHANGE-022 paths),
  * extractKnowledgeToGlobal (Q1/Q3/Q4 falsy fields, catch blocks,
  * pagesCreated=0, empty extractionLog, D1/D2/D3/D4 outer/inner catches).
  */
@@ -178,13 +178,13 @@ describe('mergeDeltaSpecsToMain — scopePath empty branch (line 167)', () => {
   });
 });
 
-describe('mergeDeltaSpecsToMain — outer catch (line 201)', () => {
+describe('mergeDeltaSpecsToMain — fail-closed (E-CHANGE-022)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupDefaultMocks();
   });
 
-  it('silently catches readdirSync error in mergeDeltaSpecsToMain', () => {
+  it('reports readdirSync failure as unresolved instead of silently swallowing', () => {
     mockExistsSync.mockImplementation((p: string) => {
       if (p.includes('delta-specs')) return true;
       return false;
@@ -193,9 +193,65 @@ describe('mergeDeltaSpecsToMain — outer catch (line 201)', () => {
       throw new Error('EACCES permission denied');
     });
 
-    expect(() => {
-      mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
-    }).not.toThrow();
+    const result = mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
+    expect(result.unresolved).toHaveLength(1);
+    expect(result.unresolved[0].file).toBe('delta-specs/');
+    expect(result.unresolved[0].reason).toContain('EACCES');
+    expect(result.merged).toHaveLength(0);
+  });
+
+  it('reports missing target as unresolved (no silent drop)', () => {
+    // delta-specs dir readable, one delta file, but no target spec exists
+    // (root spec.md absent) and the file is not named <-scope>-tech.md/-prd.md
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p.includes('delta-specs')) return true;
+      return false; // root .mumuspec/spec.md does not exist
+    });
+    mockReaddirSync.mockReturnValue(['unknown-shape.md']);
+
+    const result = mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
+    expect(result.unresolved).toHaveLength(1);
+    expect(result.unresolved[0].file).toBe('unknown-shape.md');
+    expect(result.unresolved[0].reason).toContain('无法解析合并目标');
+    expect(mockWriteText).not.toHaveBeenCalled();
+  });
+
+  it('reports write failure as unresolved', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReaddirSync.mockReturnValue(['src-core-tech.md']);
+    mockReadFileSync.mockImplementation((p: string) => {
+      if (String(p).includes('delta-specs')) return '# delta content';
+      return '# existing target';
+    });
+    mockWriteText.mockImplementation(() => {
+      throw new Error('ENOSPC: no space left on device');
+    });
+
+    const result = mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
+    expect(result.unresolved).toHaveLength(1);
+    expect(result.unresolved[0].reason).toContain('ENOSPC');
+  });
+
+  it('records idempotent marker hit as skippedIdempotent, not unresolved', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReaddirSync.mockReturnValue(['src-core-tech.md']);
+    mockReadFileSync.mockImplementation((p: string) => {
+      if (String(p).includes('delta-specs')) return '# delta content';
+      return `# target\n<!-- delta-merged from ${CHANGE_NAME}/src-core-tech.md -->\n`;
+    });
+
+    const result = mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
+    expect(result.skippedIdempotent).toEqual(['src-core-tech.md']);
+    expect(result.unresolved).toHaveLength(0);
+    expect(mockWriteText).not.toHaveBeenCalled();
+  });
+
+  it('returns empty result when delta-specs dir is missing', () => {
+    mockExistsSync.mockReturnValue(false);
+    const result = mergeDeltaSpecsToMain(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`);
+    expect(result.merged).toHaveLength(0);
+    expect(result.skippedIdempotent).toHaveLength(0);
+    expect(result.unresolved).toHaveLength(0);
   });
 });
 

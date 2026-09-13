@@ -27,7 +27,7 @@ layer: 2
 | `validateScope` | `(root, scope) => void` | lifecycle.ts | 校验变更作用域 |
 | `escalateChange` | `(root, targetScope) => void` | lifecycle.ts | 向上升级变更 |
 | `appendDecision` | `(root, change, decision) => void` | decisions.ts | 追加决策记录 |
-| `mergeDeltaSpecsToMain` | `(root, name, archivedDir, state) => void` | archive.ts | 合并增量规范到主规范（幂等，Marker 注释防重复） |
+| `mergeDeltaSpecsToMain` | `(root, name, archivedDir, state) => DeltaMergeResult` | archive.ts | 合并增量规范到主规范（幂等 Marker 防重复；unresolved 非空时归档抛 E-CHANGE-022） |
 | `mergeChangeArtifacts` | `(root, name, changeDir, state) => void` | archive.ts | 归档时归并约束和变更级 spec 到目标作用域（幂等） |
 | `extractKnowledgeToGlobal` | `(root, name, archivedDir, state) => void` | archive.ts | 提取知识到全局库 |
 | `getChangeDir` | `(root, changeName, scope?) => string` | paths.ts | 获取变更目录（含 validateChangeName 校验） |

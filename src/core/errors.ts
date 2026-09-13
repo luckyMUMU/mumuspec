@@ -349,6 +349,18 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     min_strength: 'high',
     always_enforce: true,
   },
+  'E-CHANGE-022': {
+    code: 'E-CHANGE-022',
+    name: 'DELTA_MERGE_INCOMPLETE',
+    severity: 'ERROR',
+    description: '归档合并 delta-spec 存在未解决文件（目标缺失或读写失败），delta 内容未被合并，禁止静默归档',
+    fixSteps: [
+      '为 delta 文件命名后缀对应的目标 scope 创建 .mumuspec/tech.md 或 .mumuspec/prd.md（<-scope>-tech.md / <-scope>-prd.md）',
+      '或修正 delta 文件命名后缀使其匹配已存在的目标 scope',
+      '或确认 delta 内容已废弃后删除该 delta-spec 文件，重新执行归档',
+    ],
+    forceable: false,
+  },
 
   // VERIFY domain (P0 verifier semantics — manual evidence gate)
   'E-VERIFY-001': {
