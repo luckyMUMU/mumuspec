@@ -26,6 +26,45 @@ import {
   formatRecommendation,
 } from '../../core/workflow-recommender.js';
 import { computeSkillSet } from '../../core/skill-loader.js';
+import { runPhaseGuard } from '../../guard/phase-guard.js';
+import { getNextTargetPhase } from '../../change/decisions.js';
+
+/**
+ * Ready-action guidance (ready-action-guidance, 2026-09-13): append a
+ * "就绪动作" block to `status` — the next forward transition plus its live
+ * gate verdict, so users see blockers without running guard separately.
+ * Read-only: runPhaseGuard only checks; --apply/--confirm semantics stay in
+ * the transition/guard commands. CLI composes change/decisions + guard/phase
+ * — no reverse dependency edge between the two scopes.
+ */
+function printReadyActions(root: string, name: string): void {
+  const state = loadChangeState(root, name);
+  if (!state) return;
+
+  const target = getNextTargetPhase(state);
+  if (state.phase === 'archive-in-progress' || !target) {
+    if (state.phase === 'archive-in-progress') {
+      console.log('\n就绪动作:');
+      console.log(`  ✓ 可归档: mumuspec archive ${name} --confirm`);
+    }
+    return;
+  }
+
+  const result = runPhaseGuard(root, name, target);
+  console.log('\n就绪动作:');
+  if (result.errors.length === 0) {
+    console.log(`  ✓ 就绪: mumuspec state transition ${name} ${target} --confirm`);
+  } else {
+    console.log(`  ✗ 受阻（${result.errors.length} 项）:`);
+    for (const err of result.errors.slice(0, 5)) {
+      console.log(`    - [${err.code}] ${err.message}`);
+    }
+    if (result.errors.length > 5) {
+      console.log(`    - … 及另外 ${result.errors.length - 5} 项（mumuspec guard ${name} ${target} 查看全部）`);
+    }
+    console.log('  逐项完成后重试: mumuspec status ' + name);
+  }
+}
 
 export function registerChangeCommands(program: Command): void {
   // === new ===
@@ -204,6 +243,7 @@ export function registerChangeCommands(program: Command): void {
 
       const summary = getChangeStatusSummary(root, name);
       console.log(summary);
+      printReadyActions(root, name);
     });
 
   // === list ===

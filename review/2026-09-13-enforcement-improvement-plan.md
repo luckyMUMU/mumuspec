@@ -3,6 +3,21 @@
 > 依据：`review/2026-09-13-sdd-ecosystem-comparison.md` ｜ 日期：2026-09-13 ｜ 基线：v0.24.0-alpha.0
 > 主旨：把 MumuSpec 的差异化护城河（机械校验）从"阶段门禁"升级为"全生命周期持续 enforcement + verification 闭环"。
 
+## ⚡ 执行状态（2026-09-13 收束，基线 0.24.0 → 0.30.0）
+
+| 计划项 | 状态 | 落点 |
+|---|---|---|
+| A1 覆盖率指标 | ✅ 主体已于 0.24 交付，补齐 R4 修复路径提示 | CHG enforcement-coverage（v0.25） |
+| A2 convergence 闭环 | ✅ 归档 delta fail-closed `E-CHANGE-022` + ci:check 集成 check/validate 双门 | CHG enforcement-coverage + ci-drift-gate（v0.25/v0.26） |
+| A3 结构可判定性校验 | ✅ 无界词 `W-SPEC-016` advisory（语料 0 噪音）+ verify 门禁 delta 通道核验 `E-GUARD-010` | CHG shall-structure-lint + delta-channel-gate（v0.27/v0.30） |
+| A4 词法通道 fence-aware | ✅ parser 剥离围栏，示例约束不进语料 | CHG spec-fence-guard（v0.28） |
+| A5 技能副本到期校验 | ✅ 裁决：skill-drift 已于 0.24 交付并接入 check drift + CI 门禁；pinning/required 校验按 YAGNI 跳过 | — |
+| A6 fail-open 审计清零 | ✅ 归档关键路径 13 处空 catch 清零，4 类点位裁决保持静默（理由固化 design.md） | CHG fail-open-audit（v0.29） |
+| B1–B4 UX 增强 | ⏳ 进行中（增强项） | M4 |
+| B5 波次执行 / dev-auto | ⏸ 观察项（依赖 C 元层死端裁决） | — |
+
+**遗留裁决**：implicit-manual 是否参与一票否决（涉及存量约束迁移与 `### Enforcement` 自由文本语义，需单独评审）。
+
 ## 0. 设计原则（全计划硬约束）
 
 - **fail-open 优先于任何新增能力**：先堵既有静默失败（commitAll allowFail、C 元层死端），再扩功能。

@@ -129,7 +129,12 @@ export function registerFinalizeArchiveCommand(program: Command): void {
 
       // ── Step B1: Merge delta-specs ──
       try {
-        const deltaResult = mergeDeltaSpecsToMain(root, changeName, archivedDir, archiveState);
+        // Defensive default: tolerate void-returning implementations.
+        const deltaResult = (mergeDeltaSpecsToMain(root, changeName, archivedDir, archiveState) ?? {
+          merged: [],
+          skippedIdempotent: [],
+          unresolved: [],
+        }) as { merged: string[]; skippedIdempotent: string[]; unresolved: { file: string; reason: string }[] };
         // Fail-closed parity with archive: unresolved deltas must be visible,
         // never folded into a green "merged" line.
         for (const u of deltaResult.unresolved) {

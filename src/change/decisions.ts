@@ -85,20 +85,36 @@ export function getChangeStatusSummary(
 
 /** Compute next phase hint from change state */
 export function getNextPhaseHint(state: ChangeState): string | undefined {
+  const target = getNextTargetPhase(state);
+  if (!target) {
+    if (state.phase === 'archive-in-progress') {
+      return `mumuspec archive ${state.name} --confirm (完成归档)`;
+    }
+    return undefined;
+  }
+  if (state.phase === 'open' && target === 'build') {
+    return `mumuspec state transition ${state.name} build (hotfix/tweak 跳过 Design)`;
+  }
+  const label = target === 'design' ? 'Design' : target;
+  return `mumuspec state transition ${state.name} ${target} (进入 ${label} 阶段)`;
+}
+
+/**
+ * Next forward target phase — single source of truth shared by the status
+ * hint (getNextPhaseHint) and the ready-action block (CLI status). Returns
+ * undefined for archive-in-progress and beyond: no forward transition exists
+ * (archive goes through `mumuspec archive` directly).
+ */
+export function getNextTargetPhase(state: ChangeState): string | undefined {
   switch (state.phase) {
     case 'open':
-      if (state.workflow === 'hotfix' || state.workflow === 'tweak') {
-        return 'mumuspec state transition <name> build (hotfix/tweak 跳过 Design)';
-      }
-      return 'mumuspec state transition <name> design (进入 Design 阶段)';
+      return state.workflow === 'hotfix' || state.workflow === 'tweak' ? 'build' : 'design';
     case 'design':
-      return 'mumuspec state transition <name> build (进入 Build 阶段)';
+      return 'build';
     case 'build':
-      return 'mumuspec state transition <name> verify (进入 Verify 阶段)';
+      return 'verify';
     case 'verify':
-      return 'mumuspec state transition <name> archive-in-progress (进入 Archive 阶段)';
-    case 'archive-in-progress':
-      return 'mumuspec archive <name> (完成归档)';
+      return 'archive-in-progress';
     default:
       return undefined;
   }
