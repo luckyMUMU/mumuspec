@@ -21,6 +21,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-09-review-followup-hardening
+  - id: KE-2026-09-13-enforcement-coverage-hyperplan
+    title: Adversarial design review insights from 2026-09-13-enforcement-coverage
+    type: decision
+    status: confirmed
+    scope: 2026-09-13-enforcement-coverage
+    file: .mumuspec\knowledge\decisions\KE-2026-09-13-enforcement-coverage-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - 2026-09-13-enforcement-coverage
   - id: KE-archive-prune-safety-hyperplan
     title: Adversarial design review insights from archive-prune-safety
     type: decision
@@ -76,6 +87,17 @@ pages:
       - hyperplan
       - decision
       - docs-tree-alignment
+  - id: KE-enforcement-coverage-hyperplan
+    title: Adversarial design review insights from enforcement-coverage
+    type: decision
+    status: confirmed
+    scope: enforcement-coverage
+    file: .mumuspec\knowledge\decisions\KE-enforcement-coverage-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - enforcement-coverage
   - id: KE-evaluator-data-source-fix-hyperplan
     title: Adversarial design review insights from evaluator-data-source-fix
     type: decision
@@ -208,6 +230,17 @@ pages:
       - pattern
       - architecture
       - 2026-09-09-review-followup-hardening
+  - id: KE-2026-09-13-enforcement-coverage-patterns
+    title: Architecture patterns from 2026-09-13-enforcement-coverage
+    type: pattern
+    status: confirmed
+    scope: 2026-09-13-enforcement-coverage
+    file: .mumuspec\knowledge\patterns\KE-2026-09-13-enforcement-coverage-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - 2026-09-13-enforcement-coverage
   - id: KE-ast-guard-patterns
     title: Architecture patterns from ast-guard
     type: pattern
@@ -241,6 +274,17 @@ pages:
       - pattern
       - architecture
       - docs-tree-alignment
+  - id: KE-enforcement-coverage-patterns
+    title: Architecture patterns from enforcement-coverage
+    type: pattern
+    status: confirmed
+    scope: enforcement-coverage
+    file: .mumuspec\knowledge\patterns\KE-enforcement-coverage-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - enforcement-coverage
   - id: KE-freedom-metrics-loop-closure-patterns
     title: Architecture patterns from freedom-metrics-loop-closure
     type: pattern
@@ -939,6 +983,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-09-review-followup-hardening
+  - id: KE-2026-09-13-enforcement-coverage-lessons
+    title: Lessons from 2026-09-13-enforcement-coverage decisions
+    type: lesson
+    status: confirmed
+    scope: 2026-09-13-enforcement-coverage
+    file: .mumuspec\knowledge\lessons\KE-2026-09-13-enforcement-coverage-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - 2026-09-13-enforcement-coverage
   - id: KE-archive-prune-safety-lessons
     title: Lessons from archive-prune-safety decisions
     type: lesson
@@ -994,6 +1049,17 @@ pages:
       - lesson
       - decisions
       - docs-tree-alignment
+  - id: KE-enforcement-coverage-lessons
+    title: Lessons from enforcement-coverage decisions
+    type: lesson
+    status: confirmed
+    scope: enforcement-coverage
+    file: .mumuspec\knowledge\lessons\KE-enforcement-coverage-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - enforcement-coverage
   - id: KE-evaluator-data-source-fix-lessons
     title: Lessons from evaluator-data-source-fix decisions
     type: lesson

@@ -1,8 +1,8 @@
 name: enforcement-coverage
-phase: verify
+phase: archive-completed
 workflow: full
 created_at: 2026-09-13T06:00:19.033Z
-updated_at: 2026-09-13T06:21:21.955Z
+updated_at: 2026-09-13T06:23:46.135Z
 scope: .
 affected_scopes: []
 build_layers: []
@@ -52,3 +52,12 @@ design_coverage:
   unreachable_from: null
   checked_at: 2026-09-13T06:06:10.891Z
   enforced: true
+branch_status: handled
+verify_result: pass
+knowledge_extraction:
+  completed: true
+  pages_created_count: 3
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

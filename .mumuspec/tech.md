@@ -267,3 +267,26 @@ MumuSpec 采用六层架构，从上到下依次为：
 - 高风险门禁（安全、代码审查、调试前置）不得存在无条件跳过表述
 - 相邻的人工确认点必须在保持选项集不变的前提下合并为一次询问
 
+
+
+<!-- constraint-merged from enforcement-coverage/new-shall-not.md -->
+# New SHALL NOT Constraints
+
+## Requirement: Delta Merge Integrity
+
+Enforcement: manual(MRGT-01: verify 阶段以负向测试断言静默丢弃路径已消除)
+
+- SHALL NOT 归档时静默丢弃无法合并的 delta-spec 文件（`E-CHANGE-022` 强制中断，不可静默降级为警告）
+
+
+
+<!-- constraint-merged from enforcement-coverage/new-shall.md -->
+# New SHALL Constraints
+
+## Requirement: Delta Merge Integrity
+
+归档时的 delta-spec 合并必须留下可判定事实：合并成功、幂等跳过或显式失败三态之一，不允许静默丢弃。
+
+- SHALL: 归档合并 delta-spec 时，对每个无法解析合并目标或读写失败的 delta 文件以 `E-CHANGE-022` 中断归档并留 audit 记录
+- SHALL: `mergeDeltaSpecsToMain` 返回包含已合并文件与未解决文件（含原因）的结果对象
+
