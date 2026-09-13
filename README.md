@@ -12,7 +12,7 @@
 
 **核心理念：设计决策权始终在人。** 人不再逐字编写 Spec 全文，只做设计决策与审批签收；Spec 由大模型起草、追问补全、判定完备性后交由 AI 生成代码。Spec 仍是一等源文件（人机合著），代码是衍生品。
 
-当前版本：**0.25.0-alpha.0**（归档 delta 合并 fail-closed E-CHANGE-022、覆盖率清单修复路径提示）。详细状态见 [STATUS.md](docs/STATUS.md)。
+当前版本：**0.26.0-alpha.0**（CI 集成 spec 强制门禁：check/validate 双门入 ci:check，漂移与不可判定结论一律 fail）。详细状态见 [STATUS.md](docs/STATUS.md)。
 
 ---
 

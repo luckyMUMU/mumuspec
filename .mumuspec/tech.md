@@ -290,3 +290,15 @@ Enforcement: manual(MRGT-01: verify 阶段以负向测试断言静默丢弃路�
 - SHALL: 归档合并 delta-spec 时，对每个无法解析合并目标或读写失败的 delta 文件以 `E-CHANGE-022` 中断归档并留 audit 记录
 - SHALL: `mergeDeltaSpecsToMain` 返回包含已合并文件与未解决文件（含原因）的结果对象
 
+
+
+<!-- constraint-merged from ci-drift-gate/new-shall-not.md -->
+# New SHALL NOT Constraints
+
+
+
+
+<!-- constraint-merged from ci-drift-gate/new-shall.md -->
+# New SHALL Constraints
+
+

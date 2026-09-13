@@ -21,6 +21,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-09-review-followup-hardening
+  - id: KE-2026-09-13-ci-drift-gate-hyperplan
+    title: Adversarial design review insights from 2026-09-13-ci-drift-gate
+    type: decision
+    status: confirmed
+    scope: 2026-09-13-ci-drift-gate
+    file: .mumuspec\knowledge\decisions\KE-2026-09-13-ci-drift-gate-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - 2026-09-13-ci-drift-gate
   - id: KE-2026-09-13-enforcement-coverage-hyperplan
     title: Adversarial design review insights from 2026-09-13-enforcement-coverage
     type: decision
@@ -65,6 +76,17 @@ pages:
       - hyperplan
       - decision
       - ast-guard
+  - id: KE-ci-drift-gate-hyperplan
+    title: Adversarial design review insights from ci-drift-gate
+    type: decision
+    status: confirmed
+    scope: ci-drift-gate
+    file: .mumuspec\knowledge\decisions\KE-ci-drift-gate-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - ci-drift-gate
   - id: KE-dashboard-onboard-chat-hyperplan
     title: Adversarial design review insights from dashboard-onboard-chat
     type: decision
@@ -230,6 +252,17 @@ pages:
       - pattern
       - architecture
       - 2026-09-09-review-followup-hardening
+  - id: KE-2026-09-13-ci-drift-gate-patterns
+    title: Architecture patterns from 2026-09-13-ci-drift-gate
+    type: pattern
+    status: confirmed
+    scope: 2026-09-13-ci-drift-gate
+    file: .mumuspec\knowledge\patterns\KE-2026-09-13-ci-drift-gate-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - 2026-09-13-ci-drift-gate
   - id: KE-2026-09-13-enforcement-coverage-patterns
     title: Architecture patterns from 2026-09-13-enforcement-coverage
     type: pattern
@@ -252,6 +285,17 @@ pages:
       - pattern
       - architecture
       - ast-guard
+  - id: KE-ci-drift-gate-patterns
+    title: Architecture patterns from ci-drift-gate
+    type: pattern
+    status: confirmed
+    scope: ci-drift-gate
+    file: .mumuspec\knowledge\patterns\KE-ci-drift-gate-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - ci-drift-gate
   - id: KE-dashboard-onboard-chat-patterns
     title: Architecture patterns from dashboard-onboard-chat
     type: pattern
@@ -983,6 +1027,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-09-review-followup-hardening
+  - id: KE-2026-09-13-ci-drift-gate-lessons
+    title: Lessons from 2026-09-13-ci-drift-gate decisions
+    type: lesson
+    status: confirmed
+    scope: 2026-09-13-ci-drift-gate
+    file: .mumuspec\knowledge\lessons\KE-2026-09-13-ci-drift-gate-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - 2026-09-13-ci-drift-gate
   - id: KE-2026-09-13-enforcement-coverage-lessons
     title: Lessons from 2026-09-13-enforcement-coverage decisions
     type: lesson
@@ -1027,6 +1082,17 @@ pages:
       - lesson
       - decisions
       - ast-guard
+  - id: KE-ci-drift-gate-lessons
+    title: Lessons from ci-drift-gate decisions
+    type: lesson
+    status: confirmed
+    scope: ci-drift-gate
+    file: .mumuspec\knowledge\lessons\KE-ci-drift-gate-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - ci-drift-gate
   - id: KE-dashboard-onboard-chat-lessons
     title: Lessons from dashboard-onboard-chat decisions
     type: lesson

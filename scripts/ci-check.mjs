@@ -12,6 +12,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -177,6 +178,73 @@ if (changelogVersionSet.has(pkgVersion)) {
   pass(`CHANGELOG has entry for current version ${pkgVersion}`);
 } else {
   warn(`CHANGELOG missing entry for current version ${pkgVersion}`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Check 4: Spec Enforcement Gate (check + validate as hard CI gates)
+// ═══════════════════════════════════════════════════════════════
+console.log('\n🛡️  Spec Enforcement Gate\n');
+
+const cliPath = join(root, 'dist', 'cli.js');
+
+// Run one engine gate and parse its --json report from stdout.
+// Fail-closed: missing dist, spawn failure, timeout, or unparseable output
+// all count as errors — an undecidable gate result must never read as green.
+function runEngineGate(label, args) {
+  const res = spawnSync(process.execPath, [cliPath, ...args], {
+    encoding: 'utf8',
+    cwd: root,
+    timeout: 120_000,
+  });
+  const out = (res.stdout || '');
+  const jsonStart = out.indexOf('{');
+  if (jsonStart === -1) {
+    const reason = res.error ? res.error.message : (res.stderr || '').trim().split('\n').pop() || `exit ${res.status}`;
+    fail(`[${label}] 无法获得可判定结论（${reason}）`);
+    return;
+  }
+  let report;
+  try {
+    report = JSON.parse(out.slice(jsonStart));
+  } catch (err) {
+    fail(`[${label}] JSON 解析失败（${err.message}）`);
+    return;
+  }
+  // Schema note: `check --json` = { compliance:{errors,warnings}, drift:{errors,warnings}, exitCode };
+  // `validate --json` = { errors, warnings, ... }. Normalize both.
+  const errors = [
+    ...(report.compliance?.errors ?? []),
+    ...(report.drift?.errors ?? []),
+    ...(report.errors ?? []),
+  ];
+  const warnings = [
+    ...(report.compliance?.warnings ?? []),
+    ...(report.drift?.warnings ?? []),
+    ...(report.warnings ?? []),
+  ];
+  for (const e of errors) {
+    fail(`[${label}] ${e.code || e.type || 'UNKNOWN'} ${e.message || ''}`);
+  }
+  for (const w of warnings) {
+    warn(`[${label}] ${w.code || 'UNKNOWN'} ${w.message || ''}`);
+  }
+  // exitCode is authoritative: an engine-reported failure with no parseable
+  // error detail must still fail the gate (undecidable ≠ green).
+  if (errors.length === 0) {
+    const exit = report.exitCode ?? res.status;
+    if (exit !== 0) {
+      fail(`[${label}] 引擎退出码 ${exit} 但未解析到错误明细 — 按失败处理`);
+    } else {
+      pass(`${label}: 0 error(s), ${warnings.length} warning(s)`);
+    }
+  }
+}
+
+if (!existsSync(cliPath)) {
+  fail(`dist/cli.js 不存在 — spec 强制门禁不可静默跳过，先运行 npm run build`);
+} else {
+  runEngineGate('check', ['check', '--json']);
+  runEngineGate('validate', ['validate', '--json']);
 }
 
 // ═══════════════════════════════════════════════════════════════

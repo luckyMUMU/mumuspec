@@ -49,6 +49,8 @@ git-status.txt
 
 # MumuSpec temp directory (non-spec artifacts, logs, migration staging)
 .mumuspec/temp/
+# Project-root temp directory (non-spec artifacts; TEMP-4 红线 gitignore 兜底)
+/temp/
 
 # Test scaffolding leftovers (temp projects created by change tests)
 tests/**/.chg7-tmp/
