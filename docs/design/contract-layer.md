@@ -248,16 +248,17 @@ graph LR
 ## 10. CLI 命令
 
 ```bash
-mumuspec contract init                          # 初始化 contracts/ 目录
-mumuspec contract add-external <name> [--category rpc|rest|mq|middleware|database]
-mumuspec contract add-outbound <name> [--category rpc|rest|event|sdk]
-mumuspec contract list [--type external|outbound]
-mumuspec contract verify <name>                 # 校验契约与代码一致性
-mumuspec contract derive <name>                 # 手动触发约束派生注入
-mumuspec contract drift                         # 契约漂移检测
-mumuspec contract impact <name>                 # 追踪变更影响范围
-mumuspec contract compat-check <name>           # 向后兼容性检查
-mumuspec contract doc generate [--name <name>]  # 从契约生成文档
+mumuspec contract list                          # 列出所有已登记契约
+mumuspec contract show <id>                     # 查看契约详情
+mumuspec contract register                      # 交互式登记新契约
+mumuspec contract verify [--change <name>]      # 校验契约漂移（可限定变更）
+mumuspec contract drift                         # 契约漂移检测（完整报告）
+mumuspec contract compat-check [--change <name>] # 向后兼容性检查（对照注册表）
+mumuspec contract impact <contractId>           # 分析修改 / 移除契约的影响范围
+mumuspec contract deprecate <contractId>        # 废弃契约（带影响分析）
+mumuspec contract remove <contractId>           # 移除契约（被引用时阻断）
+mumuspec contract audit                         # 查看契约变更审计日志
+mumuspec contract boundary                      # 管理目录边界文档
 ```
 
 > 完整 CLI 命令见 [参考：CLI 命令](../reference/cli-commands.md)。

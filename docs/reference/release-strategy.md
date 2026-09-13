@@ -87,9 +87,11 @@ npm install -g @mumuspec/cli@0.7.0
 
 | 场景 | 回滚方法 |
 |------|---------|
-| config.yaml schema 变更 | MumuSpec 内置 `mumuspec migrate --rollback --from <ver> --to <ver>` |
+| config.yaml schema 变更 | 读取时自动执行 schema 迁移，迁移前快照落到 `.mumuspec/temp/migrations/`；版本不符由 `mumuspec check` 报出 |
 | .mumuspec.yaml 字段变更 | 向后兼容追加；删除字段前标注 deprecated 一个版本 |
-| spec.md 格式变更 | 提供格式转换脚本 `mumuspec spec convert --from <ver>` |
+| spec.md 格式变更 | 按版本提供转换说明，配合 `mumuspec sync-specs --fix` 修复 frontmatter |
+
+> 顶层 `migrate` 命令不存在：schema 迁移是加载期行为，无独立 CLI 入口。
 
 ### npm 包撤回
 
@@ -105,8 +107,8 @@ npm deprecate @mumuspec/cli@<version> "Critical bug: <description>. Use <stable-
 
 当 CLI 版本回滚导致 `.mumuspec.yaml` 格式不兼容时：
 
-1. `mumuspec migrate --rollback --from <new> --to <old>` — 自动迁移配置格式
-2. 若迁移失败，手动编辑 `.mumuspec.yaml` 删除新增字段
+1. 从 `.mumuspec/temp/migrations/` 取回迁移前快照，或 `git checkout` 回退配置文件
+2. 若自动迁移结果不符预期，手动编辑 `.mumuspec.yaml` 删除新增字段
 3. Git 回退规范文件到兼容版本
 
 ---
@@ -119,7 +121,7 @@ npm deprecate @mumuspec/cli@<version> "Critical bug: <description>. Use <stable-
 | config.yaml 删除字段 | 标注 deprecated，保留 1 个版本周期 | 1 个 MINOR |
 | CLI 命令变更 | 旧命令标注 deprecated，保留 1 个版本周期 | 1 个 MINOR |
 | spec.md 格式变更 | 提供自动转换脚本 | 永久（脚本支持） |
-| .mumuspec.yaml schema 变更 | `mumuspec migrate` 自动迁移 | 永久（迁移脚本支持） |
+| .mumuspec.yaml schema 变更 | 加载期自动迁移（快照落 `.mumuspec/temp/migrations/`） | 永久（迁移链支持） |
 | 错误码新增 | 向后兼容，新增错误码不影响现有处理 | — |
 | 错误码废弃 | 标注 deprecated，保留 2 个版本周期 | 2 个 MINOR |
 

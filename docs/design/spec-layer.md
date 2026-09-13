@@ -43,7 +43,7 @@ graph LR
         B["业务约束层<br/>spec.md / prohibitions.md<br/>· 与代码强绑定<br/>· 漂移检测<br/>· 按目录树分层"]
         A["行为约束层<br/>constraints.yaml<br/>· 独立于代码<br/>· 持久化<br/>· 按双维度组织<br/>· 三档强度"]
     end
-    B -.->|"mumuspec constraints sync<br/>自动派生"| A
+    B -.->|"mumuspec annotate<br/>自动派生"| A
     A -.->|"不回写<br/>避免循环"| B
 ```
 
@@ -60,7 +60,7 @@ graph LR
 - **持久化**：存储在 `.mumuspec/constraints.yaml`，版本化管理，跨变更存在
 - **双维度组织**：按"技术设计 (TD)"和"需求目标 (RG)"两个维度独立配置
 - **三档强度**：每个约束条目标注 `min_strength`，按当前强度等级求值
-- **来源可派生**：可通过 `mumuspec constraints sync` 从 spec.md 自动派生
+- **来源可派生**：可通过 `mumuspec annotate` 从 spec.md 自动派生
 - **可手工扩展**：项目可添加团队规范、合规要求等自定义约束
 
 > `constraints.yaml` 文件格式与示例见 [动态约束强度系统 §5](constraint-strength.md#5-持久化约束文件)。

@@ -109,7 +109,7 @@ Last updated: 2026-09-12
 - **Description**: 有 spec.md 但无 design.md
 
 **Fix Steps**:
-1. 运行 mumuspec design init <scope> 创建 design.md
+1. 用 mumuspec add-spec <scope> 创建 design.md 并补齐 frontmatter
 
 ### `E-SPEC-007`: SPEC_INDEX_OUTDATED
 
@@ -118,7 +118,7 @@ Last updated: 2026-09-12
 - **Description**: index.yaml 与实际目录结构不一致
 
 **Fix Steps**:
-1. 运行 mumuspec validate --update-index
+1. 运行 mumuspec sync 对齐 index.yaml 与实际目录结构
 
 ### `E-SPEC-008`: PRD_FRONTMATTER_INVALID
 
@@ -158,7 +158,7 @@ Last updated: 2026-09-12
 
 **Fix Steps**:
 1. 使用 ## Requirement: <name> 格式定义约束
-2. 运行 mumuspec validate --verbose
+2. 运行 mumuspec validate 重新校验
 
 ### `E-SPEC-012`: DIST_SPEC_SHALL_UNIMPLEMENTED
 
@@ -294,7 +294,7 @@ Last updated: 2026-09-12
 - **Description**: 尝试修改已锁定的 test-cases/
 
 **Fix Steps**:
-1. 回退到 Design: mumuspec rollback <name> --to design
+1. 回退到 Design: mumuspec state transition <name> design --reason <原因>
 
 ### `E-CHANGE-005`: CHANGE_WORKTREE_FAIL
 
@@ -806,7 +806,7 @@ Last updated: 2026-09-12
 
 **Fix Steps**:
 1. 创建 BOUNDARY.md 并声明对外接口、依赖、数据契约
-2. 运行 mumuspec drift --fix-auto
+2. 运行 mumuspec drift --fix --dry-run 预览可自动修复项
 
 ### `E-CONTRACT-002`: BOUNDARY_EXPORT_NOT_FOUND
 
@@ -931,7 +931,7 @@ Last updated: 2026-09-12
 
 **Fix Steps**:
 1. 检查变更工件完整性
-2. 重新执行 mumuspec knowledge extract <change>
+2. 重新执行 mumuspec finalize-archive <change> 补充知识提取
 
 ### `E-KNOWLEDGE-003`: KNOWLEDGE_PAGE_NOT_FOUND
 
@@ -1238,7 +1238,7 @@ Last updated: 2026-09-12
 
 **Fix Steps**:
 1. 核对诊断中给出的源路径与安装路径差异
-2. 重新安装技能以同步副本：mumuspec install --agent <agent> --force
+2. 重新安装技能以同步副本：mumuspec install <agent> <packages...> --force
 
 ### `E-SKILL-002`: PLUGIN_MANIFEST_INVALID
 

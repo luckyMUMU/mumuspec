@@ -274,8 +274,8 @@ AI Agent (使用 MumuSpec 的 AI 编程助手) 在以下场景**主动生成** s
 
 1. **完成一次完整变更流程** (Open → Design → Build → Verify → Archive) 后
 2. **遇到 Phase Guard 阻断或 Constraint 阻断**后 (记录盲区)
-3. **执行了回退 (rollback)** 后 (记录失败模式)
-4. **Session 显式调用 `mumuspec session summary`** 时 (规划中,Phase 2)
+3. **执行了回退（状态机 rollback）** 后 (记录失败模式)
+4. **Session 显式调用 `mumuspec feedback session-summary`** 时
 
 > CLI 命令 `mumuspec feedback session-summary` 提供了自动化的 session 摘要创建，自动写入 `.mumuspec/feedback/sessions/` 并建立反馈关联。
 

@@ -577,7 +577,7 @@ constraint_strength:
 | `exploratory` | medium | low | 探索性原型 |
 | `minimal` | low | low | 教学 demo / 一次性脚本 |
 
-### config enable/disable 命令支持
+### 约束强度命令
 
 ```bash
 # 查看当前约束强度
@@ -592,23 +592,17 @@ mumuspec constraints strength --change <name> --td low --rg medium
 # 应用预设
 mumuspec constraints preset balanced
 
-# 初始化持久化约束文件 constraints.yaml
-mumuspec constraints init
-
-# 从 spec.md 同步约束到 constraints.yaml
-mumuspec constraints sync
-
-# 列出所有约束
+# 列出 constraints.yaml 中的全部约束
 mumuspec constraints list --dimension td
 mumuspec constraints list --type shall-not
 
-# 添加自定义约束
-mumuspec constraints add --dimension td --type shall-not \
-  --content "禁止使用 var 关键字" --min-strength medium
-
-# 验证当前变更是否满足约束
-mumuspec constraints check --change <name>
+# 解析树状分布式约束树（继承与收紧）
+mumuspec constraints resolve
 ```
+
+> 约束的**新增与编辑**没有独立子命令：约束是 `spec.md` 中 SHALL / SHALL NOT 的派生产物，
+> 经 `mumuspec annotate` 写入 `constraints.yaml`；`mumuspec check` 负责校验其满足情况。
+> 约束强度的人工调整必须走 `constraints strength` / `constraints preset` 并记录到 `decisions.md`。
 
 ---
 
@@ -651,37 +645,22 @@ MumuSpec 定义"零配置默认"配置,新用户无需理解全部即可启动�
 
 ### 默认关闭的特性
 
-| 特性 | 默认配置 | 开启方式 |
+| 特性 | 默认配置 | 开关位置（`.mumuspec/config.yaml`） |
 |------|---------|---------|
-| Ponytail 编码约束 | 关闭 | `mumuspec config enable ponytail` |
-| 认知框架 Q1-Q4 | 关闭 | `mumuspec config enable cognitive-framework` |
-| Contract Layer | 关闭 | `mumuspec config enable contract-layer` |
-| Knowledge Layer 代码图谱 | 关闭 | `mumuspec config enable knowledge-graph`(需配置后端) |
-| TDD 强制 | 开启(可关闭) | `workflow.tdd_enforced: false` 关闭 |
-| Skill Bridge | 关闭 | `mumuspec config enable skill-bridge` |
-| Hyperplan | 关闭 | `mumuspec config enable hyperplan` |
+| Ponytail 编码约束 | 关闭 | `ponytail.enabled` |
+| 认知框架 Q1-Q4 | 关闭 | `cognitive_framework.enabled` |
+| Contract Layer | 关闭 | `contracts.enabled` |
+| Knowledge Layer 代码图谱 | 关闭 | `knowledge.code_graph.enabled`（需配置 `storage`） |
+| TDD 强制 | 开启(可关闭) | `workflow.tdd_enforced` |
+| Skill 生态 | 开启 | `skills.enabled` |
+| Hyperplan | 关闭 | `require_brainstorming` + `constraint_strength.overrides.hyperplan` |
 | `strict` 强度预设 | 关闭（默认 balanced） | `mumuspec constraints preset strict` |
 
-### config enable/disable 命令
+### 特性开关方式
 
-```bash
-# 开启特性
-mumuspec config enable <feature>
-
-# 关闭特性
-mumuspec config disable <feature>
-
-# 查看当前配置
-mumuspec config list
-```
-
-支持的 feature 名称:
-- `ponytail` - Ponytail 编码约束
-- `cognitive-framework` - 认知框架 Q1-Q4
-- `contract-layer` - Contract Layer
-- `knowledge-graph` - Knowledge Layer 代码图谱(需配合 `knowledge.graph_backend` 配置)
-- `skill-bridge` - Skill Bridge 兼容层
-- `hyperplan` - Hyperplan 对抗式规划
+> ⚠️ 顶层 `config` 命令在 0.19.x 及之后已移除，`config enable/disable/list` 不再可用。
+> 特性开关一律通过编辑 `.mumuspec/config.yaml` 的对应段；约束强度例外，走
+> `mumuspec constraints strength` / `constraints preset`（会留审计痕迹）。
 
 ### 新用户零配置启动流程
 

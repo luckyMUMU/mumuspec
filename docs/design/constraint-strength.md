@@ -33,10 +33,10 @@ MumuSpec 的核心目标是**创建独立于代码的、基于"技术设计 + �
 | C2 | Phase Guard 阻断 | 5 个正向转换守卫 + 4 个回退守卫，硬性 block | 不可调 | [phase-guards.md](../reference/phase-guards.md) |
 | C3 | 认知框架 Q1-Q4 | full 工作流强制启用，5 轮收敛，Q4 ≥3 维度 | 仅 enable/disable | [cognitive-framework.md](../reference/cognitive-framework.md) |
 | C4 | Hyperplan 对抗审查 | 触发条件满足即执行，5 critic + 3 round 固定 | 仅 enable/disable | [skill-ecosystem.md](../reference/skill-ecosystem.md) |
-| C5 | Brainstorming | "跳过此步骤被禁止"，必须多轮 | 不可调 | [skills/mumuspec-open.md](../reference/skills/mumuspec-open.md) |
+| C5 | Brainstorming | "跳过此步骤被禁止"，必须多轮 | 不可调 | [phase-open 技能](../../skills/mumuspec/phase-open/SKILL.md) |
 | C6 | 测试不可变性 | design_locked + suites_hash 全程锁定 | 不可调 | [phase-guards.md](../reference/phase-guards.md) |
 | C7 | Ponytail 编码约束 | 7 级阶梯强制 + `strict_no_new_deps` | 仅 enable/disable | [spec-layer.md §2](spec-layer.md) |
-| C8 | 影响分析 / 知识加载 / 契约检查 | "立即执行，跳过被禁止" | 不可调 | [skills/mumuspec-open.md](../reference/skills/mumuspec-open.md) |
+| C8 | 影响分析 / 知识加载 / 契约检查 | "立即执行，跳过被禁止" | 不可调 | [phase-open 技能](../../skills/mumuspec/phase-open/SKILL.md) |
 | C9 | decisions.md hash | content_hash 强制校验防篡改 | 不可调 | [phase-guards.md](../reference/phase-guards.md) |
 
 ### 1.1 当前形态的三大问题
@@ -329,7 +329,7 @@ reverse:
 
 # 元数据
 metadata:
-  generated_by: "mumuspec constraints init"
+  generated_by: "mumuspec annotate"
   source_specs:                  # 自动从哪些 spec.md 汇总
     - ".mumuspec/spec.md"
     - "src/.mumuspec/spec.md"
@@ -393,7 +393,7 @@ reverse:
 | `constraints.yaml` | **行为级**正反向约束（agent 行为准则） | **独立于代码** | 持久化，跨变更 |
 
 **约束来源**：
-- `constraints.yaml` 中的条目 **可由** `spec.md` 的 SHALL/SHALL NOT 自动派生（通过 `mumuspec constraints sync`）
+- `constraints.yaml` 中的条目 **可由** `spec.md` 的 SHALL/SHALL NOT 自动派生（通过 `mumuspec annotate`）
 - 也 **可由** 项目手工添加（自定义约束，如团队规范、合规要求）
 - 派生条目通过 `source_specs` 字段追踪来源
 
@@ -743,32 +743,20 @@ mumuspec constraints strength --td high --rg medium
 # 单次变更覆盖（不修改 config.yaml）
 mumuspec constraints strength --change <name> --td low --rg medium
 
-# 初始化持久化约束文件
-mumuspec constraints init
-
-# 从 spec.md 同步约束到 constraints.yaml
-mumuspec constraints sync
-
 # 列出所有约束（按维度过滤）
 mumuspec constraints list --dimension td
 mumuspec constraints list --dimension rg
 mumuspec constraints list --type shall-not
-
-# 添加自定义约束
-mumuspec constraints add \
-  --dimension td \
-  --type shall-not \
-  --content "禁止使用 var 关键字声明变量" \
-  --min-strength medium
-
-# 验证当前变更是否满足约束
-mumuspec constraints check --change <name>
 
 # 解析约束树（0.12.1+）
 mumuspec constraints resolve                  # 全树解析，输出 root + conflicts
 mumuspec constraints resolve --scope src/api  # 仅输出该 scope 的有效约束集
 mumuspec constraints resolve --conflicts-only # 仅输出冲突清单
 ```
+
+> `constraints` 只有 `strength` / `preset` / `list` / `resolve` 四个子命令。
+> 约束不通过 `constraints add` 手工新增——它是 `spec.md` 中 SHALL / SHALL NOT 的派生产物，
+> 由 `mumuspec annotate` 写入 `constraints.yaml`，由 `mumuspec check` 校验满足情况。
 
 ### 8.3 预设强度组合
 
@@ -884,7 +872,7 @@ function rank(s: Strength): number {
 
 ### 10.1 与 Spec Layer 集成
 
-- `spec.md` 中的 SHALL / SHALL NOT 自动派生到 `constraints.yaml`（`mumuspec constraints sync`）
+- `spec.md` 中的 SHALL / SHALL NOT 自动派生到 `constraints.yaml`（`mumuspec annotate`）
 - 派生条目 `source_specs` 字段追踪来源
 - `constraints.yaml` 中的自定义约束不回写到 `spec.md`（避免循环）
 

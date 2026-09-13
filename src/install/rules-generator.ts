@@ -76,7 +76,7 @@ export interface RenderRuleFilesOptions {
 export function renderCanonicalRules(ctx: RuleGenContext): string {
   return [
     `> ${MANAGED_MARKER}`,
-    '> Regenerate: mumuspec init — or mumuspec install --agent <agent>',
+    '> Regenerate: mumuspec init — or mumuspec install <agent> <packages...> --force',
     '',
     '# AGENTS.md',
     '',

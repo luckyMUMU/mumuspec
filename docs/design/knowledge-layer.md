@@ -701,7 +701,7 @@ Knowledge Layer SHALL 维护以下 4 项知识价值评估指标:
 知识价值评估 SHALL 在以下时机触发:
 - Archive 阶段完成知识提取后(评估新提取的知识)
 - 每周定时评估(评估所有知识页面的累积指标)
-- 用户手动触发(`mumuspec knowledge evaluate`)
+- 用户手动触发(`mumuspec knowledge verify`)
 
 ---
 
@@ -755,10 +755,13 @@ AI Agent 在设计阶段的工具调用优先级：
 ### 9.1 代码图谱命令
 
 ```bash
-mumuspec index                          # 构建/更新代码图谱
-mumuspec impact [name]                  # 影响分析
+mumuspec sync                           # 代码状态 → 持久规范（含代码图谱索引）
+mumuspec impact                         # 影响分析（关联知识）
 mumuspec trace <symbol>                 # 追踪调用链
 mumuspec search <pattern>               # 搜索代码节点
+mumuspec code-graph structure <dir>     # 结构清单（目录/符号盘点）
+mumuspec code-graph search <query>      # 模糊搜索符号
+mumuspec code-graph trace <symbol>      # 追踪依赖链
 ```
 
 ### 9.2 知识管理命令
@@ -769,11 +772,18 @@ mumuspec knowledge show <id>
 mumuspec knowledge search <keyword> [--tag <tag>]
 mumuspec knowledge context <path>             # 获取指定路径的知识上下文（渐进式）
 mumuspec knowledge verify [--id <id> | --all] # 验证知识新鲜度
-mumuspec knowledge graph [--scope <path>]     # 可视化知识关系图
-mumuspec knowledge extract <change>           # 从已归档变更中提取知识（Archive 阶段自动调用）
+mumuspec knowledge organize                   # 扫描知识库问题并可修复
+mumuspec knowledge rebuild-index              # 从页面重建 _index.yaml
+mumuspec knowledge coverage / gaps            # 覆盖率报告 / 覆盖缺口
+mumuspec knowledge scan                       # 从代码库自主发现知识（deps / code / git / docs）
+mumuspec knowledge doctor                     # 知识库健康诊断（只读）
+mumuspec knowledge graph-export               # 导出知识图谱为 UA 风格 JSON
 mumuspec knowledge stale                      # 列出过期的知识页面
 mumuspec knowledge supersede <id> --by <new-id> # 标记知识被新决策替代
 ```
+
+> 知识提取没有独立子命令：Archive 阶段由 `mumuspec archive` 自动提取，
+> 收尾由 `mumuspec finalize-archive` 完成；手动重跑用 `mumuspec knowledge scan`。
 
 > 完整 CLI 命令列表见 [参考：CLI 命令](../reference/cli-commands.md)。
 
@@ -947,7 +957,7 @@ graph_drift:
     detection: "compare graph nodes with actual code files"
     severity: WARN
     auto_fix: false
-    recommendation: "运行 mumuspec index 更新图谱"
+    recommendation: "运行 mumuspec sync 更新图谱"
 
 # 知识漂移
 knowledge_drift:

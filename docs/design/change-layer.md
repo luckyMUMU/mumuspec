@@ -404,7 +404,7 @@ rollback_count >= rollback_limit (默认 3)
 │   └── 走 discard_change（保存快照，归档到 discarded/）
 └── 用户选择手动提升上限
     ├── 记录原因到 decisions.md
-    ├── mumuspec config set changes.rollback_limit <N>
+    ├── 编辑 .mumuspec/config.yaml 的 changes.default_rollback_limit
     └── 继续回退（不推荐，需 Tech Lead 审批）
 ```
 
@@ -416,15 +416,15 @@ rollback_count >= rollback_limit (默认 3)
 
   [1] 接受偏差归档（推荐）
       → 当前实现通过 SHALL NOT + 测试不可变性检查即可归档
-      → 命令: mumuspec change accept-deviations --change add-user-auth
+      → 命令: mumuspec state transition add-user-auth archive-in-progress
 
   [2] 废弃变更
       → 保存快照后归档到 discarded/，释放活跃变更槽位
-      → 命令: mumuspec change discard --change add-user-auth
+      → 命令: mumuspec discard add-user-auth --confirm
 
   [3] 手动提升上限（需审批）
       → 记录原因到 decisions.md，由 Tech Lead 确认
-      → 命令: mumuspec config set changes.rollback_limit 5
+      → 编辑 .mumuspec/config.yaml 的 changes.default_rollback_limit
 
 详细说明: docs/reference/error-codes.md#E-CHANGE-002
 ```
@@ -501,8 +501,8 @@ hyperplan 执行中失败
 ```
 变更已 Discard
 ├── 从 snapshots/discard/ 恢复工件
-│   ├── mumuspec change restore --from-snapshot <change>
-│   └── 创建新变更（不复活旧变更，复用工件）
+│   ├── 无 restore 命令：读取快照工件后 mumuspec new <name> 重新创建变更
+│   └── 不复活旧变更，只复用工件
 └── 工件已用于参考
     └── snapshots/discard/ 保留 30 天后清理
 ```

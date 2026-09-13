@@ -140,7 +140,7 @@ workflow:
 `discard` 会把 worktree、变更目录、`.mumuspec.yaml` 一律清理。未提交改动会被删除。
 
 - 已进入 Git 的内容可以用 `git reflog` 救回
-- 建议在 `archive` 前跑一次 `mumuspec snapshot list <name>` 确认快照可用
+- 建议在 `archive` 前跑一次 `mumuspec status <name>` 确认工件与状态一致
 
 ---
 
@@ -249,7 +249,7 @@ npm install /path/to/mumuspec/mumuspec-x.y.z.tgz
 
 ```bash
 # 重建知识索引
-mumuspec knowledge index rebuild
+mumuspec knowledge rebuild-index
 ```
 
 索引位于 `.mumuspec/knowledge/_pageindex.yaml`，可定期清理旧页面：

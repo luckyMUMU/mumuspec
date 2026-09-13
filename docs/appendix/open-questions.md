@@ -238,4 +238,4 @@ Archive 阶段从 cognitive-map.yaml、decisions.md 等变更工件中自动提�
 
 ---
 
-> **导航**: [← 路线图](roadmap.md) | [返回概览](../overview.md)
+> **导航**: [← 目录结构](directory-structure.md) | [返回概览](../overview.md)

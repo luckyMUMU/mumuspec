@@ -76,7 +76,7 @@ export function detectSkillDrift(pairs: readonly SkillPair[]): DriftResult[] {
         severity: 'WARN',
         message: `技能 "${pair.name}" 未安装（源存在而副本缺失）`,
         file: pair.installPath,
-        fixHint: 'mumuspec install --agent <agent> --force',
+        fixHint: 'mumuspec install <agent> <packages...> --force',
       });
       continue;
     }
@@ -118,7 +118,7 @@ export function detectSkillDrift(pairs: readonly SkillPair[]): DriftResult[] {
           `技能 "${pair.name}" 的源与已安装副本内容不一致（已剥离版本行）` +
           `｜源：${pair.sourcePath}｜副本：${pair.installPath}`,
         file: pair.installPath,
-        fixHint: 'mumuspec install --agent <agent> --force',
+        fixHint: 'mumuspec install <agent> <packages...> --force',
       });
     }
   }

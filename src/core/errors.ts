@@ -88,7 +88,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     name: 'SPEC_DESIGN_DOC_MISSING',
     severity: 'ERROR',
     description: '有 spec.md 但无 design.md',
-    fixSteps: ['运行 mumuspec design init <scope> 创建 design.md'],
+    fixSteps: ['用 mumuspec add-spec <scope> 创建 design.md 并补齐 frontmatter'],
     forceable: false,
   },
   'E-SPEC-007': {
@@ -96,7 +96,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     name: 'SPEC_INDEX_OUTDATED',
     severity: 'WARN',
     description: 'index.yaml 与实际目录结构不一致',
-    fixSteps: ['运行 mumuspec validate --update-index'],
+    fixSteps: ['运行 mumuspec sync 对齐 index.yaml 与实际目录结构'],
     forceable: true,
   },
 
@@ -129,7 +129,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     name: 'DISTRIBUTED_SPEC_FORMAT_INVALID',
     severity: 'WARN',
     description: '分布式 prd.md/tech.md 使用非 Requirement 块格式',
-    fixSteps: ['使用 ## Requirement: <name> 格式定义约束', '运行 mumuspec validate --verbose'],
+    fixSteps: ['使用 ## Requirement: <name> 格式定义约束', '运行 mumuspec validate 重新校验'],
     forceable: true,
   },
   'E-SPEC-012': {
@@ -240,7 +240,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     name: 'CHANGE_TEST_CASES_LOCKED',
     severity: 'ERROR',
     description: '尝试修改已锁定的 test-cases/',
-    fixSteps: ['回退到 Design: mumuspec rollback <name> --to design'],
+    fixSteps: ['回退到 Design: mumuspec state transition <name> design --reason <原因>'],
     forceable: false,
   },
   'E-CHANGE-005': {
@@ -688,7 +688,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     name: 'BOUNDARY_DOC_MISSING',
     severity: 'WARN',
     description: '有代码的目录缺少 BOUNDARY.md 边界文档',
-    fixSteps: ['创建 BOUNDARY.md 并声明对外接口、依赖、数据契约', '运行 mumuspec drift --fix-auto'],
+    fixSteps: ['创建 BOUNDARY.md 并声明对外接口、依赖、数据契约', '运行 mumuspec drift --fix --dry-run 预览可自动修复项'],
     forceable: true,
   },
   'E-CONTRACT-002': {
@@ -790,7 +790,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     name: 'KNOWLEDGE_EXTRACTION_FAIL',
     severity: 'ERROR',
     description: 'Archive 阶段知识提取失败',
-    fixSteps: ['检查变更工件完整性', '重新执行 mumuspec knowledge extract <change>'],
+    fixSteps: ['检查变更工件完整性', '重新执行 mumuspec finalize-archive <change> 补充知识提取'],
     forceable: false,
   },
   'E-KNOWLEDGE-003': {
@@ -1053,7 +1053,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: '技能源与已安装副本的正文不一致（比对已剥离 frontmatter 版本行，故版本戳印不产生噪声）',
     fixSteps: [
       '核对诊断中给出的源路径与安装路径差异',
-      '重新安装技能以同步副本：mumuspec install --agent <agent> --force',
+      '重新安装技能以同步副本：mumuspec install <agent> <packages...> --force',
     ],
     forceable: true,
     dimension: 'technical_design',

@@ -342,13 +342,14 @@ mumuspec install catpaw --installed
 - Skill 生态可用性
 - 依赖工具（tree-sitter 等）
 
-### mumuspec wizard — 交互式引导
+### mumuspec tutorial / onboard — 交互式引导
 
 为新用户提供交互式引导：
-- 初始化项目规范
-- 创建第一个变更
-- 选择 Workflow（hotfix/tweak/full）
-- 逐步引导完成五阶段流程
+- `mumuspec tutorial` — 15 分钟完成第一个变更
+- `mumuspec onboard init / start / next` — 按 scope 生成并推进学习路径
+- `mumuspec recommend [change]` — 按变更范围推荐 Workflow（hotfix/tweak/full）
+
+> 顶层 `wizard` 命令在 0.19.x 及之后已移除，引导职责由 `tutorial` 与 `onboard` 承担。
 
 > 完整 CLI 命令列表见 [参考：CLI 命令](../reference/cli-commands.md)。
 

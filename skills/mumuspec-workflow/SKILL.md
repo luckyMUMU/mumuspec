@@ -4,7 +4,7 @@ description: "Drive AI-assisted development through the MumuSpec spec-as-DSL cha
 license: MIT
 metadata:
   author: MumuSpec Contributors
-  version: 0.19.2-alpha.0
+  version: 0.24.0-alpha.0
   homepage: https://github.com/mumuspec/mumuspec
 ---
 

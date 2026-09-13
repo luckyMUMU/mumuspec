@@ -80,7 +80,7 @@
 | 求值器 | `src/core/constraint-evaluator.ts` | evaluateConstraint() §9.2 求值逻辑 | ✅ 完整 |
 | 加载器 | `src/core/constraints-loader.ts` | loadConstraintsFile() / loadAllConstraints() | ✅ 完整 |
 | Guard 集成 | `src/guard/checker.ts` / `phase-guard.ts` | 按 high/medium/low 求值 block/warn/info | ✅ 已集成 |
-| CLI 命令 | `src/cli.ts` | `mumuspec constraints strength/list/resolve/check/preset` | ✅ 已实现 |
+| CLI 命令 | `src/cli.ts` | `mumuspec constraints strength/list/resolve/preset` | ✅ 已实现 |
 | MCP 工具 | `src/mcp-server.ts` | `constraints.check/resolve/strength` | ✅ 已实现 |
 
 ### 可验证性系统（0.20 P0，已落地）

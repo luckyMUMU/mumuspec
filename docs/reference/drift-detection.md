@@ -69,7 +69,7 @@ index_freshness:
     detection: "compare git diff with index timestamp"
     severity: WARN
     auto_fix: false
-    recommendation: "Run mumuspec index to update"
+    recommendation: "Run mumuspec sync to update"
 ```
 
 ## 测试不可变性漂移（0.6.0 新增）

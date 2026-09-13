@@ -106,7 +106,7 @@ MumuSpec 的持久化 Spec 不是文档，不是配置，而是一门**领域特
 | A-02 | 项目主语言被 tree-sitter 支持 | 图谱功能降级为文件级索引 | 详见设计文档 |
 | A-03 | 单一活跃变更约束可被接受（per-scope） | 需引入变更队列机制 | 关闭约束，允许 N 个并行变更 |
 | A-04 | AI 工具支持 MCP 协议或 Rules 文件 | 需开发平台特定适配器 | Rules 文件作为最低兼容层 |
-| A-05 | Spec 编写者愿意写 SHALL/SHALL NOT | DSL 语法需要学习成本 | 提供模板、示例、`mumuspec spec annotate` 辅助 |
+| A-05 | Spec 编写者愿意写 SHALL/SHALL NOT | DSL 语法需要学习成本 | 提供模板、示例、`mumuspec annotate` 辅助 |
 
 ---
 
@@ -265,10 +265,12 @@ graph LR
 2. 过程层出清：15 个不可校验的过程性阻塞点移出强制面
 3. 按 target 的 JIT 式加载：代码图谱绑定变成 context 主入口
 4. 反向通道升一等公民：spec target 变了但代码未动 → 漂移检测
-5. `mumuspec capability` 命令实现（或从 spec 降级删除）
-6. `mumuspec next` 结构化编排命令（"我现在该做什么"的统一入口）
 7. 多语言 AST 解析差异如何抽象？
 8. 知识新鲜度的自动化验证策略？
+
+> 原第 5 项（`mumuspec capability`）已实现，从开放问题移出；
+> 原第 6 项（统一入口）由 `mumuspec state next` 与 `mumuspec tasks next` 分别承担，
+> 不再规划顶层 `next` 命令。
 
 > 完整开放问题见 [附录：开放问题](appendix/open-questions.md) 与各 `review/*.md` 分析文档。
 

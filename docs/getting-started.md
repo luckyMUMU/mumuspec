@@ -149,7 +149,7 @@ CLI 会在 `.mumuspec/changes/add-title-validation/` 下创建变更目录与 `.
 
 ```bash
 # 1. 描述变更提案
-mumuspec transition add-title-validation approve-proposal
+mumuspec state transition add-title-validation design --reason "proposal 已确认"
 ```
 
 在 `.mumuspec/changes/add-title-validation/proposal.md` 写明"任务 title 为空时创建接口应返回 400 错误"。
@@ -158,7 +158,7 @@ mumuspec transition add-title-validation approve-proposal
 
 ```bash
 # 2. 转到 Design
-mumuspec transition add-title-validation to-design
+mumuspec state transition add-title-validation design
 
 # 3. 写设计文档
 #    编辑 .mumuspec/changes/add-title-validation/design.md
@@ -175,13 +175,13 @@ mumuspec test-cases lock add-title-validation
 
 ```bash
 # 6. 转到 Build
-mumuspec transition add-title-validation to-build
+mumuspec state transition add-title-validation build
 
-# 7. 选择隔离方式
-#    推荐 worktree：
-mumuspec worktree create add-title-validation
+# 7. 隔离方式由 workflow 配置决定
+#    .mumuspec/config.yaml → workflow.worktree_isolation: true
+#    mumuspec doctor 可诊断当前隔离状态
 
-# 8. 在 worktree 中修改代码
+# 8. 在隔离环境中修改代码
 
 # 9. 执行合规检查
 mumuspec check --shall
@@ -193,7 +193,7 @@ mumuspec drift
 
 ```bash
 # 10. 转到 Verify
-mumuspec transition add-title-validation to-verify
+mumuspec state transition add-title-validation verify
 
 # 11. 验证测试不可变性
 mumuspec test-cases verify add-title-validation
@@ -202,7 +202,7 @@ mumuspec test-cases verify add-title-validation
 #     编辑 .mumuspec/changes/add-title-validation/verify.md
 
 # 13. 验证通过，进入归档
-mumuspec transition add-title-validation pass-verify
+mumuspec state transition add-title-validation archive-in-progress
 ```
 
 ### Archive 阶段
@@ -225,14 +225,14 @@ mumuspec archive add-title-validation
 | 新建变更 | `mumuspec new <name> --workflow hotfix` |
 | 列出活跃变更 | `mumuspec list` |
 | 查看状态 | `mumuspec status [name]` |
-| 状态转换 | `mumuspec state transition <name> <event>` |
-| 回退 | `mumuspec rollback <name> --to design` |
+| 状态转换 | `mumuspec state transition <name> <target-phase>` |
+| 回退 | `mumuspec state transition <name> <target-phase> --reason <原因>` |
 | 校验规范 | `mumuspec validate` |
 | 合规检查 | `mumuspec check` |
 | 漂移检测 | `mumuspec drift` |
 | 归档 | `mumuspec archive <name>` |
-| 废弃 | `mumuspec discard <name>` |
-| 交互式引导 | `mumuspec wizard` |
+| 废弃 | `mumuspec discard <name> --confirm` |
+| 交互式引导 | `mumuspec tutorial` / `mumuspec onboard start` |
 
 ---
 
@@ -271,7 +271,7 @@ rollback_limit: 3
 ### 误操作废弃变更
 
 ```bash
-mumuspec discard add-title-validation
+mumuspec discard add-title-validation --confirm
 ```
 
 会把 worktree、变更目录一并清理，释放活跃变更槽位。
@@ -279,12 +279,12 @@ mumuspec discard add-title-validation
 ### 回退到上一阶段
 
 ```bash
-mumuspec rollback add-title-validation --to design
-# 或自动判断：
-mumuspec rollback add-title-validation
+mumuspec state transition add-title-validation design --reason "设计需补充"
+# 查看可转换的目标阶段：
+mumuspec state graph add-title-validation
 ```
 
-回退会保存快照，支持 `mumuspec snapshot restore <name> <id>` 恢复。
+回退次数受 `rollback_limit` 限制，超限由状态机阻断（`E-CHANGE-002`）。
 
 ### 查看状态机路径
 

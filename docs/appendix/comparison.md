@@ -97,4 +97,4 @@ MumuSpec vs OpenSpec vs Comet 速查表。三项目关键特性一图速览，�
 
 ---
 
-> **导航**: [← 目录结构](directory-structure.md) | [路线图 →](roadmap.md) | [返回概览](../overview.md)
+> **导航**: [← 目录结构](directory-structure.md) | [返回概览](../overview.md)

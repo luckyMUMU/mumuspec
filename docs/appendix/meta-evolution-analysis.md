@@ -236,4 +236,4 @@ Bootstrap Fallacy 指的是：自我改进的验证机制本身需要被验证�
 
 ---
 
-> **关联阅读**: [AI Agent 生态调研](../ai-agent-ecosystem-research.md) | [Loop Engine 实现](../../../src/core/loop-engine.ts) | [自改进 Loop 最终报告](../../../.mumuspec/changes/self-improve-loop/FINAL-REPORT.md)
+> **关联阅读**: [AI Agent 生态调研](ai-agent-ecosystem-research.md) | [Loop Engine 实现](../../src/change/loop-engine.ts) | [自改进 Loop 最终报告](../../.mumuspec/changes/archive/2026-08-05-self-improve-loop/FINAL-REPORT.md)
