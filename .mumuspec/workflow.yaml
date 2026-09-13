@@ -113,11 +113,32 @@ edges:
 workflows:
   full:
     phases: [open, design, build, verify, archive-in-progress, archive-completed]
+    phase_bps:
+      open: [BP-1, BP-2, BP-3]
+      design: [BP-4, BP-4.5, BP-5, BP-6, BP-7, BP-8]
+      build: [BP-9, BP-10, BP-11, BP-12, BP-13]
+      verify: [BP-14, BP-15, BP-16]
+      archive-in-progress: [BP-17]
   hotfix:
     phases: [open, build, verify, archive-in-progress, archive-completed]
     skip_design: true
+    phase_bps:
+      open: [BP-3]
+      build: [BP-18]
+      verify: [BP-14, BP-16]
+      archive-in-progress: [BP-17]
   tweak:
     phases: [open, build, verify, archive-in-progress, archive-completed]
     skip_design: true
+    phase_bps:
+      open: [BP-3]
+      build: [BP-18]
+      verify: [BP-14, BP-16]
+      archive-in-progress: [BP-17]
   loop:
+    # experimental：目前无 skill 消费者，仅供自改进 loop 通道内部使用，勿用于常规变更
     phases: [build, verify, archive-in-progress, archive-completed]
+    phase_bps:
+      build: [BP-9, BP-10, BP-11, BP-12, BP-13]
+      verify: [BP-14, BP-15, BP-16]
+      archive-in-progress: [BP-17]

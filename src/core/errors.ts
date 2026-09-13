@@ -186,6 +186,23 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     min_strength: 'low',
   },
 
+  // GRAPH domain — 编排契约：phase_bps 与 skill 侧 BP 声明一致性（CHG-8）
+  'W-GRAPH-001': {
+    code: 'W-GRAPH-001',
+    name: 'PHASE_BPS_SKILL_MISMATCH',
+    severity: 'WARN',
+    description:
+      '引擎 phase_bps 与 skill 侧 workflow.yaml 声明的 BP 集合不一致（缺声明或多余声明）',
+    fixSteps: [
+      '核对 src/change/workflow.default.yaml（引擎侧权威）的 workflows.<wf>.phase_bps',
+      '核对 skills/mumuspec/workflow.yaml（skill 侧结构化 BP 定义）的 phases/presets blocking_points',
+      '按 design.md 的映射表补齐缺失或删除多余声明；skill 侧文件缺失时本检查自动跳过（fail-open）',
+    ],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
+  },
+
   // CONSTRAINT domain — 自由度边界：约束来源闭合（「下层受上层约束」的可判定形式）
   // 由 src/spec/constraint-provenance.ts 发出，接入 `mumuspec check` 的 drift 数组。
   // 注：drift 通道直接携带 severity，不经 applyStrengthToGuardResult 折叠；

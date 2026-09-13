@@ -1,0 +1,80 @@
+# Cognitive Map: bp-into-graph
+# quadrant/category/question/answer/confidence/source
+grill_me:
+  completed: true
+  consensus_reached: true
+entries:
+  - quadrant: Q1
+    category: known-known
+    question: 引擎图配置的单一事实源在哪，schema 校验入口是哪个函数？
+    answer: src/change/workflow.default.yaml（version 1）；校验入口 phase-graph-loader.ts 的 collectErrors()；项目级 override .mumuspec/workflow.yaml 同 schema。
+    confidence: high
+    source: 源码阅读（本轮）
+  - quadrant: Q1
+    category: known-known
+    question: 18 个 BP 的权威口径在哪？
+    answer: skills/mumuspec/workflow.yaml phases/presets 的 blocking_points（结构化定义）+ docs/reference/phase-guards.md（守卫清单）。引擎边属性仅锚定 BP-3/4/17。
+    confidence: high
+    source: 源码 + skill 文件
+  - quadrant: Q1
+    category: known-known
+    question: graph verify 命令现状？
+    answer: src/cli/commands/graph.ts registerGraphCommands，graph verify 校验状态机图一致性；新增 phase_bps 报告与一致性检查为纯增量输出。
+    confidence: high
+    source: 源码阅读
+  - quadrant: Q1
+    category: known-known
+    question: 错误码注册纪律？
+    answer: 新码必须注册 src/core/errors.ts ERROR_CODES（现 112 码/20 域），命名 <P>-<DOMAIN>-<NNN>；W-GRAPH-001 需注册并被 gen-error-codes-doc 收录。
+    confidence: high
+    source: 项目纪律（MEMORY.md 错误码节）
+  - quadrant: Q3
+    category: reasoning
+    question: phase_bps 挂在哪一层？
+    answer: 挂 workflows.<wf> 层（非独立顶段）；可选键，缺省合法——向后兼容由 AC 锁定。
+    confidence: high
+    source: 用户授权方案（decision_ref 2026-09-13T13:11:37.005Z）
+    status: confirmed
+  - quadrant: Q3
+    category: reasoning
+    question: 一致性检查的消费者与失败语义？
+    answer: 落 graph verify；W-GRAPH-001 WARN fail-open；skill 侧文件缺失/不可解析时跳过检查不阻断。
+    confidence: high
+    source: 用户授权方案（decision_ref 2026-09-13T13:11:37.005Z）
+    status: confirmed
+  - quadrant: Q3
+    category: reasoning
+    question: BP-18（预设升级触发）归属哪个 phase？
+    answer: hotfix/tweak 的 build 阶段（升级条件在预设执行中最常于 build 触发）；full 不含 BP-18，18 个 BP 由全 workflow 并集覆盖。
+    confidence: high
+    source: 用户授权方案（decision_ref 2026-09-13T13:11:37.005Z）
+    status: confirmed
+  - quadrant: Q4
+    category: blind-spot
+    question: 兼容性盲区——旧项目级 workflow.yaml（无 phase_bps）会怎样？
+    answer: phase_bps 为可选键，collectErrors 对缺失不报错；旧文件继续合法。测试锁定：缺 phase_bps 的配置解析结果与改造前一致。
+    confidence: high
+    source: Q4 兼容性扫描
+  - quadrant: Q4
+    category: blind-spot
+    question: 消费者覆盖盲区——还有谁读 WorkflowConfig？
+    answer: guard/state/loop 等消费 edges 与 workflows.phases，不感知 phase_bps；新增可选字段不进入其判定路径。graph verify 为唯一新消费者。
+    confidence: high
+    source: Q4 消费者扫描（grep WorkflowConfig 引用点）
+  - quadrant: Q4
+    category: blind-spot
+    question: 错误码纪律盲区——W-GRAPH-001 会不会隐形？
+    answer: 注册 errors.ts 后由 gen-error-codes-doc 生成文档、被 ci-check 收录；命名带数字后缀满足扫描面。
+    confidence: high
+    source: Q4 工具链扫描
+  - quadrant: Q4
+    category: blind-spot
+    question: skill 侧同步盲区——workflow.yaml 与引擎漂移怎么防复发？
+    answer: graph verify 一致性检查本身即防复发机制；skill 侧 design 补 BP-4.5 后两侧闭合，S2b（删 skill graph/presets 段）在归档后另行执行。
+    confidence: medium
+    source: Q4 流程扫描
+converged: true
+rounds_completed: 1
+q2_pending: 0
+q3_pending: 0
+q4_scans_completed: 4

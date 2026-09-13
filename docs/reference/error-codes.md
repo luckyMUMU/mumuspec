@@ -10,6 +10,7 @@ Last updated: 2026-09-13
 | Domain | Count |
 |--------|-------|
 | SPEC | 16 |
+| GRAPH | 1 |
 | CONSTRAINT | 3 |
 | CHANGE | 15 |
 | VERIFY | 4 |
@@ -29,7 +30,7 @@ Last updated: 2026-09-13
 | CHECK | 2 |
 | SKILL | 4 |
 | GIT | 3 |
-| **Total** | **112** |
+| **Total** | **113** |
 
 ## SPEC Domain
 
@@ -212,6 +213,23 @@ Last updated: 2026-09-13
 1. 改写为可判定的具体动作或数值边界
 2. 或拆分为枚举化的具体条件分支
 3. 如模糊确属必要，在 Enforcement manual(...) 中说明人工核验方式
+
+## GRAPH Domain
+
+| Code | Name | Severity | Description | Forceable |
+|------|------|----------|-------------|-----------|
+| `W-GRAPH-001` | PHASE_BPS_SKILL_MISMATCH | WARN | 引擎 phase_bps 与 skill 侧 workflow.yaml 声明的 BP 集合不一致（缺声明或多余声明） | No |
+
+### `W-GRAPH-001`: PHASE_BPS_SKILL_MISMATCH
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: 引擎 phase_bps 与 skill 侧 workflow.yaml 声明的 BP 集合不一致（缺声明或多余声明）
+
+**Fix Steps**:
+1. 核对 src/change/workflow.default.yaml（引擎侧权威）的 workflows.<wf>.phase_bps
+2. 核对 skills/mumuspec/workflow.yaml（skill 侧结构化 BP 定义）的 phases/presets blocking_points
+3. 按 design.md 的映射表补齐缺失或删除多余声明；skill 侧文件缺失时本检查自动跳过（fail-open）
 
 ## CONSTRAINT Domain
 

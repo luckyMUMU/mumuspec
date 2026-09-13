@@ -1,0 +1,69 @@
+name: bp-into-graph
+phase: archive-in-progress
+workflow: full
+created_at: 2026-09-13T13:08:03.935Z
+updated_at: 2026-09-13T13:37:23.195Z
+scope: .
+affected_scopes: src
+build_layers: []
+test_cases:
+  design_locked: true
+  suites_locked: true
+  suites_locked_layers:
+    - 0
+    - 1
+  suites_hash:
+    "0": c1aa15586db8518b
+    "1": b465b88c6b623223
+  design_content_hash: d8941feff0deca15
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/bp-into-graph
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 1
+    design: 1
+    build: 1
+  content_hash: c2d8f8120d250f01
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 4
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 4
+  converged: true
+  rounds_completed: 0
+  cognitive_map_ref: cognitive-map.yaml
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+design_coverage:
+  covered_layers:
+    - 0
+    - 1
+  expected_layers:
+    - 0
+    - 1
+  unreachable_from: null
+  checked_at: 2026-09-13T13:15:59.602Z
+  enforced: true
+verification_report: verify.md
+verify_result: pass
+branch_status: handled

@@ -1,0 +1,37 @@
+# Open Questions: bp-into-graph
+# 完备性门禁结构化工件。设计裁决均在方案评审时经用户授权（decision_ref 见 decisions.md design 锚点）。
+version: 1
+change: bp-into-graph
+items:
+  - id: OQ-01
+    question: >-
+      phase_bps 挂在 workflows.<wf> 层还是独立顶层段？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-13T13:11:37.005Z"
+      note: >-
+        用户授权方案 D1-D5（含 E1 schema 设计）：挂 workflows.<wf> 层，可选键向后兼容。
+  - id: OQ-02
+    question: >-
+      一致性检查放在哪个消费者，失败语义是什么？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-13T13:11:37.005Z"
+      note: >-
+        graph verify + W-GRAPH-001（WARN fail-open）；dashboard/state check 消费列为非目标。
+  - id: OQ-03
+    question: >-
+      BP-18（预设升级触发）在图中归属哪个 phase？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-13T13:11:37.005Z"
+      note: >-
+        hotfix/tweak 的 build 阶段；full 不含 BP-18，18 个 BP 由全 workflow 并集覆盖。
+  - id: OQ-04
+    question: >-
+      skill 侧 workflow.yaml 与引擎的差集如何处置？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-13T13:11:37.005Z"
+      note: >-
+        design 补 BP-4.5 闭合当前差集；S2b（删 skill graph/presets 段）待本变更归档后单独执行。

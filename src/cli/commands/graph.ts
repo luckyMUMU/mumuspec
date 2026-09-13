@@ -7,6 +7,8 @@
  * counters are respected, and a path to archive-completed exists.
  */
 import type { Command } from 'commander';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { findProjectRoot } from '../../core/utils.js';
 import { getActiveChange } from '../../change/manager.js';
 import { loadChangeState } from '../../change/state.js';
@@ -17,6 +19,13 @@ import {
   findTransitionPath,
   activateProjectWorkflow,
 } from '../../change/state-machine.js';
+import {
+  collectWorkflowBpIds,
+  collectSkillBps,
+  compareBps,
+  unionBps,
+} from '../../change/phase-bps.js';
+import { parse } from 'yaml';
 
 interface CheckResult {
   label: string;
@@ -40,7 +49,7 @@ export function registerGraphCommand(program: Command): void {
         process.exit(1);
       }
       // CHG-7: 激活项目级 workflow 覆盖（无则回退内置）
-      activateProjectWorkflow(root);
+      const wfResult = activateProjectWorkflow(root);
 
       const changeName = options.change || getActiveChange(root);
       if (!changeName) {
@@ -106,6 +115,48 @@ export function registerGraphCommand(program: Command): void {
         const icon = check.pass ? '✓' : '✗';
         console.log(`  ${icon} ${check.label}${check.detail ? ` — ${check.detail}` : ''}`);
       }
+
+      // CHG-8: phase_bps 报告 + skill 侧声明一致性检查（W-GRAPH-001，WARN fail-open）
+      const config = wfResult?.config;
+      const bps = config ? collectWorkflowBpIds(config, state.workflow) : [];
+      if (bps.length > 0) {
+        console.log(`\n  Blocking points (${state.workflow}):`);
+        for (const [phase, ids] of Object.entries(
+          config.workflows[state.workflow].phase_bps ?? {},
+        )) {
+          console.log(`    ${phase}: ${ids.join(', ')}`);
+        }
+        const skillPath = join(root, 'skills', 'mumuspec', 'workflow.yaml');
+        if (!existsSync(skillPath)) {
+          console.log('  (skill 侧 workflow.yaml 缺失 — BP 一致性检查跳过)');
+        } else {
+          let skill: unknown;
+          try {
+            skill = parse(readFileSync(skillPath, 'utf8'));
+          } catch {
+            skill = undefined;
+          }
+          if (skill === undefined) {
+            console.log('  (skill 侧 workflow.yaml 不可解析 — BP 一致性检查跳过)');
+          } else {
+            const diff = compareBps(unionBps(config), collectSkillBps(skill));
+            if (diff.missing.length > 0) {
+              console.log(
+                `  ⚠ [W-GRAPH-001] skill 侧缺少声明: ${diff.missing.join(', ')}（权威: src/change/workflow.default.yaml 与 skills/mumuspec/workflow.yaml）`,
+              );
+            }
+            if (diff.extra.length > 0) {
+              console.log(
+                `  ⚠ [W-GRAPH-001] skill 侧多余声明: ${diff.extra.join(', ')}（权威: src/change/workflow.default.yaml 与 skills/mumuspec/workflow.yaml）`,
+              );
+            }
+            if (diff.missing.length === 0 && diff.extra.length === 0) {
+              console.log('  ✓ BP 声明与 skill 侧一致');
+            }
+          }
+        }
+      }
+
       console.log(`\n  ${failed.length === 0 ? '✓ All checks passed' : `✗ ${failed.length} check(s) failed`}\n`);
 
       if (failed.length > 0) process.exit(1);

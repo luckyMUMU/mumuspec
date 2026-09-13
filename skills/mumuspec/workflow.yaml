@@ -179,11 +179,12 @@ workflow:
         - brainstorming (Q2/Q3, required)
         - hyperplan (BP-7, conditional)
       blocking_points:
-        - BP-4: 设计方案确认
-        - BP-5: 认知框架 Q2 回答
-        - BP-6: 认知框架 Q3 确认
-        - BP-7: Hyperplan 开放问题解决
-        - BP-8: 测试用例锁定确认
+      - BP-4: 设计方案确认
+      - BP-4.5: grill-me 共识确认
+      - BP-5: 认知框架 Q2 回答
+      - BP-6: 认知框架 Q3 确认
+      - BP-7: Hyperplan 开放问题解决
+      - BP-8: 测试用例锁定确认
       on_enter:
         - Stage 1: Q1 信息采集
         - Stage 2: Q2 探索激活

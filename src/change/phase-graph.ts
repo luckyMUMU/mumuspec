@@ -75,7 +75,15 @@ export interface WorkflowConfig {
   phases: ChangePhase[];
   terminal: ChangePhase[];
   edges: WorkflowEdgeSpec[];
-  workflows: Record<Workflow, { phases: ChangePhase[]; skip_design?: boolean }>;
+  workflows: Record<
+    Workflow,
+    {
+      phases: ChangePhase[];
+      skip_design?: boolean;
+      /** CHG-8: phase → 该阶段人工决策点（BP id）列表；可选，缺省合法（向后兼容）。 */
+      phase_bps?: Partial<Record<ChangePhase, string[]>>;
+    }
+  >;
 }
 
 /**

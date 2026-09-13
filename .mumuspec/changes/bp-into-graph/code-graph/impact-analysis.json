@@ -1,0 +1,23 @@
+{
+  "change": "bp-into-graph",
+  "base_ref": "f8ce204a2cdfbebb1e92065d76cce7a8732a926d",
+  "affected_files": [
+    "src/change/phase-graph.ts",
+    "src/change/phase-graph-loader.ts",
+    "src/change/workflow.default.yaml",
+    "src/cli/commands/graph.ts",
+    "src/core/errors.ts",
+    ".mumuspec/workflow.yaml",
+    "skills/mumuspec/workflow.yaml"
+  ],
+  "affected_symbols": [
+    "WorkflowConfig",
+    "collectErrors",
+    "loadWorkflowConfig",
+    "loadProjectWorkflowConfig",
+    "buildFallbackConfig",
+    "registerGraphCommands"
+  ],
+  "call_chain_impact": "WorkflowConfig 为只读配置类型，新增可选字段不影响既有消费者；graph verify 为独立命令入口，新增输出段为纯增量",
+  "breaking_changes": []
+}

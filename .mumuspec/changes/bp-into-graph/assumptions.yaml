@@ -1,0 +1,31 @@
+# Assumptions: bp-into-graph
+# 每条假设的消解引用 decisions.md 中人工签收的决策条目时间戳。
+version: 1
+change: bp-into-graph
+items:
+  - id: AS-01
+    assumption: >-
+      新增可选 phase_bps 字段不会影响既有 guard/state/loop 消费者（它们不感知该字段）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-13T13:11:37.005Z"
+      note: >-
+        Q4 消费者扫描确认：既有消费者只读 edges 与 workflows.phases；graph verify 是唯一新消费者。
+  - id: AS-02
+    assumption: >-
+      一致性检查读取 skills/mumuspec/workflow.yaml 属诊断性检查（非运行时依赖），
+      文件缺失时跳过即可，不引入 fail-open 风险。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-13T13:11:37.005Z"
+      note: >-
+        与 phase-graph-loader 的 fail-safe 风格一致；W-GRAPH-001 为 WARN，不阻断流程。
+  - id: AS-03
+    assumption: >-
+      skill 侧 BP 声明与引擎 phase_bps 的对比按"workflow 级并集"进行（非逐 phase 逐点对比），
+      因 skill 侧 presets 无 phase 映射。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-13T13:11:37.005Z"
+      note: >-
+        full 对照 phases.* 并集；hotfix/tweak 对照 presets.* 并集；loop 无 skill 声明则跳过。

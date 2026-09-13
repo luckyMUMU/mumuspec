@@ -189,6 +189,9 @@ function collectErrors(cfg: unknown): string[] {
           }
         }
       }
+      // BP id 唯一性按单个 workflow 作用域——同一 BP 可被多个 workflow 复用
+      // （如 BP-3 同时属于 full.open 与 hotfix.open），这是设计使然。
+      collectPhaseBpsErrors(errors, `workflows.${key}.phase_bps`, (entry as Record<string, unknown>).phase_bps, key);
     }
     for (const key of Object.keys(wf)) {
       if (!WORKFLOW_KEYS.includes(key as Workflow)) {
@@ -198,6 +201,48 @@ function collectErrors(cfg: unknown): string[] {
   }
 
   return errors;
+}
+
+const BP_ID_RE = /^BP-\d+(\.\d+)?$/;
+
+/**
+ * CHG-8 — phase_bps 校验：键为已知 phase、值非空 BP id 数组、id 在本 workflow 内唯一。
+ * phase_bps 缺失合法（向后兼容）；结构非法时对违规处逐条报错。
+ */
+function collectPhaseBpsErrors(
+  errors: string[],
+  path: string,
+  bps: unknown,
+  workflowKey: string,
+): void {
+  if (bps === undefined) return;
+  if (bps === null || typeof bps !== 'object' || Array.isArray(bps)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  const seenBpIds = new Map<string, string>(); // BP id -> 首次出现 phase（workflow 内唯一）
+  for (const [phase, ids] of Object.entries(bps as Record<string, unknown>)) {
+    if (!CANONICAL_PHASES.includes(phase as ChangePhase)) {
+      errors.push(`${path} contains unknown phase '${phase}'`);
+      continue;
+    }
+    if (!isArrayOf(ids, (id) => typeof id === 'string') || (ids as string[]).length === 0) {
+      errors.push(`${path}.${phase} must be a non-empty string array`);
+      continue;
+    }
+    for (const id of ids as string[]) {
+      if (!BP_ID_RE.test(id)) {
+        errors.push(`${path}.${phase} contains malformed BP id '${id}' (expected BP-<num>[.<num>])`);
+        continue;
+      }
+      const first = seenBpIds.get(id);
+      if (first) {
+        errors.push(`${path}.${phase} duplicates BP id '${id}' (first seen at workflows.${workflowKey}.phase_bps.${first})`);
+      } else {
+        seenBpIds.set(id, phase);
+      }
+    }
+  }
 }
 
 function collectEdgeErrors(errors: string[], edge: unknown, i: number): void {
