@@ -1,8 +1,12 @@
 # MumuSpec Skill Dispatch Configuration
 # 编排器与各阶段 Skill 的分发规则（整合版）
 # 参考: docs/reference/skills/ 详细设计规范
+#
+# 非权威声明：本文件是 skill 侧资源（dispatch 分发表 / BP 结构化定义 / 伴随能力提示）。
+# 阶段图（graph）与守卫清单（guards）的引擎侧权威源分别是
+# src/change/workflow.default.yaml 与 docs/reference/phase-guards.md——两者冲突时以上述为准。
 
-version: 0.12.2
+version: 0.33.0-alpha.0
 workflow:
   # 编排器入口
   orchestrator:
@@ -414,58 +418,5 @@ workflow:
         - D1-D8 知识提取流程
         - 更新 PageIndex
 
-  # Phase Guard 检查项汇总（与 phase-guard.ts 实现对齐）
-  guards:
-    open_to_design:
-      - proposal.md exists and non-empty
-      - delta-specs/ has at least one spec file
-      - affected_scopes defined
-      - code-graph/impact-analysis.json exists
-      - decisions.md content_hash matches (E-CHANGE-007)
-      - decisions_log.counts.open > 0
-
-    open_to_build_hotfix:
-      - proposal.md exists
-      - workflow == hotfix
-      - build_layers defined
-      - test-cases/ exists
-      - test_cases.design_locked: true
-      - tdd_mode matches default_tdd_mode
-
-    open_to_build_tweak:
-      - proposal.md exists
-      - workflow == tweak
-      - tasks.md exists
-      - test-cases/layer-0-cases.md exists
-      - test_cases.design_locked: true
-      - tdd_mode matches default_tdd_mode
-
-    design_to_build:
-      - design.md exists and non-empty
-      - constraints/ exists
-      - build_layers defined
-      - test_cases.design_locked: true
-      - test_cases.design_content_hash matches
-      - tdd_mode matches default_tdd_mode
-      - cognitive_framework收敛 (若 enabled)
-
-    build_to_verify:
-      - all tasks.md items checked
-      - build_layers all status = done
-      - test_cases.design_locked: true
-      - test_cases.suites_locked: true
-      - all test suites passed
-
-    verify_to_archive:
-      - verify_result: pass
-      - verify.md exists with report
-      - all SHALL/SHALL NOT enforcements passed
-      - no critical drift
-      - test_immutability_verified: true
-
-    archive_complete:
-      - git_merge.merged: true
-      - delta-specs merged to main specs
-      - knowledge_extraction_completed: true
-      - change moved to archive/
-      - worktree cleaned up
+  # Phase Guard 检查项：唯一权威源为 docs/reference/phase-guards.md（含各目标阶段的
+  # 完整清单与错误码）。本文件不再复写检查项，避免"文档有、代码无"的第三态。

@@ -167,14 +167,12 @@ brainstorming → delta-spec → 认知框架 → 设计 → TDD 实现 → 验�
 - prohibitions.md updated
 - index.yaml updated
 - code-graph snapshot updated
-- spec changes committed to main branch
 - knowledge_extraction_completed: true
 - knowledge_pages_created_count > 0
 - knowledge_graph_bindings_verified: true
 - knowledge_conflicts_resolved: true
 - change moved to archive/
 - worktree cleaned up
-- active_change_slot_released: true
 
 ---
 

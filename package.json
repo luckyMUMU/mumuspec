@@ -38,6 +38,7 @@
     "smoke": "node dist/cli.js --help && node dist/cli.js check",
     "gen:error-codes": "node scripts/gen-error-codes-doc.mjs",
     "ci:check": "node scripts/ci-check.mjs",
+    "docs:audit": "node scripts/docs-audit.mjs",
     "prebuild": "node scripts/prebuild-check.mjs && node scripts/gen-error-codes-doc.mjs",
     "prepack": "npm run build",
     "prepublishOnly": "npm run build && npm run enforce:strict && npm run test",

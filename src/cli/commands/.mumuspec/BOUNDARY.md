@@ -14,7 +14,7 @@ layer: 3
 
 ### 完整命令注册函数列表（31 个）
 
-> 与 `src/cli/index.ts` 的 `buildProgram()` 中 35 次 `register*` 调用逐一核对（2026-09-10）。
+> 与 `src/cli/index.ts` 的 `buildProgram()` 中 36 次 `register*` 调用逐一核对（2026-09-13）。
 
 | 注册函数 | 来源文件 | 命令名 |
 |----------|----------|--------|

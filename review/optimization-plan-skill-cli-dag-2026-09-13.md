@@ -6,6 +6,32 @@
 
 ---
 
+## 重析（2026-09-13 20:15）：基线漂移与方案有效性复核
+
+**基线漂移**：评估基线 `e844be7` → 当前 `947d412`，下午新增 7 个已归档变更
+（shall-structure-lint / spec-fence-guard / fail-open-audit / delta-channel-gate /
+ready-action-guidance / drift-delta-preview / workflow-tier-hint），约 **+997 行**
+（guard/spec/cli/tests），版本 `0.19.2-alpha.10 → 0.33.0-alpha.0`。
+
+**逐项复核结论：方案主体全部成立，无一项作废；三处微调 + 一处新增协同点。**
+
+| 触点 | 核验结果 | 影响 |
+|---|---|---|
+| S1（N1 修复） | `phase-archive/SKILL.md:170/:177` 两幽灵守卫项仍在（skills/ 自 e844be7 零改动） | 有效；**扩展**：修改时一并核对"已知缺口"清单 vs E-CHANGE-022 后的 archive.ts（+204 行，fail-closed 合并）行为一致性 |
+| S2（编排器单源化） | 四写未动 | 有效；**新增协同**：`ready-action-guidance` 已让 `status` 输出就绪动作引导 → 决策核的"8 条阶段判定"应改为**以 `mumuspec status` ready-actions 输出为准**，skill 侧只保留降级判定，避免新增第五处判定逻辑 |
+| S3（workflow.yaml 瘦身） | 未动；版本对齐目标更新为 **0.33.0-alpha.0** | 有效 |
+| T1（BOUNDARY 35→36） | `BOUNDARY.md:17` 仍写 35 次；index.ts 无新顶层注册（新变更均为子命令级，顶层 58 不变） | 有效 |
+| T2（删 en/orchestrator-en.md） | 文件仍在 | 有效 |
+| T4（docs:audit 进 npm scripts） | package.json 无 docs:audit；**注意**：`ci-check.mjs` 已新增 Check 4（spawn CLI --json 双 schema 归一化），T4 接入须对齐新结构，勿复制旧口径 | 有效，实现注记更新 |
+| E1（BP 入图 CHG-8） | `phase-graph-loader.ts` / `workflow.default.yaml` 未动 → 立项输入不变；新 `W-GRAPH-xxx` 须注册 `ERROR_CODES`（现 111 码/20 域）+ 纳入 guard 守卫测试扫描面（src/guard）；phase_bps 属引擎配置非 constraints/，**E-GUARD-010 通道核验不适用**（无词法锚点义务） | 有效 |
+| E3（限流入图不做） | 维持 | 有效 |
+| P1/P2（打磨） | 未动 | 有效 |
+| AC 基线 | tests/ 现 **276 files**（+5：ready-actions / delta-channels / fence-guard / structure-lint / archive-branches 扩充）；精确 test 数须实跑一次确认（诚实标注：未实测） | 批次 2/3 的"无回归"判据以新基线为准 |
+
+**重析后执行建议不变**：批次 1/2 先行（可并行），批次 3 待 D3 放行。
+
+---
+
 ## 0. 根因与方案主线
 
 评估结论：残余缺陷 100% 收敛于**"编排事实写了但没有装载消费者"**。方案主线三步：

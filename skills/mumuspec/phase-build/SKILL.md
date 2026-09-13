@@ -79,44 +79,38 @@ mumuspec state check <name>
 
 **幂等性**：若 `tasks.md` 已存在，不重新创建。
 
-### Step 3: 计划就绪暂停点 — BLOCKING POINT (BP-9)
+### Step 3: 计划就绪 + 工作流配置 — BLOCKING POINT (BP-9 / BP-10)
 
-计划记录后，提供用户决策点：
+计划记录后，**必须使用平台用户输入/确认机制一次性暂停询问以下三组选择**。不可自动继续，不可用推荐规则或默认值替代确认，三组选项集均不得裁减：
+
+**① 计划就绪选择（BP-9）**
 
 | 选项 | 行为 | 说明 |
 |------|------|------|
-| A | 继续执行 | 留在当前模型，进入 Step 4 选择隔离和执行方式 |
+| A | 继续执行 | 留在当前模型，继续选择 ②③ |
 | B | 暂停切换模型 | 记录 `build_pause: plan-ready`，停止本次调用 |
 
-**必须使用平台用户输入/确认机制暂停等待用户选择。** 不可自动继续，不可将暂停写入 `build_mode`。
-
-用户选择继续时：`mumuspec state set <name> build_pause null`
-用户选择暂停时：`mumuspec state set <name> build_pause plan-ready`，然后停止。
-
-### Step 4: 工作流配置选择 — BLOCKING POINT (BP-10)
-
-**必须一次性同时询问工作区隔离和执行方式**：
-
-#### 工作区隔离
+**② 工作区隔离**
 
 | 选项 | 方法 | 说明 |
 |------|------|------|
 | A | 创建 branch | 在当前仓库创建新分支，简单快速 |
 | B | 创建 Worktree | 隔离工作区，完全独立 |
 
-#### 执行方式
+**③ 执行方式**
 
 | 选项 | Skill | 适用场景 |
 |------|------|---------|
 | A | `subagent-driven-development` | 独立任务、高复杂度、需两阶段审查 |
 | B | `executing-plans` | 简单任务、无子 agent 环境 |
 
-**TDD 模式**：遵循配置（默认 `tdd`，可配置为 non-tdd）
+**TDD 模式**：遵循配置（默认 `tdd`，可配置为 non-tdd），随 ①②③ 一并确认。
 
-**必须使用平台用户输入/确认机制暂停等待用户显式选择。** 推荐规则仅供建议，不可替代用户确认。
+用户选 B 时：`mumuspec state set <name> build_pause plan-ready`，然后停止。
+用户选 A 且完成 ②③ 后：
 
-选择后更新状态：
 ```bash
+mumuspec state set <name> build_pause null
 mumuspec state set <name> isolation <branch|worktree>
 mumuspec state set <name> tdd_mode tdd   # 默认 tdd，可配置 (default_tdd_mode)
 ```
@@ -125,7 +119,7 @@ mumuspec state set <name> tdd_mode tdd   # 默认 tdd，可配置 (default_tdd_m
 - 选择 `subagent-driven-development`：确认平台有真实后台子 agent 能力后，`mumuspec state set <name> build_mode subagent-driven-development`
   （分发粒度由 `mumuspec state layers` 的并行组决定，见 Step 5）
 
-#### 执行隔离 — BLOCKING POINT (BP-11)
+### Step 4: 执行隔离 — BLOCKING POINT (BP-11)
 
 **branch**：基于 workflow 类型和日期推荐分支名，**必须暂停等待用户确认或输入自定义名**：
 - `full` → `feature/YYYYMMDD/<change-name>`

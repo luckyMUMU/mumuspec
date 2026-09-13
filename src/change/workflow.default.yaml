@@ -118,4 +118,5 @@ workflows:
     phases: [open, build, verify, archive-in-progress, archive-completed]
     skip_design: true
   loop:
+    # experimental：目前无 skill 消费者，仅供自改进 loop 通道内部使用，勿用于常规变更
     phases: [build, verify, archive-in-progress, archive-completed]
