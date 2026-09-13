@@ -285,6 +285,17 @@ pages:
       - hyperplan
       - decision
       - goal-p0-dispatch-gate
+  - id: KE-legacy-cleanup-fix-hyperplan
+    title: Adversarial design review insights from legacy-cleanup-fix
+    type: decision
+    status: confirmed
+    scope: legacy-cleanup-fix
+    file: .mumuspec\knowledge\decisions\KE-legacy-cleanup-fix-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - legacy-cleanup-fix
   - id: KE-loop-convergence-judgment-hyperplan
     title: Adversarial design review insights from loop-convergence-judgment
     type: decision
@@ -1665,6 +1676,17 @@ pages:
       - lesson
       - decisions
       - goal-p0-dispatch-gate
+  - id: KE-legacy-cleanup-fix-lessons
+    title: Lessons from legacy-cleanup-fix decisions
+    type: lesson
+    status: confirmed
+    scope: legacy-cleanup-fix
+    file: .mumuspec\knowledge\lessons\KE-legacy-cleanup-fix-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - legacy-cleanup-fix
   - id: KE-loop-convergence-judgment-lessons
     title: Lessons from loop-convergence-judgment decisions
     type: lesson

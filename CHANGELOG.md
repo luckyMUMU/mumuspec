@@ -5,6 +5,12 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.34.0-alpha.2] — legacy-cleanup-fix (2026-09-13)
+
+### Fixed
+- guard 对 affected_scopes 字符串值逐字符迭代的缺陷：新增 normalizeAffectedScopes 归一化（数组原样、字符串按逗号切分），消除 E-SECURITY-001 误触发与 E-VERIFY-003 记录面失真
+- findSpecDirs 改用共享 SKIP_DIRS 集合：temp/ 等非规范目录下的 .mumuspec 不再进入规范扫描面（spec_drift 警告清零、validate unverifiable=0、agents-hash 口径恢复干净）
+
 ## [0.34.0-alpha.1] — bp-into-graph (2026-09-13)
 
 ### Added
