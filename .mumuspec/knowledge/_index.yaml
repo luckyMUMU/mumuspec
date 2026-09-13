@@ -32,6 +32,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-13-ci-drift-gate
+  - id: KE-2026-09-13-delta-channel-gate-hyperplan
+    title: Adversarial design review insights from 2026-09-13-delta-channel-gate
+    type: decision
+    status: confirmed
+    scope: 2026-09-13-delta-channel-gate
+    file: .mumuspec\knowledge\decisions\KE-2026-09-13-delta-channel-gate-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - 2026-09-13-delta-channel-gate
   - id: KE-2026-09-13-enforcement-coverage-hyperplan
     title: Adversarial design review insights from 2026-09-13-enforcement-coverage
     type: decision
@@ -131,6 +142,17 @@ pages:
       - hyperplan
       - decision
       - dashboard-onboard-chat
+  - id: KE-delta-channel-gate-hyperplan
+    title: Adversarial design review insights from delta-channel-gate
+    type: decision
+    status: confirmed
+    scope: delta-channel-gate
+    file: .mumuspec\knowledge\decisions\KE-delta-channel-gate-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - delta-channel-gate
   - id: KE-docs-tree-alignment-hyperplan
     title: Adversarial design review insights from docs-tree-alignment
     type: decision
@@ -329,6 +351,17 @@ pages:
       - pattern
       - architecture
       - 2026-09-13-ci-drift-gate
+  - id: KE-2026-09-13-delta-channel-gate-patterns
+    title: Architecture patterns from 2026-09-13-delta-channel-gate
+    type: pattern
+    status: confirmed
+    scope: 2026-09-13-delta-channel-gate
+    file: .mumuspec\knowledge\patterns\KE-2026-09-13-delta-channel-gate-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - 2026-09-13-delta-channel-gate
   - id: KE-2026-09-13-enforcement-coverage-patterns
     title: Architecture patterns from 2026-09-13-enforcement-coverage
     type: pattern
@@ -406,6 +439,17 @@ pages:
       - pattern
       - architecture
       - dashboard-onboard-chat
+  - id: KE-delta-channel-gate-patterns
+    title: Architecture patterns from delta-channel-gate
+    type: pattern
+    status: confirmed
+    scope: delta-channel-gate
+    file: .mumuspec\knowledge\patterns\KE-delta-channel-gate-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - delta-channel-gate
   - id: KE-docs-tree-alignment-patterns
     title: Architecture patterns from docs-tree-alignment
     type: pattern
@@ -1170,6 +1214,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-13-ci-drift-gate
+  - id: KE-2026-09-13-delta-channel-gate-lessons
+    title: Lessons from 2026-09-13-delta-channel-gate decisions
+    type: lesson
+    status: confirmed
+    scope: 2026-09-13-delta-channel-gate
+    file: .mumuspec\knowledge\lessons\KE-2026-09-13-delta-channel-gate-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - 2026-09-13-delta-channel-gate
   - id: KE-2026-09-13-enforcement-coverage-lessons
     title: Lessons from 2026-09-13-enforcement-coverage decisions
     type: lesson
@@ -1269,6 +1324,17 @@ pages:
       - lesson
       - decisions
       - dashboard-onboard-chat
+  - id: KE-delta-channel-gate-lessons
+    title: Lessons from delta-channel-gate decisions
+    type: lesson
+    status: confirmed
+    scope: delta-channel-gate
+    file: .mumuspec\knowledge\lessons\KE-delta-channel-gate-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - delta-channel-gate
   - id: KE-docs-tree-alignment-lessons
     title: Lessons from docs-tree-alignment decisions
     type: lesson
