@@ -42,23 +42,65 @@ export function parseSpecFile(content: string, filePath: string): SpecFile {
   };
 }
 
+/**
+ * Strip fenced code blocks (``` and ~~~, with optional info string) from a
+ * markdown body. Spec documents routinely contain fenced examples of the
+ * spec syntax itself — without this guard those example constraints parse as
+ * real requirements and poison the corpus (coverage, lexical channel).
+ *
+ * Fence content lines are dropped; fence delimiter lines are replaced with
+ * blank lines to keep block separation. An unclosed fence drops content to
+ * EOF (fail-closed: undecidable content never enters the corpus).
+ */
+export function stripFencedBlocks(body: string): string {
+  const lines = body.split('\n');
+  const out: string[] = [];
+  let fence: string | null = null;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (fence !== null) {
+      if (trimmed.startsWith(fence)) {
+        fence = null;
+        out.push('');
+      }
+      continue;
+    }
+    if (trimmed.startsWith('```')) {
+      fence = '```';
+      out.push('');
+      continue;
+    }
+    if (trimmed.startsWith('~~~')) {
+      fence = '~~~';
+      out.push('');
+      continue;
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 /** Parse requirement blocks from markdown body */
 export function parseRequirements(body: string): Requirement[] {
   const requirements: Requirement[] = [];
+
+  // Strip fenced code blocks first: example constraints inside ``` blocks are
+  // documentation, not live requirements.
+  const stripped = stripFencedBlocks(body);
 
   // Match ## Requirement: <name> blocks
   const reqRegex = /^##\s+Requirement:\s+(.+)$/gm;
   const matches: { name: string; index: number }[] = [];
 
   let match: RegExpExecArray | null;
-  while ((match = reqRegex.exec(body)) !== null) {
+  while ((match = reqRegex.exec(stripped)) !== null) {
     matches.push({ name: match[1].trim(), index: match.index });
   }
 
   for (let i = 0; i < matches.length; i++) {
     const start = matches[i].index;
-    const end = i + 1 < matches.length ? matches[i + 1].index : body.length;
-    const block = body.substring(start, end);
+    const end = i + 1 < matches.length ? matches[i + 1].index : stripped.length;
+    const block = stripped.substring(start, end);
 
     const req = parseRequirementBlock(block, matches[i].name);
     requirements.push(req);
