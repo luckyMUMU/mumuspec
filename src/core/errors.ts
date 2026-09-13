@@ -171,6 +171,20 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     min_strength: 'high',
     always_enforce: true,
   },
+  'W-SPEC-016': {
+    code: 'W-SPEC-016',
+    name: 'STRUCTURE_VAGUE_QUALIFIER',
+    severity: 'WARN',
+    description: '约束文本含无界限定词（合理/适当/必要时/尽量等），结构上不可判定满足与否',
+    fixSteps: [
+      '改写为可判定的具体动作或数值边界',
+      '或拆分为枚举化的具体条件分支',
+      '如模糊确属必要，在 Enforcement manual(...) 中说明人工核验方式',
+    ],
+    forceable: true,
+    dimension: 'requirement_goals',
+    min_strength: 'low',
+  },
 
   // CONSTRAINT domain — 自由度边界：约束来源闭合（「下层受上层约束」的可判定形式）
   // 由 src/spec/constraint-provenance.ts 发出，接入 `mumuspec check` 的 drift 数组。

@@ -9,7 +9,7 @@ Last updated: 2026-09-13
 
 | Domain | Count |
 |--------|-------|
-| SPEC | 15 |
+| SPEC | 16 |
 | CONSTRAINT | 3 |
 | CHANGE | 15 |
 | VERIFY | 4 |
@@ -29,7 +29,7 @@ Last updated: 2026-09-13
 | CHECK | 2 |
 | SKILL | 4 |
 | GIT | 3 |
-| **Total** | **110** |
+| **Total** | **111** |
 
 ## SPEC Domain
 
@@ -50,6 +50,7 @@ Last updated: 2026-09-13
 | `E-SPEC-013` | UNDEFINED_MUMUSPEC_DIRECTORY | ERROR | .mumuspec/ 下存在未定义的目录 | No |
 | `E-SPEC-014` | UNDEFINED_MUMUSPEC_FILE | ERROR | .mumuspec/ 下存在未定义的文件 | No |
 | `E-SPEC-015` | SPEC_SHALL_NOT_UNVERIFIABLE | ERROR | SHALL NOT 红线无可验证通道（无 annotation、正则兜底不可提取、无 manual 声明） | No |
+| `W-SPEC-016` | STRUCTURE_VAGUE_QUALIFIER | WARN | 约束文本含无界限定词（合理/适当/必要时/尽量等），结构上不可判定满足与否 | Yes |
 
 ### `E-SPEC-001`: SPEC_FORMAT_INVALID
 
@@ -200,6 +201,17 @@ Last updated: 2026-09-13
 1. 补充 frontmatter annotation（enforced-strong）
 2. 或改写文本使引号词可被正则兜底提取（enforced-weak）
 3. 或声明 Enforcement `- ID: manual(原因)`
+
+### `W-SPEC-016`: STRUCTURE_VAGUE_QUALIFIER
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: 约束文本含无界限定词（合理/适当/必要时/尽量等），结构上不可判定满足与否
+
+**Fix Steps**:
+1. 改写为可判定的具体动作或数值边界
+2. 或拆分为枚举化的具体条件分支
+3. 如模糊确属必要，在 Enforcement manual(...) 中说明人工核验方式
 
 ## CONSTRAINT Domain
 

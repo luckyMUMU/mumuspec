@@ -4,6 +4,7 @@ import type { SpecFile, GuardResult } from '../core/types.js';
 import type { ProhibitionAnnotation } from '../core/types-spec.js';
 import type { ClassifiedItem } from './verifier-classify.js';
 import { classifyRequirements, computeEnforcementCoverage } from './verifier-classify.js';
+import { lintConstraintText } from './structure-lint.js';
 import { parseSpecFile, parsePrdFile, parseTechFile } from './parser.js';
 import { checkInheritanceConflicts } from './inheritance.js';
 import type { MumuSpecConfig } from '../core/config.js';
@@ -59,6 +60,11 @@ export function validateAllSpecs(
   // Check parent_prd/parent_tech references
   checkParentReferences(allSpecFiles, errors);
 
+  // P0 structure lint (shall-structure-lint, 2026-09-13): mechanical
+  // checkability features of constraint text — vague unbounded qualifiers
+  // surface as W-SPEC-016 (advisory; does not affect pass/fail).
+  emitStructureFindings(allItems, warnings);
+
   // Check index.yaml freshness
   for (const dirPath of specDirs) {
     const indexPath = join(dirPath, '.mumuspec', 'index.yaml');
@@ -77,6 +83,28 @@ export function validateAllSpecs(
     warnings,
     coverage: computeEnforcementCoverage(allItems),
   };
+}
+
+/**
+ * Structure lint (shall-structure-lint): one W-SPEC-016 per classified item
+ * whose text contains an unbounded qualifier. SHOULD items never reach here
+ * (classifyRequirements only collects SHALL / SHALL NOT).
+ */
+function emitStructureFindings(
+  items: ClassifiedItem[],
+  warnings: { code: string; message: string; detail?: string }[],
+): void {
+  for (const item of items) {
+    const finding = lintConstraintText(item.text);
+    if (!finding) continue;
+    const polarity = item.polarity === 'shall' ? 'SHALL' : 'SHALL NOT';
+    const text = item.text.length > 60 ? `${item.text.slice(0, 60)}…` : item.text;
+    warnings.push({
+      code: 'W-SPEC-016',
+      message: `${polarity} 文本含无界限定词 (Requirement "${item.requirement}"): "${text}"`,
+      detail: `${item.source} [命中: ${finding.qualifiers.join(',')}]`,
+    });
+  }
 }
 
 /**
