@@ -1,0 +1,13 @@
+{
+  "change": "legacy-cleanup-fix",
+  "affected_files": [
+    "src/guard/phase-guard.ts",
+    "src/core/utils.ts"
+  ],
+  "affected_symbols": [
+    "collectManualItems",
+    "findSpecDirs"
+  ],
+  "call_chain_impact": "归一化纯函数，调用点单处；findSpecDirs 排除集合对齐既有 SKIP_DIRS",
+  "breaking_changes": []
+}

@@ -866,7 +866,10 @@ function checkVerifyToArchive(
     // anchored by its Enforcement ID or verbatim constraint text. This is a
     // result gate — it does not degrade with strength (always_enforce).
     if (strict) {
-      const manualItems = collectManualItems(projectRoot, state.affected_scopes ?? []);
+      const manualItems = collectManualItems(
+        projectRoot,
+        normalizeAffectedScopes(state.affected_scopes),
+      );
       const missing = missingManualEvidence(verifyContent, manualItems);
       for (const item of missing) {
         errors.push({
@@ -886,8 +889,24 @@ function checkVerifyToArchive(
  * (spec.md + tech.md per scope). Silent on unreadable/missing files —
  * verifier findings belong to `mumuspec validate`, not the phase gate.
  */
-function collectManualItems(projectRoot: string, scopes: string[]): ClassifiedItem[] {
-  const items: ClassifiedItem[] = [];
+/**
+ * legacy-cleanup-fix — affected_scopes 归一化。
+ * `state set` 恒存字符串（YAML 侧才是数组），历史实现直接 for..of 字符串导致
+ * 逐字符迭代（含 '/' 触发 E-SECURITY-001、'.' 圈定全量根规范）。
+ * 数组原样返回；字符串按逗号切分并修剪空白；空值 → 空列表。
+ */
+export function normalizeAffectedScopes(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((s): s is string => typeof s === 'string' && s.trim().length > 0).map((s) => s.trim());
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+  return [];
+}
+
+function collectManualItems(projectRoot: string, scopes: string[]): ClassifiedItem[] {  const items: ClassifiedItem[] = [];
   for (const scope of scopes) {
     const scopeDir = !scope || scope === '.' ? projectRoot : resolveWithinRoot(projectRoot, scope);
     for (const fileName of ['spec.md', 'tech.md'] as const) {

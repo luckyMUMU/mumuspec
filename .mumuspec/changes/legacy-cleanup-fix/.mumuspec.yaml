@@ -1,0 +1,53 @@
+name: legacy-cleanup-fix
+phase: archive-in-progress
+workflow: hotfix
+created_at: 2026-09-13T13:53:24.142Z
+updated_at: 2026-09-13T13:58:22.209Z
+scope: .
+affected_scopes: []
+build_layers: []
+test_cases:
+  design_locked: true
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+  design_content_hash: ebcebf2432cc55ab
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/legacy-cleanup-fix
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 1
+    build: 1
+  content_hash: eaf888ebcd406073
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+verification_report: verify.md
+verify_result: pass
+branch_status: handled

@@ -254,7 +254,9 @@ export function findSpecDirs(dirPath: string): string[] {
   try {
     const entries = readdirSync(dirPath, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+      // legacy-cleanup-fix：对齐共享 SKIP_DIRS 集合（temp/dist 等非规范目录
+      // 下的 .mumuspec 不计入扫描面），消灭与 code-scanner 等的独立排除实现。
+      if (entry.isDirectory() && !SKIP_DIRS.has(entry.name) && !entry.name.startsWith('.')) {
         const childPath = join(dirPath, entry.name);
         if (existsSync(join(childPath, '.mumuspec'))) {
           results.push(childPath);
