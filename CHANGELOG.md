@@ -5,6 +5,23 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.34.0-alpha.1] — bp-into-graph (2026-09-13)
+
+### Added
+- CHG-8: 引擎 workflow 配置新增 workflows.<wf>.phase_bps 可选段（phase → BP id 列表），loader 校验键合法、id 格式与 workflow 内唯一，缺省向后兼容
+- graph verify 输出 phase_bps 清单，并对 skill 侧 workflow.yaml 声明做一致性检查（W-GRAPH-001，WARN fail-open）
+- 新模块 src/change/phase-bps.ts（collectWorkflowBps / unionBps / collectSkillBps / compareBps）
+- 新错误码 W-GRAPH-001（GRAPH 域，113 码 / 21 域）
+
+### Changed
+- skill 侧 workflow.yaml design 阶段补齐 BP-4.5 声明；修复其 design 段预存 YAML 缩进损坏
+- workflow.default.yaml 与项目级 override 的 loop workflow 标注 experimental
+
+## [0.34.0-alpha.0] — archive auto-bump (2026-09-13)
+
+### Changed
+- 归档自动升版：变更 bp-into-graph（full workflow）归档触发
+
 ## [0.33.0-alpha.0] — archive auto-bump (2026-09-13)
 
 ### Changed

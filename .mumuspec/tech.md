@@ -386,3 +386,22 @@ Enforcement: manual(MRGT-01: verify 阶段以负向测试断言静默丢弃路�
 # New SHALL Constraints
 
 
+
+
+<!-- constraint-merged from bp-into-graph/new-shall-not.md -->
+# New SHALL NOT Constraints
+
+- SHALL NOT 在 workflows 段缺少 phase_bps 时改变既有解析与校验行为（缺省合法，向后兼容）。
+- SHALL NOT 因 phase_bps 非法而崩溃，必须走既有 fail-safe 路径（console.warn 加内置默认配置）。
+- SHALL NOT 让 W-GRAPH-001 以 error 级别发出，也不得在 skill 侧 workflow.yaml 缺失时阻断 graph verify。
+- SHALL NOT 改变任何既有 BP 的存在性或人工确认机制。
+
+
+
+<!-- constraint-merged from bp-into-graph/new-shall.md -->
+# New SHALL Constraints
+
+- SHALL 支持 workflows.<workflow>.phase_bps 可选键（phase 到 BP id 列表的映射），loader 校验键为已知 phase、id 格式 BP-<数字>[.<数字>]、全配置内唯一。
+- SHALL graph verify 输出当前 workflow 的 phase_bps 清单，并将 skills/mumuspec/workflow.yaml 声明的 BP 集合与引擎 phase_bps 对比，差异以 W-GRAPH-001 告警（WARN 级）。
+- SHALL full workflow 的 phase_bps 并集覆盖 BP-1 至 BP-18 全部 18 个 BP。
+

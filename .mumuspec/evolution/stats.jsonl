@@ -40,3 +40,11 @@
 {"timestamp":"2026-09-13T10:59:01.100Z","constraintId":"guard:archive-in-progress","passed":true,"falsePositive":false}
 {"timestamp":"2026-09-13T11:18:32.355Z","constraintId":"guard:archive-in-progress","passed":true,"falsePositive":false}
 {"timestamp":"2026-09-13T11:34:23.846Z","constraintId":"guard:archive-in-progress","passed":true,"falsePositive":false}
+{"timestamp":"2026-09-13T13:10:08.505Z","constraintId":"guard:design","passed":true,"falsePositive":false}
+{"timestamp":"2026-09-13T13:10:27.272Z","constraintId":"guard:design","passed":true,"falsePositive":false}
+{"timestamp":"2026-09-13T13:15:59.661Z","constraintId":"guard:build","passed":true,"falsePositive":false}
+{"timestamp":"2026-09-13T13:29:34.213Z","constraintId":"guard:verify","passed":false,"falsePositive":false}
+{"timestamp":"2026-09-13T13:31:03.924Z","constraintId":"guard:verify","passed":false,"falsePositive":false}
+{"timestamp":"2026-09-13T13:31:46.948Z","constraintId":"guard:verify","passed":true,"falsePositive":false}
+{"timestamp":"2026-09-13T13:36:01.477Z","constraintId":"guard:archive-in-progress","passed":false,"falsePositive":false}
+{"timestamp":"2026-09-13T13:37:23.183Z","constraintId":"guard:archive-in-progress","passed":true,"falsePositive":false}

@@ -153,6 +153,17 @@ pages:
       - hyperplan
       - decision
       - ast-guard
+  - id: KE-bp-into-graph-hyperplan
+    title: Adversarial design review insights from bp-into-graph
+    type: decision
+    status: confirmed
+    scope: bp-into-graph
+    file: .mumuspec\knowledge\decisions\KE-bp-into-graph-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - bp-into-graph
   - id: KE-ci-drift-gate-hyperplan
     title: Adversarial design review insights from ci-drift-gate
     type: decision
@@ -516,6 +527,17 @@ pages:
       - pattern
       - architecture
       - ast-guard
+  - id: KE-bp-into-graph-patterns
+    title: Architecture patterns from bp-into-graph
+    type: pattern
+    status: confirmed
+    scope: bp-into-graph
+    file: .mumuspec\knowledge\patterns\KE-bp-into-graph-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - bp-into-graph
   - id: KE-ci-drift-gate-patterns
     title: Architecture patterns from ci-drift-gate
     type: pattern
@@ -1132,6 +1154,17 @@ pages:
       - comparison
       - pattern
     verified_at: 2026-07-31T16:19:01.701Z
+  - id: KE-bp-into-graph-q4-risk
+    title: Residual risks from bp-into-graph
+    type: risk
+    status: confirmed
+    scope: bp-into-graph
+    file: .mumuspec\knowledge\risks\KE-bp-into-graph-q4-risk.md
+    tags:
+      - auto-extracted
+      - q4
+      - risk
+      - bp-into-graph
   - id: KE-onboard-cli-q4-risk
     title: Residual risks from onboard-cli
     type: risk
@@ -1219,6 +1252,39 @@ pages:
       - project-status
       - risk
     verified_at: 2026-07-31T16:19:01.701Z
+  - id: KE-bp-into-graph-q3-700fbc9a
+    title: "Rationale from bp-into-graph: 一致性检查的消费者与失败语义？"
+    type: rationale
+    status: confirmed
+    scope: bp-into-graph
+    file: .mumuspec\knowledge\rationales\KE-bp-into-graph-q3-700fbc9a.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - bp-into-graph
+  - id: KE-bp-into-graph-q3-85745154
+    title: "Rationale from bp-into-graph: phase_bps 挂在哪一层？"
+    type: rationale
+    status: confirmed
+    scope: bp-into-graph
+    file: .mumuspec\knowledge\rationales\KE-bp-into-graph-q3-85745154.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - bp-into-graph
+  - id: KE-bp-into-graph-q3-da2b261f
+    title: "Rationale from bp-into-graph: BP-18（预设升级触发）归属哪个 phase？"
+    type: rationale
+    status: confirmed
+    scope: bp-into-graph
+    file: .mumuspec\knowledge\rationales\KE-bp-into-graph-q3-da2b261f.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - bp-into-graph
   - id: KE-skill-plugin-standard-q3-8bfe112d
     title: "Rationale from skill-plugin-standard: GM-002：漂移比对是否需要剥离版本行？"
     type: rationale
@@ -1467,6 +1533,17 @@ pages:
       - lesson
       - decisions
       - ast-guard
+  - id: KE-bp-into-graph-lessons
+    title: Lessons from bp-into-graph decisions
+    type: lesson
+    status: confirmed
+    scope: bp-into-graph
+    file: .mumuspec\knowledge\lessons\KE-bp-into-graph-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - bp-into-graph
   - id: KE-ci-drift-gate-lessons
     title: Lessons from ci-drift-gate decisions
     type: lesson

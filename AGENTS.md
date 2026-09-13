@@ -9,7 +9,7 @@
 
 | Layer | Scope | Docs | SHALL | SHALL NOT |
 |---|---|---|---|---|
-| 0 | `.` | prd+tech+spec | 128 | 91 |
+| 0 | `.` | prd+tech+spec | 134 | 95 |
 
 ### 当前路径适用红线（SHALL NOT 全文，含父层继承 — `.`）
 
@@ -104,6 +104,10 @@
 - SHALL NOT 保留未被注册的命令模块，也不得以"有测试覆盖"代替"已接线"。
 - SHALL NOT 以"技能不可用"为由静默跳过高风险门禁。
 - SHALL NOT 因合并询问而减少用户可选项或自动选默认值。
+- SHALL NOT 在 workflows 段缺少 phase_bps 时改变既有解析与校验行为（向后兼容，缺省合法）。
+- SHALL NOT 因 phase_bps 非法而崩溃——必须走既有 fail-safe 路径（console.warn 加内置默认配置）。
+- SHALL NOT 在 skill 侧 workflow.yaml 缺失或不可解析时阻断 graph verify——只跳过一致性检查（fail-open）。
+- SHALL NOT 让 W-GRAPH-001 以 error 级别抛出（一律 WARN，不阻断流程）。
 
 > 完整约束正文经 MCP `get_spec_context` / `mumuspec context <path>` 渐进式加载（Rules 文件不内联全量规范）。
 
