@@ -292,9 +292,7 @@ mumuspec state check <change-name> --recover
 
 ## 领域 Skill 提示（伴随能力）
 
-> 下列条目均为**伴随能力（companion，包外增强）**：可用则用，不可用不阻断流程，按本文内联步骤执行。
-> **包内自足的必须步骤**是本文的编号步骤本身，不依赖任何外部 skill。
-> 可用性由 `mumuspec skill companions` 统一枚举（代码侧探测，非模型现场判断）。
+> 伴随能力（companion，包外增强）：可用则用，不可用不阻断流程；**包内自足的必须步骤**是本文编号步骤本身。可用性由 `mumuspec skill companions` 统一枚举。
 
 | 场景 | 伴随能力 | companion |
 |------|-----------|----------|
