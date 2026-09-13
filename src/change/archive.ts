@@ -131,8 +131,15 @@ function recordChangelogEntry(
         : `${existing.slice(0, firstHeading)}${entry}\n${existing.slice(firstHeading)}`;
 
     writeText(changelogPath, merged);
-  } catch {
-    // Non-fatal: version bump already succeeded.
+  } catch (err) {
+    // Non-fatal: version bump already succeeded — but leave an auditable fact.
+    appendAuditLog(getMumuSpecDir(projectRoot), {
+      actor: 'system',
+      action: 'version.changelog',
+      change: changeName,
+      result: 'failed',
+      error: (err as Error).message,
+    });
   }
 }
 
@@ -273,8 +280,16 @@ export function archiveChange(
         result: 'success',
       });
     }
-  } catch {
-    // Worktree cleanup failure is non-fatal — change is already archived
+  } catch (err) {
+    // Worktree cleanup failure is non-fatal — change is already archived —
+    // but the fact must be auditable, not silently dropped.
+    appendAuditLog(getMumuSpecDir(projectRoot), {
+      actor: 'system',
+      action: 'worktree.cleanup',
+      change: changeName,
+      result: 'failed',
+      error: (err as Error).message,
+    });
   }
 }
 
@@ -611,8 +626,8 @@ function mergeChangeLevelSpecs(
           }
         }
       }
-    } catch {
-      // Non-fatal
+    } catch (err) {
+      mergeLog.push(`⚠ .mumuspec/prd.md 合并失败: ${(err as Error).message}`);
     }
   }
 
@@ -638,8 +653,8 @@ function mergeChangeLevelSpecs(
           }
         }
       }
-    } catch {
-      // Non-fatal
+    } catch (err) {
+      mergeLog.push(`⚠ .mumuspec/tech.md 合并失败: ${(err as Error).message}`);
     }
   }
 }
@@ -682,7 +697,9 @@ export function extractKnowledgeToGlobal(
           });
           pagesCreated++;
           extractionLog.push(`  D1 Q1 → decision: ${entry.question}`);
-        } catch { /* skip duplicates */ }
+        } catch (err) {
+          extractionLog.push(`  ⚠ FAILED → D1 Q1 (${entry.question}): ${(err as Error).message}`);
+        }
       }
 
       const q3Entries = entries.filter((e) => e.quadrant === 'Q3' && e.status === 'confirmed');
@@ -699,7 +716,9 @@ export function extractKnowledgeToGlobal(
           });
           pagesCreated++;
           extractionLog.push(`  D1 Q3 → rationale: ${entry.question}`);
-        } catch { /* skip */ }
+        } catch (err) {
+          extractionLog.push(`  ⚠ FAILED → D1 Q3 (${entry.question}): ${(err as Error).message}`);
+        }
       }
 
       const q4Scans = entries.filter((e) => e.quadrant === 'Q4');
@@ -716,9 +735,13 @@ export function extractKnowledgeToGlobal(
           });
           pagesCreated++;
           extractionLog.push(`  D1 Q4 → risk: ${q4Scans.length} residual items`);
-        } catch { /* skip */ }
+        } catch (err) {
+          extractionLog.push(`  ⚠ FAILED → D1 Q4 (risk page): ${(err as Error).message}`);
+        }
       }
-    } catch { /* Non-fatal */ }
+    } catch (err) {
+      extractionLog.push(`  ⚠ FAILED → D1 认知图读取/解析: ${(err as Error).message}`);
+    }
   }
 
   // D2: Read decisions.md for lesson-type knowledge
@@ -739,9 +762,13 @@ export function extractKnowledgeToGlobal(
           });
           pagesCreated++;
           extractionLog.push(`  D2 → lesson: from decisions.md`);
-        } catch { /* skip */ }
+        } catch (err) {
+          extractionLog.push(`  ⚠ FAILED → D2 (lessons page): ${(err as Error).message}`);
+        }
       }
-    } catch { /* Non-fatal */ }
+    } catch (err) {
+      extractionLog.push(`  ⚠ FAILED → D2 decisions 读取: ${(err as Error).message}`);
+    }
   }
 
   // D3: Read design.md for pattern-type knowledge
@@ -762,9 +789,13 @@ export function extractKnowledgeToGlobal(
           });
           pagesCreated++;
           extractionLog.push(`  D3 → pattern: from design.md`);
-        } catch { /* skip */ }
+        } catch (err) {
+          extractionLog.push(`  ⚠ FAILED → D3 (patterns page): ${(err as Error).message}`);
+        }
       }
-    } catch { /* Non-fatal */ }
+    } catch (err) {
+      extractionLog.push(`  ⚠ FAILED → D3 design 读取: ${(err as Error).message}`);
+    }
   }
 
   // D4: Hyperplan surviving insights
@@ -781,7 +812,9 @@ export function extractKnowledgeToGlobal(
       });
       pagesCreated++;
       extractionLog.push(`  D4 → decision: hyperplan insights`);
-    } catch { /* skip */ }
+    } catch (err) {
+      extractionLog.push(`  ⚠ FAILED → D4 (hyperplan page): ${(err as Error).message}`);
+    }
   }
 
   // D7+D8: Update state + audit log

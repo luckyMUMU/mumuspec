@@ -576,6 +576,63 @@ describe('extractKnowledgeToGlobal — D4 catch (line 345)', () => {
   });
 });
 
+describe('extractKnowledgeToGlobal — failure audit trail (fail-open-audit)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+    mockGetKnowledgeDir.mockReturnValue(`${PROJECT_ROOT}/.mumuspec/knowledge`);
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p.includes('.mumuspec/knowledge')) return true;
+      if (p.includes('decisions.md')) return true;
+      return false;
+    });
+  });
+
+  it('TC1: page creation failure lands in knowledge.extract audit summary', () => {
+    mockReadText.mockReturnValue('Decision content');
+    mockCreateKnowledgePage.mockImplementation(() => {
+      throw new Error('duplicate page id');
+    });
+
+    const state = makeChangeState();
+    extractKnowledgeToGlobal(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`, state);
+
+    const entry = mockAppendAuditLog.mock.calls.find((c) => c[1]?.action === 'knowledge.extract');
+    expect(entry).toBeDefined();
+    expect(entry[1].summary).toContain('FAILED');
+    expect(entry[1].summary).toContain('duplicate page id');
+  });
+
+  it('TC2: partial success — audit summary carries both success and FAILED lines', () => {
+    mockReadYaml.mockReturnValue({
+      entries: [
+        { quadrant: 'Q1', category: 'persistent', question: 'ok-q', answer: 'a' },
+      ],
+    });
+    mockExistsSync.mockImplementation((p: string) => {
+      if (p.includes('.mumuspec/knowledge')) return true;
+      if (p.includes('cognitive-map.yaml')) return true;
+      if (p.includes('decisions.md')) return true;
+      return false;
+    });
+    let calls = 0;
+    mockCreateKnowledgePage.mockImplementation(() => {
+      calls++;
+      if (calls > 1) throw new Error('second page failed');
+    });
+
+    const state = makeChangeState();
+    extractKnowledgeToGlobal(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`, state);
+
+    const entry = mockAppendAuditLog.mock.calls.find((c) => c[1]?.action === 'knowledge.extract');
+    expect(entry).toBeDefined();
+    expect(entry[1].summary).toContain('D1 Q1 → decision: ok-q');
+    expect(entry[1].summary).toContain('FAILED');
+    expect(entry[1].pages_created).toBe(1);
+    expect(state.knowledge_extraction!.pages_created_count).toBe(1);
+  });
+});
+
 describe('extractKnowledgeToGlobal — state update & audit (lines 351, 363)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
