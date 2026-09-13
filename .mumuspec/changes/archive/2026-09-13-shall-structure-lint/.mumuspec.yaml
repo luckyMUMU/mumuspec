@@ -1,8 +1,8 @@
 name: shall-structure-lint
-phase: verify
+phase: archive-completed
 workflow: full
 created_at: 2026-09-13T07:34:56.576Z
-updated_at: 2026-09-13 07:40:19
+updated_at: 2026-09-13T07:41:15.579Z
 scope: .
 affected_scopes: []
 build_layers: []
@@ -47,3 +47,11 @@ dist_spec:
   tech: .mumuspec/tech.md
 schema_version: 1.0.0
 verify_result: pass
+branch_status: handled
+knowledge_extraction:
+  completed: true
+  pages_created_count: 3
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

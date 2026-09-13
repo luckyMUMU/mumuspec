@@ -43,6 +43,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-13-enforcement-coverage
+  - id: KE-2026-09-13-shall-structure-lint-hyperplan
+    title: Adversarial design review insights from 2026-09-13-shall-structure-lint
+    type: decision
+    status: confirmed
+    scope: 2026-09-13-shall-structure-lint
+    file: .mumuspec\knowledge\decisions\KE-2026-09-13-shall-structure-lint-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - 2026-09-13-shall-structure-lint
   - id: KE-archive-prune-safety-hyperplan
     title: Adversarial design review insights from archive-prune-safety
     type: decision
@@ -219,6 +230,17 @@ pages:
       - hyperplan
       - decision
       - self-improvement-loop-p0
+  - id: KE-shall-structure-lint-hyperplan
+    title: Adversarial design review insights from shall-structure-lint
+    type: decision
+    status: confirmed
+    scope: shall-structure-lint
+    file: .mumuspec\knowledge\decisions\KE-shall-structure-lint-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - shall-structure-lint
   - id: KE-skill-plugin-standard-hyperplan
     title: Adversarial design review insights from skill-plugin-standard
     type: decision
@@ -274,6 +296,17 @@ pages:
       - pattern
       - architecture
       - 2026-09-13-enforcement-coverage
+  - id: KE-2026-09-13-shall-structure-lint-patterns
+    title: Architecture patterns from 2026-09-13-shall-structure-lint
+    type: pattern
+    status: confirmed
+    scope: 2026-09-13-shall-structure-lint
+    file: .mumuspec\knowledge\patterns\KE-2026-09-13-shall-structure-lint-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - 2026-09-13-shall-structure-lint
   - id: KE-ast-guard-patterns
     title: Architecture patterns from ast-guard
     type: pattern
@@ -384,6 +417,17 @@ pages:
       - pattern
       - architecture
       - self-improvement-loop-p0
+  - id: KE-shall-structure-lint-patterns
+    title: Architecture patterns from shall-structure-lint
+    type: pattern
+    status: confirmed
+    scope: shall-structure-lint
+    file: .mumuspec\knowledge\patterns\KE-shall-structure-lint-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - shall-structure-lint
   - id: KE-skill-plugin-standard-patterns
     title: Architecture patterns from skill-plugin-standard
     type: pattern
@@ -1049,6 +1093,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-13-enforcement-coverage
+  - id: KE-2026-09-13-shall-structure-lint-lessons
+    title: Lessons from 2026-09-13-shall-structure-lint decisions
+    type: lesson
+    status: confirmed
+    scope: 2026-09-13-shall-structure-lint
+    file: .mumuspec\knowledge\lessons\KE-2026-09-13-shall-structure-lint-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - 2026-09-13-shall-structure-lint
   - id: KE-archive-prune-safety-lessons
     title: Lessons from archive-prune-safety decisions
     type: lesson
@@ -1225,6 +1280,17 @@ pages:
       - lesson
       - decisions
       - self-improvement-loop-p0
+  - id: KE-shall-structure-lint-lessons
+    title: Lessons from shall-structure-lint decisions
+    type: lesson
+    status: confirmed
+    scope: shall-structure-lint
+    file: .mumuspec\knowledge\lessons\KE-shall-structure-lint-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - shall-structure-lint
   - id: KE-skill-plugin-standard-lessons
     title: Lessons from skill-plugin-standard decisions
     type: lesson

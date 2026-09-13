@@ -302,3 +302,15 @@ Enforcement: manual(MRGT-01: verify 阶段以负向测试断言静默丢弃路�
 # New SHALL Constraints
 
 
+
+
+<!-- constraint-merged from shall-structure-lint/new-shall-not.md -->
+# New SHALL NOT Constraints
+
+
+
+
+<!-- constraint-merged from shall-structure-lint/new-shall.md -->
+# New SHALL Constraints
+
+
