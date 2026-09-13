@@ -65,6 +65,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-13-fail-open-audit
+  - id: KE-2026-09-13-ready-action-guidance-hyperplan
+    title: Adversarial design review insights from 2026-09-13-ready-action-guidance
+    type: decision
+    status: confirmed
+    scope: 2026-09-13-ready-action-guidance
+    file: .mumuspec\knowledge\decisions\KE-2026-09-13-ready-action-guidance-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - 2026-09-13-ready-action-guidance
   - id: KE-2026-09-13-shall-structure-lint-hyperplan
     title: Adversarial design review insights from 2026-09-13-shall-structure-lint
     type: decision
@@ -274,6 +285,17 @@ pages:
       - hyperplan
       - decision
       - p0-calibration-hardening
+  - id: KE-ready-action-guidance-hyperplan
+    title: Adversarial design review insights from ready-action-guidance
+    type: decision
+    status: confirmed
+    scope: ready-action-guidance
+    file: .mumuspec\knowledge\decisions\KE-ready-action-guidance-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - ready-action-guidance
   - id: KE-self-improvement-loop-p0-hyperplan
     title: Adversarial design review insights from self-improvement-loop-p0
     type: decision
@@ -384,6 +406,17 @@ pages:
       - pattern
       - architecture
       - 2026-09-13-fail-open-audit
+  - id: KE-2026-09-13-ready-action-guidance-patterns
+    title: Architecture patterns from 2026-09-13-ready-action-guidance
+    type: pattern
+    status: confirmed
+    scope: 2026-09-13-ready-action-guidance
+    file: .mumuspec\knowledge\patterns\KE-2026-09-13-ready-action-guidance-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - 2026-09-13-ready-action-guidance
   - id: KE-2026-09-13-shall-structure-lint-patterns
     title: Architecture patterns from 2026-09-13-shall-structure-lint
     type: pattern
@@ -527,6 +560,17 @@ pages:
       - pattern
       - architecture
       - p0-calibration-hardening
+  - id: KE-ready-action-guidance-patterns
+    title: Architecture patterns from ready-action-guidance
+    type: pattern
+    status: confirmed
+    scope: ready-action-guidance
+    file: .mumuspec\knowledge\patterns\KE-ready-action-guidance-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - ready-action-guidance
   - id: KE-self-improvement-loop-p0-patterns
     title: Architecture patterns from self-improvement-loop-p0
     type: pattern
@@ -1247,6 +1291,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-13-fail-open-audit
+  - id: KE-2026-09-13-ready-action-guidance-lessons
+    title: Lessons from 2026-09-13-ready-action-guidance decisions
+    type: lesson
+    status: confirmed
+    scope: 2026-09-13-ready-action-guidance
+    file: .mumuspec\knowledge\lessons\KE-2026-09-13-ready-action-guidance-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - 2026-09-13-ready-action-guidance
   - id: KE-2026-09-13-shall-structure-lint-lessons
     title: Lessons from 2026-09-13-shall-structure-lint decisions
     type: lesson
@@ -1456,6 +1511,17 @@ pages:
       - lesson
       - decisions
       - p0-calibration-hardening
+  - id: KE-ready-action-guidance-lessons
+    title: Lessons from ready-action-guidance decisions
+    type: lesson
+    status: confirmed
+    scope: ready-action-guidance
+    file: .mumuspec\knowledge\lessons\KE-ready-action-guidance-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - ready-action-guidance
   - id: KE-self-improvement-loop-p0-lessons
     title: Lessons from self-improvement-loop-p0 decisions
     type: lesson
