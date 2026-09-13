@@ -43,6 +43,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-13-enforcement-coverage
+  - id: KE-2026-09-13-fail-open-audit-hyperplan
+    title: Adversarial design review insights from 2026-09-13-fail-open-audit
+    type: decision
+    status: confirmed
+    scope: 2026-09-13-fail-open-audit
+    file: .mumuspec\knowledge\decisions\KE-2026-09-13-fail-open-audit-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - 2026-09-13-fail-open-audit
   - id: KE-2026-09-13-shall-structure-lint-hyperplan
     title: Adversarial design review insights from 2026-09-13-shall-structure-lint
     type: decision
@@ -164,6 +175,17 @@ pages:
       - hyperplan
       - decision
       - evaluator-weight-single-source
+  - id: KE-fail-open-audit-hyperplan
+    title: Adversarial design review insights from fail-open-audit
+    type: decision
+    status: confirmed
+    scope: fail-open-audit
+    file: .mumuspec\knowledge\decisions\KE-fail-open-audit-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - fail-open-audit
   - id: KE-freedom-metrics-loop-closure-hyperplan
     title: Adversarial design review insights from freedom-metrics-loop-closure
     type: decision
@@ -318,6 +340,17 @@ pages:
       - pattern
       - architecture
       - 2026-09-13-enforcement-coverage
+  - id: KE-2026-09-13-fail-open-audit-patterns
+    title: Architecture patterns from 2026-09-13-fail-open-audit
+    type: pattern
+    status: confirmed
+    scope: 2026-09-13-fail-open-audit
+    file: .mumuspec\knowledge\patterns\KE-2026-09-13-fail-open-audit-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - 2026-09-13-fail-open-audit
   - id: KE-2026-09-13-shall-structure-lint-patterns
     title: Architecture patterns from 2026-09-13-shall-structure-lint
     type: pattern
@@ -395,6 +428,17 @@ pages:
       - pattern
       - architecture
       - enforcement-coverage
+  - id: KE-fail-open-audit-patterns
+    title: Architecture patterns from fail-open-audit
+    type: pattern
+    status: confirmed
+    scope: fail-open-audit
+    file: .mumuspec\knowledge\patterns\KE-fail-open-audit-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - fail-open-audit
   - id: KE-freedom-metrics-loop-closure-patterns
     title: Architecture patterns from freedom-metrics-loop-closure
     type: pattern
@@ -1137,6 +1181,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-13-enforcement-coverage
+  - id: KE-2026-09-13-fail-open-audit-lessons
+    title: Lessons from 2026-09-13-fail-open-audit decisions
+    type: lesson
+    status: confirmed
+    scope: 2026-09-13-fail-open-audit
+    file: .mumuspec\knowledge\lessons\KE-2026-09-13-fail-open-audit-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - 2026-09-13-fail-open-audit
   - id: KE-2026-09-13-shall-structure-lint-lessons
     title: Lessons from 2026-09-13-shall-structure-lint decisions
     type: lesson
@@ -1258,6 +1313,17 @@ pages:
       - lesson
       - decisions
       - evaluator-weight-single-source
+  - id: KE-fail-open-audit-lessons
+    title: Lessons from fail-open-audit decisions
+    type: lesson
+    status: confirmed
+    scope: fail-open-audit
+    file: .mumuspec\knowledge\lessons\KE-fail-open-audit-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - fail-open-audit
   - id: KE-freedom-metrics-loop-closure-lessons
     title: Lessons from freedom-metrics-loop-closure decisions
     type: lesson
