@@ -54,6 +54,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-13-shall-structure-lint
+  - id: KE-2026-09-13-spec-fence-guard-hyperplan
+    title: Adversarial design review insights from 2026-09-13-spec-fence-guard
+    type: decision
+    status: confirmed
+    scope: 2026-09-13-spec-fence-guard
+    file: .mumuspec\knowledge\decisions\KE-2026-09-13-spec-fence-guard-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - 2026-09-13-spec-fence-guard
   - id: KE-archive-prune-safety-hyperplan
     title: Adversarial design review insights from archive-prune-safety
     type: decision
@@ -252,6 +263,17 @@ pages:
       - hyperplan
       - decision
       - skill-plugin-standard
+  - id: KE-spec-fence-guard-hyperplan
+    title: Adversarial design review insights from spec-fence-guard
+    type: decision
+    status: confirmed
+    scope: spec-fence-guard
+    file: .mumuspec\knowledge\decisions\KE-spec-fence-guard-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - spec-fence-guard
   - id: KE-2026-09-09-completeness-artifacts-freedom-metrics-patterns
     title: Architecture patterns from 2026-09-09-completeness-artifacts-freedom-metrics
     type: pattern
@@ -307,6 +329,17 @@ pages:
       - pattern
       - architecture
       - 2026-09-13-shall-structure-lint
+  - id: KE-2026-09-13-spec-fence-guard-patterns
+    title: Architecture patterns from 2026-09-13-spec-fence-guard
+    type: pattern
+    status: confirmed
+    scope: 2026-09-13-spec-fence-guard
+    file: .mumuspec\knowledge\patterns\KE-2026-09-13-spec-fence-guard-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - 2026-09-13-spec-fence-guard
   - id: KE-ast-guard-patterns
     title: Architecture patterns from ast-guard
     type: pattern
@@ -439,6 +472,17 @@ pages:
       - pattern
       - architecture
       - skill-plugin-standard
+  - id: KE-spec-fence-guard-patterns
+    title: Architecture patterns from spec-fence-guard
+    type: pattern
+    status: confirmed
+    scope: spec-fence-guard
+    file: .mumuspec\knowledge\patterns\KE-spec-fence-guard-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - spec-fence-guard
   - id: KP-0035
     title: 完整目录结构示例
     type: pattern
@@ -1104,6 +1148,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-13-shall-structure-lint
+  - id: KE-2026-09-13-spec-fence-guard-lessons
+    title: Lessons from 2026-09-13-spec-fence-guard decisions
+    type: lesson
+    status: confirmed
+    scope: 2026-09-13-spec-fence-guard
+    file: .mumuspec\knowledge\lessons\KE-2026-09-13-spec-fence-guard-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - 2026-09-13-spec-fence-guard
   - id: KE-archive-prune-safety-lessons
     title: Lessons from archive-prune-safety decisions
     type: lesson
@@ -1302,6 +1357,17 @@ pages:
       - lesson
       - decisions
       - skill-plugin-standard
+  - id: KE-spec-fence-guard-lessons
+    title: Lessons from spec-fence-guard decisions
+    type: lesson
+    status: confirmed
+    scope: spec-fence-guard
+    file: .mumuspec\knowledge\lessons\KE-spec-fence-guard-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - spec-fence-guard
   - id: KL-0006
     title: 开放问题
     type: lesson
