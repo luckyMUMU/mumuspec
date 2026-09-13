@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { collectUnchanneledDeltaConstraints } from '../../src/guard/delta-channels.js';
+import { collectUnchanneledDeltaConstraints, listCarriedConstraintItems } from '../../src/guard/delta-channels.js';
 
 function createTmpChange(): string {
   const dir = join(tmpdir(), `mumuspec-delta-ch-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -58,6 +58,40 @@ describe('collectUnchanneledDeltaConstraints', () => {
     expect(items.length).toBe(2);
     expect(items.map((i) => i.file).sort()).toEqual(['constraints/new-shall.md', 'delta-specs/cache-tech.md']);
     expect(items.every((i) => i.reason.length > 0)).toBe(true);
+  });
+
+  it('TC1b: listCarriedConstraintItems enumerates all items with origin (diff-preview surface)', () => {
+    writeFileSync(
+      join(dir, 'constraints', 'new-shall.md'),
+      [
+        '## Requirement: 日志',
+        '',
+        '- SHALL: 所有操作必须记录审计日志',
+        '',
+      ].join('\n'),
+    );
+    writeFileSync(
+      join(dir, 'delta-specs', 'cache-tech.md'),
+      [
+        '## Requirement: 缓存',
+        '',
+        '- SHALL NOT 禁止随机跳过缓存失效',
+        '',
+      ].join('\n'),
+    );
+
+    const items = listCarriedConstraintItems(dir);
+    expect(items.length).toBe(2);
+    expect(items[0]).toMatchObject({
+      file: 'constraints/new-shall.md',
+      requirement: '日志',
+      polarity: 'shall',
+      text: '所有操作必须记录审计日志',
+    });
+    expect(items[1]).toMatchObject({
+      file: 'delta-specs/cache-tech.md',
+      polarity: 'shall-not',
+    });
   });
 
   it('TC2: manual declaration, lexical anchor, and ast: prefix all pass', () => {

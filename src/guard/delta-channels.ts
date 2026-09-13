@@ -83,9 +83,11 @@ function classifyBlockItem(
     : 'SHALL NOT 无词法锚点、ast: 前缀且块内无 Enforcement 声明';
 }
 
-/** Collect carried constraint items lacking any verification channel. */
-export function collectUnchanneledDeltaConstraints(changeDir: string): UnchanneledItem[] {
-  const out: UnchanneledItem[] = [];
+/** Walk constraint-bearing files: relative path + parsed blocks per file. */
+function walkConstraintFiles(
+  changeDir: string,
+): { file: string; blocks: ReturnType<typeof parseConstraintFile> }[] {
+  const walked: { file: string; blocks: ReturnType<typeof parseConstraintFile> }[] = [];
   for (const sub of CONSTRAINT_DIRS) {
     const dir = join(changeDir, sub);
     if (!existsSync(dir)) continue;
@@ -97,7 +99,6 @@ export function collectUnchanneledDeltaConstraints(changeDir: string): Unchannel
     }
     for (const file of entries) {
       if (!file.endsWith('.md')) continue;
-      const rel = `${sub}/${file}`;
       let content: string;
       try {
         content = readFileSync(join(dir, file), 'utf8');
@@ -105,18 +106,49 @@ export function collectUnchanneledDeltaConstraints(changeDir: string): Unchannel
         continue;
       }
       if (!content.trim()) continue;
-      for (const block of parseConstraintFile(content)) {
-        for (const item of block.items) {
-          const reason = classifyBlockItem(block, item);
-          if (reason) {
-            out.push({
-              file: rel,
-              requirement: block.requirement,
-              polarity: item.polarity,
-              text: item.text,
-              reason,
-            });
-          }
+      walked.push({ file: `${sub}/${file}`, blocks: parseConstraintFile(content) });
+    }
+  }
+  return walked;
+}
+
+/** Carried constraint item — one SHALL / SHALL NOT bullet with its origin. */
+export interface CarriedItem {
+  file: string;
+  requirement: string;
+  polarity: 'shall' | 'shall-not';
+  text: string;
+}
+
+/** Enumerate every carried constraint item (diff-preview surface). */
+export function listCarriedConstraintItems(changeDir: string): CarriedItem[] {
+  return walkConstraintFiles(changeDir).flatMap(({ file, blocks }) =>
+    blocks.flatMap((b) =>
+      b.items.map((it) => ({
+        file,
+        requirement: b.requirement,
+        polarity: it.polarity,
+        text: it.text,
+      })),
+    ),
+  );
+}
+
+/** Collect carried constraint items lacking any verification channel. */
+export function collectUnchanneledDeltaConstraints(changeDir: string): UnchanneledItem[] {
+  const out: UnchanneledItem[] = [];
+  for (const { file, blocks } of walkConstraintFiles(changeDir)) {
+    for (const block of blocks) {
+      for (const item of block.items) {
+        const reason = classifyBlockItem(block, item);
+        if (reason) {
+          out.push({
+            file,
+            requirement: block.requirement,
+            polarity: item.polarity,
+            text: item.text,
+            reason,
+          });
         }
       }
     }

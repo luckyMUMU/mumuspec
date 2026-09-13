@@ -29,6 +29,8 @@ import { loadChangeState } from '../../change/state.js';
 import { detectArchiveStateDrift } from '../../change/archive-consistency.js';
 import { detectConstraintSourceDrift } from '../../spec/constraint-provenance.js';
 import { detectSkillDrift } from '../../guard/skill-drift.js';
+import { listCarriedConstraintItems } from '../../guard/delta-channels.js';
+import { getChangeDir } from '../../change/manager.js';
 import { discoverSkills } from '../../bundle/plugin-package.js';
 import { listInstalledPlugins } from '../../install/plugin-install.js';
 import { homedir } from 'node:os';
@@ -611,6 +613,23 @@ export function registerSpecCommands(program: Command): void {
       }
       console.log('\nRun `mumuspec drift --fix` to auto-fix safe issues.');
       console.log('Run `mumuspec drift --fix --dry-run` to preview fixes.');
+    }
+
+    // Delta preview (drift-delta-preview, 2026-09-13): what archiving this
+    // change would merge into the main spec — openspec show --diff equivalent.
+    if (options.change) {
+      const state = loadChangeState(root, options.change);
+      if (state) {
+        const items = listCarriedConstraintItems(getChangeDir(root, options.change, state.scope));
+        console.log('\nDelta 预览（归档将并入主规范）:');
+        if (items.length === 0) {
+          console.log('  （无携带约束）');
+        } else {
+          for (const item of items) {
+            console.log(`  + [${item.polarity}] ${item.text}  ← ${item.file}`);
+          }
+        }
+      }
     }
   }
 

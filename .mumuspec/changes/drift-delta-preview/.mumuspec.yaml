@@ -1,0 +1,49 @@
+name: drift-delta-preview
+phase: verify
+workflow: full
+created_at: 2026-09-13T11:11:51.612Z
+updated_at: 2026-09-13 11:17:48
+scope: .
+affected_scopes: []
+build_layers: []
+test_cases:
+  design_locked: false
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/drift-delta-preview
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    design: 1
+  content_hash: cd2aa1545ed6858a
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+verify_result: pass
