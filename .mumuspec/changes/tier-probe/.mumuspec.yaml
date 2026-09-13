@@ -1,0 +1,60 @@
+name: tier-probe
+phase: discarded
+workflow: full
+created_at: 2026-09-13T11:33:02.954Z
+updated_at: 2026-09-13T11:33:06.436Z
+scope: .
+affected_scopes: []
+build_layers: []
+test_cases:
+  design_locked: false
+  suites_locked: false
+  suites_locked_layers: []
+  suites_hash: {}
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/tier-probe
+single_active_change: true
+user_confirmed: false
+decisions_log:
+  counts: {}
+rollback_history:
+  - from: open
+    to: discarded
+    reason: No reason provided
+    timestamp: 2026-09-13T11:33:06.438Z
+    counted: false
+    event: discard
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+estimated_files: 1
+modules_affected: 1
+cross_module: false
+new_public_api: false
+new_external_dep: false
+data_migration: false
+is_doc_only: false
+is_pure_bugfix: false
+schema_version: 1.0.0

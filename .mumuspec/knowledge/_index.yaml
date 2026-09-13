@@ -109,6 +109,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-13-spec-fence-guard
+  - id: KE-2026-09-13-workflow-tier-hint-hyperplan
+    title: Adversarial design review insights from 2026-09-13-workflow-tier-hint
+    type: decision
+    status: confirmed
+    scope: 2026-09-13-workflow-tier-hint
+    file: .mumuspec\knowledge\decisions\KE-2026-09-13-workflow-tier-hint-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - 2026-09-13-workflow-tier-hint
   - id: KE-archive-prune-safety-hyperplan
     title: Adversarial design review insights from archive-prune-safety
     type: decision
@@ -362,6 +373,17 @@ pages:
       - hyperplan
       - decision
       - spec-fence-guard
+  - id: KE-workflow-tier-hint-hyperplan
+    title: Adversarial design review insights from workflow-tier-hint
+    type: decision
+    status: confirmed
+    scope: workflow-tier-hint
+    file: .mumuspec\knowledge\decisions\KE-workflow-tier-hint-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - workflow-tier-hint
   - id: KE-2026-09-09-completeness-artifacts-freedom-metrics-patterns
     title: Architecture patterns from 2026-09-09-completeness-artifacts-freedom-metrics
     type: pattern
@@ -472,6 +494,17 @@ pages:
       - pattern
       - architecture
       - 2026-09-13-spec-fence-guard
+  - id: KE-2026-09-13-workflow-tier-hint-patterns
+    title: Architecture patterns from 2026-09-13-workflow-tier-hint
+    type: pattern
+    status: confirmed
+    scope: 2026-09-13-workflow-tier-hint
+    file: .mumuspec\knowledge\patterns\KE-2026-09-13-workflow-tier-hint-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - 2026-09-13-workflow-tier-hint
   - id: KE-ast-guard-patterns
     title: Architecture patterns from ast-guard
     type: pattern
@@ -659,6 +692,17 @@ pages:
       - pattern
       - architecture
       - spec-fence-guard
+  - id: KE-workflow-tier-hint-patterns
+    title: Architecture patterns from workflow-tier-hint
+    type: pattern
+    status: confirmed
+    scope: workflow-tier-hint
+    file: .mumuspec\knowledge\patterns\KE-workflow-tier-hint-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - workflow-tier-hint
   - id: KP-0035
     title: 完整目录结构示例
     type: pattern
@@ -1379,6 +1423,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-13-spec-fence-guard
+  - id: KE-2026-09-13-workflow-tier-hint-lessons
+    title: Lessons from 2026-09-13-workflow-tier-hint decisions
+    type: lesson
+    status: confirmed
+    scope: 2026-09-13-workflow-tier-hint
+    file: .mumuspec\knowledge\lessons\KE-2026-09-13-workflow-tier-hint-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - 2026-09-13-workflow-tier-hint
   - id: KE-archive-prune-safety-lessons
     title: Lessons from archive-prune-safety decisions
     type: lesson
@@ -1632,6 +1687,17 @@ pages:
       - lesson
       - decisions
       - spec-fence-guard
+  - id: KE-workflow-tier-hint-lessons
+    title: Lessons from workflow-tier-hint decisions
+    type: lesson
+    status: confirmed
+    scope: workflow-tier-hint
+    file: .mumuspec\knowledge\lessons\KE-workflow-tier-hint-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - workflow-tier-hint
   - id: KL-0006
     title: 开放问题
     type: lesson

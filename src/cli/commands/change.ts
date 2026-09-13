@@ -171,6 +171,14 @@ export function registerChangeCommands(program: Command): void {
           });
           const rec = recommendPath(scope);
           console.log(`  Recommended: ${rec.path} (${Math.round(rec.confidence * 100)}% confidence)`);
+          // Tier mismatch surfaced explicitly (workflow-tier-hint, 2026-09-13):
+          // L1 suggestion only — creation flow and state machine untouched.
+          if (rec.path !== state.workflow) {
+            console.log(`  ⚠ 规模建议: ${rec.path} —— ${rec.rationale}`);
+            console.log(`    如需调整: mumuspec discard ${name} --confirm 后以 --workflow ${rec.path} 重建`);
+          } else {
+            console.log(`  ✓ 档位匹配: ${state.workflow}`);
+          }
         }
 
         // Skill auto-loading based on task characteristics

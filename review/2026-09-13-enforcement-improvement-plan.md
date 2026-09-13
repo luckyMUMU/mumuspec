@@ -13,7 +13,10 @@
 | A4 词法通道 fence-aware | ✅ parser 剥离围栏，示例约束不进语料 | CHG spec-fence-guard（v0.28） |
 | A5 技能副本到期校验 | ✅ 裁决：skill-drift 已于 0.24 交付并接入 check drift + CI 门禁；pinning/required 校验按 YAGNI 跳过 | — |
 | A6 fail-open 审计清零 | ✅ 归档关键路径 13 处空 catch 清零，4 类点位裁决保持静默（理由固化 design.md） | CHG fail-open-audit（v0.29） |
-| B1–B4 UX 增强 | ⏳ 进行中（增强项） | M4 |
+| B1 就绪动作引导 | ✅ status 就绪动作块（下一转换 + runPhaseGuard 实时三态判定） | CHG ready-action-guidance（v0.31） |
+| B2 完备性交互化 | ⏳ 未开始 | M4 |
+| B3 规模分档推荐 | ⏳ 未开始 | M4 |
+| B4 drift diff | ✅ `drift --change` Delta 预览块（归档将并入主规范的约束 + 行） | CHG drift-delta-preview（v0.32） |
 | B5 波次执行 / dev-auto | ⏸ 观察项（依赖 C 元层死端裁决） | — |
 
 **遗留裁决**：implicit-manual 是否参与一票否决（涉及存量约束迁移与 `### Enforcement` 自由文本语义，需单独评审）。
