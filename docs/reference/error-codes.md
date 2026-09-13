@@ -16,7 +16,7 @@ Last updated: 2026-09-13
 | FINAL | 1 |
 | HOOK | 1 |
 | MERGE | 10 |
-| GUARD | 12 |
+| GUARD | 13 |
 | BUILD | 1 |
 | PONYTAIL | 4 |
 | CONTRACT | 11 |
@@ -29,7 +29,7 @@ Last updated: 2026-09-13
 | CHECK | 2 |
 | SKILL | 4 |
 | GIT | 3 |
-| **Total** | **111** |
+| **Total** | **112** |
 
 ## SPEC Domain
 
@@ -617,6 +617,7 @@ Last updated: 2026-09-13
 | `E-GUARD-007` | GUARD_PRE_COMMIT_TIMEOUT | WARN | Pre-commit 检查超过 5s | Yes |
 | `E-GUARD-008` | GUARD_COMPLETENESS_GATE_BLOCK | ERROR | 完备性门禁阻塞（工件缺失 / 存在未消解 open 项 / 工件为空 / 声明路径缺人工签收） | No |
 | `E-GUARD-009` | DESIGN_COVERAGE_GAP | ERROR | 设计覆盖断链（I1 设计向上闭合）：覆盖了 Layer N 却缺少某个 Layer < N | Yes |
+| `E-GUARD-010` | DELTA_CONSTRAINT_UNCHANNELABLE | ERROR | 变更携带的 delta 约束无验证通道（无 Enforcement 声明、无词法锚点、无 ast: 前缀），禁止通过 verify 进入强制面 | No |
 | `W-GUARD-001` | GUARD_PREREQUISITE_MISSING | WARN | 阶段前置工件缺失或未锁定（test_cases / build_layers / tdd_mode 等行为约束） | No |
 | `W-GUARD-004` | GUARD_TEST_IMMUTABILITY_MISMATCH | WARN | 测试套件 hash 与 design_content_hash 不匹配（测试在锁定后被改动） | No |
 | `W-GUARD-009` | DESIGN_COVERAGE_GAP_ADVISORY | WARN | 设计覆盖断链（I1）的告警形态：top_down_design 解析为 false 时不阻塞，但仍写入 state.design_coverage | No |
@@ -710,6 +711,17 @@ Last updated: 2026-09-13
 1. 为缺失的更低层补 design 产物（design.md 的层级映射或 test-cases/layer-N-cases.md）
 2. 或修正 build_layers 的层级编号
 3. 强度为 medium 时本项降级为 W-GUARD-009 告警（top_down_design=false）
+
+### `E-GUARD-010`: DELTA_CONSTRAINT_UNCHANNELABLE
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 变更携带的 delta 约束无验证通道（无 Enforcement 声明、无词法锚点、无 ast: 前缀），禁止通过 verify 进入强制面
+
+**Fix Steps**:
+1. 在约束所在 Requirement 块内声明 Enforcement `- ID: manual(核验方式)`
+2. 或改写 SHALL NOT 文本使其含反引号词法锚点（长度>2 的标识符）
+3. 或对可 AST 判定的红线使用 ast: 前缀接 AST 通道
 
 ### `W-GUARD-001`: GUARD_PREREQUISITE_MISSING
 

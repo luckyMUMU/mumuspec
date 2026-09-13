@@ -163,7 +163,7 @@ suite-map.yaml、decisions_log.* —— 这些在 hotfix 路径**没有守卫检
 
 ### build_to_verify
 
-实现落点：`checkBuildToVerify()` + `checkLayerParallelism()` + `checkCompletenessGate()`
+实现落点：`checkBuildToVerify()` + `checkLayerParallelism()` + `checkCompletenessGate()` + `collectUnchanneledDeltaConstraints()`
 
 | 检查项 | 级别 | 错误码 |
 |--------|------|--------|
@@ -172,6 +172,7 @@ suite-map.yaml、decisions_log.* —— 这些在 hotfix 路径**没有守卫检
 | test_cases.suites_locked | W | `W-GUARD-004` |
 | **I3 同层 scope 耦合**（2026-09-12 新增）：同 layer 多 scope 之间存在直接调用边 | W | `W-BUILD-001` |
 | **完备性门禁**：assumptions.yaml（仅 `workflow=full`） | E\* | `E-GUARD-008` |
+| **delta 约束通道核验**（2026-09-13 新增）：constraints/ 与 delta-specs/ 条目须具备验证通道（Enforcement 声明 / 词法锚点 / ast: 前缀），否则禁止进入 verify | E | `E-GUARD-010` |
 
 **层间自下而上顺序**：由 `mumuspec state layer <name> <layer> <status>` 在**写入时**校验——
 低层未全部 done 时拒绝把高层置 done（`--force` 可越过）。它不再是守卫检查项，因为顺序是**写时事实**，

@@ -618,6 +618,18 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     // folding below must not silently re-downgrade an explicitly enabled rule.
     always_enforce: true,
   },
+  'E-GUARD-010': {
+    code: 'E-GUARD-010',
+    name: 'DELTA_CONSTRAINT_UNCHANNELABLE',
+    severity: 'ERROR',
+    description: '变更携带的 delta 约束无验证通道（无 Enforcement 声明、无词法锚点、无 ast: 前缀），禁止通过 verify 进入强制面',
+    fixSteps: [
+      '在约束所在 Requirement 块内声明 Enforcement `- ID: manual(核验方式)`',
+      '或改写 SHALL NOT 文本使其含反引号词法锚点（长度>2 的标识符）',
+      '或对可 AST 判定的红线使用 ast: 前缀接 AST 通道',
+    ],
+    forceable: false,
+  },
   // BUILD domain
   'W-BUILD-001': {
     code: 'W-BUILD-001',

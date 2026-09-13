@@ -6,6 +6,7 @@ import { getChangeDir, loadChangeState, saveChangeState, verifyTestCases } from 
 import { planParallelGroups } from '../change/parallel-planner.js';
 import { validateArtifact, extractDecisionRefs, type ArtifactKind } from '../change/artifact-validator.js';
 import { applyStrengthToGuardResult } from './checker.js';
+import { collectUnchanneledDeltaConstraints } from './delta-channels.js';
 import { parseSpecFile, parseTechFile } from '../spec/parser.js';
 import { classifyRequirements, missingManualEvidence, type ClassifiedItem } from '../spec/verifier-classify.js';
 import type { ConstraintStrengthField } from '../core/config.js';
@@ -740,6 +741,21 @@ function checkBuildToVerify(
   // gates on the hotfix path, preserving CHG-5's LLM-freedom decision).
   if (state.workflow === 'full') {
     checkCompletenessGate(projectRoot, changeName, 'assumptions', errors);
+  }
+
+  // Delta channel gate (delta-channel-gate, 2026-09-13): carried constraints
+  // (constraints/ + delta-specs/) must have a verification channel before the
+  // verify phase — unchanneled items must not silently reach the enforced
+  // surface at archive. Empty artifact sets pass trivially.
+  const unchanneled = collectUnchanneledDeltaConstraints(
+    getChangeDir(projectRoot, changeName, state.scope),
+  );
+  for (const item of unchanneled) {
+    errors.push({
+      code: 'E-GUARD-010',
+      message: `delta 约束无验证通道 (${item.requirement}) [${item.polarity}] "${item.text.slice(0, 60)}" — ${item.reason}`,
+      detail: `${item.file}`,
+    });
   }
 
   return { passed: errors.length === 0, errors, warnings };
