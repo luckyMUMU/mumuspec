@@ -10,6 +10,7 @@ import { Command } from 'commander';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { CorpusScenarioReport, EvalReport } from '../../../src/eval/runner.js';
 
 // ── Mock functions (shared references) ──
 const mockFindProjectRoot = vi.fn();
@@ -33,6 +34,30 @@ vi.mock('../../../src/eval/runner.js', () => ({
   runAllEvals: mockRunAllEvals,
   discoverScenarios: mockDiscoverScenarios,
   initEvalsDir: mockInitEvalsDir,
+}));
+
+// L2-C15：report.metrics 由进程内直调 L1 两评估器得到 —— mock 评估器依赖
+// （spawn / audit.log），避免测试真跑子进程（R-6）。
+const mockVerifiableRatioEvaluate = vi.fn();
+const mockFailOpenEvaluate = vi.fn();
+
+vi.mock('../../../src/core/metrics/verifiable-ratio.js', () => ({
+  VERIFIABLE_RATIO_NAME: 'verifiable-ratio',
+  verifiableRatioEvaluator: {
+    name: 'verifiable-ratio',
+    defaultWeight: 0,
+    evaluate: mockVerifiableRatioEvaluate,
+  },
+}));
+
+vi.mock('../../../src/core/metrics/fail-open-count.js', () => ({
+  FAIL_OPEN_COUNT_NAME: 'fail-open-count',
+  FAIL_OPEN_COUNT_CAP: 10,
+  failOpenCountEvaluator: {
+    name: 'fail-open-count',
+    defaultWeight: 0,
+    evaluate: mockFailOpenEvaluate,
+  },
 }));
 
 // ── Helpers ──
@@ -76,6 +101,23 @@ describe('eval handler', () => {
     mockRunScenario.mockReset();
     mockRunAllEvals.mockReset();
     mockFindProjectRoot.mockReturnValue(tempDir);
+    // L1 评估器 mock：默认健康态（verifiable-ratio strong 0.75 / fail-open 0 条）
+    mockVerifiableRatioEvaluate.mockReset();
+    mockFailOpenEvaluate.mockReset();
+    mockVerifiableRatioEvaluate.mockResolvedValue({
+      name: 'verifiable-ratio',
+      value: 0.75,
+      weight: 0,
+      details: 'strong 15/20 (strong_ratio 0.750); weak 3 manual 2 unverifiable 0',
+      rawData: { total: 20, enforced_strong: 15, enforced_weak: 3, manual: 2, unverifiable: 0 },
+    });
+    mockFailOpenEvaluate.mockResolvedValue({
+      name: 'fail-open-count',
+      value: 1,
+      weight: 0,
+      details: '0 non-success audit entries across 0 action(s)',
+      rawData: { total: 0, cap: 10, byAction: {}, entries: [] },
+    });
   });
 
   afterEach(() => {
@@ -310,5 +352,329 @@ describe('eval handler', () => {
         expect.stringContaining('Run scenarios (all or specific)')
       );
     });
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════
+// eval run --report（L2 消费层，design §2.3.1 / DS-EVAL-004）
+// ════════════════════════════════════════════════════════════════════
+
+function makeCi(n: number, lower = 0.3, upper = 0.9) {
+  return { lower, upper, n, confidence: 0.95 as const, insufficient: n < 3 };
+}
+
+function makeCorpusReport(overrides: Partial<CorpusScenarioReport> = {}): CorpusScenarioReport {
+  const base: CorpusScenarioReport = {
+    scenario: 'corpus-eval',
+    corpusDir: '.eval-corpus',
+    total: 6,
+    counts: { killed: 4, missed: 1, errored: 0 },
+    errored: 0,
+    erroredFixtures: [],
+    recall: { value: 0.8, n: 5, ci: makeCi(5, 0.376, 0.964), excluded: 0 },
+    recallBySeverity: {
+      veto: { value: 1, n: 2, ci: makeCi(2, 0.34, 1) },
+      error: { value: 0.667, n: 3, ci: makeCi(3, 0.207, 0.939) },
+      warn: { value: 0, n: 0, ci: null },
+    },
+    noise: { value: 0, n: 3, ci: makeCi(3, 0, 0.561) },
+    precision: { mustContainSatisfied: 4, mustContainTotal: 5, ratio: 0.8 },
+    baseline: { codes: [], coverage: null },
+    fixtures: [],
+  };
+  return { ...base, ...overrides };
+}
+
+function makeReport(corpusReports: CorpusScenarioReport[]): EvalReport {
+  return {
+    total: corpusReports.length || 1,
+    passed: corpusReports.length || 1,
+    failed: 0,
+    results: [
+      {
+        scenario: 'corpus-eval',
+        passed: true,
+        errors: [],
+        warnings: [],
+        details: 'ok',
+        duration: 10,
+        corpus: corpusReports[0],
+      },
+    ],
+    duration: 10,
+    corpusReports,
+  };
+}
+
+describe('eval run --report', () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+  let exitSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    tempDir = setupTempDir();
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit called');
+    }) as () => never);
+    mockFindProjectRoot.mockReset();
+    mockRunAllEvals.mockReset();
+    mockFindProjectRoot.mockReturnValue(tempDir);
+    mockVerifiableRatioEvaluate.mockReset();
+    mockFailOpenEvaluate.mockReset();
+    mockVerifiableRatioEvaluate.mockResolvedValue({
+      name: 'verifiable-ratio',
+      value: 0.75,
+      weight: 0,
+      details: 'strong 15/20 (strong_ratio 0.750); weak 3 manual 2 unverifiable 0',
+      rawData: { total: 20, enforced_strong: 15, enforced_weak: 3, manual: 2, unverifiable: 0 },
+    });
+    mockFailOpenEvaluate.mockResolvedValue({
+      name: 'fail-open-count',
+      value: 1,
+      weight: 0,
+      details: '0 non-success audit entries across 0 action(s)',
+      rawData: { total: 0, cap: 10, byAction: {}, entries: [] },
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  async function loadEvalModule() {
+    return await import('../../../src/cli/commands/eval.js');
+  }
+
+  // ── L2-C01 · report 文本形态四段 ──
+
+  it('L2-C01 — renderSummaryText 含四段（corpus / A1 / B4 / coverageRef）', async () => {
+    const { buildSummaryReport, renderSummaryText } = await loadEvalModule();
+    const summary = await buildSummaryReport(makeReport([makeCorpusReport()]), tempDir);
+    const text = renderSummaryText(summary);
+
+    // ① corpus 段
+    expect(text).toContain('recall=');
+    expect(text).toContain('noise=');
+    expect(text).toContain('CI=[');
+    expect(text).toContain('precision=');
+    // ② A1
+    expect(text).toContain('verifiable-ratio');
+    expect(text).toContain('strong_ratio 0.750');
+    // ③ B4
+    expect(text).toContain('fail-open-count');
+    // ④ coverageRef
+    expect(text).toContain('vitest-v8');
+    expect(text).toContain('thresholds');
+  });
+
+  // ── L2-C02 · report JSON 形态 EvalSummaryReport 结构 ──
+
+  it('L2-C02 — JSON 形态结构完整', async () => {
+    const { buildSummaryReport } = await loadEvalModule();
+    const report = makeReport([makeCorpusReport()]);
+    const summary = await buildSummaryReport(report, tempDir);
+    const parsed = JSON.parse(JSON.stringify(summary));
+
+    expect(parsed.version).toBe(1);
+    expect(parsed.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    expect(parsed.evals).toEqual({ total: 1, passed: 1, failed: 0, duration: 10 });
+    expect(parsed.corpus).toHaveLength(1);
+    expect(parsed.corpus[0].scenario).toBe('corpus-eval');
+    expect(Object.keys(parsed.metrics).sort()).toEqual(['fail-open-count', 'verifiable-ratio']);
+    for (const key of ['verifiable-ratio', 'fail-open-count'] as const) {
+      expect(parsed.metrics[key]).toHaveProperty('value');
+      expect(parsed.metrics[key]).toHaveProperty('weight');
+      expect(parsed.metrics[key]).toHaveProperty('details');
+    }
+    expect(parsed.precision).toEqual({
+      mustContainSatisfied: 4,
+      mustContainTotal: 5,
+      ratio: 0.8,
+    });
+    expect(parsed.coverageRef.metric).toBe('vitest-v8');
+  });
+
+  // ── L2-C03 · 冻结契约 version===1 + 字段集 ──
+
+  it('L2-C03 — version===1（number）且顶层字段集恰为冻结集', async () => {
+    const { buildSummaryReport } = await loadEvalModule();
+    const summary = await buildSummaryReport(makeReport([makeCorpusReport()]), tempDir);
+
+    expect(summary.version).toBe(1);
+    expect(typeof summary.version).toBe('number');
+    expect(Object.keys(summary).sort()).toEqual([
+      'corpus',
+      'coverageRef',
+      'evals',
+      'generatedAt',
+      'metrics',
+      'precision',
+      'version',
+    ]);
+    expect(Object.keys(summary.metrics).sort()).toEqual(['fail-open-count', 'verifiable-ratio']);
+  });
+
+  // ── L2-C04 · coverageRef 四维阈值 + command 指针 ──
+
+  it('L2-C04 — coverageRef 阈值严格四维 95 且 command 为非空字符串', async () => {
+    const { buildSummaryReport } = await loadEvalModule();
+    const summary = await buildSummaryReport(makeReport([makeCorpusReport()]), tempDir);
+
+    expect(summary.coverageRef.metric).toBe('vitest-v8');
+    expect(summary.coverageRef.thresholds).toEqual({
+      lines: 95,
+      branches: 95,
+      functions: 95,
+      statements: 95,
+    });
+    expect(typeof summary.coverageRef.command).toBe('string');
+    expect(summary.coverageRef.command.length).toBeGreaterThan(0);
+  });
+
+  // ── L2-C05 · n<3 文本标注「置信不足」 ──
+
+  it('L2-C05 — recall n<3 场景行含「置信不足」，n>=3 不含', async () => {
+    const { buildSummaryReport, renderSummaryText } = await loadEvalModule();
+
+    const small = makeCorpusReport({
+      recall: { value: 0.5, n: 2, ci: makeCi(2, 0.095, 0.905), excluded: 0 },
+    });
+    const smallText = renderSummaryText(await buildSummaryReport(makeReport([small]), tempDir));
+    expect(smallText).toContain('置信不足');
+    expect(smallText).toContain('n=2');
+
+    const largeText = renderSummaryText(
+      await buildSummaryReport(makeReport([makeCorpusReport()]), tempDir),
+    );
+    expect(largeText).not.toContain('置信不足');
+  });
+
+  // ── L2-C16 · 空 corpus 场景消费不崩溃 ──
+
+  it('L2-C16 — 空 corpus（n=0/ci=null）渲染不产 NaN 且 JSON value===null', async () => {
+    const { buildSummaryReport, renderSummaryText } = await loadEvalModule();
+    const empty = makeCorpusReport({
+      scenario: 'empty-corpus',
+      total: 0,
+      counts: { killed: 0, missed: 0, errored: 0 },
+      recall: { value: null, n: 0, ci: null },
+      noise: { value: null, n: 0, ci: null },
+      recallBySeverity: {
+        veto: { value: null, n: 0, ci: null },
+        error: { value: null, n: 0, ci: null },
+        warn: { value: null, n: 0, ci: null },
+      },
+      precision: { mustContainSatisfied: 0, mustContainTotal: 0, ratio: null },
+    });
+
+    const summary = await buildSummaryReport(makeReport([empty]), tempDir);
+    const text = renderSummaryText(summary);
+
+    expect(text).toContain('n=0');
+    expect(text).not.toContain('NaN');
+    expect(text).not.toContain('Infinity');
+    const parsed = JSON.parse(JSON.stringify(summary));
+    expect(parsed.corpus[0].recall.value).toBeNull();
+    expect(parsed.corpus[0].noise.value).toBeNull();
+  });
+
+  // ── L2-C15 · report.metrics 与评估器同源 ──
+
+  it('L2-C15 — metrics 与进程内直调评估器结果一致（weight===0）', async () => {
+    const { buildSummaryReport } = await loadEvalModule();
+    const summary = await buildSummaryReport(makeReport([makeCorpusReport()]), tempDir);
+
+    expect(summary.metrics['verifiable-ratio'].value).toBe(0.75);
+    expect(summary.metrics['verifiable-ratio'].weight).toBe(0);
+    expect(summary.metrics['verifiable-ratio'].details).toBe(
+      'strong 15/20 (strong_ratio 0.750); weak 3 manual 2 unverifiable 0',
+    );
+    expect(summary.metrics['fail-open-count'].value).toBe(1);
+    expect(summary.metrics['fail-open-count'].weight).toBe(0);
+    expect(mockVerifiableRatioEvaluate).toHaveBeenCalledTimes(1);
+    expect(mockFailOpenEvaluate).toHaveBeenCalledTimes(1);
+  });
+
+  // ── L2-C17 · report JSON 新增 precision 聚合（version 仍 1） ──
+
+  it('L2-C17 — 跨场景 precision 求和；分母 0 → ratio===null；version 仍 1', async () => {
+    const { buildSummaryReport } = await loadEvalModule();
+
+    const r1 = makeCorpusReport({ precision: { mustContainSatisfied: 4, mustContainTotal: 5, ratio: 0.8 } });
+    const r2 = makeCorpusReport({
+      scenario: 'corpus-two',
+      precision: { mustContainSatisfied: 2, mustContainTotal: 3, ratio: 2 / 3 },
+    });
+    const summary = await buildSummaryReport(makeReport([r1, r2]), tempDir);
+    expect(summary.precision.mustContainSatisfied).toBe(6);
+    expect(summary.precision.mustContainTotal).toBe(8);
+    expect(summary.precision.ratio).toBeCloseTo(0.75, 10);
+    expect(summary.version).toBe(1);
+
+    // 分母为 0 → ratio===null（非 NaN）
+    const zero = makeCorpusReport({
+      precision: { mustContainSatisfied: 0, mustContainTotal: 0, ratio: null },
+    });
+    const zeroSummary = await buildSummaryReport(makeReport([zero]), tempDir);
+    expect(zeroSummary.precision.ratio).toBeNull();
+  });
+
+  // ── L2-C18 · 文本渲染 errored 提示 + 「置信不足」 ──
+
+  it('L2-C18 — errored 提示与置信不足独立呈现、互不吞没，行含 precision', async () => {
+    const { buildSummaryReport, renderSummaryText } = await loadEvalModule();
+    const report = makeCorpusReport({
+      errored: 2,
+      erroredFixtures: ['bad-a', 'bad-b'],
+      recall: { value: 0.5, n: 2, ci: makeCi(2, 0.095, 0.905), excluded: 2 },
+    });
+    const text = renderSummaryText(await buildSummaryReport(makeReport([report]), tempDir));
+
+    expect(text).toContain('precision=');
+    expect(text).toContain('2 errored 已排除分母');
+    expect(text).toContain('置信不足');
+  });
+
+  // ── CLI 旗标接线：--report（文本 / JSON）──
+
+  it('CLI — eval run --report 输出文本汇总', async () => {
+    const { registerEvalCommands } = await loadEvalModule();
+    mockRunAllEvals.mockReturnValue(makeReport([makeCorpusReport()]));
+    mockFindProjectRoot.mockReturnValue(tempDir);
+
+    const program = new Command();
+    registerEvalCommands(program);
+    await program.parseAsync(['eval', 'run', '--report', '--workspace-path', tempDir], {
+      from: 'user',
+    });
+
+    const all = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(all).toContain('Eval Summary');
+    expect(all).toContain('verifiable-ratio');
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it('CLI — eval run --report --json 输出可解析 JSON（version 1）', async () => {
+    const { registerEvalCommands } = await loadEvalModule();
+    mockRunAllEvals.mockReturnValue(makeReport([makeCorpusReport()]));
+    mockFindProjectRoot.mockReturnValue(tempDir);
+
+    const program = new Command();
+    registerEvalCommands(program);
+    await program.parseAsync(
+      ['eval', 'run', '--report', '--json', '--workspace-path', tempDir],
+      { from: 'user' },
+    );
+
+    const jsonArg = logSpy.mock.calls
+      .map((c) => c[0])
+      .find((s) => typeof s === 'string' && s.trim().startsWith('{'));
+    expect(jsonArg).toBeTruthy();
+    const parsed = JSON.parse(jsonArg as string);
+    expect(parsed.version).toBe(1);
+    expect(Object.keys(parsed.metrics).sort()).toEqual(['fail-open-count', 'verifiable-ratio']);
   });
 });
