@@ -2,7 +2,7 @@ name: eval-corpus
 phase: build
 workflow: full
 created_at: 2026-09-14T14:19:13.141Z
-updated_at: 2026-09-15T14:14:51.909Z
+updated_at: 2026-09-15T14:56:41.030Z
 scope: .
 affected_scopes:
   - .
@@ -15,17 +15,19 @@ build_layers:
     status: done
   - layer: 2
     scope: .
-    status: pending
+    status: done
 test_cases:
   design_locked: true
-  suites_locked: false
+  suites_locked: true
   suites_locked_layers:
     - 0
     - 1
+    - 2
   suites_hash:
-    "0": e2f327a879b3e069
+    "0": badb8c50a938fd94
     "1": 61a6dfcacb4698d0
-  design_content_hash: 136aef5dd387a5ab
+    "2": 06b6e4cfa660522c
+  design_content_hash: 0aa5800753ae97b6
 rollback_count: 0
 rebuild_count: 0
 rollback_limit: 3
@@ -40,8 +42,8 @@ decisions_log:
   counts:
     open: 3
     design: 4
-    build: 5
-  content_hash: 9f221c1b8d4dd860
+    build: 7
+  content_hash: fc636e5e2ea4e549
 rollback_history: []
 cognitive_framework:
   enabled: true
