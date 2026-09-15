@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, isAbsolute, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import {
   loadScenario,
   discoverScenarios,
@@ -10,6 +11,10 @@ import {
   initEvalsDir,
 } from '../../src/eval/runner.js';
 import type { EvalScenario } from '../../src/eval/runner.js';
+
+// L0 corpus 编排用例（L0-C15~C30）mock spawnSync，不真跑子进程（R-6）。
+// src/guard 与 src/eval 的其余模块不调用 child_process，故整文件 mock 无副作用。
+vi.mock('node:child_process', () => ({ spawnSync: vi.fn() }));
 
 function createTmpProject(): string {
   const dir = join(tmpdir(), `mumuspec-eval-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -218,5 +223,472 @@ describe('initEvalsDir', () => {
     initEvalsDir(projectDir);
     const result2 = initEvalsDir(projectDir);
     expect(result2.created).toHaveLength(0);
+  });
+});
+
+// ============================================================================
+// Layer 0 — corpus 编排（L0-C15~C30）+ custom 修复（L0-C31~C32）
+// 隔离方式：tmp 目录 + mock spawnSync（不真跑子进程，R-6）
+// ============================================================================
+
+interface ProbeResponse {
+  stdout?: string;
+  stderr?: string;
+  error?: Error;
+}
+
+function setProbeResponses(map: Record<string, ProbeResponse>): void {
+  vi.mocked(spawnSync).mockImplementation(((
+    _cmd: string,
+    _args: string[],
+    opts: { cwd?: string },
+  ) => {
+    const cwd = (opts?.cwd ?? '').replace(/\\/g, '/');
+    const key = Object.keys(map).find((k) => cwd.endsWith('/' + k));
+    const resp: ProbeResponse = key ? map[key] : {};
+    return {
+      pid: 1,
+      output: [],
+      stdout: resp.stdout ?? '',
+      stderr: resp.stderr ?? '',
+      status: 0,
+      signal: null,
+      error: resp.error,
+    };
+  }) as unknown as typeof spawnSync);
+}
+
+function makeCorpusDir(projectDir: string): string {
+  const corpusDir = join(projectDir, '.eval-corpus');
+  mkdirSync(corpusDir, { recursive: true });
+  return corpusDir;
+}
+
+function writeFixture(corpusDir: string, name: string, lines: string[]): string {
+  const dir = join(corpusDir, name);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'expected.yaml'), lines.join('\n') + '\n');
+  return dir;
+}
+
+const CLEAN_STDOUT = JSON.stringify({ passed: true });
+
+function covStdout(over: Partial<Record<string, number>> = {}): string {
+  return JSON.stringify({
+    coverage: {
+      total: 20,
+      enforced_strong: 10,
+      enforced_weak: 4,
+      manual: 4,
+      unverifiable: 2,
+      ...over,
+    },
+  });
+}
+
+function runCorpus(projectDir: string, extra: Partial<EvalScenario> = {}) {
+  return runScenario({
+    name: 'corpus-scenario',
+    type: 'corpus',
+    projectRoot: projectDir,
+    corpusDir: '.eval-corpus',
+    ...extra,
+  });
+}
+
+describe('runScenario — corpus 检出/漏检（L0-C15~C16）', () => {
+  let dir: string;
+  beforeEach(() => { dir = createTmpProject(); });
+  afterEach(() => { cleanup(dir); vi.mocked(spawnSync).mockReset(); });
+
+  it('L0-C15 — 检出态 → killed=true 计入 recall', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', [
+      'kind: bad-case',
+      'severity: error',
+      'mustContain: [E-SPEC-004]',
+    ]);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004', message: 'x' }] }) },
+    });
+
+    const result = runCorpus(dir);
+    const fixture = result.corpus!.fixtures.find((f) => f.name === 'bad-spec-004')!;
+    expect(fixture.killed).toBe(true);
+    expect(fixture.newCodes).toContain('E-SPEC-004');
+    expect(fixture.mustContainSatisfied).toBe(true);
+    expect(result.corpus!.recall.value).toBe(1);
+    expect(result.corpus!.recall.n).toBe(1);
+  });
+
+  it('L0-C16 — 漏检态 → killed=false', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', ['kind: bad-case', 'severity: error']);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: CLEAN_STDOUT },
+    });
+
+    const result = runCorpus(dir);
+    const fixture = result.corpus!.fixtures.find((f) => f.name === 'bad-spec-004')!;
+    expect(fixture.killed).toBe(false);
+    expect(fixture.newCodes).toEqual([]);
+    expect(fixture.changedCoverageFields).toEqual([]);
+    expect(result.corpus!.recall.value).toBe(0);
+    expect(result.corpus!.recall.n).toBe(1);
+  });
+});
+
+describe('runScenario — corpus 多信号并集（L0-C17~C18）', () => {
+  let dir: string;
+  beforeEach(() => { dir = createTmpProject(); });
+  afterEach(() => { cleanup(dir); vi.mocked(spawnSync).mockReset(); });
+
+  it('L0-C17 — coverage-only fixture → killed=true', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-002', ['kind: bad-case', 'severity: error']);
+    setProbeResponses({
+      '_baseline': { stdout: covStdout() },
+      'bad-spec-002': { stdout: covStdout({ total: 19, enforced_weak: 3 }) },
+    });
+
+    const result = runCorpus(dir);
+    const fixture = result.corpus!.fixtures.find((f) => f.name === 'bad-spec-002')!;
+    expect(fixture.killed).toBe(true);
+    expect(fixture.newCodes).toEqual([]);
+    expect(fixture.changedCoverageFields.length).toBeGreaterThan(0);
+    expect(fixture.changedCoverageFields).toContain('total');
+    expect(fixture.changedCoverageFields).toContain('enforced_weak');
+  });
+
+  it('L0-C18 — code-only fixture → killed=true（两侧 coverage=null）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-016', ['kind: bad-case', 'severity: warn']);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-016': { stdout: JSON.stringify({ warnings: [{ code: 'W-SPEC-016' }] }) },
+    });
+
+    const result = runCorpus(dir);
+    const fixture = result.corpus!.fixtures.find((f) => f.name === 'bad-spec-016')!;
+    expect(fixture.killed).toBe(true);
+    expect(fixture.newCodes).toContain('W-SPEC-016');
+    expect(fixture.changedCoverageFields).toEqual([]);
+  });
+});
+
+describe('runScenario — corpus 边界与 fail-fast（L0-C19~C23）', () => {
+  let dir: string;
+  beforeEach(() => { dir = createTmpProject(); });
+  afterEach(() => { cleanup(dir); vi.mocked(spawnSync).mockReset(); });
+
+  it('L0-C19 — 空 corpusDir → warning + ratio.value=null + 不抛', () => {
+    const corpusDir = makeCorpusDir(dir);
+    mkdirSync(join(corpusDir, 'empty-sub'), { recursive: true }); // 无 expected.yaml
+    let result: ReturnType<typeof runCorpus> | undefined;
+    expect(() => { result = runCorpus(dir); }).not.toThrow();
+    expect(result!.warnings).toContain('corpus dir empty');
+    expect(result!.corpus!.total).toBe(0);
+    expect(result!.corpus!.recall.value).toBeNull();
+    expect(result!.corpus!.recall.n).toBe(0);
+    expect(result!.corpus!.noise.value).toBeNull();
+  });
+
+  it('L0-C20 — corpusDir 不存在 → resultErrors', () => {
+    const result = runCorpus(dir); // 未创建 .eval-corpus
+    expect(result.passed).toBe(false);
+    expect(result.errors.some((e) => e.includes('corpus dir not found'))).toBe(true);
+    expect(result.corpus).toBeUndefined();
+  });
+
+  it('L0-C21 — 缺 _baseline → resultErrors（不静默）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, 'bad-spec-004', ['kind: bad-case']);
+    writeFixture(corpusDir, 'clean-01', ['kind: clean']);
+    const result = runCorpus(dir);
+    expect(result.passed).toBe(false);
+    expect(result.errors.some((e) => e.includes('corpus requires _baseline'))).toBe(true);
+    expect(result.corpus).toBeUndefined();
+  });
+
+  it('L0-C22 — _baseline 不干净 → fail-fast 报错', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', ['kind: bad-case']);
+    setProbeResponses({
+      '_baseline': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) },
+      'bad-spec-004': { stdout: CLEAN_STDOUT },
+    });
+    const result = runCorpus(dir);
+    expect(result.passed).toBe(false);
+    expect(result.errors.some((e) => e.includes('baseline must be clean but produced codes'))).toBe(true);
+    expect(result.corpus).toBeUndefined(); // 不基于被污染 baseline 继续 diff
+  });
+
+  it('L0-C23 — fixture 缺 expected.yaml → 不视为 fixture', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', ['kind: bad-case']);
+    mkdirSync(join(corpusDir, 'stray-dir'), { recursive: true }); // 无 expected.yaml
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) },
+    });
+    const result = runCorpus(dir);
+    expect(result.corpus!.fixtures.some((f) => f.name === 'stray-dir')).toBe(false);
+    expect(result.corpus!.total).toBe(1);
+  });
+});
+
+describe('runScenario — corpus 跨域码与噪声口径（L0-C24~C25）', () => {
+  let dir: string;
+  beforeEach(() => { dir = createTmpProject(); });
+  afterEach(() => { cleanup(dir); vi.mocked(spawnSync).mockReset(); });
+
+  it('L0-C24 — 跨域码经 stderr 通道捕获（E-CHANGE-022）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline', 'probe: archive']);
+    writeFixture(corpusDir, 'bad-change-022', [
+      'kind: bad-case',
+      'severity: veto',
+      'probe: archive',
+      'change: cX',
+      'mustContain: [E-CHANGE-022]',
+    ]);
+    setProbeResponses({
+      '_baseline': { stdout: '' },
+      'bad-change-022': { stdout: '', stderr: 'archive failed: E-CHANGE-022 cannot archive' },
+    });
+    const result = runCorpus(dir);
+    const fixture = result.corpus!.fixtures.find((f) => f.name === 'bad-change-022')!;
+    expect(fixture.newCodes).toContain('E-CHANGE-022');
+    expect(fixture.killed).toBe(true);
+    expect(fixture.changedCoverageFields).toEqual([]);
+  });
+
+  it('L0-C25 — noise 只计码：clean 结构性 coverage 差异 → falsePositive=false', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'clean-01', ['kind: clean']);
+    setProbeResponses({
+      '_baseline': { stdout: covStdout() },
+      'clean-01': { stdout: covStdout({ total: 5, enforced_strong: 2 }) }, // 结构性差异，零码
+    });
+    const result = runCorpus(dir);
+    const fixture = result.corpus!.fixtures.find((f) => f.name === 'clean-01')!;
+    expect(fixture.falsePositive).toBe(false);
+    expect(result.corpus!.noise.value).toBe(0);
+    expect(result.corpus!.noise.n).toBe(1);
+  });
+
+  it('L0-C25b — clean 产生一个码 → falsePositive=true、noise=1', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'clean-02', ['kind: clean']);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'clean-02': { stdout: JSON.stringify({ warnings: [{ code: 'W-SPEC-016' }] }) },
+    });
+    const result = runCorpus(dir);
+    const fixture = result.corpus!.fixtures.find((f) => f.name === 'clean-02')!;
+    expect(fixture.falsePositive).toBe(true);
+    expect(result.corpus!.noise.value).toBe(1);
+  });
+});
+
+describe('runScenario — corpus 无 cwd 依赖（L0-C26）', () => {
+  let dir: string;
+  beforeEach(() => { dir = createTmpProject(); });
+  afterEach(() => { cleanup(dir); vi.mocked(spawnSync).mockReset(); });
+
+  it('L0-C26 — runProbe cwd 为绝对 fixture 路径', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', ['kind: bad-case']);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) },
+    });
+
+    runCorpus(dir);
+
+    const calls = vi.mocked(spawnSync).mock.calls;
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+    const seen = new Set<string>();
+    for (const call of calls) {
+      const opts = call[2] as { cwd?: string };
+      const cwd = opts.cwd!;
+      expect(isAbsolute(cwd)).toBe(true);
+      expect(cwd).not.toBe(process.cwd());
+      seen.add(cwd.replace(/\\/g, '/'));
+    }
+    expect(seen.has(resolve(corpusDir, '_baseline').replace(/\\/g, '/'))).toBe(true);
+    expect(seen.has(resolve(corpusDir, 'bad-spec-004').replace(/\\/g, '/'))).toBe(true);
+  });
+});
+
+describe('runScenario — corpusExpect 断言（L0-C27）', () => {
+  let dir: string;
+  beforeEach(() => { dir = createTmpProject(); });
+  afterEach(() => { cleanup(dir); vi.mocked(spawnSync).mockReset(); });
+
+  it('L0-C27 — 断言违反 → resultErrors（含 minRecall/maxNoise/recallBySeverity）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-veto-1', ['kind: bad-case', 'severity: veto']);
+    writeFixture(corpusDir, 'bad-veto-2', ['kind: bad-case', 'severity: veto']);
+    writeFixture(corpusDir, 'clean-01', ['kind: clean']);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-veto-1': { stdout: JSON.stringify({ errors: [{ code: 'E-GUARD-010' }] }) },
+      'bad-veto-2': { stdout: CLEAN_STDOUT }, // 漏检
+      'clean-01': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-001' }] }) }, // 误报
+    });
+
+    const result = runCorpus(dir, {
+      corpusExpect: { minRecall: 0.9, maxNoise: 0, recallBySeverity: { veto: 1.0 } },
+    });
+    expect(result.passed).toBe(false);
+    expect(result.errors.some((e) => e.includes('minRecall'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('maxNoise'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('recallBySeverity'))).toBe(true);
+    expect(result.corpus!.recall.value).toBe(0.5); // 2 坏样本，1 检出
+  });
+
+  it('L0-C27b — 断言满足 → passed=true', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-veto-1', ['kind: bad-case', 'severity: veto']);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-veto-1': { stdout: JSON.stringify({ errors: [{ code: 'E-GUARD-010' }] }) },
+    });
+    const result = runCorpus(dir, {
+      corpusExpect: { minRecall: 1.0, maxNoise: 0, recallBySeverity: { veto: 1.0 } },
+    });
+    expect(result.passed).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+});
+
+describe('loadScenario — corpus 字段解析（L0-C28）', () => {
+  let dir: string;
+  beforeEach(() => { dir = createTmpProject(); });
+  afterEach(() => { cleanup(dir); });
+
+  it('L0-C28 — 解析 corpusDir + corpusExpect（三层嵌套）', () => {
+    const file = join(dir, 'corpus.yaml');
+    writeFileSync(file, [
+      'name: corpus-scenario',
+      'type: corpus',
+      'corpusDir: .eval-corpus',
+      'corpusExpect:',
+      '  minRecall: 0.9',
+      '  maxNoise: 0',
+      '  recallBySeverity:',
+      '    veto: 1.0',
+      'expected:',
+      '  maxErrors: 100',
+      'assertions:',
+      '  - "true"',
+      '',
+    ].join('\n'));
+
+    const scenario = loadScenario(file);
+    expect(scenario.type).toBe('corpus');
+    expect(scenario.corpusDir).toBe('.eval-corpus');
+    expect(scenario.corpusExpect!.minRecall).toBe(0.9);
+    expect(scenario.corpusExpect!.maxNoise).toBe(0);
+    expect(scenario.corpusExpect!.recallBySeverity!.veto).toBe(1.0);
+    // 既有字段不受影响
+    expect(scenario.expected!.maxErrors).toBe(100);
+    expect(scenario.assertions).toHaveLength(1);
+  });
+});
+
+describe('runAllEvals — corpus 收集与引用一致（L0-C29~C30）', () => {
+  let dir: string;
+  beforeEach(() => { dir = createTmpProject(); });
+  afterEach(() => { cleanup(dir); vi.mocked(spawnSync).mockReset(); });
+
+  function seedEvals(): void {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', ['kind: bad-case', 'severity: error']);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: CLEAN_STDOUT }, // 漏检 → recall 0 → corpusExpect 失败
+    });
+
+    const evalsDir = join(dir, '.mumuspec', 'evals');
+    mkdirSync(evalsDir, { recursive: true });
+    writeFileSync(join(evalsDir, 'corpus.yaml'), [
+      'name: corpus-scenario',
+      'type: corpus',
+      'corpusDir: .eval-corpus',
+      'corpusExpect:',
+      '  minRecall: 0.9',
+      '',
+    ].join('\n'));
+    writeFileSync(join(evalsDir, 'custom.yaml'), 'name: custom-scenario\ntype: custom\n');
+  }
+
+  it('L0-C29 — 收集 corpusReports，total/passed/failed 语义不变', () => {
+    seedEvals();
+    const report = runAllEvals(dir);
+    expect(report.corpusReports).toHaveLength(1);
+    expect(report.corpusReports![0].scenario).toBe('corpus-scenario');
+    expect(report.total).toBe(2);
+    expect(report.passed + report.failed).toBe(2);
+    expect(report.failed).toBe(1); // corpus 场景 corpusExpect 失败计入 failed
+    expect(report.passed).toBe(1);
+  });
+
+  it('L0-C30 — EvalResult.corpus 与 corpusReports 引用一致', () => {
+    seedEvals();
+    const report = runAllEvals(dir);
+    const corpusResult = report.results.find((r) => r.scenario === 'corpus-scenario')!;
+    expect(corpusResult.corpus).toBeDefined();
+    expect(corpusResult.corpus).toBe(report.corpusReports![0]); // 同一对象引用
+  });
+});
+
+describe('runScenario — custom 修复（L0-C31~C32）', () => {
+  afterEach(() => { vi.mocked(spawnSync).mockReset(); });
+
+  it('L0-C31 — custom 断言通过/失败两态 + 零 warning', () => {
+    const pass = runScenario({
+      name: 'custom-pass',
+      type: 'custom',
+      assertions: ['errors.length === 0'],
+    });
+    expect(pass.passed).toBe(true);
+    expect(pass.errors).toHaveLength(0);
+    expect(pass.warnings).toHaveLength(0);
+
+    const fail = runScenario({
+      name: 'custom-fail',
+      type: 'custom',
+      assertions: ['errors.length === 99'],
+    });
+    expect(fail.passed).toBe(false);
+    expect(fail.errors.some((e) => e.includes('Assertion failed'))).toBe(true);
+    expect(fail.warnings).toHaveLength(0); // 不含 'Unknown scenario type: custom'
+  });
+
+  it('L0-C32 — default 分支仅对真正未知类型告警', () => {
+    const unknown = runScenario({
+      name: 'unknown-test',
+      type: 'nonexistent-type',
+    } as EvalScenario);
+    expect(unknown.warnings.some((w) => w.includes('Unknown scenario type: nonexistent-type'))).toBe(true);
+
+    const custom = runScenario({ name: 'custom-guard', type: 'custom' });
+    expect(custom.warnings.some((w) => w.includes('Unknown'))).toBe(false);
   });
 });

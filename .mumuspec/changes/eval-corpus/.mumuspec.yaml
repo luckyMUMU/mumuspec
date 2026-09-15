@@ -1,0 +1,76 @@
+name: eval-corpus
+phase: build
+workflow: full
+created_at: 2026-09-14T14:19:13.141Z
+updated_at: 2026-09-15T13:31:20.657Z
+scope: .
+affected_scopes:
+  - .
+build_layers:
+  - layer: 0
+    scope: .
+    status: done
+  - layer: 1
+    scope: .
+    status: pending
+  - layer: 2
+    scope: .
+    status: pending
+test_cases:
+  design_locked: true
+  suites_locked: false
+  suites_locked_layers:
+    - 0
+  suites_hash:
+    "0": e2f327a879b3e069
+  design_content_hash: 136aef5dd387a5ab
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: subagent-driven-development
+tdd_mode: tdd
+isolation: branch
+branch: feature/20260915/eval-corpus
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 3
+    design: 4
+  content_hash: d9c15ae0732aafa9
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 8
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 3
+  converged: true
+  rounds_completed: 0
+  cognitive_map_ref: cognitive-map.yaml
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+design_coverage:
+  covered_layers:
+    - 0
+    - 1
+    - 2
+  expected_layers:
+    - 0
+    - 1
+    - 2
+  unreachable_from: null
+  checked_at: 2026-09-15T13:23:28.263Z
+  enforced: true
+build_pause: "null"
