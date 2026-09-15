@@ -564,15 +564,153 @@ describe('runScenario — corpusExpect 断言（L0-C27）', () => {
     const corpusDir = makeCorpusDir(dir);
     writeFixture(corpusDir, '_baseline', ['kind: baseline']);
     writeFixture(corpusDir, 'bad-veto-1', ['kind: bad-case', 'severity: veto']);
+    // BP-12-4 / D-corpus-6：声明 maxNoise 须有有效 clean 分母（空分母 fail-closed），故附 1 个净样本
+    writeFixture(corpusDir, 'clean-01', ['kind: clean']);
     setProbeResponses({
       '_baseline': { stdout: CLEAN_STDOUT },
       'bad-veto-1': { stdout: JSON.stringify({ errors: [{ code: 'E-GUARD-010' }] }) },
+      'clean-01': { stdout: CLEAN_STDOUT },
     });
     const result = runCorpus(dir, {
       corpusExpect: { minRecall: 1.0, maxNoise: 0, recallBySeverity: { veto: 1.0 } },
     });
     expect(result.passed).toBe(true);
     expect(result.errors).toEqual([]);
+  });
+});
+
+// BP-12 修订（L0-C33~C39）：三态聚合 / errored 不进分母 / 三条 warning /
+// 空分母 fail-closed / precision 聚合。均 mock spawnSync，不真跑（R-6）。
+describe('runScenario — corpus BP-12 三态与精度（L0-C33~C39）', () => {
+  let dir: string;
+  beforeEach(() => { dir = createTmpProject(); });
+  afterEach(() => { cleanup(dir); vi.mocked(spawnSync).mockReset(); });
+
+  it('L0-C33 — 探针启动失败 → errored，不进 recall 分母（不误计 missed）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', ['kind: bad-case', 'severity: error']);
+    writeFixture(corpusDir, 'bad-spec-001', ['kind: bad-case', 'severity: error']);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) }, // 检出
+      'bad-spec-001': { error: new Error('spawn boom') }, // 启动失败 → errored
+    });
+
+    const result = runCorpus(dir);
+    const erroredFix = result.corpus!.fixtures.find((f) => f.name === 'bad-spec-001')!;
+    expect(erroredFix.errored).toBe(true);
+    expect(erroredFix.killed).toBeUndefined(); // errored ≠ missed
+    expect(result.corpus!.counts).toEqual({ killed: 1, missed: 0, errored: 1 });
+    expect(result.corpus!.errored).toBe(1);
+    expect(result.corpus!.erroredFixtures).toEqual(['bad-spec-001']);
+    expect(result.corpus!.recall.n).toBe(1); // 分母 = killed + missed（errored 排除）
+    expect(result.corpus!.recall.value).toBe(1);
+    expect(result.corpus!.recall.excluded).toBe(1);
+    expect(result.warnings.some((w) => w.includes('errored'))).toBe(true);
+  });
+
+  it('L0-C34 — 输出不可解析（无 JSON、无码、无 coverage）→ errored（E-10）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline', 'probe: guard', 'change: b']);
+    writeFixture(corpusDir, 'bad-guard-010', [
+      'kind: bad-case', 'severity: veto', 'probe: guard', 'change: b',
+    ]);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-guard-010': { stdout: 'Invalid command: change archive b' },
+    });
+
+    const result = runCorpus(dir);
+    expect(result.corpus!.fixtures.find((f) => f.name === 'bad-guard-010')!.errored).toBe(true);
+    expect(result.corpus!.counts.errored).toBe(1);
+  });
+
+  it('L0-C35 — 输出非 JSON 但 stderr 含码 → 不 errored（regex 兜底，仍计入检出）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline', 'probe: archive', 'change: b']);
+    writeFixture(corpusDir, 'bad-change-022', [
+      'kind: bad-case', 'severity: veto', 'probe: archive', 'change: b',
+    ]);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-change-022': { stdout: '', stderr: '[E-CHANGE-022] DELTA_MERGE_INCOMPLETE' },
+    });
+
+    const result = runCorpus(dir);
+    const fix = result.corpus!.fixtures.find((f) => f.name === 'bad-change-022')!;
+    expect(fix.errored).toBeFalsy();
+    expect(fix.killed).toBe(true);
+    expect(fix.newCodes).toContain('E-CHANGE-022');
+  });
+
+  it('L0-C36 — 未声明 corpusExpect → report-only warning；orphan 目录列明', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', ['kind: bad-case', 'severity: error']);
+    mkdirSync(join(corpusDir, 'orphan-x', '.mumuspec'), { recursive: true }); // 无 expected.yaml
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) },
+    });
+
+    const result = runCorpus(dir);
+    expect(result.warnings.some((w) => w.includes('report-only'))).toBe(true);
+    expect(result.warnings.some((w) => w.includes('no expected.yaml'))).toBe(true);
+    expect(result.passed).toBe(true); // 三条 warning 不改变 passed 语义
+  });
+
+  it('L0-C37 — 声明 maxNoise 但零有效 clean → resultErrors（fail-closed，D-corpus-6）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', ['kind: bad-case', 'severity: error']);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) },
+    });
+
+    const result = runCorpus(dir, { corpusExpect: { maxNoise: 0 } });
+    expect(result.passed).toBe(false);
+    expect(result.errors.some((e) => e.includes('empty denominator for maxNoise'))).toBe(true);
+  });
+
+  it('L0-C38 — precision 聚合（命中/总数/比值；仅展示不设阈值）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', [
+      'kind: bad-case', 'severity: error', 'mustContain: [E-SPEC-004]',
+    ]);
+    writeFixture(corpusDir, 'bad-spec-001', [
+      'kind: bad-case', 'severity: error', 'mustContain: [E-SPEC-001, E-SPEC-002]',
+    ]);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) }, // 1/1
+      'bad-spec-001': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-001' }] }) }, // 1/2
+    });
+
+    const result = runCorpus(dir);
+    expect(result.corpus!.precision.mustContainSatisfied).toBe(2);
+    expect(result.corpus!.precision.mustContainTotal).toBe(3);
+    expect(Math.abs((result.corpus!.precision.ratio ?? 0) - 2 / 3)).toBeLessThan(1e-9);
+    expect(result.errors).toEqual([]); // 仅展示：不参与 passed / resultErrors
+  });
+
+  it('L0-C39 — 无 mustContain → precision.ratio=null（不做 0/0）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', ['kind: bad-case', 'severity: error']);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) },
+    });
+
+    const result = runCorpus(dir);
+    expect(result.corpus!.precision).toEqual({
+      mustContainSatisfied: 0,
+      mustContainTotal: 0,
+      ratio: null,
+    });
   });
 });
 

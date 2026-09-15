@@ -62,7 +62,12 @@ export interface CorpusFixtureResult {
   name: string;
   kind: 'baseline' | 'bad-case' | 'clean';
   severity?: 'veto' | 'error' | 'warn';
-  /** bad-case：是否检出。 */
+  /**
+   * 探针未产出可用信号（启动失败 / 输出不可解析）→ errored（BP-12-1 / D-corpus-5）。
+   * errored 的坏样本不计入 recall 分母；killed 置 undefined（errored ≠ missed）。
+   */
+  errored?: boolean;
+  /** bad-case：是否检出（errored 时为 undefined）。 */
   killed?: boolean;
   /** clean：是否误报（有码即判误报，D-corpus-2）。 */
   falsePositive?: boolean;
@@ -84,11 +89,22 @@ export interface CorpusScenarioReport {
   corpusDir: string;
   /** fixture 总数（不含 _baseline）。 */
   total: number;
-  /** 坏样本检出率（overall）。 */
+  /** bad-case 三态 tally（BP-12-1 / D-corpus-5）：errored 不在 recall 分母。 */
+  counts: { killed: number; missed: number; errored: number };
+  /** errored fixture 总数（bad-case + clean）。 */
+  errored: number;
+  /** errored fixture 名（场景 warning 列明用）。 */
+  erroredFixtures: string[];
+  /** 坏样本检出率（overall）；分母 = killed + missed（errored 排除）。 */
   recall: RatioReport;
   recallBySeverity: Record<'veto' | 'error' | 'warn', RatioReport>;
-  /** 净样本误报率。 */
+  /** 净样本误报率；分母 = 有效 clean（errored 排除）。 */
   noise: RatioReport;
+  /**
+   * 精度聚合（BP-12-2）：mustContain 命中数 / 总数 / 比值。
+   * 仅展示、不设阈值（不参与 passed / resultErrors）。分母为 0 → ratio=null。
+   */
+  precision: { mustContainSatisfied: number; mustContainTotal: number; ratio: number | null };
   baseline: { codes: string[]; coverage: CoverageVector | null } | null;
   fixtures: CorpusFixtureResult[];
 }
@@ -258,7 +274,7 @@ const CODE_REGEX = /\b[EW]-[A-Z]+-\d{3}\b/g;
 function runProbe(
   fixturePath: string,
   exp: FixtureExpectation,
-): { signals: FixtureSignals; errors: string[] } {
+): { signals: FixtureSignals; errors: string[]; errored: boolean } {
   const errors: string[] = [];
   const args = PROBE_ARGS[exp.probe](exp.change);
 
@@ -284,7 +300,7 @@ function runProbe(
   const parsed = parseJsonFrom(stdout);
   const codes = parsed === null ? new Set<string>() : collectCodes(parsed);
 
-  // 正则兜底：扫 stdout + stderr，覆盖非 JSON 通道（E-10）
+  // 正则兜底：扫 stdout + stderr，覆盖非 JSON 通道（E-10 / E-CHANGE-022 经 stderr）
   const combined = `${stdout}\n${stderr}`;
   const re = new RegExp(CODE_REGEX.source, 'g');
   let match: RegExpExecArray | null;
@@ -293,8 +309,15 @@ function runProbe(
   }
 
   const coverage = parsed === null ? null : findCoverage(parsed);
+  const signals: FixtureSignals = { codes: Array.from(codes), coverage };
 
-  return { signals: { codes: Array.from(codes), coverage }, errors };
+  // E-8 / E-9 / E-10：探针启动失败，或输出不可解析且 regex 兜底后仍无码、无 coverage → errored。
+  // errored ≠ missed：探针未产出可用信号是衡量器故障，不是真漏检（BP-12-1 / D-corpus-5）。
+  const errored =
+    errors.length > 0 ||
+    (parsed === null && signals.codes.length === 0 && signals.coverage === null);
+
+  return { signals, errors, errored };
 }
 
 function formatRatioValue(value: number | null): string {
@@ -326,7 +349,8 @@ function runCorpusScenario(scenario: EvalScenario, projectRoot: string): CorpusR
     return { report: null, errors, warnings, details: `Corpus: dir not found (${corpusDir})` };
   }
 
-  // Step 2: 枚举直接子目录中「含 expected.yaml」者为 fixture（E-5）
+  // Step 2: 枚举直接子目录。fixture = 含 expected.yaml；orphan = 含 .mumuspec 但缺
+  // expected.yaml（E-5 / D-corpus-8）—— orphan 不进任何分母，随后 warning 列明。
   let entries: Dirent[];
   try {
     entries = readdirSync(corpusDir, { withFileTypes: true });
@@ -336,20 +360,50 @@ function runCorpusScenario(scenario: EvalScenario, projectRoot: string): CorpusR
   }
 
   const fixtureNames: string[] = [];
+  const orphanDirs: string[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     if (existsSync(join(corpusDir, entry.name, 'expected.yaml'))) {
       fixtureNames.push(entry.name);
+    } else if (existsSync(join(corpusDir, entry.name, '.mumuspec'))) {
+      orphanDirs.push(entry.name);
     }
   }
 
   // Step 2（空目录，E-2）：warning + n=0，不抛异常
   if (fixtureNames.length === 0) {
     warnings.push('corpus dir empty');
+    if (orphanDirs.length > 0) {
+      warnings.push(
+        `${orphanDirs.length} subdir(s) with .mumuspec but no expected.yaml (excluded): ${orphanDirs.join(', ')}`,
+      );
+    }
+    // E-2 → E-18：空语料下若声明 corpusExpect，一律 fail-closed（分母为 0，D-corpus-6）
+    const emptyExpect = scenario.corpusExpect;
+    if (!emptyExpect) {
+      warnings.push('corpusExpect not declared — report-only mode');
+    } else {
+      if (emptyExpect.minRecall !== undefined) {
+        errors.push('empty denominator for minRecall — configuration error');
+      }
+      if (emptyExpect.maxNoise !== undefined) {
+        errors.push('empty denominator for maxNoise — configuration error');
+      }
+      if (emptyExpect.recallBySeverity) {
+        for (const severity of ['veto', 'error', 'warn'] as const) {
+          if (emptyExpect.recallBySeverity[severity] !== undefined) {
+            errors.push(`empty denominator for recallBySeverity.${severity} — configuration error`);
+          }
+        }
+      }
+    }
     const emptyReport: CorpusScenarioReport = {
       scenario: scenario.name,
       corpusDir: corpusDirName,
       total: 0,
+      counts: { killed: 0, missed: 0, errored: 0 },
+      errored: 0,
+      erroredFixtures: [],
       recall: makeRatio(0, 0),
       recallBySeverity: {
         veto: makeRatio(0, 0),
@@ -357,6 +411,7 @@ function runCorpusScenario(scenario: EvalScenario, projectRoot: string): CorpusR
         warn: makeRatio(0, 0),
       },
       noise: makeRatio(0, 0),
+      precision: { mustContainSatisfied: 0, mustContainTotal: 0, ratio: null },
       baseline: null,
       fixtures: [],
     };
@@ -384,17 +439,19 @@ function runCorpusScenario(scenario: EvalScenario, projectRoot: string): CorpusR
     return { report: null, errors, warnings, details: 'Corpus: baseline not clean (fail-fast)' };
   }
 
-  // Step 4/5: bad-case / clean 逐个探针
+  // Step 4/5: bad-case / clean 逐个探针（三态：killed / missed / errored）
   const fixtures: CorpusFixtureResult[] = [];
-  const severityTally: Record<'veto' | 'error' | 'warn', { success: number; n: number }> = {
-    veto: { success: 0, n: 0 },
-    error: { success: 0, n: 0 },
-    warn: { success: 0, n: 0 },
+  const severityTally: Record<'veto' | 'error' | 'warn', { killed: number; missed: number }> = {
+    veto: { killed: 0, missed: 0 },
+    error: { killed: 0, missed: 0 },
+    warn: { killed: 0, missed: 0 },
   };
-  let killedCount = 0;
-  let badCount = 0;
+  const counts = { killed: 0, missed: 0, errored: 0 };
+  const erroredFixtures: string[] = [];
   let falsePositiveCount = 0;
-  let cleanCount = 0;
+  let cleanEffective = 0;
+  let precisionSatisfied = 0;
+  let precisionTotal = 0;
 
   for (const name of fixtureNames) {
     if (name === baselineName) continue;
@@ -404,13 +461,34 @@ function runCorpusScenario(scenario: EvalScenario, projectRoot: string): CorpusR
     const run = runProbe(fixturePath, exp);
     const signals = run.signals;
 
-    const mustContainSatisfied = exp.mustContain.every((code) => signals.codes.includes(code));
+    // 精度聚合（BP-12-2，仅展示、不设阈值）：逐 fixture 累计 mustContain 命中数 / 总数
+    const satisfiedCodes = exp.mustContain.filter((code) => signals.codes.includes(code));
+    precisionSatisfied += satisfiedCodes.length;
+    precisionTotal += exp.mustContain.length;
+    const mustContainSatisfied = satisfiedCodes.length === exp.mustContain.length;
     const unexpectedCodes = signals.codes.filter((code) => exp.mustNotContain.includes(code));
 
     if (exp.kind === 'clean') {
+      if (run.errored) {
+        // errored clean 不进 noise 分母（D-corpus-5）
+        counts.errored += 1;
+        erroredFixtures.push(name);
+        fixtures.push({
+          name,
+          kind: 'clean',
+          severity: exp.severity,
+          errored: true,
+          newCodes: [],
+          changedCoverageFields: [],
+          mustContainSatisfied,
+          unexpectedCodes,
+          errors: run.errors,
+        });
+        continue;
+      }
       // Step 5: noise 只计码（D-corpus-2）
       const falsePositive = signals.codes.length > 0;
-      cleanCount += 1;
+      cleanEffective += 1;
       if (falsePositive) falsePositiveCount += 1;
       fixtures.push({
         name,
@@ -427,12 +505,34 @@ function runCorpusScenario(scenario: EvalScenario, projectRoot: string): CorpusR
     }
 
     // Step 4: bad-case（含 kind 缺省推断为 bad-case 者）
+    if (run.errored) {
+      // E-15 / E-16：errored 三态——不进 recall 分母，且绝不误计为 missed（killed=undefined）
+      counts.errored += 1;
+      erroredFixtures.push(name);
+      fixtures.push({
+        name,
+        kind: 'bad-case',
+        severity: exp.severity,
+        errored: true,
+        killed: undefined,
+        newCodes: [],
+        changedCoverageFields: [],
+        mustContainSatisfied,
+        unexpectedCodes,
+        errors: run.errors,
+      });
+      continue;
+    }
+
     const diff = diffSignals(baselineSignals, signals);
-    badCount += 1;
-    if (diff.killed) killedCount += 1;
     const severity = exp.severity ?? 'error';
-    severityTally[severity].n += 1;
-    if (diff.killed) severityTally[severity].success += 1;
+    if (diff.killed) {
+      counts.killed += 1;
+      severityTally[severity].killed += 1;
+    } else {
+      counts.missed += 1;
+      severityTally[severity].missed += 1;
+    }
 
     fixtures.push({
       name,
@@ -447,68 +547,105 @@ function runCorpusScenario(scenario: EvalScenario, projectRoot: string): CorpusR
     });
   }
 
-  // Step 6: 聚合
-  const recall = makeRatio(killedCount, badCount);
+  // Step 6: 聚合（三态；errored 排除出分母，D-corpus-5）
+  const badEffective = counts.killed + counts.missed;
+  const recall = makeRatio(counts.killed, badEffective, counts.errored);
   const recallBySeverity: Record<'veto' | 'error' | 'warn', RatioReport> = {
-    veto: makeRatio(severityTally.veto.success, severityTally.veto.n),
-    error: makeRatio(severityTally.error.success, severityTally.error.n),
-    warn: makeRatio(severityTally.warn.success, severityTally.warn.n),
+    veto: makeRatio(
+      severityTally.veto.killed,
+      severityTally.veto.killed + severityTally.veto.missed,
+    ),
+    error: makeRatio(
+      severityTally.error.killed,
+      severityTally.error.killed + severityTally.error.missed,
+    ),
+    warn: makeRatio(
+      severityTally.warn.killed,
+      severityTally.warn.killed + severityTally.warn.missed,
+    ),
   };
-  const noise = makeRatio(falsePositiveCount, cleanCount);
+  const noise = makeRatio(falsePositiveCount, cleanEffective);
+  const precision = {
+    mustContainSatisfied: precisionSatisfied,
+    mustContainTotal: precisionTotal,
+    ratio: precisionTotal > 0 ? precisionSatisfied / precisionTotal : null,
+  };
 
   const report: CorpusScenarioReport = {
     scenario: scenario.name,
     corpusDir: corpusDirName,
     total: fixtureNames.length - 1,
+    counts: { ...counts },
+    errored: counts.errored,
+    erroredFixtures: [...erroredFixtures],
     recall,
     recallBySeverity,
     noise,
+    precision,
     baseline: { codes: baselineSignals.codes, coverage: baselineSignals.coverage },
     fixtures,
   };
 
-  // Step 7: corpusExpect 断言（若声明）
+  // Step 7: corpusExpect 断言（fail-closed，D-corpus-6）
   const corpusExpect = scenario.corpusExpect;
-  if (corpusExpect) {
-    if (
-      corpusExpect.minRecall !== undefined &&
-      (recall.value === null || recall.value < corpusExpect.minRecall)
-    ) {
-      errors.push(
-        `corpusExpect.minRecall ${corpusExpect.minRecall} not met (recall=${formatRatioValue(recall.value)})`,
-      );
+  if (!corpusExpect) {
+    // D-corpus-7（BP-12-3）：未声明阈值 → report-only 提示，不改变 passed 语义
+    warnings.push('corpusExpect not declared — report-only mode');
+  } else {
+    if (corpusExpect.minRecall !== undefined) {
+      if (badEffective === 0) {
+        errors.push('empty denominator for minRecall — configuration error');
+      } else if ((recall.value ?? 0) < corpusExpect.minRecall) {
+        errors.push(
+          `corpusExpect.minRecall ${corpusExpect.minRecall} not met (recall=${formatRatioValue(recall.value)})`,
+        );
+      }
     }
-    if (
-      corpusExpect.maxNoise !== undefined &&
-      noise.value !== null &&
-      noise.value > corpusExpect.maxNoise
-    ) {
-      errors.push(
-        `corpusExpect.maxNoise ${corpusExpect.maxNoise} violated (noise=${formatRatioValue(noise.value)})`,
-      );
+    if (corpusExpect.maxNoise !== undefined) {
+      if (cleanEffective === 0) {
+        errors.push('empty denominator for maxNoise — configuration error');
+      } else if ((noise.value ?? 0) > corpusExpect.maxNoise) {
+        errors.push(
+          `corpusExpect.maxNoise ${corpusExpect.maxNoise} violated (noise=${formatRatioValue(noise.value)})`,
+        );
+      }
     }
     if (corpusExpect.recallBySeverity) {
       for (const severity of ['veto', 'error', 'warn'] as const) {
         const threshold = corpusExpect.recallBySeverity[severity];
         if (threshold === undefined) continue;
-        const ratio = recallBySeverity[severity];
-        if (ratio.value === null || ratio.value < threshold) {
+        const denom = severityTally[severity].killed + severityTally[severity].missed;
+        if (denom === 0) {
+          errors.push(`empty denominator for recallBySeverity.${severity} — configuration error`);
+        } else if ((recallBySeverity[severity].value ?? 0) < threshold) {
           errors.push(
-            `corpusExpect.recallBySeverity.${severity} ${threshold} not met (recall=${formatRatioValue(ratio.value)})`,
+            `corpusExpect.recallBySeverity.${severity} ${threshold} not met (recall=${formatRatioValue(recallBySeverity[severity].value)})`,
           );
         }
       }
     }
   }
 
-  // Step 8: 返回 report（由 runScenario 挂到 EvalResult.corpus）
+  // Step 8: 场景 warning（列明，不阻断 passed）
+  if (erroredFixtures.length > 0) {
+    warnings.push(
+      `${erroredFixtures.length} fixture(s) errored (excluded from recall denominator): ${erroredFixtures.join(', ')}`,
+    );
+  }
+  if (orphanDirs.length > 0) {
+    warnings.push(
+      `${orphanDirs.length} subdir(s) with .mumuspec but no expected.yaml (excluded): ${orphanDirs.join(', ')}`,
+    );
+  }
+
+  // Step 9: 返回 report（由 runScenario 挂到 EvalResult.corpus）
   return {
     report,
     errors,
     warnings,
     details:
-      `Corpus: ${badCount} bad-case (recall=${formatRatioValue(recall.value)}), ` +
-      `${cleanCount} clean (noise=${formatRatioValue(noise.value)}), ${fixtures.length} fixtures`,
+      `Corpus: ${badEffective} bad-case (recall=${formatRatioValue(recall.value)}), ` +
+      `${cleanEffective} clean (noise=${formatRatioValue(noise.value)}), ${fixtures.length} fixtures`,
   };
 }
 

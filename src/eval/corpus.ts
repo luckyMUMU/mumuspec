@@ -176,14 +176,27 @@ export interface RatioReport {
   value: number | null;
   n: number;
   ci: WilsonInterval | null;
+  /**
+   * 被排除出分母的数量（BP-12-1 / D-corpus-5）：recall 时 = errored fixture 数；
+   * noise 时缺省。仅展示，不参与 value 计算。
+   */
+  excluded?: number;
 }
 
-/** 由成功数 / 总数构造比值报告。 */
-export function makeRatio(successes: number, n: number): RatioReport {
-  if (!Number.isFinite(n) || n <= 0) {
-    return { value: null, n, ci: null };
-  }
-  return { value: successes / n, n, ci: wilsonInterval(successes, n) };
+/**
+ * 由成功数 / 总数构造比值报告。
+ *
+ * @param successes 分子（如 killed 数）
+ * @param n         有效分母（errored 已排除）
+ * @param excluded  被排除出分母的数量（如探针 errored 的坏样本）；仅展示
+ */
+export function makeRatio(successes: number, n: number, excluded?: number): RatioReport {
+  const report: RatioReport =
+    !Number.isFinite(n) || n <= 0
+      ? { value: null, n, ci: null }
+      : { value: successes / n, n, ci: wilsonInterval(successes, n) };
+  if (excluded !== undefined) report.excluded = excluded;
+  return report;
 }
 
 export type ProbeName = 'validate' | 'check' | 'guard' | 'archive';
