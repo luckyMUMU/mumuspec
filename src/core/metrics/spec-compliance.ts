@@ -13,6 +13,8 @@
 
 import { spawnSync } from 'node:child_process';
 import type { Evaluator, EvaluatorContext, MetricResult } from './types.js';
+// DS-EVAL-003：单一权威源——与 drift-score / runner 复用同一抽取实现，禁止本地复刻。
+import { parseJsonFrom } from '../utils.js';
 
 interface CheckCompliancePayload {
   compliance?: {
@@ -20,22 +22,6 @@ interface CheckCompliancePayload {
     coverage?: { total?: number };
   };
   exitCode?: number;
-}
-
-/** 从 stdout 解析 JSON：优先整段（多行美化输出），失败则从首个结构字符 `{`/`[` 切片。 */
-function parseJsonFrom(stdout: string): unknown {
-  const trimmed = stdout.trim();
-  try {
-    return JSON.parse(trimmed) as unknown;
-  } catch {
-    const brace = stdout.indexOf('{');
-    const bracket = stdout.indexOf('[');
-    let start = -1;
-    if (brace >= 0 && bracket >= 0) start = Math.min(brace, bracket);
-    else start = Math.max(brace, bracket);
-    if (start < 0) return null;
-    return JSON.parse(stdout.slice(start)) as unknown;
-  }
 }
 
 export const specComplianceEvaluator: Evaluator = {
