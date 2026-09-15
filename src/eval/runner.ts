@@ -10,7 +10,7 @@ import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { checkCompliance, detectDrift } from '../guard/checker.js';
 import { runPhaseGuard } from '../guard/phase-guard.js';
-import { findProjectRoot } from '../core/utils.js';
+import { findProjectRoot, parseJsonFrom } from '../core/utils.js';
 import {
   collectCodes,
   diffSignals,
@@ -248,31 +248,6 @@ export function discoverScenarios(projectRoot: string): string[] {
 
 /** 诊断码正则兜底：覆盖 JSON 之外的通道（如 archive 经 stderr 打印 E-CHANGE-022）。 */
 const CODE_REGEX = /\b[EW]-[A-Z]+-\d{3}\b/g;
-
-/**
- * 从 stdout 解析 JSON：优先整段（多行美化输出），失败则从首个结构字符 `{`/`[` 切片。
- *
- * ponytail: 与 `src/core/metrics/drift-score.ts::parseJsonFrom` 同一份工具语义；
- * L0 层不改动 src/core/metrics（留给 L1），故此处内联同款实现，避免跨层耦合。
- */
-function parseJsonFrom(stdout: string): unknown {
-  const trimmed = stdout.trim();
-  try {
-    return JSON.parse(trimmed) as unknown;
-  } catch {
-    const brace = stdout.indexOf('{');
-    const bracket = stdout.indexOf('[');
-    let start = -1;
-    if (brace >= 0 && bracket >= 0) start = Math.min(brace, bracket);
-    else start = Math.max(brace, bracket);
-    if (start < 0) return null;
-    try {
-      return JSON.parse(stdout.slice(start)) as unknown;
-    } catch {
-      return null;
-    }
-  }
-}
 
 /**
  * 对一个 fixture 运行单次探针，提取多信号（码 ∪ coverage）。

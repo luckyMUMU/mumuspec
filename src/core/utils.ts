@@ -157,6 +157,37 @@ export function now(): string {
 }
 
 /**
+ * Extract a JSON payload from CLI stdout — the SINGLE source of truth.
+ *
+ * Strategy: parse the whole trimmed output first (handles both compact and
+ * pretty-printed multi-line JSON). On failure, slice from the first structural
+ * character (`{` or `[`) to tolerate leading log/noise lines.
+ *
+ * Consumers: `core/metrics/drift-score.ts`, `core/metrics/verifiable-ratio.ts`
+ * and `eval/runner.ts` — do NOT re-implement locally (E17/DS-EVAL-003).
+ *
+ * @returns the parsed value, or `null` when no JSON could be extracted.
+ */
+export function parseJsonFrom(stdout: string): unknown {
+  const trimmed = stdout.trim();
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    const brace = stdout.indexOf('{');
+    const bracket = stdout.indexOf('[');
+    let start = -1;
+    if (brace >= 0 && bracket >= 0) start = Math.min(brace, bracket);
+    else start = Math.max(brace, bracket);
+    if (start < 0) return null;
+    try {
+      return JSON.parse(stdout.slice(start)) as unknown;
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
  * W3 (CHG 2026-09-09-review-followup-hardening): the single module-registration
  * predicate. A directory counts as a registered spec module iff it contains a
  * `.mumuspec` directory holding a prd.md OR a tech.md.

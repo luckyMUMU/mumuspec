@@ -11,6 +11,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { parseJsonFrom } from '../utils.js';
 import type { Evaluator, EvaluatorContext, MetricResult } from './types.js';
 
 /**
@@ -18,23 +19,6 @@ import type { Evaluator, EvaluatorContext, MetricResult } from './types.js';
  * 有界归一化语义（同 constraint-density 的 cap 思维），替代不存在的 totalChecks 分母。
  */
 export const DRIFT_SATURATION = 10;
-
-/** 从 stdout 解析 JSON：优先整段（多行美化输出），失败则从首个结构字符 `{`/`[` 切片。 */
-function parseJsonFrom(stdout: string): unknown {
-  const trimmed = stdout.trim();
-  try {
-    return JSON.parse(trimmed) as unknown;
-  } catch {
-    // 前导噪音行（如日志）后才是 JSON——从首个结构字符切
-    const brace = stdout.indexOf('{');
-    const bracket = stdout.indexOf('[');
-    let start = -1;
-    if (brace >= 0 && bracket >= 0) start = Math.min(brace, bracket);
-    else start = Math.max(brace, bracket);
-    if (start < 0) return null;
-    return JSON.parse(stdout.slice(start)) as unknown;
-  }
-}
 
 export const driftScoreEvaluator: Evaluator = {
   name: 'drift-score',

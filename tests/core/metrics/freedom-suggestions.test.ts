@@ -101,10 +101,13 @@ describe('autoEvaluate integration with freedom metrics', () => {
     expect(result.progress).toBeGreaterThan(0.8);
   });
 
-  it('built-in registry exposes 6 evaluators; active weights sum to 1; density is 0 (W1 single-source invariant)', () => {
+  it('built-in registry exposes 8 evaluators; active weights sum to 1; density is 0 (W1 single-source invariant + eval-corpus weight-0 add)', () => {
     registerBuiltInEvaluators();
     const evaluators = getActiveEvaluators();
-    expect(evaluators).toHaveLength(6);
+    // eval-corpus 追加 verifiable-ratio / fail-open-count（均 weight=0，不进 composite）
+    expect(evaluators).toHaveLength(8);
+    expect(evaluators.find((e) => e.name === 'verifiable-ratio')?.defaultWeight).toBe(0);
+    expect(evaluators.find((e) => e.name === 'fail-open-count')?.defaultWeight).toBe(0);
     const active = evaluators.filter((e) => e.defaultWeight > 0);
     expect(active.reduce((s, e) => s + e.defaultWeight, 0)).toBeCloseTo(1, 9);
     const density = evaluators.find((e) => e.name === 'constraint-density');

@@ -30,6 +30,8 @@ import { specComplianceEvaluator } from './spec-compliance.js';
 import { codeDeltaEvaluator } from './code-delta.js';
 import { constraintDensityEvaluator } from './constraint-density.js';
 import { designBuildFirstPassEvaluator } from './design-build-first-pass.js';
+import { verifiableRatioEvaluator } from './verifiable-ratio.js';
+import { failOpenCountEvaluator } from './fail-open-count.js';
 
 // ════════════════════════════════════════════════════════════════════
 // History Tracker (for stability window check)
@@ -215,6 +217,9 @@ export function registerBuiltInEvaluators(): void {
   registerEvaluator(codeDeltaEvaluator);
   registerEvaluator(designBuildFirstPassEvaluator);
   registerEvaluator(constraintDensityEvaluator);
+  // eval-corpus / DS-EVAL-003：两个 weight=0 的观测评估器（不进 composite，权重和仍 1.0）
+  registerEvaluator(verifiableRatioEvaluator);
+  registerEvaluator(failOpenCountEvaluator);
 }
 
 // ════════════════════════════════════════════════════════════════════
