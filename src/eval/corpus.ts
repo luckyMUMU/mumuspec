@@ -221,7 +221,8 @@ export const PROBE_ARGS: Record<ProbeName, (change?: string) => string[]> = {
   validate: () => ['validate', '--json'],
   check: () => ['check', '--json'],
   guard: (c) => ['guard', c ?? '', 'verify', '--json'],
-  archive: (c) => ['change', 'archive', c ?? ''],
+  // `archive` 为顶层命令（`mumuspec archive <name> --confirm`），非子命令 `change archive`
+  archive: (c) => ['archive', c ?? '', '--confirm'],
 };
 
 /** 目录名约定推断 kind：`_baseline`→baseline、`clean-*`→clean、其余→bad-case。 */

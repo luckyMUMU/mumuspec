@@ -294,9 +294,10 @@ describe('L0 PROBE_ARGS 白名单 (L0-C14)', () => {
     expect(PROBE_ARGS.validate()).toEqual(['validate', '--json']);
     expect(PROBE_ARGS.check()).toEqual(['check', '--json']);
     expect(PROBE_ARGS.guard('c1')).toEqual(['guard', 'c1', 'verify', '--json']);
-    expect(PROBE_ARGS.archive('c1')).toEqual(['change', 'archive', 'c1']);
+    // `archive` 为顶层命令（`mumuspec archive <name> --confirm`），非子命令 `change archive`
+    expect(PROBE_ARGS.archive('c1')).toEqual(['archive', 'c1', '--confirm']);
     // 缺省 change → 空串占位（不拼接任意命令）
     expect(PROBE_ARGS.guard()).toEqual(['guard', '', 'verify', '--json']);
-    expect(PROBE_ARGS.archive()).toEqual(['change', 'archive', '']);
+    expect(PROBE_ARGS.archive()).toEqual(['archive', '', '--confirm']);
   });
 });
