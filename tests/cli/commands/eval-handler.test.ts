@@ -7,9 +7,9 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Command } from 'commander';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import type { CorpusScenarioReport, EvalReport } from '../../../src/eval/runner.js';
 
 // ── Mock functions (shared references) ──
@@ -406,6 +406,20 @@ function makeReport(corpusReports: CorpusScenarioReport[]): EvalReport {
   };
 }
 
+/** 递归快照目录树（相对路径 + 尾斜杠标记目录），用于「不落盘」断言。 */
+function snapshotTree(root: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      out.push(relative(root, p).replace(/\\/g, '/') + (e.isDirectory() ? '/' : ''));
+      if (e.isDirectory()) walk(p);
+    }
+  };
+  walk(root);
+  return out.sort();
+}
+
 describe('eval run --report', () => {
   let logSpy: ReturnType<typeof vi.spyOn>;
   let errorSpy: ReturnType<typeof vi.spyOn>;
@@ -676,5 +690,82 @@ describe('eval run --report', () => {
     const parsed = JSON.parse(jsonArg as string);
     expect(parsed.version).toBe(1);
     expect(Object.keys(parsed.metrics).sort()).toEqual(['fail-open-count', 'verifiable-ratio']);
+  });
+
+  // ── L2-C10 · report 仅 stdout 不落盘 ──
+
+  it('L2-C10 — report 仅 stdout：文本/JSON 两次运行后目录树不变（无新增文件）', async () => {
+    const { registerEvalCommands } = await loadEvalModule();
+    mockRunAllEvals.mockReturnValue(makeReport([makeCorpusReport()]));
+    mockFindProjectRoot.mockReturnValue(tempDir);
+
+    const before = snapshotTree(tempDir);
+
+    const p1 = new Command();
+    registerEvalCommands(p1);
+    await p1.parseAsync(['eval', 'run', '--report', '--workspace-path', tempDir], { from: 'user' });
+
+    const p2 = new Command();
+    registerEvalCommands(p2);
+    await p2.parseAsync(['eval', 'run', '--report', '--json', '--workspace-path', tempDir], {
+      from: 'user',
+    });
+
+    const after = snapshotTree(tempDir);
+    expect(after).toEqual(before); // 无新增/删除文件（report 不落盘）
+
+    const all = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(all).toContain('Eval Summary'); // 报告正文仅经 stdout
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  // ── L2-C11 · 退出码语义不变 ──
+
+  it('L2-C11 — 退出码由 report.failed 决定，--report 不改变语义', async () => {
+    const { registerEvalCommands } = await loadEvalModule();
+    mockFindProjectRoot.mockReturnValue(tempDir);
+
+    const run = async (argv: string[]) => {
+      const program = new Command();
+      registerEvalCommands(program);
+      await program.parseAsync(argv, { from: 'user' }).catch(() => {});
+    };
+
+    // ① 全通过：无 corpus 失败 → exit 码 0（未调用 exit），加不加 --report 一致
+    mockRunAllEvals.mockReturnValue(makeReport([makeCorpusReport()]));
+    await run(['eval', 'run', '--workspace-path', tempDir]);
+    expect(exitSpy).not.toHaveBeenCalled();
+
+    await run(['eval', 'run', '--report', '--workspace-path', tempDir]);
+    expect(exitSpy).not.toHaveBeenCalled();
+
+    // ② corpusExpect 违反 → 该场景 passed=false → failed>0 → exit 1
+    const failedReport: EvalReport = {
+      total: 1,
+      passed: 0,
+      failed: 1,
+      duration: 5,
+      results: [
+        {
+          scenario: 'corpus-eval',
+          passed: false,
+          errors: ['corpusExpect.minRecall 0.9 not met (recall=0.000)'],
+          warnings: [],
+          details: 'fail',
+          duration: 5,
+          corpus: makeCorpusReport(),
+        },
+      ],
+      corpusReports: [makeCorpusReport()],
+    };
+
+    exitSpy.mockClear();
+    mockRunAllEvals.mockReturnValue(failedReport);
+    await run(['eval', 'run', '--workspace-path', tempDir]);
+    expect(exitSpy).toHaveBeenCalledWith(1);
+
+    exitSpy.mockClear();
+    await run(['eval', 'run', '--report', '--workspace-path', tempDir]);
+    expect(exitSpy).toHaveBeenCalledWith(1); // --report 不改变退出码语义
   });
 });

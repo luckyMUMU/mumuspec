@@ -714,6 +714,77 @@ describe('runScenario — corpus BP-12 三态与精度（L0-C33~C39）', () => {
   });
 });
 
+describe('runScenario — 空分母 fail-closed 统一口径（L2-C19）', () => {
+  let dir: string;
+  beforeEach(() => { dir = createTmpProject(); });
+  afterEach(() => { cleanup(dir); vi.mocked(spawnSync).mockReset(); });
+
+  it('L2-C19a — 声明 minRecall 但零坏样本 → resultErrors（分母为 0）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'clean-01', ['kind: clean']); // 仅净样本，无 bad-case
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'clean-01': { stdout: CLEAN_STDOUT },
+    });
+
+    const result = runCorpus(dir, { corpusExpect: { minRecall: 0.9 } });
+    expect(result.passed).toBe(false);
+    expect(result.errors.some((e) => e.includes('empty denominator for minRecall'))).toBe(true);
+  });
+
+  it('L2-C19b — 声明 recallBySeverity.veto 但零 veto 坏样本 → resultErrors', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', [
+      'kind: bad-case', 'severity: error', 'mustContain: [E-SPEC-004]',
+    ]);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) },
+    });
+
+    const result = runCorpus(dir, { corpusExpect: { recallBySeverity: { veto: 1.0 } } });
+    expect(result.passed).toBe(false);
+    expect(
+      result.errors.some((e) => e.includes('empty denominator for recallBySeverity.veto')),
+    ).toBe(true);
+  });
+
+  it('L2-C19c — 声明 maxNoise 但零有效 clean → resultErrors（与 minRecall/severity 同口径）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', [
+      'kind: bad-case', 'severity: error', 'mustContain: [E-SPEC-004]',
+    ]);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) },
+    });
+
+    const result = runCorpus(dir, { corpusExpect: { maxNoise: 0 } });
+    expect(result.passed).toBe(false);
+    expect(result.errors.some((e) => e.includes('empty denominator for maxNoise'))).toBe(true);
+  });
+
+  it('L2-C19d — 反向：未声明 corpusExpect → 不触发空分母错误（report-only）', () => {
+    const corpusDir = makeCorpusDir(dir);
+    writeFixture(corpusDir, '_baseline', ['kind: baseline']);
+    writeFixture(corpusDir, 'bad-spec-004', [
+      'kind: bad-case', 'severity: error', 'mustContain: [E-SPEC-004]',
+    ]);
+    setProbeResponses({
+      '_baseline': { stdout: CLEAN_STDOUT },
+      'bad-spec-004': { stdout: JSON.stringify({ errors: [{ code: 'E-SPEC-004' }] }) },
+    });
+
+    const result = runCorpus(dir); // 无 corpusExpect
+    expect(result.errors.some((e) => e.includes('empty denominator'))).toBe(false);
+    expect(result.passed).toBe(true);
+    expect(result.warnings.some((w) => w.includes('report-only'))).toBe(true);
+  });
+});
+
 describe('loadScenario — corpus 字段解析（L0-C28）', () => {
   let dir: string;
   beforeEach(() => { dir = createTmpProject(); });
