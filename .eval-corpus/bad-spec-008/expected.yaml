@@ -1,0 +1,7 @@
+# 单点变异：附加 prd.md 的 YAML frontmatter 中 layer 非数值 → E-SPEC-008 PRD_FRONTMATTER_INVALID。
+# 注：prd.md 不喂入 coverage 分类器；spec.md 保持基线不变以隔离该单点。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-008]
+mustNotContain: []

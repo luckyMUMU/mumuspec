@@ -1,0 +1,6 @@
+# 单点变异：spec.md frontmatter 缺少必填 scope 字段 → E-SPEC-001 SPEC_FORMAT_INVALID。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-001]
+mustNotContain: []

@@ -2,7 +2,7 @@ name: eval-corpus
 phase: build
 workflow: full
 created_at: 2026-09-14T14:19:13.141Z
-updated_at: 2026-09-15T13:54:43.143Z
+updated_at: 2026-09-15T14:14:51.909Z
 scope: .
 affected_scopes:
   - .
@@ -40,8 +40,8 @@ decisions_log:
   counts:
     open: 3
     design: 4
-    build: 2
-  content_hash: b34af6530b1e71a4
+    build: 5
+  content_hash: 9f221c1b8d4dd860
 rollback_history: []
 cognitive_framework:
   enabled: true

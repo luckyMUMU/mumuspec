@@ -1,0 +1,6 @@
+# 单点变异：附加 prd.md 无任何 "## Requirement:" 块 → E-SPEC-011 PRD_NO_REQUIREMENTS（warning 级码）。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-011]
+mustNotContain: []

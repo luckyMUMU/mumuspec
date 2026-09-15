@@ -1,0 +1,5 @@
+# 净样本：干净 spec.md（0 错 0 警）。noise 只计「码」误报（D-corpus-2）。
+kind: clean
+probe: validate
+mustContain: []
+mustNotContain: []

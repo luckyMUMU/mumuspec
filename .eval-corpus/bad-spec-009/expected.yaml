@@ -1,0 +1,6 @@
+# 单点变异：附加 tech.md 的 YAML frontmatter 中 layer 非数值 → E-SPEC-009 TECH_FRONTMATTER_INVALID。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-009]
+mustNotContain: []

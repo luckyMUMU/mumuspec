@@ -1,0 +1,6 @@
+# 干净基线（唯一）。spec.md 承载约 20 条约束；每块含块级 Enforcement，
+# 保证 0 错 0 警且 coverage.total>0（coverage 仅由 spec.md / V2 tech.md 喂入分类器）。
+kind: baseline
+probe: validate
+mustContain: []
+mustNotContain: []

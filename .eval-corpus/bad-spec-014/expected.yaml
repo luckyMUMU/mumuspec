@@ -1,0 +1,6 @@
+# 单点变异：.mumuspec/ 下新增未定义文件 undefined-file.txt → E-SPEC-014 UNDEFINED_FILE。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-014]
+mustNotContain: []

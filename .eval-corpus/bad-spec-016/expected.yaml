@@ -1,0 +1,7 @@
+# 单点变异：在某含 Enforcement 的块的 SHALL 中插入中文无界限定词「合理」
+# （词表仅中文；英文措辞不触发）→ W-SPEC-016 VAGUE_QUALIFIER。
+kind: bad-case
+severity: warn
+probe: validate
+mustContain: [W-SPEC-016]
+mustNotContain: []

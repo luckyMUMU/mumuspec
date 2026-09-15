@@ -1,0 +1,7 @@
+# 单点变异：子层 scope "sub" 的 SHALL NOT 与父层 scope "." 的 SHALL 词项冲突
+# → E-SPEC-003 INHERITANCE_CONFLICT。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-003]
+mustNotContain: []

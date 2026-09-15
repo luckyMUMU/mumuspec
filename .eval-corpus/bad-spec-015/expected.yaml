@@ -1,0 +1,7 @@
+# 单点变异：新增 "Prohibitions" Requirement 块仅含 SHALL NOT 且无块级 Enforcement
+# （Enforcement 为块级作用域）→ E-SPEC-015 SHALL_NOT_UNVERIFIABLE（strict 默认开启，fail-closed）。
+kind: bad-case
+severity: veto
+probe: validate
+mustContain: [E-SPEC-015]
+mustNotContain: []

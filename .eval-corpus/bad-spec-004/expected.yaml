@@ -1,0 +1,7 @@
+# 单点变异：删除 "Audit Logging" 块的块级 Enforcement（该块仅含 SHALL），
+# 使其 SHALL 无验证通道 → E-SPEC-004 SHALL_UNVERIFIABLE（warning 级码）。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-004]
+mustNotContain: []

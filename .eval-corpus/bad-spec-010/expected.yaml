@@ -1,0 +1,6 @@
+# 单点变异：附加 prd.md 的 parent_prd 指向不存在的文件 → E-SPEC-010 PARENT_REFERENCE_BROKEN。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-010]
+mustNotContain: []

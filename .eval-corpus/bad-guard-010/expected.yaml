@@ -1,0 +1,9 @@
+# 跨域码：change-scoped fixture。constraints/ 下存在无验证通道的 SHALL
+# → guard <change> verify 发射 E-GUARD-010（默认 strength=dimensional 降为 warning，但码仍产出）。
+# guard/archive 探针无 coverage → coverage-diff 自动降级为纯码检测（D-corpus-1）。
+kind: bad-case
+severity: veto
+probe: guard
+change: bad-guard-010
+mustContain: [E-GUARD-010]
+mustNotContain: []

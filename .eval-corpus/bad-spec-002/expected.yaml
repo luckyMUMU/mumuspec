@@ -1,0 +1,6 @@
+# 单点变异：spec.md layer=9 超过 max_layer_depth=5 → E-SPEC-002 LAYER_DEPTH_EXCEEDED。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-002]
+mustNotContain: []

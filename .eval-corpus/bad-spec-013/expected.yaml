@@ -1,0 +1,6 @@
+# 单点变异：.mumuspec/ 下新增未定义目录 undefined-dir/ → E-SPEC-013 UNDEFINED_DIRECTORY。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-013]
+mustNotContain: []

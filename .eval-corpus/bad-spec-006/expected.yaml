@@ -1,0 +1,7 @@
+# 单点变异：config.specs.require_design_doc=true 但缺失 .mumuspec/design.md
+# → E-SPEC-006 DESIGN_DOC_MISSING。
+kind: bad-case
+severity: error
+probe: validate
+mustContain: [E-SPEC-006]
+mustNotContain: []
