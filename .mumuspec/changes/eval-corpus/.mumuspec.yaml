@@ -1,8 +1,8 @@
 name: eval-corpus
-phase: build
+phase: archive-in-progress
 workflow: full
 created_at: 2026-09-14T14:19:13.141Z
-updated_at: 2026-09-16T13:29:17.016Z
+updated_at: 2026-09-16T14:43:05.568Z
 scope: .
 affected_scopes:
   - .
@@ -29,7 +29,7 @@ test_cases:
     "2": 06b6e4cfa660522c
   design_content_hash: 0aa5800753ae97b6
 rollback_count: 0
-rebuild_count: 0
+rebuild_count: 1
 rollback_limit: 3
 rebuild_limit: 5
 build_mode: subagent-driven-development
@@ -44,7 +44,13 @@ decisions_log:
     design: 4
     build: 11
   content_hash: 68d6bce7bbcc1c05
-rollback_history: []
+rollback_history:
+  - from: verify
+    to: build
+    reason: "E-SPEC-013: .mumuspec/evals/ 未登记 DEFINED_DIRECTORIES 白名单（参考场景交付暴露）"
+    timestamp: 2026-09-16T14:26:59.533Z
+    counted: false
+    event: rollback-verify-to-build
 cognitive_framework:
   enabled: true
   q1_count: 8
@@ -79,3 +85,4 @@ design_coverage:
   checked_at: 2026-09-15T13:23:28.263Z
   enforced: true
 build_pause: "null"
+verify_result: pass

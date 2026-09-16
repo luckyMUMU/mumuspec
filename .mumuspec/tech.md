@@ -405,3 +405,15 @@ Enforcement: manual(MRGT-01: verify 阶段以负向测试断言静默丢弃路�
 - SHALL graph verify 输出当前 workflow 的 phase_bps 清单，并将 skills/mumuspec/workflow.yaml 声明的 BP 集合与引擎 phase_bps 对比，差异以 W-GRAPH-001 告警（WARN 级）。
 - SHALL full workflow 的 phase_bps 并集覆盖 BP-1 至 BP-18 全部 18 个 BP。
 
+
+
+<!-- constraint-merged from legacy-cleanup-fix/new-shall-not.md -->
+# New SHALL NOT Constraints
+
+
+
+
+<!-- constraint-merged from legacy-cleanup-fix/new-shall.md -->
+# New SHALL Constraints
+
+

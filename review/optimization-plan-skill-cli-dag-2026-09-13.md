@@ -1,5 +1,16 @@
 # 优化方案：Skill 组合 × CLI × DAG 编排（2026-09-13）
 
+> **执行记录（2026-09-13 20:50，提交 f8ce204）**：批次 1 与批次 2 已全部执行完毕并提交。
+> 批次 2/P1（BP-9/10 合并）一并完成。docs:audit 定为**报告型**（四类误报使自动门禁不可判定，
+> 硬门禁仍由 skill-registry 测试与 TC-L3-1 承担）。复验全绿：check/validate/ci:check 0 错 0 警、
+> W-SKILL-001=0、B 面 7 包重装、全量 vitest 5120 passed（36 项失败为 git 不在子进程 PATH 的
+> 环境性失败，PATH 修正后 73/73 全过）。批次 3（CHG-8 立项）仍待 D3 放行。
+>
+> **执行记录二（2026-09-13 21:50）**：批次 3/4 已全部执行完毕。
+> - **批次 3 = CHG-8 bp-into-graph**（full workflow 完整走完：open→design→build→verify→archive，提交 ac71620 / a9fdf0b，版本 0.34.0-alpha.1）：`workflows.<wf>.phase_bps` 可选段落地（BP id workflow 内唯一、缺省向后兼容）；新模块 `src/change/phase-bps.ts`；`graph verify` 输出 BP 清单 + W-GRAPH-001（WARN fail-open）skill 侧一致性检查；full 17 BP + presets BP-18 = 18 BP 全量入图；错误码 113/21 域。TDD 过程中 fail-safe 实际拦截了首版"全局唯一"设计错误与 skill workflow.yaml 预存 YAML 缩进损坏。
+> - **批次 4**（提交 a36ab31）：S2b——skill 侧 workflow.yaml 删除 graph 段（327 行，引擎单一事实源），保留 phases/presets 的 BP 声明供 W-GRAPH-001 校验；P2——6 份 SKILL.md 重复模板段收紧（-339 字节），不抽共享文件以保 B 面自足。
+> - **遗留**：state set 写入 affected_scopes 恒为字符串（guard 逐字符迭代 → 含 '/' 即 E-SECURITY-001、'.' 圈全量 manual 面）——引擎缺口，建议立 change 修复；dashboard/state check 消费 phase_bps 按裁决延后。
+
 > 输入：`review/skill-cli-dag-evaluation-2026-09-13.md`（六维评估）+ `review/skill-composition-audit-2026-09-12.md`（昨日审计，P0-3 仍开放）
 > 性质：执行方案与立项输入。**本方案不代替 MumuSpec 流程**——批次 3 涉及引擎 schema 扩展，确认后须走完整 change（open→design→build→verify→archive）。
 > 原则：单一权威源 / fail-open / 每项独立可验收可回退 / 改 A 面必重装并经 W-SKILL-001 复验。

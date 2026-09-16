@@ -14,8 +14,8 @@
 | A5 技能副本到期校验 | ✅ 裁决：skill-drift 已于 0.24 交付并接入 check drift + CI 门禁；pinning/required 校验按 YAGNI 跳过 | — |
 | A6 fail-open 审计清零 | ✅ 归档关键路径 13 处空 catch 清零，4 类点位裁决保持静默（理由固化 design.md） | CHG fail-open-audit（v0.29） |
 | B1 就绪动作引导 | ✅ status 就绪动作块（下一转换 + runPhaseGuard 实时三态判定） | CHG ready-action-guidance（v0.31） |
-| B2 完备性交互化 | ⏳ 未开始 | M4 |
-| B3 规模分档推荐 | ⏳ 未开始 | M4 |
+| B2 完备性交互化 | ✅ 裁决：受阻发现（含 fix 路径）已由 B1 就绪块 + E-GUARD-008 承载；"二选一问题"呈现属 skill 层 LLM 追问行为（KP-0060：规则归 LLM），引擎侧无新增职责 | — |
+| B3 规模分档推荐 | ✅ 档位失配显式提示（⚠ 规模建议 + 调整指引 / ✓ 档位匹配）；recommendPath 分档引擎 0.24 已有，零改动 | CHG workflow-tier-hint（v0.33） |
 | B4 drift diff | ✅ `drift --change` Delta 预览块（归档将并入主规范的约束 + 行） | CHG drift-delta-preview（v0.32） |
 | B5 波次执行 / dev-auto | ⏸ 观察项（依赖 C 元层死端裁决） | — |
 

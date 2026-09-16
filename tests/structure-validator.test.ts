@@ -48,6 +48,16 @@ describe('validateMumuSpecStructure — workflow.yaml whitelist', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  it('TC-4: evals/ is a whitelisted directory (eval scenario discovery dir)', () => {
+    mkdirSync(join(testDir, '.mumuspec', 'evals'));
+    const result = validateMumuSpecStructure(testDir);
+    const evalsErrors = result.errors.filter(
+      (e) => e.code === 'E-SPEC-013' && (e.detail ?? '').includes('evals'),
+    );
+    expect(evalsErrors).toHaveLength(0);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('TC-2: still rejects undefined root files (whitelist not loosened)', () => {
     writeFileSync(join(testDir, '.mumuspec', 'random-junk.md'), 'junk');
     const result = validateMumuSpecStructure(testDir);

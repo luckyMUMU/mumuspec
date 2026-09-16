@@ -47,30 +47,30 @@
 
 ## Layer 2: 消费层（L2，最后建）
 
-- [ ] T2-0 BP-12 六项修订实现（三态聚合/分母排除/三条 warning/空分母 fail-closed/精度聚合）（规格：design.md §2.1.1/§2.1.3 D-corpus-5~8/§2.3.1/§10）
-- [ ] T2-1 eval --report（文本 + JSON 双形态 + precision 字段）
+- [x] T2-0 BP-12 六项修订实现（三态聚合/分母排除/三条 warning/空分母 fail-closed/精度聚合）（规格：design.md §2.1.1/§2.1.3 D-corpus-5~8/§2.3.1/§10）
+- [x] T2-1 eval --report（文本 + JSON 双形态 + precision 字段）
   - 文件: `src/cli/commands/eval.ts`（修改）
   - 内容: `--report` 与 `--json` 旗标；EvalSummaryReport{version:1, generatedAt, evals, corpus, metrics(两评估器进程内调用), coverageRef}；文本四段渲染（corpus recall/noise + CI + 置信不足标注 / A1 / B4 / coverage 引用）
   - 测试: `tests/cli/commands/eval-handler.test.ts`（扩充）—— L2-C01~C13（双形态 + version 冻结 + 四段）
   - 验收: 全绿；报告仅 stdout 不落盘（TEMP-4）
 
-- [ ] T2-2 .eval-corpus/ 语料库
+- [x] T2-2 .eval-corpus/ 语料库
   - 文件: `.eval-corpus/`（新增目录）—— `_baseline` + `bad-*`（**可发射集 15 码**各 1 例：E-SPEC-001/002/003/004/006/008/009/010/011/013/014/015 + W-SPEC-016 + E-GUARD-010 + E-CHANGE-022；E-SPEC-005/007/012 为 registered-but-not-emitted，M1 出范围）+ `clean-01..03`
   - 内容: 每 fixture 含 `.mumuspec/`（config.yaml + prd.md）与 `expected.yaml`（kind/severity/probe/change/mustContain/mustNotContain）；bad-case 为 `_baseline` 的单点变异；跨域码 fixture 使用 guard/archive 探针
   - 测试: L2-C14~C15（语料覆盖与 severity 分档断言）
   - 验收: `mumuspec eval run`（含 corpus 场景声明）跑通；baseline 零码；veto 档 recall 记录
   - 注意: 场景 YAML 不声明 corpusExpect 阈值（M1 建档口径，用户裁决）
 
-- [ ] T2-3 fixture-location 位置隔离断言
+- [x] T2-3 fixture-location 位置隔离断言
   - 文件: `tests/eval/fixture-location.test.ts`（新增）
   - 内容: 仓库根 validate --json 的 coverage.total 不含 .eval-corpus/ 语料条目；临时重命名 + finally 复原（对照探测 4 的 327→331 污染基线）
   - 验收: 全绿（L2-C16）
 
-- [ ] T2-4 全量回归 + 三层门禁
+- [x] T2-4 全量回归 + 三层门禁
   - 命令: `node node_modules/vitest/vitest.mjs run`（全量）→ `mumuspec check` → `mumuspec validate` → Ponytail 合规（check 通道）
   - 验收: 全量绿；check exit 0；validate 0 错；无 E-PONYTAIL-* 新增
 
-- [ ] T2-5 锁定 L2 测试套件 + 层完成
+- [x] T2-5 锁定 L2 测试套件 + 层完成
   - 命令: `mumuspec test-cases lock-suite eval-corpus --layer 2` → `state layer eval-corpus 2 done`
   - 验收: 三层全 done；`mumuspec status` 就绪动作指向 verify
 

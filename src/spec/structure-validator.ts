@@ -33,6 +33,10 @@ const DEFINED_DIRECTORIES = new Set([
   // .mumuspec/evolution/ (stats.jsonl) — guard writes land there; P0-1 落盘时
   // 未登记白名单，validate 报 E-SPEC-013，此处补登（evaluator-weight-single-source 变更收尾）。
   'evolution',
+  // eval-corpus (2026-09-16): `mumuspec init` creates .mumuspec/evals/ and
+  // discoverScenarios reads it — the whitelist omitted it (E-SPEC-013 false
+  // positive on eval runs, verify-phase rollback).
+  'evals',
 ]);
 
 /** Defined top-level files under .mumuspec/ */
