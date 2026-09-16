@@ -1,0 +1,107 @@
+# Cognitive Map — 乔哈里窗变体
+# 格式规范: quadrant/category/question/answer/confidence/source
+entries:
+  # ── Q1 锚定（信息采集 + Q2 回答迁移）──
+  - quadrant: Q1
+    category: known-known
+    question: "Q1-001: eval runner 当前场景类型与 corpus 需求的差距？"
+    answer: "runner.ts 支持 compliance/drift/phase-guard 三类 + custom 落 default 分支仅 warning（死端）；EvalReport 扁平 total/passed/failed，无 per-corpus 聚合与置信区间；scenario.projectRoot 已支持 fixture 隔离运行"
+    confidence: high
+    source: "temp/probe 探测判读 + src/eval/runner.ts 源码核读"
+  - quadrant: Q1
+    category: known-known
+    question: "Q1-002: kill 判定的信号口径？"
+    answer: "多信号 diff：新增错误/警告码 ∪ coverage 五字段（total/enforced_strong/enforced_weak/manual/unverifiable）任一变化；单看码会把 O2/O4 型全误判存活"
+    confidence: high
+    source: "探测 1 实测（review/evaluation-metrics-probe-results-2026-09-13.md）"
+  - quadrant: Q1
+    category: known-known
+    question: "Q1-003: 语料位置约束？"
+    answer: "语料必须放 findSpecDirs 不扫描的路径（隐藏目录 .eval-corpus/），clean 语料放 tests/fixtures/ 实测污染 coverage 计量 327→331"
+    confidence: high
+    source: "探测 4 实测 + 用户裁决（2026-09-14 Round 1）"
+  - quadrant: Q1
+    category: known-known
+    question: "Q1-004: 新评估器的注册约束？"
+    answer: "verifiable-ratio 与 fail-open-count 以 weight=0 注册进 evaluator-registry；不得改变 composite 权重和（仍 1.0）、收敛阈值 0.85、稳定窗口 3 轮；数值由代码确定性计算"
+    confidence: high
+    source: "红线核对（实施计划第四节）+ evaluator-registry.ts 模式"
+  - quadrant: Q1
+    category: known-known
+    question: "Q1-005: B1 分档目标？"
+    answer: "一票否决码 recall=1.0 硬目标 / 其余 ERROR ≥0.9 / W 码 ≥0.8；每格 n<3 标注置信不足，输出 Wilson 95% CI"
+    confidence: high
+    source: "深度分析论点 2 + 实施计划 R2"
+  - quadrant: Q1
+    category: known-known
+    question: "Q1-006: validate --json coverage 字段契约？"
+    answer: "validate 顶层 {errors,warnings,coverage:{total,enforced_strong,enforced_weak,manual,unverifiable,declared_ratio,strong_ratio,unverifiable_items}}，与 check 的 {compliance,drift,exitCode} schema 不同——评估器只消费 validate 形态"
+    confidence: high
+    source: "实机 validate --json 输出（探测会话验证）"
+  - quadrant: Q1
+    category: known-known
+    question: "Q1-007（自 Q2-1 迁移）: eval --report 产物形态？"
+    answer: "仅 stdout 输出文本与 JSON 双形态，不新增持久文件类型（TEMP-4 红线：temp/ 外禁非规范文件）；需要留痕由用户自行重定向"
+    confidence: high
+    source: "用户裁决（BP-5 Q2-1，2026-09-14）"
+  - quadrant: Q1
+    category: known-known
+    question: "Q1-008（自 Q2-2 迁移）: M1 首版 bad-case 语料规模？"
+    answer: "每码 1 例（约 15-20 fixture），n<3 标注置信不足；M1 定位为建档非定标，扩样留待后续批次"
+    confidence: high
+    source: "用户裁决（BP-5 Q2-2，2026-09-14）"
+  # ── Q3 推理（已确认 / grill-me）──
+  - quadrant: Q3
+    category: reasoning
+    question: "Q3-001: Q1-003 + Q1-001 → 语料位置隔离须由单测锁死（防回归），而非仅靠约定"
+    answer: "新增 fixture-location 断言单测：仓库根 validate 的 coverage.total 不得包含语料条目"
+    confidence: high
+    source: "用户确认（BP-6，2026-09-14）"
+    status: confirmed
+  - quadrant: Q3
+    category: reasoning
+    question: "Q3-002: Q1-004 → 评估器消费 validate 输出应复用 CLI 子进程模式而非内联 API"
+    answer: "跟随 drift-score/spec-compliance 既有 spawn 模式（单一权威源），不自建第二解析通道"
+    confidence: high
+    source: "用户确认（BP-6，2026-09-14）"
+    status: confirmed
+  - quadrant: Q3
+    category: reasoning
+    question: "Q3-003: Q1-001 + Q1-002 → corpus 聚合结果须内嵌于 EvalReport 新维度而非改既有字段"
+    answer: "EvalReport 扩展 corpusReports 数组，既有 total/passed/failed 语义不变——保护未知消费者"
+    confidence: high
+    source: "用户确认（BP-6，2026-09-14）"
+    status: confirmed
+  - quadrant: Q3
+    category: reasoning
+    question: "GM-001: build_layers 分层结构（report→evaluators→runner 单向依赖）"
+    answer: "三层：L0 runner 层（corpus 分支 + custom 修复）/ L1 评估器层（verifiable-ratio + fail-open-count + registry）/ L2 消费层（eval --report + .eval-corpus 语料 + 验收单测）"
+    confidence: high
+    source: "grill-me 用户确认（BP-4.5，2026-09-14）"
+    status: confirmed
+  - quadrant: Q3
+    category: reasoning
+    question: "GM-002: corpus fixture 的 expected 声明形态"
+    answer: "每 fixture 目录内 expected.yaml 声明 mustContain/mustNotContain 码清单与 kill 期望；runner 读取后与实跑信号 diff，不在共享配置集中声明"
+    confidence: high
+    source: "grill-me（lead 自查事实 + 探测 1 语料结构）"
+    status: confirmed
+  # ── Q4 盲区扫描 ──
+  - quadrant: Q4
+    category: blind-spot
+    question: "Q4-001 隐藏耦合: corpus fixture 运行会触发 findProjectRoot 向上查找"
+    answer: "fixture 子目录自身含 .mumuspec 即命中；但 fixture 嵌套在 .eval-corpus 下时 findProjectRoot 从 cwd 起查——runner 须显式传 projectRoot 绝对路径，不依赖 cwd 推断；兜底：单测断言无 cwd 依赖"
+    confidence: medium
+    source: "盲区扫描（隐藏耦合维度）"
+  - quadrant: Q4
+    category: blind-spot
+    question: "Q4-002 测试盲区: Wilson CI 在 n=0（语料为空目录）时的除零"
+    answer: "空 corpus 目录返回 nullResult（value 0 + details 说明），不抛异常；与 design-build-first-pass 的 nullResult 模式一致"
+    confidence: high
+    source: "盲区扫描（测试盲区维度）"
+  - quadrant: Q4
+    category: blind-spot
+    question: "Q4-003 契约兼容: eval --report 输出被 CI 或外部脚本消费的未来面"
+    answer: "M1 阶段 --report 为新增旗标，无既有消费者；JSON 形态自本版起冻结为事实契约，后续扩展只加字段不改性——写入 design 风险章节"
+    confidence: medium
+    source: "盲区扫描（契约兼容性维度）"

@@ -1,0 +1,106 @@
+# Assumptions: eval-corpus
+# 每条假设的消解引用 decisions.md 中人工签收的决策条目时间戳（resolution.decision_ref）。
+# 目标：闭合 E-GUARD-008 完备性门禁（双签：LLM 起草工件 + decisions.md 人工签收）。
+# 语义方向：assumption 记录设计实际依赖的、已被证据/裁决确立的结论（validated direction）。
+version: 1
+change: eval-corpus
+items:
+  - id: AS-01
+    assumption: >-
+      语料覆盖目标限于引擎实际可发射的码集（可发射集 15 码：E-SPEC-001/002/003/004/006/008/009/010/011/013/014/015
+      + W-SPEC-016 + E-GUARD-010 + E-CHANGE-022）；E-SPEC-005/007/012 无发射点
+      （registered-but-not-emitted），不得为其建必须命中语料。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-15T14:04:12.529Z"
+      note: >-
+        三码经 lead 双向核实 + 工程师隔离 trial 实测确认全仓无发射点（仅
+        errors.ts 注册表定义；E-SPEC-007 的 index 检查在 validator.ts 为空实现
+        stub），建「必须命中」fixture 必然 missed 并污染 recall/precision。收敛为
+        可发射集 15 码方案 A；E-SPEC-005/007/012 记 registered-but-not-emitted
+        （M1 出范围），对齐 errors.ts 中 E-DESIGN-001/002/009 前例。
+  - id: AS-02
+    assumption: >-
+      archive 探针须以顶层命令形态 archive <name> --confirm 调用才能发射
+      E-CHANGE-022（change archive 为幽灵命令；正确 argv 为
+      ['archive', <name>, '--confirm']）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-15T14:40:32.722Z"
+      note: >-
+        archive 是顶层命令（`change archive` 为幽灵命令），正确形态
+        ['archive', <name>, '--confirm']；实测 archive <name> --confirm 可正确
+        发射 E-CHANGE-022 DELTA_MERGE_INCOMPLETE。走 BP-12 小规模路径增量修正
+        （design §2.1.0 + src/eval/corpus.ts:211 + L0-C14 测试断言 + lock-suite 重锁），
+        无需用户裁决；事实性修正。
+  - id: AS-03
+    assumption: >-
+      语料须置于 findSpecDirs 不扫描的路径（.eval-corpus/ 隐藏目录），否则会被
+      递归扫描并污染 coverage 计量（对照 coverage.total 327→331 污染基线）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-14T14:24:56.942Z"
+      note: >-
+        探测 4 实锤 tests/fixtures 被 findSpecDirs 递归扫描（coverage.total
+        327→331 污染基线）。语料改放 .eval-corpus/ 隐藏目录（findSpecDirs 跳过
+        name.startsWith('.')）；仓库根 validate/check 实测 0 错 0 警且不含
+        .eval-corpus 条目，C-4 位置隔离成立（tests/eval/fixture-location.test.ts
+        锁定）。
+  - id: AS-04
+    assumption: >-
+      两个新评估器 defaultWeight=0 即不进入 loop composite，活跃权重和仍为 1.0；
+      权重和断言用 toBeCloseTo(1.0, 10)，不做实现侧归一化。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-15T13:23:17.627Z"
+      note: >-
+        BP-8 裁决②：不做实现侧归一化；权重和断言用 toBeCloseTo(1.0, 10)
+        （既有 6 评估器浮点和 0.9999999999999999 为事实）。两个新评估器
+        defaultWeight=0，直接不进 loop composite，权重和仍为 1.0。
+  - id: AS-05
+    assumption: >-
+      n<3 的「置信不足」标注是 M1 建档口径（每码 1 例）的正常特征，非回归缺陷。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-15T12:47:54.062Z"
+      note: >-
+        BP-7 裁决③：M1 定位明示为「建档非定标」，每码 1 例；n<3 输出普遍标注
+        「置信不足」属正常特征而非回归缺陷。认知框架 Q1-008 收敛，落点为
+        design §2.1.0（wilsonInterval.insufficient = n<3）。
+  - id: AS-06
+    assumption: >-
+      report 须输出聚合精度字段 precision（mustContainSatisfied 比率，仅展示、
+      无阈值）；未声明 corpusExpect 时发 report-only warning（不改 passed）；
+      对 version:1 为纯加字段（version 仍为 1）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-15T13:54:41.661Z"
+      note: >-
+        BP-12 裁决②③：report 增聚合精度字段 precision（mustContainSatisfied
+        比率，仅展示无阈值）；未声明 corpusExpect 时发 report-only warning
+        （不改 passed 语义）。EvalSummaryReport 对 version:1 为纯加字段，
+        version 仍为 1（design §2.3.1）。
+  - id: AS-07
+    assumption: >-
+      覆盖率门禁不并入本变更；coverageRef 维持指针语义（@vitest/coverage-v8 未在
+      devDependencies 声明、test:coverage 不可运行，属既有项目级缺陷）。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-15T14:59:35.566Z"
+      note: >-
+        裁决 A：不并入本变更——package.json 的 devDependencies 未声明
+        @vitest/coverage-v8（NONE），test:coverage 在任何环境不可运行（既有项目级
+        缺陷，非本变更引入）。EvalSummaryReport.coverageRef 维持指针语义
+        （DS-EVAL-004 仅要求「引用」），不引入新依赖（Ponytail L3-L5）。
+  - id: AS-08
+    assumption: >-
+      corpus 聚合须三态 killed/missed/errored；errored 不进 recall 分母
+      （分母 = killed + missed）且在场景 warning 列明。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-15T13:54:41.661Z"
+      note: >-
+        BP-12 裁决①：探针 infra 失败三态化 killed/missed/errored；errored
+        （探针启动失败或输出不可解析）不计入 recall 分母（分母 = killed + missed）
+        且在场景 warning 列明——衡量器不得静默污染，与 fail-open 纪律同源
+        （D-corpus-5，design §2.1.3 / §10 E-15~E-16）。

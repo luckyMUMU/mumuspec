@@ -1,0 +1,79 @@
+{
+  "change": "eval-corpus",
+  "base_ref": "23484ad9c84d335214e8b17d97c8865a97b841de",
+  "method": "fallback-B-manual",
+  "affected_files": [
+    {
+      "path": "src/eval/runner.ts",
+      "change_type": "MODIFIED",
+      "items": [
+        "EvalScenario 接口扩展：corpusDir、分档期望字段",
+        "loadScenario：解析 expected 分档与 corpusDir",
+        "runScenario：新增 corpus 分支（多信号 kill 判定 + Wilson CI）；custom 分支实现 assertions-only",
+        "runAllEvals：聚合 per-scenario 维度与 recall/noise 汇总"
+      ]
+    },
+    {
+      "path": "src/cli/commands/eval.ts",
+      "change_type": "MODIFIED",
+      "items": ["--report 旗标", "汇总渲染（文本 + JSON 双形态）"]
+    },
+    {
+      "path": "src/core/metrics/verifiable-ratio.ts",
+      "change_type": "ADDED",
+      "items": ["A1 评估器：spawn validate --json 取 coverage 四分类占比，weight=0"]
+    },
+    {
+      "path": "src/core/metrics/fail-open-count.ts",
+      "change_type": "ADDED",
+      "items": ["B4 评估器：读 audit.log 统计 result 非 success 条目按 action 分组，weight=0"]
+    },
+    {
+      "path": "src/core/metrics/evaluator-registry.ts",
+      "change_type": "MODIFIED",
+      "items": ["注册 verifiable-ratio 与 fail-open-count"]
+    },
+    {
+      "path": ".eval-corpus/",
+      "change_type": "ADDED",
+      "items": ["bad-case 语料（O1-O6 覆盖主要门禁码）", "clean 语料", "expected 分档声明"]
+    },
+    {
+      "path": "tests/eval/runner.test.ts",
+      "change_type": "MODIFIED",
+      "items": ["corpus 场景单测（检出/漏检/多信号/CI 报告）", "custom assertions-only 单测"]
+    },
+    {
+      "path": "tests/core/metrics/verifiable-ratio.test.ts",
+      "change_type": "ADDED",
+      "items": ["0/全/部分三态单测"]
+    },
+    {
+      "path": "tests/core/metrics/fail-open-count.test.ts",
+      "change_type": "ADDED",
+      "items": ["分组计数与清单单测"]
+    },
+    {
+      "path": "tests/eval/fixture-location.test.ts",
+      "change_type": "ADDED",
+      "items": ["位置隔离断言：仓库根 validate coverage 不含语料条目"]
+    }
+  ],
+  "affected_functions": [
+    "runScenario",
+    "runAllEvals",
+    "loadScenario",
+    "evalCommand",
+    "evaluator-registry 注册面"
+  ],
+  "call_chain_impact": [
+    "eval CLI 命令 → runAllEvals → runScenario（新增 corpus/custom 行为）",
+    "auto-evaluate → evaluator-registry（新增 2 评估器，weight=0 不影响 composite）",
+    "validate/check JSON 输出被新评估器消费（只读，不改变 schema）"
+  ],
+  "breaking_changes": [],
+  "risk_notes": [
+    "corpus 语料位于隐藏目录 .eval-corpus/，需单测锁死位置隔离（探测 4 实证 findSpecDirs 递归风险）",
+    "kill 多信号 diff 依赖 validate JSON 的 coverage 五字段稳定性，已在探测中验证字段存在"
+  ]
+}

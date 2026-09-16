@@ -1,0 +1,15 @@
+# eval-corpus 参考场景（report-only）。
+#
+# 前置条件：本场景的探针通过 `npx mumuspec <cmd>` 调用**本地已构建的 CLI**，
+# 因此运行前必须先构建：`npm run build`（或 `npx tsc`）——否则 npx 无法解析本地 bin，
+# 探针会 errored（errored 不进分母；若再声明阈值则会空分母 fail-closed）。
+#
+# 用法：仓库根执行 `mumuspec eval run --report`（文本）或
+#       `mumuspec eval run --report --json`（JSON），亦可按名
+#       `mumuspec eval run eval-corpus --report --json`。
+#
+# 本场景**不声明 corpusExpect**（report-only）：语料多处 n<3（Wilson「置信不足」），
+# 且未构建 dist 的环境会 errored，故不设阈值，避免假红。
+name: eval-corpus
+type: corpus
+corpusDir: .eval-corpus

@@ -1,0 +1,53 @@
+# Open Questions: eval-corpus
+# 完备性门禁结构化工件。全部设计裁决经用户显式确认（详见 decisions.md 对应锚点）。
+version: 1
+change: eval-corpus
+items:
+  - id: OQ-01
+    question: >-
+      评测语料库的存放位置采用哪种方案？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-14T14:24:56.942Z"
+      note: >-
+        .eval-corpus/ 隐藏目录（findSpecDirs 天然跳过隐藏目录）；探测 4 实锤 tests/fixtures/ 位置会污染 coverage 计量（327→331）。用户裁决。
+  - id: OQ-02
+    question: >-
+      eval runner 的 custom 场景类型如何处置？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-14T14:24:56.942Z"
+      note: >-
+        实现 assertions-only 语义（仅执行断言，无引擎动作），消除落入 default 分支仅 warning 的死端。用户裁决。
+  - id: OQ-03
+    question: >-
+      探测 1 发现的 checker 三盲区（B-1 Enforcement 数量映射 / B-2 SHALL 内容合理性 / fence 吞约束无告警）是否纳入本变更？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-14T14:24:56.942Z"
+      note: >-
+        不入 M1，挂 M2 批次评审——M1 保持零既有行为语义改动（纯增量）属性。用户裁决。
+  - id: OQ-04
+    question: >-
+      eval --report 的产物形态？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-14T14:24:56.942Z"
+      note: >-
+        仅 stdout 输出文本与 JSON 双形态，不新增持久文件类型（TEMP-4 红线）；留痕由用户自行重定向。用户裁决（BP-5 Q2-1）。
+  - id: OQ-05
+    question: >-
+      M1 首版 bad-case 语料规模？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-14T14:24:56.942Z"
+      note: >-
+        每码 1 例（约 15-20 fixture），n<3 标注置信不足；M1 定位为建档非定标，扩样留待后续批次。用户裁决（BP-5 Q2-2）。
+  - id: OQ-06
+    question: >-
+      build_layers 分层结构如何划分？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-14T14:24:56.942Z"
+      note: >-
+        三层单向依赖（report→evaluators→runner）：L0 runner（corpus 分支 + custom 修复）/ L1 评估器（verifiable-ratio + fail-open-count + registry）/ L2 消费层（eval --report + .eval-corpus 语料 + 验收单测）。用户确认（grill-me GM-001，BP-4.5）。
