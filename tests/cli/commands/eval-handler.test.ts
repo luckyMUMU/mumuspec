@@ -768,4 +768,60 @@ describe('eval run --report', () => {
     await run(['eval', 'run', '--report', '--workspace-path', tempDir]);
     expect(exitSpy).toHaveBeenCalledWith(1); // --report 不改变退出码语义
   });
+
+  // ── 按名跑 corpus 场景 + --report：corpus 段必须非空（回归 L2-C20） ──
+  // 背景：按名跑分支曾漏填 `corpusReports` → `eval run <name> --report` 的 corpus 恒空。
+  // 本用例锁定「按名 + corpus 场景 + --report」的 corpus 段非空且数值真实。
+
+  it('L2-C20 — 按名 corpus 场景 + --report --json → corpus 段非空（counts/recall/precision 真实）', async () => {
+    const { registerEvalCommands } = await loadEvalModule();
+    mockFindProjectRoot.mockReturnValue(tempDir);
+
+    // 场景文件须存在（handler 用 existsSync 判定）
+    const scenarioFile = join(tempDir, '.mumuspec', 'evals', 'corpus-named.yaml');
+    writeFileSync(scenarioFile, 'name: corpus-named\ntype: corpus\ncorpusDir: .eval-corpus\n');
+    mockLoadScenario.mockReturnValue({ name: 'corpus-named', type: 'corpus', projectRoot: tempDir });
+
+    // runScenario 返回带 corpus 报告的结果（真实基线形态）
+    const corpusReport = makeCorpusReport({
+      scenario: 'corpus-named',
+      counts: { killed: 15, missed: 0, errored: 0 },
+      recall: { value: 1, n: 15, ci: makeCi(15, 0.796, 1), excluded: 0 },
+      precision: { mustContainSatisfied: 15, mustContainTotal: 15, ratio: 1 },
+    });
+    mockRunScenario.mockReturnValue({
+      scenario: 'corpus-named',
+      passed: true,
+      errors: [],
+      warnings: [],
+      details: 'ok',
+      duration: 5,
+      corpus: corpusReport,
+    });
+
+    const program = new Command();
+    registerEvalCommands(program);
+    await program.parseAsync(
+      ['eval', 'run', 'corpus-named', '--report', '--json', '--workspace-path', tempDir],
+      { from: 'user' },
+    );
+
+    const jsonArg = logSpy.mock.calls
+      .map((c) => c[0])
+      .find((s) => typeof s === 'string' && s.trim().startsWith('{'));
+    expect(jsonArg).toBeTruthy();
+    const parsed = JSON.parse(jsonArg as string);
+
+    // corpus 段非空（回归点：修复前恒为 []）
+    expect(parsed.corpus).toHaveLength(1);
+    expect(parsed.corpus[0].scenario).toBe('corpus-named');
+    expect(parsed.corpus[0].counts).toEqual({ killed: 15, missed: 0, errored: 0 });
+    expect(parsed.corpus[0].recall.value).toBe(1);
+    expect(parsed.corpus[0].recall.n).toBe(15);
+
+    // 顶层 precision 反映真实 mustContain 命中（非 null/0）
+    expect(parsed.precision.mustContainSatisfied).toBe(15);
+    expect(parsed.precision.mustContainTotal).toBe(15);
+    expect(parsed.precision.ratio).toBe(1);
+  });
 });

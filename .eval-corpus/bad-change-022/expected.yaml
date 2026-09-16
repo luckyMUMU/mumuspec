@@ -1,6 +1,6 @@
 # 跨域码：change-scoped fixture。archive --confirm 时 delta-spec 无法解析合并目标
 # （命名后缀 <-scope>-tech.md 的目标 scope 不存在）→ E-CHANGE-022 DELTA_MERGE_INCOMPLETE（fail-closed）。
-# 注意：探针 argv 由 PROBE_ARGS.archive 生成；当前 L0 模板为 ['change','archive',c]（见回传阻塞项）。
+# 注意：探针 argv 由 PROBE_ARGS.archive 生成，当前形态为 ['archive', c, '--confirm']（archive 为顶层命令）。
 kind: bad-case
 severity: veto
 probe: archive

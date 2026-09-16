@@ -327,6 +327,9 @@ export function registerEvalCommands(program: Command): void {
           failed: result.passed ? 0 : 1,
           results: [result],
           duration: result.duration,
+          // 按名跑同样须聚合 corpus（与 runAllEvals 语义一致），
+          // 否则 eval run <name> --report 的 corpus/precision 恒为空。
+          corpusReports: result.corpus ? [result.corpus] : [],
         };
       } else {
         // Run all
