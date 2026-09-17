@@ -9,7 +9,7 @@
 
 | Layer | Scope | Docs | SHALL | SHALL NOT |
 |---|---|---|---|---|
-| 0 | `.` | prd+tech+spec | 134 | 95 |
+| 0 | `.` | prd+tech+spec | 148 | 105 |
 
 ### 当前路径适用红线（SHALL NOT 全文，含父层继承 — `.`）
 
@@ -108,6 +108,16 @@
 - SHALL NOT 因 phase_bps 非法而崩溃——必须走既有 fail-safe 路径（console.warn 加内置默认配置）。
 - SHALL NOT 在 skill 侧 workflow.yaml 缺失或不可解析时阻断 graph verify——只跳过一致性检查（fail-open）。
 - SHALL NOT 让 W-GRAPH-001 以 error 级别抛出（一律 WARN，不阻断流程）。
+- SHALL NOT corpus 聚合与 kill 判定引入 LLM 判定或手写指标值。
+- SHALL NOT 将探针启动失败或输出不可解析的 fixture 计为漏检。
+- SHALL NOT 静默丢弃无 expected.yaml 声明的语料子目录。
+- SHALL NOT 静默跳过已声明聚合阈值的断言。
+- SHALL NOT custom 场景类型落入未知类型分支输出 warning。
+- SHALL NOT 新评估器改变既有 loop composite 权重之和、收敛阈值与稳定窗口。
+- SHALL NOT 评估器数值由 LLM 计算或手写。
+- SHALL NOT 语料文件位于 tests、temp 等会被规范 walker 递归扫描的路径。
+- SHALL NOT report 输出改变 check 与 validate 命令的既有 JSON schema。
+- SHALL NOT 让语料期望与引擎实际发射面脱钩（为无发射点的码建立必须命中的语料）。
 
 > 完整约束正文经 MCP `get_spec_context` / `mumuspec context <path>` 渐进式加载（Rules 文件不内联全量规范）。
 

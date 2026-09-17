@@ -65,3 +65,7 @@
 {"timestamp":"2026-09-16T13:46:57.042Z","constraintId":"guard:verify","passed":true,"falsePositive":false}
 {"timestamp":"2026-09-16T13:47:06.239Z","constraintId":"guard:verify","passed":true,"falsePositive":false}
 {"timestamp":"2026-09-16T14:42:38.013Z","constraintId":"guard:archive","passed":false,"falsePositive":false}
+{"timestamp":"2026-09-16T14:43:10.578Z","constraintId":"guard:archive-in-progress","passed":false,"falsePositive":false}
+{"timestamp":"2026-09-16T14:43:39.377Z","constraintId":"guard:archive-in-progress","passed":false,"falsePositive":false}
+{"timestamp":"2026-09-16T14:44:39.300Z","constraintId":"guard:archive-in-progress","passed":false,"falsePositive":false}
+{"timestamp":"2026-09-16T14:45:35.011Z","constraintId":"guard:archive-in-progress","passed":true,"falsePositive":false}

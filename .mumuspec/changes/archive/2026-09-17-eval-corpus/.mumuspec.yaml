@@ -1,8 +1,8 @@
 name: eval-corpus
-phase: archive-in-progress
+phase: archive-completed
 workflow: full
 created_at: 2026-09-14T14:19:13.141Z
-updated_at: 2026-09-16T14:43:05.568Z
+updated_at: 2026-09-17T11:47:59.006Z
 scope: .
 affected_scopes:
   - .
@@ -86,3 +86,11 @@ design_coverage:
   enforced: true
 build_pause: "null"
 verify_result: pass
+branch_status: handled
+knowledge_extraction:
+  completed: true
+  pages_created_count: 9
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

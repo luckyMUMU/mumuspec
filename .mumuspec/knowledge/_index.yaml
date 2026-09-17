@@ -230,6 +230,17 @@ pages:
       - hyperplan
       - decision
       - enforcement-coverage
+  - id: KE-eval-corpus-hyperplan
+    title: Adversarial design review insights from eval-corpus
+    type: decision
+    status: confirmed
+    scope: eval-corpus
+    file: .mumuspec\knowledge\decisions\KE-eval-corpus-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - eval-corpus
   - id: KE-evaluator-data-source-fix-hyperplan
     title: Adversarial design review insights from evaluator-data-source-fix
     type: decision
@@ -615,6 +626,17 @@ pages:
       - pattern
       - architecture
       - enforcement-coverage
+  - id: KE-eval-corpus-patterns
+    title: Architecture patterns from eval-corpus
+    type: pattern
+    status: confirmed
+    scope: eval-corpus
+    file: .mumuspec\knowledge\patterns\KE-eval-corpus-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - eval-corpus
   - id: KE-fail-open-audit-patterns
     title: Architecture patterns from fail-open-audit
     type: pattern
@@ -1176,6 +1198,17 @@ pages:
       - q4
       - risk
       - bp-into-graph
+  - id: KE-eval-corpus-q4-risk
+    title: Residual risks from eval-corpus
+    type: risk
+    status: confirmed
+    scope: eval-corpus
+    file: .mumuspec\knowledge\risks\KE-eval-corpus-q4-risk.md
+    tags:
+      - auto-extracted
+      - q4
+      - risk
+      - eval-corpus
   - id: KE-onboard-cli-q4-risk
     title: Residual risks from onboard-cli
     type: risk
@@ -1296,6 +1329,61 @@ pages:
       - q3
       - rationale
       - bp-into-graph
+  - id: KE-eval-corpus-q3-04161c8f
+    title: "Rationale from eval-corpus: Q3-001: Q1-003 + Q1-001 → 语料位置隔离须由单测锁死（防回归），而非仅靠约定"
+    type: rationale
+    status: confirmed
+    scope: eval-corpus
+    file: .mumuspec\knowledge\rationales\KE-eval-corpus-q3-04161c8f.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - eval-corpus
+  - id: KE-eval-corpus-q3-7ce29f94
+    title: "Rationale from eval-corpus: GM-001: build_layers 分层结构（report→evaluators→runner 单向依赖）"
+    type: rationale
+    status: confirmed
+    scope: eval-corpus
+    file: .mumuspec\knowledge\rationales\KE-eval-corpus-q3-7ce29f94.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - eval-corpus
+  - id: KE-eval-corpus-q3-87e30ceb
+    title: "Rationale from eval-corpus: GM-002: corpus fixture 的 expected 声明形态"
+    type: rationale
+    status: confirmed
+    scope: eval-corpus
+    file: .mumuspec\knowledge\rationales\KE-eval-corpus-q3-87e30ceb.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - eval-corpus
+  - id: KE-eval-corpus-q3-b28c7fe7
+    title: "Rationale from eval-corpus: Q3-003: Q1-001 + Q1-002 → corpus 聚合结果须内嵌于 EvalReport 新维度而非改既有字段"
+    type: rationale
+    status: confirmed
+    scope: eval-corpus
+    file: .mumuspec\knowledge\rationales\KE-eval-corpus-q3-b28c7fe7.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - eval-corpus
+  - id: KE-eval-corpus-q3-be9a1dce
+    title: "Rationale from eval-corpus: Q3-002: Q1-004 → 评估器消费 validate 输出应复用 CLI 子进程模式而非内联 API"
+    type: rationale
+    status: confirmed
+    scope: eval-corpus
+    file: .mumuspec\knowledge\rationales\KE-eval-corpus-q3-be9a1dce.md
+    tags:
+      - auto-extracted
+      - q3
+      - rationale
+      - eval-corpus
   - id: KE-skill-plugin-standard-q3-8bfe112d
     title: "Rationale from skill-plugin-standard: GM-002：漂移比对是否需要剥离版本行？"
     type: rationale
@@ -1621,6 +1709,17 @@ pages:
       - lesson
       - decisions
       - enforcement-coverage
+  - id: KE-eval-corpus-lessons
+    title: Lessons from eval-corpus decisions
+    type: lesson
+    status: confirmed
+    scope: eval-corpus
+    file: .mumuspec\knowledge\lessons\KE-eval-corpus-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - eval-corpus
   - id: KE-evaluator-data-source-fix-lessons
     title: Lessons from evaluator-data-source-fix decisions
     type: lesson

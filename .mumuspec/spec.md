@@ -848,7 +848,6 @@ delta: ADDED
 - SHALL NOT 因 phase_bps 非法而崩溃——必须走既有 fail-safe 路径（console.warn 加内置默认配置）。
 
 ### Enforcement
-Enforcement: manual —— 由测试机械验证
 - PHASE_BPS_LOADER: tests/change/phase-graph-loader-bps.test.ts TC-L0-01..06（合法解析/缺省兼容/未知 phase/坏 id 格式/workflow 内重复 id/fail-safe 回退）
 
 ## Requirement: graph verify 报告与一致性检查
@@ -863,6 +862,105 @@ Enforcement: manual —— 由测试机械验证
 - SHALL NOT 让 W-GRAPH-001 以 error 级别抛出（一律 WARN，不阻断流程）。
 
 ### Enforcement
-Enforcement: manual —— 由测试机械验证
 - PHASE_BPS_VERIFY: tests/change/phase-bps.test.ts TC-L1-01..06（报告清单/18 BP 并集/一致 0 告警/缺声明触发 W-GRAPH-001/skill 缺失跳过/错误码注册 WARN）
+
+
+
+<!-- delta-merged from eval-corpus/DS-EVAL-001-corpus-scenario.md -->
+---
+id: DS-EVAL-001
+layer: 0
+scope: .
+delta: ADDED
+---
+
+## Requirement: corpus 场景类型与多信号 kill 判定
+
+### SHALL
+- SHALL eval runner 支持 corpus 场景类型：按 corpusDir 下每个 fixture 子目录作为独立 projectRoot 运行校验器，聚合输出 recall 与 noise 两比值。
+- SHALL corpus 的 kill 判定采用多信号 diff：新增错误或警告码，或 coverage 五字段（total、enforced_strong、enforced_weak、manual、unverifiable）任一变化，均计为检出。
+- SHALL 每格语料样本输出 Wilson 95% 置信区间，样本数不足 3 时标注置信不足。
+- SHALL corpus 聚合区分 killed、missed、errored 三态：探针启动失败或输出不可解析的 fixture 计为 errored，不计入 recall 分母，并作为场景 warning 列明。
+- SHALL 未声明聚合阈值 corpusExpect 时输出一条场景 warning 提示 report-only 模式，且不改变场景 passed 语义。
+- SHALL 被声明的聚合阈值（minRecall、recallBySeverity、maxNoise）对应分母为 0 时报配置错误（计入场景错误，fail-closed）。
+- SHALL corpusDir 下含 .mumuspec 子目录但缺 expected.yaml 的子目录发出 warning 并列明数量，且不计入任何分母。
+
+### SHALL NOT
+- SHALL NOT corpus 聚合与 kill 判定引入 LLM 判定或手写指标值。
+- SHALL NOT 将探针启动失败或输出不可解析的 fixture 计为漏检。
+- SHALL NOT 静默丢弃无 expected.yaml 声明的语料子目录。
+- SHALL NOT 静默跳过已声明聚合阈值的断言。
+
+### Enforcement
+- EVAL-CORPUS-1: manual(词法锚点 corpus/recall/noise/coverage 字段名出现于 runner 实现与单测断言；corpus 场景单测覆盖 killed、missed、errored 三态、空分母 fail-closed 与三条告警——经 eval-corpus verify.md 记录验证)
+
+
+
+<!-- delta-merged from eval-corpus/DS-EVAL-002-custom-type.md -->
+---
+id: DS-EVAL-002
+layer: 0
+scope: .
+delta: ADDED
+---
+
+## Requirement: custom 场景类型死端消除
+
+### SHALL
+- SHALL custom 场景类型仅执行 assertions 断言并返回判定结果，不执行任何引擎动作。
+
+### SHALL NOT
+- SHALL NOT custom 场景类型落入未知类型分支输出 warning。
+
+### Enforcement
+- EVAL-CUSTOM-1: manual(runner custom 分支单测断言——断言通过/失败两态加零警告，经 eval-corpus verify.md 记录验证)
+
+
+
+<!-- delta-merged from eval-corpus/DS-EVAL-003-evaluators.md -->
+---
+id: DS-EVAL-003
+layer: 0
+scope: .
+delta: ADDED
+---
+
+## Requirement: weight=0 评估器注册
+
+### SHALL
+- SHALL verifiable-ratio 评估器以 weight 0 注册：取 validate JSON 输出的 coverage 四分类占比，value 为 strong_ratio，rawData 含四分类计数。
+- SHALL fail-open-count 评估器以 weight 0 注册：读 audit.log 统计 result 非 success 条目并按 action 分组输出计数与清单。
+
+### SHALL NOT
+- SHALL NOT 新评估器改变既有 loop composite 权重之和、收敛阈值与稳定窗口。
+- SHALL NOT 评估器数值由 LLM 计算或手写。
+
+### Enforcement
+- EVAL-REGISTRY-1: manual(evaluator-registry 注册断言单测——名称、weight=0、权重和不变三重校验，经 eval-corpus verify.md 记录验证)
+
+
+
+<!-- delta-merged from eval-corpus/DS-EVAL-004-corpus-location-report.md -->
+---
+id: DS-EVAL-004
+layer: 0
+scope: .
+delta: ADDED
+---
+
+## Requirement: 语料位置隔离与汇总报告出口
+
+### SHALL
+- SHALL 评测语料库存放于 findSpecDirs 不扫描的隐藏目录 .eval-corpus，bad-case 语料覆盖可发射集 15 码各至少 1 例：E-SPEC-001、E-SPEC-002、E-SPEC-003、E-SPEC-004、E-SPEC-006、E-SPEC-008、E-SPEC-009、E-SPEC-010、E-SPEC-011、E-SPEC-013、E-SPEC-014、E-SPEC-015、W-SPEC-016、E-GUARD-010、E-CHANGE-022，并附带 clean 语料。
+- SHALL E-SPEC-005、E-SPEC-007、E-SPEC-012 标注为 registered-but-not-emitted（M1 出范围，与 E-DESIGN-001/002/009 前例一致），不为其建立必须命中的语料。
+- SHALL eval 命令提供 --report 汇总输出（文本与 JSON 双形态），聚合 corpus recall/noise、可验证率、fail-open 计数与测试覆盖率引用。
+- SHALL report 汇总附 corpus 聚合精度（mustContainSatisfied 的命中比率），仅展示、不设阈值。
+
+### SHALL NOT
+- SHALL NOT 语料文件位于 tests、temp 等会被规范 walker 递归扫描的路径。
+- SHALL NOT report 输出改变 check 与 validate 命令的既有 JSON schema。
+- SHALL NOT 让语料期望与引擎实际发射面脱钩（为无发射点的码建立必须命中的语料）。
+
+### Enforcement
+- EVAL-LOCATION-1: manual(fixture-location 断言单测——仓库根 validate 的 coverage 计数不含语料条目；report 渲染单测快照，经 eval-corpus verify.md 记录验证)
 
