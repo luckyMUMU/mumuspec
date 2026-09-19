@@ -34,10 +34,10 @@ prohibitions:
 - 对复杂请求提出质疑而非盲目实现
 
 ### Enforcement
-- PONYTAIL-1: lint rule: detect unnecessary abstraction patterns (YAGNI check)
-- PONYTAIL-2: lint rule: check for unnecessary new dependencies
-- PONYTAIL-3: lint rule: detect boilerplate code patterns
-- PONYTAIL-4: lint rule: detect overly clever solutions
+- PONYTAIL-1: manual(lint rule: detect unnecessary abstraction patterns (YAGNI check))
+- PONYTAIL-2: manual(lint rule: check for unnecessary new dependencies)
+- PONYTAIL-3: manual(lint rule: detect boilerplate code patterns)
+- PONYTAIL-4: manual(lint rule: detect overly clever solutions)
 
 ## Requirement: 临时目录管理规范
 
@@ -56,10 +56,10 @@ prohibitions:
 - 禁止在 temp/ 中存放活跃变更的工件（变更工件在 changes/<name>/ 下）
 
 ### Enforcement
-- TEMP-1: `.mumuspec/temp/` 使用时创建，结构校验器不得因 temp/ 存在报 E-SPEC-013
-- TEMP-2: `.mumuspec/temp/` 必须在根 `.gitignore` 中被排除
-- TEMP-3: finalize-archive 阶段必须提示用户清理 temp/
-- TEMP-4: 禁止在 .mumuspec/ 根目录存放非规范文件（白名单：spec.md/prd.md/tech.md/design.md/goal.md/env-spec.md/prohibitions.md/glossary.md/index.yaml/config.yaml/workflow.yaml/constraints.yaml/audit.log/agents-hash.json + designs-archive/ 目录）
+- TEMP-1: manual(`.mumuspec/temp/` 使用时创建，结构校验器不得因 temp/ 存在报 E-SPEC-013)
+- TEMP-2: manual(`.mumuspec/temp/` 必须在根 `.gitignore` 中被排除)
+- TEMP-3: manual(finalize-archive 阶段必须提示用户清理 temp/)
+- TEMP-4: manual(禁止在 .mumuspec/ 根目录存放非规范文件（白名单：spec.md/prd.md/tech.md/design.md/goal.md/env-spec.md/prohibitions.md/glossary.md/index.yaml/config.yaml/workflow.yaml/constraints.yaml/audit.log/agents-hash.json + designs-archive/ 目录）)
 
 ## Requirement: 项目结构规范
 
@@ -75,9 +75,9 @@ prohibitions:
 - 不可以在根级规范中定义具体模块的实现细节（这一要求分层到子目录）
 
 ### Enforcement
-- STRUCT-1: frontmatter 校验（layer 为数字，scope 为有效路径）
-- STRUCT-2: SHALL 必须有对应 Enforcement 条目
-- STRUCT-3: 新增模块必须在 index.yaml children 中注册
+- STRUCT-1: manual(frontmatter 校验（layer 为数字，scope 为有效路径）)
+- STRUCT-2: manual(SHALL 必须有对应 Enforcement 条目)
+- STRUCT-3: manual(新增模块必须在 index.yaml children 中注册)
 
 ## Requirement: 变更管理
 
@@ -143,13 +143,13 @@ prohibitions:
 - LLM 可自主选择设计深度、实现策略和测试方式（结果约束为 verify 通过）
 
 ### Enforcement
-- CHANGE-1: 检查 .mumuspec/changes/ 目录存在 active 变更
-- CHANGE-2: 检查 phase 转换符合状态机规则
-- CHANGE-3: prebuild-check.mjs 校验 package.json 与 src/cli.ts 版本一致性
-- CHANGE-4: 变更内容涉及代码或规范时，version 字段必须有语义化版本增量
-- FA-1: finalize-archive completes all sub-processes atomically (or with rollback)
-- FA-2: finalize-archive verifies all delta-specs were merged before asking user about cleanup
-- FA-3: finalize-archive respects backward compat — old spec.md/design.md kept by default
+- CHANGE-1: manual(检查 .mumuspec/changes/ 目录存在 active 变更)
+- CHANGE-2: manual(检查 phase 转换符合状态机规则)
+- CHANGE-3: manual(prebuild-check.mjs 校验 package.json 与 src/cli.ts 版本一致性)
+- CHANGE-4: manual(变更内容涉及代码或规范时，version 字段必须有语义化版本增量)
+- FA-1: manual(finalize-archive completes all sub-processes atomically (or with rollback))
+- FA-2: manual(finalize-archive verifies all delta-specs were merged before asking user about cleanup)
+- FA-3: manual(finalize-archive respects backward compat — old spec.md/design.md kept by default)
 
 ## Requirement: 文档产出规范（结果导向）
 
@@ -166,7 +166,7 @@ prohibitions:
 
 ### Enforcement
 - DOC-1: manual(code review 核对产出文档无过程性内容与元注释)
-- DOC-2: enforced-weak(正则兜底可提取：扫描"（与 …对齐）"类括号元注释与"本次/此次更新"类过程回顾句式)
+- DOC-2: manual(enforced-weak(正则兜底可提取：扫描"（与 …对齐）"类括号元注释与"本次/此次更新"类过程回顾句式))
 
 ## Requirement: 术语表管理规范
 
@@ -181,9 +181,9 @@ prohibitions:
 - 禁止将术语表用作实现规范约束的场所（约束入 spec.md，术语入 glossary.md）
 
 ### Enforcement
-- GLOSSARY-1: glossary.md 必须存在于项目根 `.mumuspec/` 目录
-- GLOSSARY-2: glossary.md 每条目必须包含"术语 / 英文 / 定义"三要素
-- GLOSSARY-3: 新增命令/模块时检查 glossary.md 是否同步更新
+- GLOSSARY-1: manual(glossary.md 必须存在于项目根 `.mumuspec/` 目录)
+- GLOSSARY-2: manual(glossary.md 每条目必须包含"术语 / 英文 / 定义"三要素)
+- GLOSSARY-3: manual(新增命令/模块时检查 glossary.md 是否同步更新)
 
 ## Requirement: 命令能力分层（Capability Tier）
 
@@ -218,14 +218,14 @@ prohibitions:
 - 专用工具在 hotfix 预设下可降级前置校验强度（但仍需用户确认）
 
 ### Enforcement
-- CAP-1: 每个命令必须在代码中声明 `CommandMetadata`，包含 `tier` / `risk` / `confirmRequired` / `reversible` 字段
-- CAP-2: 专用工具必须经过完整守门流程才能执行（可通过 `mumuspec capability <cmd>` 验证）
-- CAP-3: 通用能力组合不得产生文件系统副作用（测试覆盖）
-- CAP-4: 不可逆操作必须等待二次确认，确认输入必须匹配变更名称
-- CAP-5: dry-run 输出与实际执行输出格式必须一致（schema 校验）
-- CAP-DESC-1: `mumuspec capability` 必须能返回所有已注册命令的元数据
-- CAP-DESC-2: 能力元数据必须与代码实现一致（CI 校验）
-- CAP-DESC-3: 能力层级变更必须在 `.mumuspec/contracts/` 中有对应记录
+- CAP-1: manual(每个命令必须在代码中声明 `CommandMetadata`，包含 `tier` / `risk` / `confirmRequired` / `reversible` 字段)
+- CAP-2: manual(专用工具必须经过完整守门流程才能执行（可通过 `mumuspec capability <cmd>` 验证）)
+- CAP-3: manual(通用能力组合不得产生文件系统副作用（测试覆盖）)
+- CAP-4: manual(不可逆操作必须等待二次确认，确认输入必须匹配变更名称)
+- CAP-5: manual(dry-run 输出与实际执行输出格式必须一致（schema 校验）)
+- CAP-DESC-1: manual(`mumuspec capability` 必须能返回所有已注册命令的元数据)
+- CAP-DESC-2: manual(能力元数据必须与代码实现一致（CI 校验）)
+- CAP-DESC-3: manual(能力层级变更必须在 `.mumuspec/contracts/` 中有对应记录)
 
 ## Requirement: Verifier 语义与可验证性（0.20）
 
@@ -242,10 +242,10 @@ prohibitions:
 - 禁止自动注解产出与约束语义无关的通道映射（如"样板代码→no-side-effect"，F8 教训）
 
 ### Enforcement
-- V-1: E-SPEC-015 SPEC_SHALL_NOT_UNVERIFIABLE（ERROR, forceable: false, always_enforce）
-- V-2: E-VERIFY-003 MANUAL_EVIDENCE_MISSING（ERROR, forceable: true，走 accept-deviations 旁路）
-- V-3: enforcement_coverage 计量（src/spec/verifier-classify.ts 纯函数分类器）
-- V-4: docs/design/constraint-strength.md §9.0 可验证性前置判定（求值序 0）
+- V-1: manual(E-SPEC-015 SPEC_SHALL_NOT_UNVERIFIABLE（ERROR, forceable: false, always_enforce）)
+- V-2: manual(E-VERIFY-003 MANUAL_EVIDENCE_MISSING（ERROR, forceable: true，走 accept-deviations 旁路）)
+- V-3: manual(enforcement_coverage 计量（src/spec/verifier-classify.ts 纯函数分类器）)
+- V-4: manual(docs/design/constraint-strength.md §9.0 可验证性前置判定（求值序 0）)
 
 ## Requirement: 流程执行载体（CLI-first）
 
@@ -262,10 +262,10 @@ prohibitions:
 - 禁止在无对应命令的情况下将确定性步骤写入 skill（先命令后文档）
 
 ### Enforcement
-- F-1: E-CHANGE-007 decisions content_hash 篡改检测
-- F-2: E-STATE-001 受保护字段审计 / guard.bypass_audit 拒绝
-- F-3: `mumuspec tasks next` / `test-cases lock-suite --layer` / `state layer`（0.20 CLI-first 命令）
-- F-4: 状态机边校验（无效目标阶段即拒绝，含 verify-fail/archive-reopen 类历史误写）
+- F-1: manual(E-CHANGE-007 decisions content_hash 篡改检测)
+- F-2: manual(E-STATE-001 受保护字段审计 / guard.bypass_audit 拒绝)
+- F-3: manual(`mumuspec tasks next` / `test-cases lock-suite --layer` / `state layer`（0.20 CLI-first 命令）)
+- F-4: manual(状态机边校验（无效目标阶段即拒绝，含 verify-fail/archive-reopen 类历史误写）)
 - F-5: manual(由 review 流程核对 skill 引用的命令与注册表一致——P1 候选：清单化生成校验)
 
 
@@ -373,10 +373,10 @@ MumuSpec 必须能生成 AGENTS.md 作为唯一权威 Rules 文件，并通过�
 
 ### Enforcement
 
-- F-1: 既有实例——可验证性四分类校验器（verifier-classify）+ E-SPEC-015 红线未声明验证方式恒 block
-- F-2: 既有实例——状态机边校验拒绝无效目标阶段（E-CHANGE-006）与受保护字段审计（E-STATE-001）
-- F-3: 本变更新增实例——分发层生成器以声明式配置为输入、生成物经代码校验；完备性门禁 schema 校验器拒绝非法 open-questions / assumptions 工件（见 delta-specs/completeness-gate.md ENF-1/ENF-2）
-- F-4: drift / CI 校验覆盖新增规则 schema，防止规则与校验器漂移
+- F-1: manual(既有实例——可验证性四分类校验器（verifier-classify）+ E-SPEC-015 红线未声明验证方式恒 block)
+- F-2: manual(既有实例——状态机边校验拒绝无效目标阶段（E-CHANGE-006）与受保护字段审计（E-STATE-001）)
+- F-3: manual(本变更新增实例——分发层生成器以声明式配置为输入、生成物经代码校验；完备性门禁 schema 校验器拒绝非法 open-questions / assumptions 工件（见 delta-specs/completeness-gate.md ENF-1/ENF-2）)
+- F-4: manual(drift / CI 校验覆盖新增规则 schema，防止规则与校验器漂移)
 
 
 
@@ -566,7 +566,7 @@ agent 必须能读取自由度信号，而非仅由引擎内部消费。
 ### Enforcement
 
 - ENF-5: enforced-strong(单元测试：`--json` 输出可解析且字段完整)
-- ENF-6: enforced-weak(实跑断言：AGENTS.md 速查含 metrics 条目，全文 ≤ 32KiB)
+- ENF-6: manual(enforced-weak(实跑断言：AGENTS.md 速查含 metrics 条目，全文 ≤ 32KiB))
 
 ## Requirement: 元数据事实源对齐
 
@@ -740,7 +740,7 @@ I3（层内默认可并行）是界内自由的推论——界内既然自由，
 
 - ENF-6: enforced-strong(单元测试：两次安装后登记条目数为 1；版本段等于包版本；installedAt 不变而 lastUpdated 更新)
 - ENF-7: enforced-strong(单元测试：登记文件为非法 JSON 时返回失败而非成功)
-- ENF-8: enforced-weak(实跑：安装后目标路径存在清单与技能文件)
+- ENF-8: manual(enforced-weak(实跑：安装后目标路径存在清单与技能文件))
 
 ## Requirement: 技能副本漂移可检测
 
@@ -761,7 +761,7 @@ I3（层内默认可并行）是界内自由的推论——界内既然自由，
 
 - ENF-9: enforced-strong(单元测试：改动源正文产生诊断；仅改动版本行不产生诊断)
 - ENF-10: enforced-strong(单元测试：漂移诊断出现在 check 的 drift 数组，且 CI 检查消费同一函数)
-- ENF-11: enforced-weak(实跑：修复后 `mumuspec check` 无该诊断)
+- ENF-11: manual(enforced-weak(实跑：修复后 `mumuspec check` 无该诊断))
 
 ## Requirement: 技能依赖声明与可满足性一致
 
@@ -781,7 +781,7 @@ I3（层内默认可并行）是界内自由的推论——界内既然自由，
 ### Enforcement
 
 - ENF-12: enforced-strong(单元测试：伴随能力枚举覆盖技能文本中声明的全部外部名称，且解析结果与实际搜索面一致)
-- ENF-13: enforced-weak(实跑：伴随能力全缺失时阶段流程仍可完成并留痕)
+- ENF-13: manual(enforced-weak(实跑：伴随能力全缺失时阶段流程仍可完成并留痕))
 
 ## Requirement: 技能权威源单一
 
@@ -848,7 +848,7 @@ delta: ADDED
 - SHALL NOT 因 phase_bps 非法而崩溃——必须走既有 fail-safe 路径（console.warn 加内置默认配置）。
 
 ### Enforcement
-- PHASE_BPS_LOADER: tests/change/phase-graph-loader-bps.test.ts TC-L0-01..06（合法解析/缺省兼容/未知 phase/坏 id 格式/workflow 内重复 id/fail-safe 回退）
+- PHASE_BPS_LOADER: manual(tests/change/phase-graph-loader-bps.test.ts TC-L0-01..06（合法解析/缺省兼容/未知 phase/坏 id 格式/workflow 内重复 id/fail-safe 回退）)
 
 ## Requirement: graph verify 报告与一致性检查
 
@@ -862,7 +862,7 @@ delta: ADDED
 - SHALL NOT 让 W-GRAPH-001 以 error 级别抛出（一律 WARN，不阻断流程）。
 
 ### Enforcement
-- PHASE_BPS_VERIFY: tests/change/phase-bps.test.ts TC-L1-01..06（报告清单/18 BP 并集/一致 0 告警/缺声明触发 W-GRAPH-001/skill 缺失跳过/错误码注册 WARN）
+- PHASE_BPS_VERIFY: manual(tests/change/phase-bps.test.ts TC-L1-01..06（报告清单/18 BP 并集/一致 0 告警/缺声明触发 W-GRAPH-001/skill 缺失跳过/错误码注册 WARN）)
 
 
 
@@ -991,7 +991,7 @@ Enforcement: 见下方 ### Enforcement 清单（ITA-1 / ITA-2）
 ### Enforcement
 
 - ITA-1: manual(代码审阅：AgentType/manifest/policies/rule-targets/conventions 五处同步，无残留 `'trae'` 字面量)
-- ITA-2: unit-tests(rules-generator 对 traecode/traework 渲染非空 AGENTS.md plan；installer-ops 的 conventions 表含两新值)
+- ITA-2: manual(unit-tests(rules-generator 对 traecode/traework 渲染非空 AGENTS.md plan；installer-ops 的 conventions 表含两新值))
 
 
 
@@ -1019,7 +1019,7 @@ Enforcement: 见下方 ### Enforcement 清单（ITA-3）
 
 ### Enforcement
 
-- ITA-3: unit-tests(helpers 子命令：project-only 缺省 cwd、与 --target user 互斥报错、workspace 安装触发 AGENTS.md)
+- ITA-3: manual(unit-tests(helpers 子命令：project-only 缺省 cwd、与 --target user 互斥报错、workspace 安装触发 AGENTS.md))
 
 
 

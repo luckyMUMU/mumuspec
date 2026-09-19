@@ -12,3 +12,11 @@
 ## [design] 2026-09-19T15:41:23.730Z
 
 设计三分法与逐批签收流程落档；完成判据=legacy_weak 0 + implicit-manual 0 + legacy=false 演练绿
+
+## [build] 2026-09-19T15:42:59.633Z
+
+用户以目标续跑指示签收批1清单（A 95 条 manual 显式化 + B 20 条 lex 前缀 + C 0 注解）并要求继续
+
+## [build] 2026-09-19T15:48:25.138Z
+
+偏差登记：21 条 legacy weak 不可转显式 lex: 前缀——lex: 前缀破坏 checker 对 The system SHALL NOT 类系统行为约束的豁免路径（实测 15 条误报），且其引号项为对象标识符（红线：行内码承载标识符）。该类保留 legacy 兜底，显式化留待后续'系统行为类红线通道'变更；批1 A类(50 manual 显式化)与 demo 批维持

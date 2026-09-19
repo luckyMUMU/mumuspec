@@ -2,7 +2,7 @@ name: dogfood-migration-b1
 phase: build
 workflow: full
 created_at: 2026-09-19T15:35:24.303Z
-updated_at: 2026-09-19T15:41:24.555Z
+updated_at: 2026-09-19T15:48:25.148Z
 scope: .
 affected_scopes:
   - .
@@ -29,7 +29,8 @@ decisions_log:
   counts:
     open: 2
     design: 1
-  content_hash: bbefd8bcca0f8ce9
+    build: 2
+  content_hash: 001d177c7370ace3
 rollback_history: []
 cognitive_framework:
   enabled: true

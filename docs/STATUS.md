@@ -132,7 +132,7 @@
 | 字段 | 当前值 | 说明 |
 |------|--------|------|
 | 可验证性门控 | enforcement_strict = true（默认 ON） | E-SPEC-015 默认阻断；opt-out 设 false 退回观察态 |
-| dogfooding coverage | declared_ratio 100%（180 条约束） | 170 manual + 10 enforced-weak + 0 strong + 0 unverifiable |
+| dogfooding coverage | declared_ratio 100%（362 项） | 339 manual + 21 enforced-weak + 2 strong + 0 unverifiable（迁移批后：98 条 Enforcement 显式 manual 化、45 条 enforced-strong 证据指针保留、21 条系统行为红线维持 legacy 兜底——lex 显式化经实测偏差取消） |
 | 图谱后端降级状态 | 内置（未启用 Code-graph） | 使用 PageIndex + 反向索引；SQLite 后端计划 Phase 3 |
 | 高级特性启用状态 | 认知框架/Ponytail/可验证性 可用 | 认知框架默认关闭，Ponytail 核心完成，可验证性 M2 已翻闸 |
 | CLI 命令 | 43+ 命令可用 | 新增 tasks next / lock-suite / state layer（0.20） |

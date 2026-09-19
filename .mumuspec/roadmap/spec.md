@@ -53,8 +53,8 @@ type: roadmap
 - 优先在全局 `.mumuspec/roadmap/items/` 创建跨模块目标，模块级 items 仅用于完全内聚的目标
 
 ### Enforcement
-- ROADMAP-0: 检查 `roadmap/` 目录仅存在于 `.mumuspec/` 内部
-- ROADMAP-1: 检查模块 BOUNDARY.md 中 `has_roadmap` 与实际目录一致性
+- ROADMAP-0: manual(检查 `roadmap/` 目录仅存在于 `.mumuspec/` 内部)
+- ROADMAP-1: manual(检查模块 BOUNDARY.md 中 `has_roadmap` 与实际目录一致性)
 
 ---
 
@@ -95,9 +95,9 @@ type: roadmap
 - 禁止 `depends_on` / `mutex_with` 引用不存在的 Item ID
 
 ### Enforcement
-- ROADMAP-10: 校验文件名格式 `R-\d{4}\.md`
-- ROADMAP-11: 校验 frontmatter 必填字段完整
-- ROADMAP-12: 校验 `depends_on` / `mutex_with` 引用的 ID 存在性
+- ROADMAP-10: manual(校验文件名格式 `R-\d{4}\.md`)
+- ROADMAP-11: manual(校验 frontmatter 必填字段完整)
+- ROADMAP-12: manual(校验 `depends_on` / `mutex_with` 引用的 ID 存在性)
 
 ---
 
@@ -118,9 +118,9 @@ type: roadmap
 - P1 Item 应该在有 P0 完成后被评估是否提升
 
 ### Enforcement
-- ROADMAP-20: 校验同一模块 `active` P0 数量 <= 1
-- ROADMAP-21: 校验全局 `active` P0 数量 <= 3
-- ROADMAP-22: 校验模块 `active` P1 <= 3
+- ROADMAP-20: manual(校验同一模块 `active` P0 数量 <= 1)
+- ROADMAP-21: manual(校验全局 `active` P0 数量 <= 3)
+- ROADMAP-22: manual(校验模块 `active` P1 <= 3)
 
 ---
 
@@ -140,9 +140,9 @@ type: roadmap
 - 优先通过合并 Item 来减少依赖，而非增加依赖链长度
 
 ### Enforcement
-- ROADMAP-30: 校验依赖图无环（拓扑排序验证）
-- ROADMAP-31: 校验依赖方 target_date 晚于被依赖方
-- ROADMAP-32: 校验被依赖 Item deprecated 时依赖方状态
+- ROADMAP-30: manual(校验依赖图无环（拓扑排序验证）)
+- ROADMAP-31: manual(校验依赖方 target_date 晚于被依赖方)
+- ROADMAP-32: manual(校验被依赖 Item deprecated 时依赖方状态)
 
 ---
 
@@ -161,9 +161,9 @@ type: roadmap
 - 优先使用 `depends_on`（串行）替代 `mutex_with`（并行延后），除非确实存在同时进行的技术风险
 
 ### Enforcement
-- ROADMAP-40: 校验互斥矩阵对称性
-- ROADMAP-41: 校验互斥 Item 无同时 active
-- ROADMAP-42: 校验 mutex_with 与 depends_on 无交叠
+- ROADMAP-40: manual(校验互斥矩阵对称性)
+- ROADMAP-41: manual(校验互斥 Item 无同时 active)
+- ROADMAP-42: manual(校验 mutex_with 与 depends_on 无交叠)
 
 ---
 
@@ -187,7 +187,7 @@ type: roadmap
 - 禁止从 `completed` 回退到任何中间状态
 
 ### Enforcement
-- ROADMAP-50: 校验状态转换合法性
+- ROADMAP-50: manual(校验状态转换合法性)
 
 ---
 
@@ -219,9 +219,9 @@ type: roadmap
 - 禁止跨模块形成更大的循环依赖链（A 模块 P0 → B 模块 P0 → A 模块 P0）
 
 ### Enforcement
-- ROADMAP-60: 全局依赖图无环（跨模块）
-- ROADMAP-61: 全局 active P0 总数上限
-- ROADMAP-62: 跨模块互斥对称性
+- ROADMAP-60: manual(全局依赖图无环（跨模块）)
+- ROADMAP-61: manual(全局 active P0 总数上限)
+- ROADMAP-62: manual(跨模块互斥对称性)
 
 ---
 
@@ -235,9 +235,9 @@ type: roadmap
 - `capacity_cost` 总和不可超过活跃容量预算（默认 6 单位）
 
 ### Enforcement
-- ROADMAP-70: 校验全局 active 数量上限
-- ROADMAP-71: 校验模块级 active 数量上限
-- ROADMAP-72: 校验容量预算不超支
+- ROADMAP-70: manual(校验全局 active 数量上限)
+- ROADMAP-71: manual(校验模块级 active 数量上限)
+- ROADMAP-72: manual(校验容量预算不超支)
 
 ---
 
@@ -249,8 +249,8 @@ type: roadmap
 - 新版 Items 重新编号从 R-0001 开始，通过 `supersedes` 字段引用旧版 ID
 
 ### Enforcement
-- ROADMAP-80: `items/` 中不允许存在 `status: completed` 的 Item
-- ROADMAP-81: 归档 Item 的 `supersedes` 引用链完整性
+- ROADMAP-80: manual(`items/` 中不允许存在 `status: completed` 的 Item)
+- ROADMAP-81: manual(归档 Item 的 `supersedes` 引用链完整性)
 
 ---
 

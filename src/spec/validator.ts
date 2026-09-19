@@ -189,7 +189,7 @@ function validateSpecMd(
     // manual-explicit: advisory for legacy free-text enforcement (implicit-manual).
     // Classification is unchanged — this only guides authors to `manual(reason)`.
     for (const req of spec.requirements) {
-      if (req.enforcement.some((e) => e.kind === 'implicit-manual' && !/^(ast|lex):/i.test((e.description ?? '').trim()))) {
+      if (req.enforcement.some((e) => e.kind === 'implicit-manual' && !/^(ast|lex):/i.test((e.description ?? '').trim()) && !/^enforced-strong\(/i.test((e.description ?? '').trim()))) {
         warnings.push({
           code: 'W-SPEC-017',
           message: `Requirement "${req.name}" 含 legacy 自由文本 Enforcement — 建议改写为显式 manual(reason)`,
@@ -252,7 +252,7 @@ export function validateSpecFile(filePath: string): GuardResult {
 
     // manual-explicit: advisory for legacy free-text enforcement (implicit-manual).
     for (const req of spec.requirements) {
-      if (req.enforcement.some((e) => e.kind === 'implicit-manual' && !/^(ast|lex):/i.test((e.description ?? '').trim()))) {
+      if (req.enforcement.some((e) => e.kind === 'implicit-manual' && !/^(ast|lex):/i.test((e.description ?? '').trim()) && !/^enforced-strong\(/i.test((e.description ?? '').trim()))) {
         warnings.push({
           code: 'W-SPEC-017',
           message: `Requirement "${req.name}" 含 legacy 自由文本 Enforcement — 建议改写为显式 manual(reason)`,

@@ -23,10 +23,10 @@ last_updated: "2026-07-10"
 - 对复杂请求提出质疑而非盲目实现
 
 ### Enforcement
-- PONYTAIL-1: lint rule: detect unnecessary abstraction patterns (YAGNI check)
-- PONYTAIL-2: lint rule: check for unnecessary new dependencies
-- PONYTAIL-3: lint rule: detect boilerplate code patterns
-- PONYTAIL-4: lint rule: detect overly clever solutions
+- PONYTAIL-1: manual(lint rule: detect unnecessary abstraction patterns (YAGNI check))
+- PONYTAIL-2: manual(lint rule: check for unnecessary new dependencies)
+- PONYTAIL-3: manual(lint rule: detect boilerplate code patterns)
+- PONYTAIL-4: manual(lint rule: detect overly clever solutions)
 
 ## Requirement: 项目架构
 
@@ -43,8 +43,8 @@ last_updated: "2026-07-10"
 - 不允许在根级规范中定义具体模块的实现方式
 
 ### Enforcement
-- ARCH-1: 检查 package.json dependencies 不包含 Web 框架
-- ARCH-2: 检查目录结构是否符合 src/models, src/api, src/storage 分层
+- ARCH-1: manual(检查 package.json dependencies 不包含 Web 框架)
+- ARCH-2: manual(检查目录结构是否符合 src/models, src/api, src/storage 分层)
 
 ## Requirement: 错误处理
 
@@ -58,8 +58,8 @@ last_updated: "2026-07-10"
 - 禁止忽略 Promise rejection
 
 ### Enforcement
-- ERR-1: 检查所有路由 handler 有 try-catch 包裹
-- ERR-2: 检查 500 响应不包含 stack trace
+- ERR-1: manual(检查所有路由 handler 有 try-catch 包裹)
+- ERR-2: manual(检查 500 响应不包含 stack trace)
 
 ## Requirement: 数据验证
 
@@ -69,8 +69,8 @@ last_updated: "2026-07-10"
 - 任务状态必须为 todo / in-progress / done 之一
 
 ### Enforcement
-- VAL-1: 检查 validateTask 函数覆盖所有必填字段
-- VAL-2: 检查非法输入返回 400 状态码
+- VAL-1: manual(检查 validateTask 函数覆盖所有必填字段)
+- VAL-2: manual(检查非法输入返回 400 状态码)
 
 
 <!-- delta-merged from portable-exe-packaging/scripts-build-exe.md -->
@@ -92,8 +92,8 @@ delta: ADDED
 - SHALL NOT 修改源代码结构（仅打包，不改写源码）
 
 ### Enforcement
-- DS-BLD-1: 检查 build-exe.mjs 仅使用 node:sea
-- DS-BLD-2: 检查输出路径可配置
+- DS-BLD-1: manual(检查 build-exe.mjs 仅使用 node:sea)
+- DS-BLD-2: manual(检查输出路径可配置)
 
 
 
@@ -116,8 +116,8 @@ delta: ADDED
 - SHALL NOT 写入系统目录（仅当前目录和子目录）
 
 ### Enforcement
-- DS-START-1: 检查 start.mjs 同时启动前后端服务
-- DS-START-2: 检查端口可通过环境变量配置
+- DS-START-1: manual(检查 start.mjs 同时启动前后端服务)
+- DS-START-2: manual(检查端口可通过环境变量配置)
 
 
 
@@ -144,9 +144,9 @@ delta: ADDED
 - SHALL NOT 引入 CSS 框架（Tailwind/Bootstrap 等）
 
 ### Enforcement
-- FE-ARCH-1: 检查 package.json 无前端构建依赖
-- FE-ARCH-2: 检查 public/ 目录下无 .jsx/.tsx 文件
-- FE-ARCH-3: 检查使用 htm 或 h() 函数
+- FE-ARCH-1: manual(检查 package.json 无前端构建依赖)
+- FE-ARCH-2: manual(检查 public/ 目录下无 .jsx/.tsx 文件)
+- FE-ARCH-3: manual(检查使用 htm 或 h() 函数)
 
 ## Requirement: 前端功能
 
@@ -166,9 +166,9 @@ delta: ADDED
 - SHALL NOT 使用 localStorage 缓存任务数据（数据源为 API）
 
 ### Enforcement
-- FE-FUNC-1: 检查 UI 交互流程覆盖任务 CRUD
-- FE-FUNC-2: 检查 API 调用使用 fetch
-- FE-FUNC-3: 不存在 localStorage 缓存逻辑
+- FE-FUNC-1: manual(检查 UI 交互流程覆盖任务 CRUD)
+- FE-FUNC-2: manual(检查 API 调用使用 fetch)
+- FE-FUNC-3: manual(不存在 localStorage 缓存逻辑)
 
 ## Requirement: 前端服务
 
@@ -183,9 +183,9 @@ delta: ADDED
 - SHALL NOT 引入 Express 或其他 Web 框架来提供静态文件
 
 ### Enforcement
-- FE-SRV-1: 检查 start.mjs 同时启动 API + 静态服务
-- FE-SRV-2: 检查 CORS 头或同源配置
-- FE-SRV-3: 检查无外部 Web 框架引入
+- FE-SRV-1: manual(检查 start.mjs 同时启动 API + 静态服务)
+- FE-SRV-2: manual(检查 CORS 头或同源配置)
+- FE-SRV-3: manual(检查无外部 Web 框架引入)
 
 ## Requirement: design.md 前端风格规范
 
@@ -200,6 +200,6 @@ delta: ADDED
 - SHALL NOT 在 design.md 中定义具体代码实现
 
 ### Enforcement
-- FE-STYLE-1: 检查 design.md 包含颜色/排版/间距令牌
-- FE-STYLE-2: 检查设计规范遵循极简风格
+- FE-STYLE-1: manual(检查 design.md 包含颜色/排版/间距令牌)
+- FE-STYLE-2: manual(检查设计规范遵循极简风格)
 
