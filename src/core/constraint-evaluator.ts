@@ -30,6 +30,59 @@ import {
   strengthRank,
   BUILTIN_CONSTRAINT_EXCEPTIONS,
 } from './config.js';
+import type { Severity } from './types-constraint.js';
+import { ERROR_CODES } from './errors.js';
+
+/**
+ * Deterministically suggest a constraint strength from its metadata
+ * (severity-dominant, class-dominant fallback). Pure function — the suggestion
+ * is advisory only; it is never written to config (constraint_strength changes
+ * still require human sign-off).
+ */
+export function suggestStrengthFor(input: {
+  severity?: Severity;
+}): ConstraintStrength {
+  if (input.severity) {
+    switch (input.severity) {
+      case 'ERROR': return 'high';
+      case 'WARN': return 'medium';
+      case 'INFO': return 'low';
+    }
+  }
+  return 'low';
+}
+
+/** One strength deviation observation: suggested (severity-derived) exceeds actual. */
+export interface StrengthDeviation {
+  code: string;
+  severity: Severity;
+  dimension: ConstraintDimension;
+  suggested: ConstraintStrength;
+  actual: ConstraintStrength;
+}
+
+/**
+ * Sweep the ERROR_CODES registry and report deviations where the
+ * severity-derived suggestion ranks above the configured dimension strength.
+ * Deterministic and code-derived; advisory only (no writes, no sign-off bypass).
+ */
+export function collectStrengthDeviations(
+  config: ConstraintStrengthField,
+): StrengthDeviation[] {
+  const deviations: StrengthDeviation[] = [];
+  if (!config) return deviations;
+  for (const [code, def] of Object.entries(ERROR_CODES)) {
+    if (!def.severity || !def.dimension) continue;
+    const dimension = def.dimension as ConstraintDimension;
+    if (!(dimension in config)) continue;
+    const suggested = suggestStrengthFor({ severity: def.severity });
+    const actual = config[dimension];
+    if (strengthRank(suggested) > strengthRank(actual)) {
+      deviations.push({ code, severity: def.severity, dimension, suggested, actual });
+    }
+  }
+  return deviations;
+}
 
 /**
  * A single guard / phase-guard check item, annotated with strength metadata.

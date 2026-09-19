@@ -3,6 +3,8 @@
  * 0.12.0+ strength system, 0.12.1+ tree-distributed constraints.
  */
 
+import type { MachineReadableAnnotation } from './types-spec.js';
+
 /** Spec constraint type */
 export type ConstraintType = 'shall' | 'shall-not' | 'should' | 'may';
 
@@ -37,6 +39,12 @@ export interface ConstraintEntry {
   content: string;
   min_strength: ConstraintStrength;
   enforcement: string;
+  /**
+   * enforcement-gap (A3.3): machine-readable annotation opening the AST
+   * channel for this entry — same type as spec.md frontmatter annotations
+   * (single source of truth). Present + non-custom ⇒ enforced-strong.
+   */
+  annotation?: MachineReadableAnnotation;
   category?: string;
   always_enforce?: boolean;
   source_specs?: string[];

@@ -27,6 +27,7 @@ import type {
   Requirement,
   EnforcementRule,
   ProhibitionAnnotation,
+  MachineReadableAnnotation,
 } from '../core/types-spec.js';
 import type { EnforcementCoverage } from '../core/types-workflow.js';
 
@@ -41,12 +42,26 @@ export interface ClassifiedItem {
   polarity: ConstraintPolarity;
   text: string;
   cls: VerifiabilityClass;
+  /** Matched machine-readable annotation (same text as the constraint item). */
+  annotation?: MachineReadableAnnotation;
+  /** For enforced-weak: channel origin — 'lex' (explicit prefix) or 'legacy' (fallback). */
+  weakSource?: 'lex' | 'legacy';
   /** Enforcement anchor for manual evidence matching (first block-level rule). */
   enforcementId?: string;
   enforcementDescription?: string;
   /** Whether the manual class comes from an explicit `manual(...)` declaration. */
   explicitManual?: boolean;
   source: string;
+}
+
+/** Classification policy options (defaults preserve current behavior). */
+export interface ClassificationOpts {
+  /**
+   * When false, the lexical channel (enforced-weak) requires an explicit
+   * `lex:` prefix; unannotated SHALL NOT texts no longer auto-fall back.
+   * Default true (legacy compatibility).
+   */
+  legacyLexical?: boolean;
 }
 
 /** Input to classifyConstraint. */
@@ -116,14 +131,19 @@ export function extractRegexPatterns(text: string): RegExp[] {
 // ════════════════════════════════════════════════════════════════════
 
 /** Classify one constraint item (R1 → R4 fixed order). */
-export function classifyConstraint(c: VerifiableConstraint): VerifiabilityClass {
+export function classifyConstraint(
+  c: VerifiableConstraint,
+  opts?: ClassificationOpts,
+): VerifiabilityClass {
+  // R1 — annotation channel (authoritative when present; polarity-neutral)
+  const matched = c.annotations.find((a) => a.text === c.text);
+  if (matched?.annotation && matched.annotation.type !== 'custom') return 'enforced-strong';
+  if (c.text.startsWith('ast:')) return 'enforced-strong';
   if (c.polarity === 'shall-not') {
-    // R1 — annotation channel (authoritative when present)
-    const matched = c.annotations.find((a) => a.text === c.text);
-    if (matched?.annotation && matched.annotation.type !== 'custom') return 'enforced-strong';
-    if (c.text.startsWith('ast:')) return 'enforced-strong';
-    // R2 — regex fallback channel
-    if (isRegexCheckable(c.text)) return 'enforced-weak';
+    // R2 — lexical channel: explicit `lex:` prefix, or legacy fallback (opt-in).
+    // SHALL has no weak tier.
+    if (c.text.startsWith('lex:')) return 'enforced-weak';
+    if ((opts?.legacyLexical ?? true) !== false && isRegexCheckable(c.text)) return 'enforced-weak';
   }
   // R3 — manual (explicit or legacy implicit); applies to both polarities
   if (c.enforcement.length > 0) return 'manual';
@@ -144,15 +164,16 @@ export function classifyRequirements(
   reqs: Requirement[],
   annotations: ProhibitionAnnotation[],
   source: string,
+  opts?: ClassificationOpts,
 ): ClassifiedItem[] {
   const items: ClassifiedItem[] = [];
   for (const req of reqs) {
     const explicit = req.enforcement.some(isExplicitManual);
     for (const text of req.shall) {
-      items.push(makeItem(req.name, 'shall', text, req.enforcement, explicit, annotations, source));
+      items.push(makeItem(req.name, 'shall', text, req.enforcement, explicit, annotations, source, opts));
     }
     for (const text of req.shallNot) {
-      items.push(makeItem(req.name, 'shall-not', text, req.enforcement, explicit, annotations, source));
+      items.push(makeItem(req.name, 'shall-not', text, req.enforcement, explicit, annotations, source, opts));
     }
   }
   return items;
@@ -166,14 +187,17 @@ function makeItem(
   explicit: boolean,
   annotations: ProhibitionAnnotation[],
   source: string,
+  opts?: ClassificationOpts,
 ): ClassifiedItem {
-  const cls = classifyConstraint({ requirement, polarity, text, annotations, enforcement, source });
+  const cls = classifyConstraint({ requirement, polarity, text, annotations, enforcement, source }, opts);
   const anchor = enforcement[0];
   return {
     requirement,
     polarity,
     text,
     cls,
+    annotation: annotations.find((a) => a.text === text)?.annotation,
+    weakSource: cls === 'enforced-weak' ? (text.startsWith('lex:') ? 'lex' : 'legacy') : undefined,
     enforcementId: anchor?.id,
     enforcementDescription: anchor?.description,
     explicitManual: cls === 'manual' ? explicit : undefined,
@@ -192,10 +216,19 @@ export function computeEnforcementCoverage(items: ClassifiedItem[]): Enforcement
   const total = items.length;
   const counts = { strong: 0, weak: 0, manual: 0, unverifiable: 0 };
   const details: EnforcementCoverage['unverifiable_items'] = [];
+  const actionable: EnforcementCoverage['actionable_weak'] = [];
+  let legacyWeak = 0;
   for (const item of items) {
     switch (item.cls) {
       case 'enforced-strong': counts.strong++; break;
-      case 'enforced-weak': counts.weak++; break;
+      case 'enforced-weak':
+        counts.weak++;
+        // Legacy-fallback weak items are the "add annotation" action items.
+        if (item.weakSource === 'legacy') {
+          legacyWeak++;
+          actionable.push({ requirement: item.requirement, text: item.text, source: item.source });
+        }
+        break;
       case 'manual': counts.manual++; break;
       case 'unverifiable':
         counts.unverifiable++;
@@ -219,6 +252,8 @@ export function computeEnforcementCoverage(items: ClassifiedItem[]): Enforcement
     declared_ratio: total === 0 ? 0 : (total - counts.unverifiable) / total,
     strong_ratio: total === 0 ? 0 : counts.strong / total,
     unverifiable_items: details,
+    legacy_weak: legacyWeak,
+    actionable_weak: actionable,
   };
 }
 
@@ -230,18 +265,57 @@ interface MinimalConstraintEntry {
   id: string;
   content: string;
   enforcement: string;
+  annotation?: MachineReadableAnnotation;
 }
 
 /**
- * Classify a constraints.yaml ConstraintEntry. Entries have no automated
- * execution channel today (guard pattern-checks spec shallNot texts, not yaml
- * entries), so the class is determined by the enforcement declaration alone:
- * empty → unverifiable, `manual(...)` → manual, other text → manual (implicit).
+ * Classify a constraints.yaml ConstraintEntry (enforcement-gap A3.3).
+ * Same judgment order as spec items: R1 annotation/ast: ⇒ strong,
+ * explicit `lex:` prefix ⇒ weak, then enforcement declaration ⇒ manual,
+ * legacy lexical fallback (opt-in) ⇒ weak, else unverifiable.
  */
-export function classifyConstraintEntry(entry: MinimalConstraintEntry): VerifiabilityClass {
+export function classifyConstraintEntry(
+  entry: MinimalConstraintEntry,
+  opts?: ClassificationOpts,
+): VerifiabilityClass {
+  if (entry.annotation && entry.annotation.type !== 'custom') return 'enforced-strong';
+  const content = entry.content ?? '';
+  if (content.startsWith('ast:')) return 'enforced-strong';
+  if (content.startsWith('lex:')) return 'enforced-weak';
   const enforcement = (entry.enforcement ?? '').trim();
-  if (enforcement === '') return 'unverifiable';
-  return 'manual';
+  if (enforcement !== '') return 'manual';
+  if ((opts?.legacyLexical ?? true) !== false && isRegexCheckable(content)) return 'enforced-weak';
+  return 'unverifiable';
+}
+
+/**
+ * Project a constraints.yaml entry into a ClassifiedItem so the guard
+ * execution pipeline and enforcement coverage consume entries through the
+ * same machinery as spec.md items (no second check implementation).
+ */
+export function constraintEntryToItem(
+  entry: MinimalConstraintEntry,
+  direction: 'forward' | 'reverse',
+  sourcePath: string,
+  opts?: ClassificationOpts,
+): ClassifiedItem {
+  const polarity: ConstraintPolarity = direction === 'forward' ? 'shall' : 'shall-not';
+  const cls = classifyConstraintEntry(entry, opts);
+  const enforcement = (entry.enforcement ?? '').trim();
+  return {
+    requirement: `constraints:${entry.id}`,
+    polarity,
+    text: entry.content,
+    cls,
+    annotation: entry.annotation,
+    weakSource: cls === 'enforced-weak'
+      ? ((entry.content ?? '').startsWith('lex:') ? 'lex' : 'legacy')
+      : undefined,
+    enforcementId: enforcement !== '' ? entry.id : undefined,
+    enforcementDescription: enforcement !== '' ? enforcement : undefined,
+    explicitManual: cls === 'manual' ? enforcement.startsWith('manual') : undefined,
+    source: sourcePath,
+  };
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -252,19 +326,66 @@ function normalize(s: string): string {
   return s.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+/** One structured manual-evidence record found in verify.md. */
+export interface StructuredEvidence {
+  constraintId: string;
+  user?: string;
+  verdict?: string;
+  timestamp?: string;
+  evidenceHash?: string;
+}
+
+/**
+ * Extract structured evidence records ({constraintId: ..., ...}) from verify.md.
+ * Tolerant parsing: quotes optional, key order free, inline prefix allowed.
+ * Pure function — caller decides how the records are consumed.
+ */
+export function parseStructuredEvidence(verifyContent: string): StructuredEvidence[] {
+  const records: StructuredEvidence[] = [];
+  const blockRe = /\{([^{}]*)\}/g;
+  let block: RegExpExecArray | null;
+  while ((block = blockRe.exec(verifyContent)) !== null) {
+    if (!block[1].includes('constraintId')) continue;
+    const kv: Record<string, string> = {};
+    const kvRe = /([A-Za-z_][A-Za-z0-9_]*)\s*:\s*["']?([^"',}\s]+)/g;
+    let field: RegExpExecArray | null;
+    while ((field = kvRe.exec(block[1])) !== null) {
+      kv[field[1]] = field[2];
+    }
+    if (!kv.constraintId) continue;
+    records.push({
+      constraintId: kv.constraintId,
+      user: kv.user,
+      verdict: kv.verdict,
+      timestamp: kv.timestamp,
+      evidenceHash: kv.evidence_hash ?? kv.evidenceHash,
+    });
+  }
+  return records;
+}
+
 /**
  * Return the manual-class items whose verification record is missing from the
- * verify.md content. Evidence anchors: the Enforcement ID or the constraint
- * text (normalized; long texts anchor on their first 24 chars).
- * Non-manual classes never require evidence.
+ * verify.md content. Evidence anchors (priority order): structured record with
+ * a matching constraintId and a non-empty verdict/evidence_hash; the
+ * Enforcement ID in the text; the constraint text (normalized; long texts
+ * anchor on their first 24 chars). Non-manual classes never require evidence.
  */
 export function missingManualEvidence(
   verifyContent: string,
   items: ClassifiedItem[],
 ): ClassifiedItem[] {
-  const haystack = normalize(verifyContent);
+  // Strip structured-record braces before legacy anchor matching so an
+  // incomplete record cannot self-satisfy via its own enforcementId text.
+  const haystack = normalize(verifyContent.replace(/\{[^{}]*\}/g, ' '));
+  // Structured records — only structurally complete ones satisfy (verdict + evidence_hash).
+  const byId = new Map<string, StructuredEvidence>();
+  for (const rec of parseStructuredEvidence(verifyContent)) {
+    if (rec.verdict && rec.evidenceHash) byId.set(normalize(rec.constraintId), rec);
+  }
   return items.filter((item) => {
     if (item.cls !== 'manual') return false;
+    if (item.enforcementId && byId.has(normalize(item.enforcementId))) return false;
     if (item.enforcementId && haystack.includes(normalize(item.enforcementId))) return false;
     const needle = normalize(item.text);
     const anchor = needle.length > 24 ? needle.slice(0, 24) : needle;

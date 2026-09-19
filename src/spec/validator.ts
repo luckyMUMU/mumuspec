@@ -123,7 +123,7 @@ function emitVerifiabilityFindings(
   for (const item of items) {
     if (item.cls !== 'unverifiable') continue;
     if (item.polarity === 'shall-not') {
-      const message = `SHALL NOT 无可验证通道 (Requirement "${item.requirement}"): "${item.text}"`;
+      const message = `SHALL NOT 无可验证通道 (Requirement "${item.requirement}"): "${item.text}"；出路：补 annotation / ast: / lex: / manual(reason)`;
       const finding = strict
         ? errors
         : warnings;
@@ -181,9 +181,22 @@ function validateSpecMd(
 
     // P0 verifier semantics: classify every SHALL/SHALL NOT item
     const prohibitions: ProhibitionAnnotation[] = spec.frontmatter.prohibitions ?? [];
-    const items = classifyRequirements(spec.requirements, prohibitions, specPath);
+    const legacyLexical = config.specs?.legacy_lexical_channel ?? true;
+    const items = classifyRequirements(spec.requirements, prohibitions, specPath, { legacyLexical });
     collectedItems.push(...items);
     emitVerifiabilityFindings(items, strict, errors, warnings);
+
+    // manual-explicit: advisory for legacy free-text enforcement (implicit-manual).
+    // Classification is unchanged — this only guides authors to `manual(reason)`.
+    for (const req of spec.requirements) {
+      if (req.enforcement.some((e) => e.kind === 'implicit-manual' && !/^(ast|lex):/i.test((e.description ?? '').trim()))) {
+        warnings.push({
+          code: 'W-SPEC-017',
+          message: `Requirement "${req.name}" 含 legacy 自由文本 Enforcement — 建议改写为显式 manual(reason)`,
+          detail: specPath,
+        });
+      }
+    }
   } catch (err) {
     errors.push({
       code: 'E-SPEC-001',
@@ -236,6 +249,17 @@ export function validateSpecFile(filePath: string): GuardResult {
         detail: filePath,
       });
     }
+
+    // manual-explicit: advisory for legacy free-text enforcement (implicit-manual).
+    for (const req of spec.requirements) {
+      if (req.enforcement.some((e) => e.kind === 'implicit-manual' && !/^(ast|lex):/i.test((e.description ?? '').trim()))) {
+        warnings.push({
+          code: 'W-SPEC-017',
+          message: `Requirement "${req.name}" 含 legacy 自由文本 Enforcement — 建议改写为显式 manual(reason)`,
+          detail: filePath,
+        });
+      }
+    }
   } catch (err) {
     if (err instanceof Error && err.name === 'MumuSpecError') {
       errors.push({
@@ -257,6 +281,20 @@ export function validateSpecFile(filePath: string): GuardResult {
     errors,
     warnings,
   };
+}
+
+/** Minimum parseable unit floor (lightweight-freeze-gate).
+ *
+ * 轻量档 delta「单条 `## Requirement:` + 一条 `### SHALL`/`### SHALL NOT` 项」
+ * 即为合法最小单元；零 requirements 仍走既有 E-SPEC-004 warning，full workflow
+ * 校验行为零变化。此谓词由最小单元测试锁定（tests/spec/validator-min-unit.test.ts）。
+ */
+export function isMinParseableUnit(spec: {
+  requirements: Array<{ shall?: string[]; shallNot?: string[] }>;
+}): boolean {
+  return spec.requirements.some(
+    (r) => (r.shall?.length ?? 0) + (r.shallNot?.length ?? 0) > 0,
+  );
 }
 
 /** Find all directories with .mumuspec/ (shared core walker + root check) */

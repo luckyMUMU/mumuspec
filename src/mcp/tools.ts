@@ -50,7 +50,7 @@ function getRoot(): string {
 }
 
 /** Tool definitions */
-const TOOLS = [
+export const TOOLS = [
   // ═══════════════════════════════════════════════════════════════
   // Spec Context
   // ═══════════════════════════════════════════════════════════════

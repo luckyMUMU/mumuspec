@@ -5,7 +5,8 @@ import { Logger } from '../core/logger.js';
 import { detectJsxUsage } from './ast-checker.js';
 import type { SpecFile, GuardResult, DriftResult, GuardError, GuardWarning } from '../core/types.js';
 import { parseSpecFile, parsePrdFile, parseTechFile } from '../spec/parser.js';
-import { classifyRequirements, computeEnforcementCoverage, extractQuotedTerms, type ClassifiedItem } from '../spec/verifier-classify.js';
+import { classifyRequirements, computeEnforcementCoverage, extractQuotedTerms, constraintEntryToItem, type ClassifiedItem } from '../spec/verifier-classify.js';
+import { loadAllConstraints } from '../core/constraints-loader.js';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
 import { lintPonytail } from './ponytail-linter.js';
 import { readText, writeText, computeHash, getMumuSpecDir, findSpecDirs, normalizePath, isRegisteredSpecModule } from '../core/utils.js';
@@ -16,6 +17,63 @@ import { evaluateConstraint, type ConstraintCheck } from '../core/constraint-eva
 import { ERROR_CODES } from '../core/errors.js';
 import { detectContractDrift } from '../contract/validator.js';
 import { getLanguageProvider, registerBuiltInProviders, getProviderCount } from './language-provider-registry.js';
+
+/**
+ * Annotation type → AST constraint ID mapping.
+ * Single source of truth shared by checkAstViolation — never duplicate inline.
+ */
+const ANNOTATION_TYPE_TO_CONSTRAINT: Record<string, string> = {
+  'no-new-dependency': 'no-new-dependency',
+  'no-mutable-state': 'no-mutable-state',
+  'no-side-effect': 'no-side-effect',
+  'pure-function': 'enforce-idempotent',
+  'no-global-state': 'no-global-state',
+  'custom': 'custom',
+};
+
+/**
+ * In-process `check --json` payload builder (shared contract for the metrics
+ * evaluator — single source, mirrors the documented JSON payload shape).
+ * Uses the same checkCompliance entry the check CLI handler calls.
+ */
+export function buildCheckJsonPayload(
+  projectRoot: string,
+): {
+  compliance: { errors: { code: string }[]; coverage: { total: number } };
+  exitCode: number;
+} {
+  const result = checkCompliance(projectRoot, {});
+  return {
+    compliance: {
+      errors: result.errors.map((e) => ({ code: e.code })),
+      coverage: { total: result.coverage?.total ?? 0 },
+    },
+    exitCode: result.passed ? 0 : 1,
+  };
+}
+
+/**
+ * In-process drift results (DriftResult[]) — the very collection the drift
+ * CLI serializes, so the metrics evaluator can count without a subprocess.
+ */
+export function detectDriftInProcess(projectRoot: string): DriftResult[] {
+  return detectDrift(projectRoot);
+}
+
+/**
+ * Assemble the in-process metric sources (evaluator-inprocess). Upper-layer
+ * callers (loop/CLI) that may legally import the guard domain mount these onto
+ * the EvaluatorContext — the metrics layer itself never imports guard.
+ */
+export function createInProcessMetricSources(): {
+  checkJsonPayload(root: string): ReturnType<typeof buildCheckJsonPayload>;
+  driftCount(root: string): number;
+} {
+  return {
+    checkJsonPayload: (root) => buildCheckJsonPayload(root),
+    driftCount: (root) => detectDriftInProcess(root).length,
+  };
+}
 
 /**
  * Derive strength metadata from the authoritative `ERROR_CODES` registry
@@ -113,18 +171,23 @@ export function checkCompliance(
   const fullCheck = !options.shall && !options.shallNot && !options.ponytail && !options.testImmutability;
 
   // Merge source file scans: compute once, share across checks (IO optimization)
-  const needsSourceFiles = options.shallNot || options.ponytail || fullCheck;
+  // `shall` included: annotated SHALL constraints execute over source files (shall-annotation-channel)
+  const needsSourceFiles = options.shallNot || options.shall || options.ponytail || fullCheck;
   const sourceFiles = needsSourceFiles ? findSourceFiles(projectRoot) : [];
+
+  // Lexical channel policy (annotation-primary-r2): default true preserves the
+  // legacy fallback for unannotated SHALL NOTs; false requires an explicit `lex:` prefix.
+  const legacyLexical = loadConfig(projectRoot).specs?.legacy_lexical_channel ?? true;
 
   // SHALL NOT check
   if (options.shallNot || fullCheck) {
-    checkShallNot(projectRoot, sourceFiles, errors, warnings);
+    checkShallNot(projectRoot, sourceFiles, errors, warnings, legacyLexical);
   }
 
   // SHALL check — P0: also returns classified items for coverage (full check only)
   let classifiedItems: ClassifiedItem[] = [];
   if (options.shall || fullCheck) {
-    classifiedItems = checkShall(projectRoot, errors, warnings, options.strength?.enforcement_strict !== false);
+    classifiedItems = checkShall(projectRoot, sourceFiles, errors, warnings, options.strength?.enforcement_strict !== false, legacyLexical);
   }
 
   // Ponytail check
@@ -211,9 +274,18 @@ function checkShallNot(
   sourceFiles: string[],
   errors: { code: string; message: string; detail?: string }[],
   _warnings: { code: string; message: string; detail?: string }[],
+  legacyLexical: boolean = true,
 ): void {
   // Collect all SHALL NOT constraints with annotation data
   const prohibitions = collectAllProhibitions(projectRoot);
+
+  // enforcement-gap A3.3: constraints.yaml entries with a machine-readable
+  // annotation run through the same prohibition channel (no second engine).
+  for (const item of collectConstraintEntryItems(projectRoot, legacyLexical)) {
+    if (item.polarity === 'shall-not' && item.cls === 'enforced-strong' && item.annotation) {
+      prohibitions.push({ text: item.text, source: item.source, annotation: item.annotation });
+    }
+  }
 
   // Separate file-coexistence constraints from code-level prohibitions
   const codeProhibitions: ProhibitionEntry[] = [];
@@ -245,6 +317,14 @@ function checkShallNot(
     for (const prohibition of codeProhibitions) {
       // Scope-aware: only check files within the prohibition's source tree
       if (!isFileInScope(filePath, prohibition.source, projectRoot)) continue;
+
+      // Annotation-primary policy (legacy=false): without annotation and without an
+      // explicit ast:/lex: prefix, no silent lexical fallback — the item reports as
+      // unverifiable via classify/E-SPEC-015 instead (annotation-primary-r2).
+      if (!legacyLexical && !prohibition.annotation &&
+          !prohibition.text.startsWith('ast:') && !prohibition.text.startsWith('lex:')) {
+        continue;
+      }
 
       // Dogfooding carve-out (goal-p0-dispatch-gate): agent-behavioral
       // prohibitions ("禁止手工编辑...状态工件", "禁止以 --force 越过 E-SPEC-015")
@@ -411,16 +491,18 @@ function checkFileCoexistence(
 /** Check SHALL requirements (P0: classifier-driven verifiability; returns classified items) */
 function checkShall(
   projectRoot: string,
+  sourceFiles: string[],
   errors: { code: string; message: string; detail?: string }[],
   warnings: { code: string; message: string; detail?: string }[],
   strict: boolean,
+  legacyLexical: boolean = true,
 ): ClassifiedItem[] {
   const specs = findAllSpecs(projectRoot);
   const allItems: ClassifiedItem[] = [];
 
   for (const spec of specs) {
     const prohibitions = spec.frontmatter.prohibitions ?? [];
-    const items = classifyRequirements(spec.requirements, prohibitions, spec.path);
+    const items = classifyRequirements(spec.requirements, prohibitions, spec.path, { legacyLexical });
     allItems.push(...items);
     for (const item of items) {
       if (item.cls !== 'unverifiable') continue;
@@ -432,7 +514,7 @@ function checkShall(
         });
       } else {
         // P0 E-SPEC-015 — red-line gate; strict promotes to ERROR (always block)
-        const message = `SHALL NOT 无可验证通道 (Requirement "${item.requirement}"): "${item.text}"`;
+        const message = `SHALL NOT 无可验证通道 (Requirement "${item.requirement}"): "${item.text}"；出路：补 annotation / ast: / lex: / manual(reason)`;
         const target = strict ? errors : warnings;
         target.push({
           code: 'E-SPEC-015',
@@ -442,7 +524,80 @@ function checkShall(
       }
     }
   }
+
+  // enforcement-gap A3.3: constraints.yaml entries join the same classified
+  // items — coverage counts them, and enforced-strong entries execute on the
+  // machine channel below. Unverifiable entries emit no per-item E-SPEC-004/
+  // 015 diagnostics here (those stay validate-only for entries, zero change
+  // to the existing spec-file diagnostic surface).
+  allItems.push(...collectConstraintEntryItems(projectRoot, legacyLexical));
+
+  // Machine channel for enforced-strong SHALL items (annotation → AST check).
+  if (sourceFiles.length > 0) {
+    checkShallEnforcement(projectRoot, sourceFiles, allItems, errors);
+  }
   return allItems;
+}
+
+/**
+ * Load every tree-distributed constraints.yaml and project its entries into
+ * ClassifiedItems. A load failure never blocks an existing check — it is
+ * logged and reported as a visible WARN drift elsewhere (盲区必须上报).
+ */
+function collectConstraintEntryItems(projectRoot: string, legacyLexical: boolean): ClassifiedItem[] {
+  const items: ClassifiedItem[] = [];
+  try {
+    const { files } = loadAllConstraints(projectRoot, { allowMissingRoot: true });
+    for (const file of files) {
+      const scopeDir = !file.scope || file.scope === '.' ? '' : file.scope.split('\\').join('/');
+      const sourcePath = join(getMumuSpecDir(projectRoot ? join(projectRoot, scopeDir) : scopeDir), 'constraints.yaml');
+      for (const list of Object.values(file.forward ?? {})) {
+        for (const entry of list ?? []) items.push(constraintEntryToItem(entry, 'forward', sourcePath, { legacyLexical }));
+      }
+      for (const list of Object.values(file.reverse ?? {})) {
+        for (const entry of list ?? []) items.push(constraintEntryToItem(entry, 'reverse', sourcePath, { legacyLexical }));
+      }
+    }
+  } catch (e) {
+    Logger.debug('guard.checker', 'constraints.yaml entry channel skipped', { error: (e as Error).message });
+  }
+  return items;
+}
+
+/**
+ * Execute annotation-driven checks for SHALL items classified `enforced-strong`.
+ *
+ * Reuses the same source-file semantics as SHALL NOT scanning: test files are
+ * skipped, agent-behavior constraints are exempt in the tool's own src/ (dogfooding),
+ * and files outside the constraint's source scope are not inspected. A violation
+ * means the SHALL requirement is not satisfied (E-GUARD-012).
+ */
+function checkShallEnforcement(
+  projectRoot: string,
+  sourceFiles: string[],
+  items: ClassifiedItem[],
+  errors: { code: string; message: string; detail?: string }[],
+): void {
+  const isSelfTool = isMumuSpecSelfRepo(projectRoot);
+  for (const item of items) {
+    if (item.cls !== 'enforced-strong' || item.polarity !== 'shall') continue;
+    if (!item.annotation) continue;
+    for (const filePath of sourceFiles) {
+      if (isTestFile(filePath)) continue;
+      if (!isFileInScope(filePath, item.source, projectRoot)) continue;
+      if (isSelfTool && isAgentBehaviorConstraint(item.text) && /(^|[\\/])src[\\/]/.test(filePath)) continue;
+      const content = readText(filePath);
+      if (!content) continue;
+      const violation = checkAstViolation(content, item.text, filePath, item.annotation);
+      if (violation) {
+        errors.push({
+          code: 'E-GUARD-012',
+          message: `SHALL 未满足: ${item.text}`,
+          detail: `${filePath}:${violation.line} (source: ${item.source})`,
+        });
+      }
+    }
+  }
 }
 
 /** Check Ponytail compliance */
@@ -605,16 +760,10 @@ function checkAstViolation(
     // P1-1 Fix: Derive constraint ID from annotation if available
     let constraintId: string;
     if (annotation) {
-      // Map annotation type to AST constraint ID
-      const typeToConstraint: Record<string, string> = {
-        'no-new-dependency': 'no-new-dependency',
-        'no-mutable-state': 'no-mutable-state',
-        'no-side-effect': 'no-side-effect',
-        'pure-function': 'enforce-idempotent',
-        'no-global-state': 'no-global-state',
-        'custom': annotation.ast_constraint || 'custom',
-      };
-      constraintId = typeToConstraint[annotation.type] || annotation.type;
+      // Single source mapping (ANNOTATION_TYPE_TO_CONSTRAINT); custom resolves ast_constraint
+      constraintId = annotation.type === 'custom'
+        ? (annotation.ast_constraint || 'custom')
+        : (ANNOTATION_TYPE_TO_CONSTRAINT[annotation.type] || annotation.type);
     } else {
       // Legacy: Extract constraint ID from prohibition text (e.g., "ast:no-mutable-state" → "no-mutable-state")
       constraintId = prohibition.slice(4);

@@ -3,13 +3,13 @@
 > **Auto-generated** from `src/core/errors.ts`. Do not edit manually.
 > Run `node scripts/gen-error-codes-doc.mjs` to regenerate.
 
-Last updated: 2026-09-16
+Last updated: 2026-09-19
 
 ## Summary
 
 | Domain | Count |
 |--------|-------|
-| SPEC | 16 |
+| SPEC | 17 |
 | GRAPH | 1 |
 | CONSTRAINT | 3 |
 | CHANGE | 15 |
@@ -17,7 +17,7 @@ Last updated: 2026-09-16
 | FINAL | 1 |
 | HOOK | 1 |
 | MERGE | 10 |
-| GUARD | 13 |
+| GUARD | 16 |
 | BUILD | 1 |
 | PONYTAIL | 4 |
 | CONTRACT | 11 |
@@ -30,7 +30,7 @@ Last updated: 2026-09-16
 | CHECK | 2 |
 | SKILL | 4 |
 | GIT | 3 |
-| **Total** | **113** |
+| **Total** | **117** |
 
 ## SPEC Domain
 
@@ -50,8 +50,9 @@ Last updated: 2026-09-16
 | `E-SPEC-012` | DIST_SPEC_SHALL_UNIMPLEMENTED | ERROR | tech.md 中声明的 SHALL 约束在代码中找不到实现 | No |
 | `E-SPEC-013` | UNDEFINED_MUMUSPEC_DIRECTORY | ERROR | .mumuspec/ 下存在未定义的目录 | No |
 | `E-SPEC-014` | UNDEFINED_MUMUSPEC_FILE | ERROR | .mumuspec/ 下存在未定义的文件 | No |
-| `E-SPEC-015` | SPEC_SHALL_NOT_UNVERIFIABLE | ERROR | SHALL NOT 红线无可验证通道（无 annotation、正则兜底不可提取、无 manual 声明） | No |
+| `E-SPEC-015` | SPEC_SHALL_NOT_UNVERIFIABLE | ERROR | SHALL NOT 红线无可验证通道（无 annotation、无 ast:/lex: 前缀、无 manual 声明） | No |
 | `W-SPEC-016` | STRUCTURE_VAGUE_QUALIFIER | WARN | 约束文本含无界限定词（合理/适当/必要时/尽量等），结构上不可判定满足与否 | Yes |
+| `W-SPEC-017` | MANUAL_IMPLICIT_LEGACY | WARN | Enforcement 为 legacy 自由文本（implicit-manual），建议改写为显式 manual(reason) 以便 verify 证据机器校验 | Yes |
 
 ### `E-SPEC-001`: SPEC_FORMAT_INVALID
 
@@ -196,11 +197,11 @@ Last updated: 2026-09-16
 
 - **Severity**: ERROR
 - **Forceable**: No
-- **Description**: SHALL NOT 红线无可验证通道（无 annotation、正则兜底不可提取、无 manual 声明）
+- **Description**: SHALL NOT 红线无可验证通道（无 annotation、无 ast:/lex: 前缀、无 manual 声明）
 
 **Fix Steps**:
-1. 补充 frontmatter annotation（enforced-strong）
-2. 或改写文本使引号词可被正则兜底提取（enforced-weak）
+1. 补充 frontmatter annotation（enforced-strong），或改写文本使引号词可被正则兜底提取（enforced-weak，legacy 兜底或显式 lex: 前缀）
+2. 或对可 AST 判定的红线使用 `ast:` 前缀接 AST 通道
 3. 或声明 Enforcement `- ID: manual(原因)`
 
 ### `W-SPEC-016`: STRUCTURE_VAGUE_QUALIFIER
@@ -213,6 +214,16 @@ Last updated: 2026-09-16
 1. 改写为可判定的具体动作或数值边界
 2. 或拆分为枚举化的具体条件分支
 3. 如模糊确属必要，在 Enforcement manual(...) 中说明人工核验方式
+
+### `W-SPEC-017`: MANUAL_IMPLICIT_LEGACY
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: Enforcement 为 legacy 自由文本（implicit-manual），建议改写为显式 manual(reason) 以便 verify 证据机器校验
+
+**Fix Steps**:
+1. 改写为显式声明：`- ID: manual(核验方式)`
+2. 或补充结构化证据记录 {constraintId, user, verdict, timestamp, evidence_hash}（evidence_hash 由 CLI computeHash 计算）
 
 ## GRAPH Domain
 
@@ -636,6 +647,9 @@ Last updated: 2026-09-16
 | `E-GUARD-008` | GUARD_COMPLETENESS_GATE_BLOCK | ERROR | 完备性门禁阻塞（工件缺失 / 存在未消解 open 项 / 工件为空 / 声明路径缺人工签收） | No |
 | `E-GUARD-009` | DESIGN_COVERAGE_GAP | ERROR | 设计覆盖断链（I1 设计向上闭合）：覆盖了 Layer N 却缺少某个 Layer < N | Yes |
 | `E-GUARD-010` | DELTA_CONSTRAINT_UNCHANNELABLE | ERROR | 变更携带的 delta 约束无验证通道（无 Enforcement 声明、无词法锚点、无 ast: 前缀），禁止通过 verify 进入强制面 | No |
+| `E-GUARD-011` | FREEZE_GATE_UNSIGNED_DECISION | ERROR | 轻量档变更声明了 blocking 用户决策但未逐项经 decisions.md 签收，禁止进入 build（freeze gate — 仅在 proposal 显式声明 `[blocking]` 项时生效） | No |
+| `E-GUARD-012` | SHALL_UNSATISFIED | ERROR | 带机读注解或 ast: 前缀（enforced-strong）的 SHALL 约束经机器通道检查未满足——要求未达成即阻断 | No |
+| `E-DRIFT-016` | STATUS_ASSERTION_CONFLICT | WARN | docs/STATUS.md 的机器可核断言与仓库事实矛盾（包版本/能力层进度/命令与工具数量）——默认 WARN 恒可见，enforcement_strict 下升 ERROR（enforcement-gap L2） | Yes |
 | `W-GUARD-001` | GUARD_PREREQUISITE_MISSING | WARN | 阶段前置工件缺失或未锁定（test_cases / build_layers / tdd_mode 等行为约束） | No |
 | `W-GUARD-004` | GUARD_TEST_IMMUTABILITY_MISMATCH | WARN | 测试套件 hash 与 design_content_hash 不匹配（测试在锁定后被改动） | No |
 | `W-GUARD-009` | DESIGN_COVERAGE_GAP_ADVISORY | WARN | 设计覆盖断链（I1）的告警形态：top_down_design 解析为 false 时不阻塞，但仍写入 state.design_coverage | No |
@@ -740,6 +754,37 @@ Last updated: 2026-09-16
 1. 在约束所在 Requirement 块内声明 Enforcement `- ID: manual(核验方式)`
 2. 或改写 SHALL NOT 文本使其含反引号词法锚点（长度>2 的标识符）
 3. 或对可 AST 判定的红线使用 ast: 前缀接 AST 通道
+
+### `E-GUARD-011`: FREEZE_GATE_UNSIGNED_DECISION
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 轻量档变更声明了 blocking 用户决策但未逐项经 decisions.md 签收，禁止进入 build（freeze gate — 仅在 proposal 显式声明 `[blocking]` 项时生效）
+
+**Fix Steps**:
+1. 逐项签收：mumuspec decisions append <change> "<条目文本>"（引用 proposal `## User Decisions` 段原句）
+
+### `E-GUARD-012`: SHALL_UNSATISFIED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 带机读注解或 ast: 前缀（enforced-strong）的 SHALL 约束经机器通道检查未满足——要求未达成即阻断
+
+**Fix Steps**:
+1. 修复对应源文件以满足 SHALL 要求（注解对应的 AST 约束）
+2. 或该性质不再被要求时移除注解/ast: 前缀，让约束回落既有 E-SPEC-004 可见性语义
+3. 或无法机器判定时改写为显式 manual(reason) 声明并由 verify 证据收口
+
+### `E-DRIFT-016`: STATUS_ASSERTION_CONFLICT
+
+- **Severity**: WARN
+- **Forceable**: Yes
+- **Description**: docs/STATUS.md 的机器可核断言与仓库事实矛盾（包版本/能力层进度/命令与工具数量）——默认 WARN 恒可见，enforcement_strict 下升 ERROR（enforcement-gap L2）
+
+**Fix Steps**:
+1. 修正 STATUS.md 断言使其与代码事实一致
+2. 或修正事实源（若断言描述的才是应有状态）
+3. 断言超出对账子集（如"设计完备性"）不参与核对，只拦矛盾不判好坏
 
 ### `W-GUARD-001`: GUARD_PREREQUISITE_MISSING
 

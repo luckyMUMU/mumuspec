@@ -12,7 +12,7 @@
 
 **核心理念：设计决策权始终在人。** 人不再逐字编写 Spec 全文，只做设计决策与审批签收；Spec 由大模型起草、追问补全、判定完备性后交由 AI 生成代码。Spec 仍是一等源文件（人机合著），代码是衍生品。
 
-当前版本：**0.35.0-alpha.0**（new 规模档位失配显式提示：⚠ 规模建议 + 调整指引 / ✓ 档位匹配）。详细状态见 [STATUS.md](docs/STATUS.md)。
+当前版本：**0.44.0-alpha.0**（new 规模档位失配显式提示：⚠ 规模建议 + 调整指引 / ✓ 档位匹配）。详细状态见 [STATUS.md](docs/STATUS.md)。
 
 ---
 
@@ -361,7 +361,7 @@ mumuspec chat [query]                                      # 知识库问答
 ```bash
 mumuspec constraints                                       # 动态约束强度
 mumuspec feedback                                          # 用户反馈管理
-mumuspec install                                           # AI 工具技能与规则安装（10 agent：catpaw/claude/cursor/trae/workbuddy/opencode/codex/windsurf/gemini/copilot）
+mumuspec install                                           # AI 工具技能与规则安装（11 agent：catpaw/claude/cursor/traecode/traework/workbuddy/opencode/codex/windsurf/gemini/copilot）
 mumuspec hooks                                             # Git hooks 管理
 mumuspec dashboard                                         # 实时状态仪表盘
 mumuspec eval                                              # 评估场景运行
@@ -422,7 +422,7 @@ my-project/
 | 通道 | dist-tag | 当前版本 | 安装命令 |
 |------|---------|---------|---------|
 | 稳定版 | `latest` | 0.19.1 | `npm install -g mumuspec` |
-| 预发布版 | `next` | 0.19.2-alpha.11 | `npm install -g mumuspec@next` |
+| 预发布版 | `next` | 0.44.0-alpha.0 | `npm install -g mumuspec@next` |
 
 灰度策略见 [docs/reference/release-strategy.md](docs/reference/release-strategy.md)。
 

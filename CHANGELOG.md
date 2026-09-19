@@ -5,6 +5,60 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.44.0-alpha.0] — archive auto-bump (2026-09-19)
+
+### Added
+- enforcement-gap L1：`constraints.yaml` 条目机读注解通道——`ConstraintEntry.annotation`（复用 spec frontmatter 同一类型），分类判定序对齐 spec 条目（R1 注解/ast: → strong、显式 lex: → weak、enforcement → manual、legacy 词法受 `legacy_lexical_channel` 管辖）；条目经 `constraintEntryToItem` 投影并入 guard 执行流水线（forward→E-GUARD-012、reverse→E-GUARD-003）与 enforcement_coverage 五桶；`annotate` 追加 constraints.yaml 只读建议清单（`constraintsSuggestions`，回写须人工签收）。
+- enforcement-gap L2：`status_assertion` 对账通道（`src/guard/status-assertion-checker.ts`）——STATUS.md 机器可核断言（包版本/能力层进度/命令与工具数量/更新日期）与仓库事实逐项对账，只拦矛盾不判好坏；E-DRIFT-016 注册（默认 WARN 恒可见，enforcement_strict 下 ERROR）；接入 `check` drift 数组（schema append-only）与 `ci:check`；`.eval-corpus/` 新增 bad-drift-001/clean-04（recall 1.0/precision 1.0，n=16）。
+
+### Fixed
+- doctor 强度建议通道对未配置 `constraint_strength` 的项目不再崩溃（`collectStrengthDeviations` 空值防御）。
+- W-SPEC-017 不再对 `ast:`/`lex:` 机器通道 Enforcement 文本误报 legacy 建议。
+- 对账通道上线即拦下并修正：STATUS.md「Contract Layer 0%」与 src/contract 实存实现的矛盾、STATUS/README 与 package.json 的版本漂移。
+
+### Changed
+- 归档自动升版：变更 enforcement-gap（full workflow）归档触发
+
+## [0.43.0-alpha.0] — archive auto-bump (2026-09-18)
+
+### Changed
+- 归档自动升版：变更 strength-suggested（full workflow）归档触发
+
+## [0.42.0-alpha.0] — archive auto-bump (2026-09-18)
+
+### Changed
+- 归档自动升版：变更 spec-context-projection（full workflow）归档触发
+
+## [0.41.0-alpha.0] — archive auto-bump (2026-09-18)
+
+### Changed
+- 归档自动升版：变更 evaluator-inprocess（full workflow）归档触发
+
+## [0.40.0-alpha.0] — archive auto-bump (2026-09-18)
+
+### Changed
+- 归档自动升版：变更 manual-explicit（full workflow）归档触发
+
+## [0.39.0-alpha.0] — archive auto-bump (2026-09-18)
+
+### Changed
+- 归档自动升版：变更 annotation-primary-r2（full workflow）归档触发
+
+## [0.38.0-alpha.0] — archive auto-bump (2026-09-18)
+
+### Changed
+- 归档自动升版：变更 shall-annotation-channel（full workflow）归档触发
+
+## [0.37.0-alpha.0] — archive auto-bump (2026-09-18)
+
+### Changed
+- 归档自动升版：变更 lightweight-freeze-gate（full workflow）归档触发
+
+## [0.36.0-alpha.0] — archive auto-bump (2026-09-17)
+
+### Changed
+- 归档自动升版：变更 install-trae-agents（full workflow）归档触发
+
 ## [0.35.0-alpha.0] — archive auto-bump (2026-09-17)
 
 ### Changed

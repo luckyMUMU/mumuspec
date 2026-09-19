@@ -1,0 +1,6 @@
+# 变异：STATUS 数量断言 999+ 命令 > 实际注册数 → E-DRIFT-016。
+kind: bad-case
+severity: error
+probe: check
+mustContain: [E-DRIFT-016]
+mustNotContain: []

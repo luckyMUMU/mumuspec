@@ -21,6 +21,8 @@ import { loadSpecContext, searchSpecs, findAllDistributedSpecDirs, getProhibitio
 import { validateAllSpecs } from '../../spec/validator.js';
 import { validateMumuSpecStructure } from '../../spec/structure-validator.js';
 import { checkCompliance, detectDrift, autoFixDrift, detectDriftWithContracts, detectAgentsDrift } from '../../guard/checker.js';
+import { detectStatusAssertionDrift } from '../../guard/status-assertion-checker.js';
+import { TOOLS } from '../../mcp/tools.js';
 import { detectContractDrift, validateBoundaries } from '../../contract/validator.js';
 import { checkGlossary } from '../../guard/glossary-checker.js';
 import type { GlossaryCheckResult } from '../../guard/glossary-checker.js';
@@ -384,6 +386,15 @@ export function registerSpecCommands(program: Command): void {
           ['archive-state', () => detectArchiveStateDrift(root)],
           ['constraint-source', () => detectConstraintSourceDrift(root)],
           ['skill-drift', () => collectSkillDrift(root)],
+          // enforcement-gap L2: STATUS.md assertion-vs-fact reconciliation
+          ['status-assertion', () => {
+            const pkg = JSON.parse(readText(join(root, 'package.json')) ?? '{}') as { version?: string };
+            return detectStatusAssertionDrift(root, {
+              version: pkg.version ?? '',
+              commandCount: program.commands.length,
+              toolCount: TOOLS.length,
+            }, { strict: config.constraint_strength?.enforcement_strict !== false });
+          }],
         ];
         for (const [label, runSource] of driftSources) {
           try {
@@ -789,14 +800,30 @@ export function registerSpecCommands(program: Command): void {
       const frontmatter = spec.frontmatter as import('../../core/types-spec.js').SpecFrontmatter;
 
       // Generate annotations
-      const { generateAnnotations, mergeAnnotationsIntoFrontmatter } = await import('../../spec/annotation.js');
+      const { generateAnnotations, mergeAnnotationsIntoFrontmatter, autoAnnotate } = await import('../../spec/annotation.js');
       const { annotations, needsManual } = generateAnnotations(
         spec.requirements,
         frontmatter.prohibitions || [],
       );
 
+      // enforcement-gap A3.3: read-only annotation suggestions for constraints.yaml
+      // entries — display only, never written back (human sign-off discipline).
+      const { loadAllConstraints } = await import('../../core/constraints-loader.js');
+      const constraintsSuggestions: { id: string; suggestion: string; content: string }[] = [];
+      try {
+        const { files } = loadAllConstraints(root, { allowMissingRoot: true });
+        for (const f of files) {
+          const entries = [...Object.values(f.forward ?? {}), ...Object.values(f.reverse ?? [])].flat();
+          for (const e of entries.filter(Boolean)) {
+            if (e.annotation) continue;
+            const a = autoAnnotate(e.content);
+            if (a) constraintsSuggestions.push({ id: e.id, suggestion: `${a.type} (${a.scope ?? 'any'})`, content: e.content.slice(0, 60) });
+          }
+        }
+      } catch { /* constraints.yaml absent/unreadable — suggestions are optional */ }
+
       if (options.json) {
-        console.log(JSON.stringify({ annotations, needsManual }, null, 2));
+        console.log(JSON.stringify({ annotations, needsManual, constraintsSuggestions }, null, 2));
         return;
       }
 
@@ -813,6 +840,13 @@ export function registerSpecCommands(program: Command): void {
         console.log('\nNeed manual annotation:');
         for (const m of needsManual) {
           console.log(`  • [${m.requirementName}] "${m.prohibitionText.substring(0, 60)}..."`);
+        }
+      }
+
+      if (constraintsSuggestions.length > 0) {
+        console.log('\nconstraints.yaml 注解建议（只读——回写须人工签收）:');
+        for (const s of constraintsSuggestions) {
+          console.log(`  • [${s.id}] "${s.content}..." → ${s.suggestion}`);
         }
       }
 

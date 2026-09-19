@@ -1,0 +1,5 @@
+# 净样本：STATUS 断言与事实一致（1+ 命令 ≤ 实际）。
+kind: clean
+probe: check
+mustContain: []
+mustNotContain: [E-DRIFT-016]

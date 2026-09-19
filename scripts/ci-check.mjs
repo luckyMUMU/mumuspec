@@ -113,6 +113,35 @@ if (existsSync(configPath)) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Check 1.5: STATUS.md Assertion Reconciliation (enforcement-gap L2)
+// ═══════════════════════════════════════════════════════════════
+console.log('\n📐 STATUS Assertion Reconciliation (E-DRIFT-016)\n');
+
+{
+  const cli = join(root, 'dist', 'cli.js');
+  if (existsSync(cli)) {
+    let payload = null;
+    try {
+      const out = spawnSync(process.execPath, [cli, 'check', '--json'], { cwd: root, encoding: 'utf8', timeout: 60_000 });
+      payload = JSON.parse(out.stdout);
+    } catch {
+      warn('STATUS 对账跳过：check --json 不可解析（先 npm run build）');
+    }
+    if (payload?.drift) {
+      const conflicts = [...(payload.drift.errors ?? []), ...(payload.drift.warnings ?? [])]
+        .filter((d) => d.type === 'status_assertion' && d.code === 'E-DRIFT-016');
+      if (conflicts.length === 0) {
+        pass('STATUS.md 机器可核断言与仓库事实一致');
+      } else {
+        for (const c of conflicts) fail(`STATUS 断言矛盾: ${c.message}`);
+      }
+    }
+  } else {
+    warn('STATUS 对账跳过：dist/cli.js 不存在（先 npm run build）');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Check 2: Error Code Documentation Drift
 // ═══════════════════════════════════════════════════════════════
 console.log('\n📚 Error Code Documentation Drift Check\n');
