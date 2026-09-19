@@ -103,7 +103,7 @@ describe('TC-A5: 表驱动冒烟 — 新增 agent 零渲染逻辑改动', () => 
   const TABLE_AGENTS = Object.keys(AGENT_RULE_TARGETS) as AgentType[];
 
   it('表中每个 agent 至少产出 1 个 rules 文件计划', () => {
-    expect(TABLE_AGENTS.sort()).toEqual(['claude', 'codex', 'copilot', 'gemini', 'windsurf']);
+    expect(TABLE_AGENTS.sort()).toEqual(['claude', 'codex', 'copilot', 'gemini', 'traecode', 'traework', 'windsurf']);
     for (const agent of TABLE_AGENTS) {
       const plans = renderRuleFiles(agent, ctx, { existingFiles: {} });
       expect(plans.length).toBeGreaterThanOrEqual(1);
@@ -130,7 +130,7 @@ describe('TC-A5: 表驱动冒烟 — 新增 agent 零渲染逻辑改动', () => 
   });
 
   it('渲染函数无 per-agent 分支：表外 agent 返回空计划（行为由表决定）', () => {
-    for (const agent of ['catpaw', 'cursor', 'trae', 'workbuddy', 'opencode'] as AgentType[]) {
+    for (const agent of ['catpaw', 'cursor', 'workbuddy', 'opencode'] as AgentType[]) {
       expect(renderRuleFiles(agent, ctx, { existingFiles: {} })).toEqual([]);
     }
   });

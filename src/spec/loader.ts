@@ -22,7 +22,56 @@ import type { MumuSpecConfig } from '../core/config.js';
 import { Logger } from '../core/logger.js';
 
 /**
- * Load spec context for a directory using progressive disclosure.
+ * Project a parsed layer to the disclosed Requirement names (spec-context-projection).
+ *
+ * Mechanical block-boundary filter on the parsed body (frontmatter already
+ * stripped by the parser): keeps only the disclosed `## Requirement: <name>`
+ * blocks (with their ### sub-sections and body lines); all other top-level
+ * sections are dropped. No semantic judgment.
+ * Returns the input unchanged when no disclosure is declared.
+ */
+function projectToDisclosure<T extends { content: string; requirements?: { name: string }[] }>(
+  parsed: T,
+  disclosure: string[] | undefined,
+): T {
+  if (!disclosure || disclosure.length === 0 || !parsed.requirements?.length) return parsed;
+
+  const names = new Set(disclosure);
+  const requirements = parsed.requirements.filter((r) => names.has(r.name));
+
+  const lines = parsed.content.split('\n');
+  const kept: string[] = [];
+  let curName: string | null = null;
+  let curLines: string[] = [];
+
+  const flush = (): void => {
+    if (curName && names.has(curName)) kept.push(...curLines);
+    curLines = [];
+    curName = null;
+  };
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      flush();
+      const m = line.match(/^##\s+Requirement:\s*(.+?)\s*$/);
+      if (m) {
+        curName = m[1].trim();
+        curLines = [line];
+      }
+      continue;
+    }
+    if (/^---\s*$/.test(line)) {
+      flush();
+      continue;
+    }
+    if (curName) curLines.push(line);
+  }
+  flush();
+
+  return { ...parsed, content: kept.join('\n'), requirements };
+}
+
+/** Load spec context for a directory using progressive disclosure.
  * Loads up to config.specs.max_layer_depth layers (root + capped middle + target).
  */
 export function loadSpecContext(
@@ -54,9 +103,9 @@ export function loadSpecContext(
       try {
         const content = readFileSync(techPath, 'utf8');
         const tech = parseTechFile(content, techPath);
-        layer.tech = tech;
+        layer.tech = projectToDisclosure(tech, parseFrontmatter<{ disclosure?: string[] }>(content).frontmatter?.disclosure);
         // Collect prohibitions from tech.md
-        for (const req of tech.requirements) {
+        for (const req of layer.tech.requirements) {
           prohibitions.push(...req.shallNot);
         }
       } catch (e) {
@@ -89,7 +138,7 @@ export function loadSpecContext(
     if (existsSync(prdPath)) {
       try {
         const content = readFileSync(prdPath, 'utf8');
-        layer.prd = parsePrdFile(content, prdPath);
+        layer.prd = projectToDisclosure(parsePrdFile(content, prdPath), parseFrontmatter<{ disclosure?: string[] }>(content).frontmatter?.disclosure);
       } catch (e) {
         // Skip invalid prd.md
         Logger.warn('spec.loader', 'Failed to parse prd.md', { path: prdPath, error: (e as Error).message });

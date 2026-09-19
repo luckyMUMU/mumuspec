@@ -2,10 +2,13 @@
 
 > 本文件是 MumuSpec 项目进度的唯一权威来源。其他文档提及进度时 SHALL 引用本文件,不得自行描述进度数据。
 
-- **最后更新日期**: 2026-09-13
+- **最后更新日期**: 2026-09-19
 - **设计版本**: 0.20.0-draft
-- **当前包版本**: 0.35.0-alpha.0
+- **当前包版本**: 0.44.0-alpha.0
 - **定位**: Spec 即 DSL — Spec 由大模型起草、人做设计决策与审批签收（人机合著），AI 生成代码
+
+> 本文件的机器可核断言（包版本 / 能力层实现进度 / 命令与工具数量 / 更新日期）经
+> `mumuspec check` 的 `status_assertion` 通道与仓库事实对账（E-DRIFT-016，只拦矛盾不判好坏）。
 
 ---
 
@@ -14,7 +17,7 @@
 | 指标 | 数值 | 说明 |
 |------|------|------|
 | 设计完备性 | 100% | 六层架构设计已完成 |
-| 实现进度 | ~90% | 核心层已实现；缺口主要在 Contract Layer、Worktree isolation、Code-graph 后端 |
+| 实现进度 | ~90% | 核心层已实现；缺口主要在 Worktree isolation、Code-graph 后端 |
 | 当前 Phase | Phase 2/3 交叉 | Phase 1 核心已完工，Phase 2/3 部分推进 |
 | 0.20 进展 | Verifier P0 已实施 | 可验证性四分类、E-SPEC-015、enforcement coverage 已落地；M2 门控默认 ON |
 
@@ -105,7 +108,7 @@
 | Guard Layer | 100% | **93%** | Phase 1 (✅ 完成) | compliance/drift/phase-guard/enforcement coverage 完整；缺多语言 AST |
 | AI Integration | 100% | **92%** | Phase 1 (✅ 完成) | canonical AGENTS.md + CLAUDE.md 薄壳桥接生成 + MCP Server 完整；10 agent Skill 分发完整 |
 | Knowledge Layer | 100% | **85%** | Phase 3 (推进中) | CRUD/PageIndex/UA 分析完整；缺 Code-graph 后端(SQLite) |
-| Contract Layer | 100% | 0% | Phase 3 | 配置已定义，实体未开始 |
+| Contract Layer | 100% | **75%** | Phase 3 | 注册表/loader/漂移验证/影响分析 + CLI/MCP 已接线；契约实体 onboard 流程推进中 |
 | 认知框架 Q1-Q4 | 100% | **80%** | Phase 2 | 配置完整，guard 集成已就位；默认关闭 |
 | Ponytail | 100% | **90%** | Phase 2 (基本完成) | 7 级阶梯/约束注入完整；缺 lint 规则集成 |
 | 可验证性系统 | 100% | **100%** | Phase 2 (✅ 完成) | 四分类/E-SPEC-015/coverage/M2门控全部落地 |

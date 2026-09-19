@@ -1,0 +1,58 @@
+name: evaluator-inprocess
+phase: archive-completed
+workflow: full
+created_at: 2026-09-18T15:14:01.831Z
+updated_at: 2026-09-18T15:18:49.502Z
+scope: .
+affected_scopes:
+  - .
+build_layers: []
+test_cases:
+  design_locked: false
+  suites_locked: true
+  suites_locked_layers:
+    - 0
+  suites_hash:
+    "0": 88f0a18c20d7eb51
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/evaluator-inprocess
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 1
+  content_hash: fbeeb911169fdf27
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+knowledge_extraction:
+  completed: true
+  pages_created_count: 3
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

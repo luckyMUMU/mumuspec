@@ -15,8 +15,8 @@ import type {
 
 describe('installer-registry types', () => {
   it('should accept valid AgentType values', () => {
-    const agents: AgentType[] = ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode'];
-    expect(agents.length).toBe(6);
+    const agents: AgentType[] = ['catpaw', 'claude', 'cursor', 'traecode', 'traework', 'workbuddy', 'opencode'];
+    expect(agents.length).toBe(7);
   });
 
   it('should accept valid InstallTarget values', () => {

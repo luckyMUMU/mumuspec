@@ -6,7 +6,7 @@
 
 | 符号 | 文件 | 说明 |
 |------|------|------|
-| `AgentType` | installer-registry.ts | agent 类型枚举：catpaw/claude/cursor/trae/workbuddy/opencode + **codex/windsurf/gemini/copilot（goal-p0-dispatch-gate 新增）** |
+| `AgentType` | installer-registry.ts | agent 类型枚举：catpaw/claude/cursor/traecode/traework/workbuddy/opencode + codex/windsurf/gemini/copilot（goal-p0-dispatch-gate 新增）+ traecode/traework（install-trae-agents：trae 重命名拆分） |
 | `AGENT_RULE_TARGETS` | installer-registry.ts | **新增**：声明式规则目标表（每 agent 声明 rulesFile/bridges/skillsDir/marksManaged），规则目标唯一持有处（KP-0060） |
 | `getAgentSkillDir` / `installPackage` / `isAgentSupported` / `getSupportedAgents` / `findSkillSource` / `createMinimalAgentSkill` | installer-ops.ts | 安装执行层（IO 落盘） |
 | `renderRuleFiles(agent, ctx, opts)` | rules-generator.ts | **新增**：纯函数渲染器，输入规则目标+规范上下文，输出 `{ path, content?, action: 'create'\|'update'\|'skip', diagnostics }[]`；无 IO |
@@ -28,3 +28,4 @@
 | 日期 | 变更 | 关联 |
 |------|------|------|
 | 2026-09-01 | 首建；AgentType +4、AGENT_RULE_TARGETS、rules-generator 导出登记 | goal-p0-dispatch-gate（C1/C2/C3） |
+| 2026-09-18 | AgentType trae→traecode + 新增 traework（rulesRideAlong、AGENT_RULE_TARGETS 同步）；install 子命令新增 --project-only | install-trae-agents |

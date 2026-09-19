@@ -1,0 +1,85 @@
+# Cognitive Map — lightweight-freeze-gate
+
+entries:
+  # ──── Q1: Known Knowns ────
+  - quadrant: Q1
+    category: known-known
+    question: "轻量档（hotfix/tweak）open→build 守卫现状如何？"
+    answer: "checkOpenToBuildHotfix 仅 proposal 存在性/build_layers/test-cases 为 warning（CHG-5 结果约束策略），tdd_mode 为唯一硬校验"
+    confidence: high
+    source: "src/guard/phase-guard.ts L280-327"
+
+  - quadrant: Q1
+    category: known-known
+    question: "user_confirmed 字段现有语义？"
+    answer: "泛用转换确认标志（--confirm），无「改变可见结果的决策逐项签收」结构语义"
+    confidence: high
+    source: "state-machine.ts L232"
+
+  - quadrant: Q1
+    category: known-known
+    question: "spec 校验的既有下限约束在哪里？"
+    answer: "delta-spec 校验器与 guard 的 delta-specs 存在性检查（open→design 为 warning）；无单 Requirement+Scenario 的显式合法下限"
+    confidence: high
+    source: "phase-guard.ts L246-249、L573-640"
+
+  - quadrant: Q1
+    category: known-known
+    question: "decisions.md 签收如何复用？"
+    answer: "extractDecisionRefs 提取签收条目计数 + content_hash 防篡改，追加须走 decisions append"
+    confidence: high
+    source: "src/change/decisions.ts、E-CHANGE-007"
+
+  # ──── Q3: Reasoning (confirmed) ────
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "Q3-001: 是否需要新增独立 workflow 档位？"
+    answer: "Confirmed：不需要。tweak/hotfix 已跳过 design 且过程约束多为 warning，新增档位会与既有轻量档成两条权威源（YAGNI + 单一权威源纪律）"
+    confidence: high
+    source: "workflow.default.yaml 已有 hotfix/tweak"
+
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "Q3-002: freeze gate 是否影响 full workflow？"
+    answer: "Confirmed：不。范围限定轻量档，full 守卫/校验零变化由 TC-L0-06 回归锁定"
+    confidence: high
+    source: "proposal AC 'full workflow 行为零变化'"
+
+  - quadrant: Q3
+    category: reasoning
+    status: confirmed
+    question: "Q3-003: 是否引入交互式澄清向导？"
+    answer: "Confirmed：不。签收走 decisions.md（现有机制），对齐『Init/new SHALL NOT 要求交互』红线"
+    confidence: high
+    source: "AGENTS.md Init SHALL NOT require user interaction"
+
+  # ──── Q4: Blind Spots ────
+  - quadrant: Q4
+    category: blind-spot
+    question: "blocking 决策与 decisions.md 签收的文本匹配方式"
+    answer: "设计取 decisions refs 计数/条目存在判定；若采用严格文匹配,长句易漂移——Build 阶段以「条目级抽取 + 人类可见列表」而非全文哈希判签收（防误报）"
+    confidence: medium
+    source: "design-decision"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "skip_specs 与归档合并的边界"
+    answer: "archive 合并对无 delta 变更本就是 no-op；新增字段后需回归确认 archive 不因 skip_specs 产生多余 artifact"
+    confidence: medium
+    source: "src/change/archive.ts L393-407"
+
+  - quadrant: Q4
+    category: blind-spot
+    question: "其他 agent 生态（Comet Native）是否会把最小单元语义带到 full"
+    answer: "当前 no，spec-drift/glossary 检查矩阵不涉及 delta 最小单元；后续若出现分层语义需求另行立项"
+    confidence: low
+    source: "drift 检查面"
+
+  # guard tracking fields
+  converged: true
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 3
+  rounds_completed: 1

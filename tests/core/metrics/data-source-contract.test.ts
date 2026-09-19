@@ -22,6 +22,17 @@ vi.mock('node:child_process', () => ({
   spawnSync: (...args: unknown[]) => spawnSyncMock(...args),
 }));
 
+// evaluator-inprocess：强制 in-process 通道抛错，使以下用例锁定「子进程兜底通道」的
+// 解析契约（原 E17 数据源契约语义原样保留）。
+vi.mock('../../../src/guard/checker.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/guard/checker.js')>();
+  return {
+    ...actual,
+    buildCheckJsonPayload: () => { throw new Error('in-process disabled in test'); },
+    detectDriftInProcess: () => { throw new Error('in-process disabled in test'); },
+  };
+});
+
 const ctx: EvaluatorContext = { projectRoot: '.', changeName: 'demo', roundHistory: [] };
 
 function checkPayload(errors: Array<{ code: string }>, total: number, exitCode = 0): string {

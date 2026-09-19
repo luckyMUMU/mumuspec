@@ -220,7 +220,8 @@ mumuspec feedback session-summary         # 创建会话总结（可关联反馈
 mumuspec install catpaw [packages...] [--list|--search|--installed]  # CatPaw 技能
 mumuspec install claude <packages...>     # Claude Code 斜杠命令
 mumuspec install cursor <packages...>     # Cursor 技能
-mumuspec install trae <packages...>       # Trae 技能
+mumuspec install traecode <packages...>  # TraeCode 技能 + AGENTS.md 规则（--project-only 仅装当前项目）
+mumuspec install traework <packages...>  # TraeWork 技能 + AGENTS.md 规则（--project-only 仅装当前项目）
 mumuspec install workbuddy <packages...> [--force]  # WorkBuddy 技能（版本随包注入）
 mumuspec install opencode <packages...>   # OpenCode 技能
 mumuspec install codex <packages...>      # Codex 技能 + 规范 AGENTS.md

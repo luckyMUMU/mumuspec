@@ -1,0 +1,66 @@
+name: annotation-primary-r2
+phase: archive-completed
+workflow: full
+created_at: 2026-09-18T14:25:08.498Z
+updated_at: 2026-09-18T14:44:12.627Z
+scope: .
+affected_scopes:
+  - .
+build_layers: []
+test_cases:
+  design_locked: false
+  suites_locked: true
+  suites_locked_layers:
+    - 0
+  suites_hash:
+    "0": 500009bad26b52bf
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/annotation-primary-r2
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 1
+  content_hash: 372be58e0449a5f2
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+design_coverage:
+  covered_layers:
+    - 0
+  expected_layers:
+    - 0
+  unreachable_from: null
+  checked_at: 2026-09-18T14:42:26.050Z
+  enforced: true
+knowledge_extraction:
+  completed: true
+  pages_created_count: 3
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

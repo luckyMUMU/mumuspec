@@ -178,6 +178,11 @@ function createInitialArtifacts(
 ## Impact Scope
 ${affectedScopes.map((s) => `- ${s}`).join('\n') || '- (待确定)'}
 
+## User Decisions
+<!-- 影响可见结果的决策项写在这里：以 - [blocking] 前缀标记阻塞项。
+    声明阻塞项后须经 decisions append 逐项签收才能进入 build（freeze gate）；
+    无声明则不产生任何门禁 -->
+
 ## Workflow
 ${workflow}
 `;

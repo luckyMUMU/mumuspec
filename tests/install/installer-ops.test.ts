@@ -117,10 +117,10 @@ describe('installPackage — additional agent types', () => {
     expect(result.path).toBeDefined();
   });
 
-  it('installs skill for trae agent', () => {
-    const result = installPackage('trae', 'mumuspec-workflow', 'workspace', testWorkspace);
+  it('installs skill for traecode agent', () => {
+    const result = installPackage('traecode', 'mumuspec-workflow', 'workspace', testWorkspace);
     expect(result.success).toBe(true);
-    expect(result.agent).toBe('trae');
+    expect(result.agent).toBe('traecode');
   });
 
   it('installs skill for opencode agent', () => {
@@ -191,21 +191,21 @@ describe('listInstalledAgentSkills — edge cases', () => {
     expect(names).not.toContain('readme');
   });
 
-  it('lists dirs with SKILL.md for trae agent', () => {
+  it('lists dirs with SKILL.md for traecode agent', () => {
     const skillsDir = join(listRoot, '.trae', 'skills');
     const skillDir = join(skillsDir, 'my-skill');
     mkdirSync(skillDir, { recursive: true });
     writeFileSync(join(skillDir, 'SKILL.md'), '# My Skill');
-    const result = listInstalledAgentSkills('trae', 'workspace', listRoot);
+    const result = listInstalledAgentSkills('traecode', 'workspace', listRoot);
     expect(result.success).toBe(true);
     const names = result.skills.map((s) => s.name);
     expect(names).toContain('my-skill');
   });
 
-  it('excludes dirs without SKILL.md for trae', () => {
+  it('excludes dirs without SKILL.md for traecode', () => {
     const skillsDir = join(listRoot, '.trae', 'skills');
     mkdirSync(join(skillsDir, 'incomplete-skill'), { recursive: true });
-    const result = listInstalledAgentSkills('trae', 'workspace', listRoot);
+    const result = listInstalledAgentSkills('traecode', 'workspace', listRoot);
     const names = result.skills.map((s) => s.name);
     expect(names).not.toContain('incomplete-skill');
   });
@@ -293,7 +293,7 @@ describe('formatAgentInstalledSkills — formatting', () => {
       { name: 'skill1', path: '/p1', scope: 'user' },
       { name: 'skill2', path: '/p2', scope: 'workspace' },
     ];
-    const result = formatAgentInstalledSkills(skills, 'trae');
+    const result = formatAgentInstalledSkills(skills, 'traecode');
     expect(result).toContain('Total: 2 skill(s) installed');
   });
 });
@@ -328,7 +328,7 @@ describe('searchPackages — edge cases', () => {
 
 describe('getManifest — other agents', () => {
   it('returns packages for each supported agent', () => {
-    const agents: AgentType[] = ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode'];
+    const agents: AgentType[] = ['catpaw', 'claude', 'cursor', 'traecode', 'workbuddy', 'opencode'];
     for (const agent of agents) {
       const manifest = getManifest(agent);
       expect(Array.isArray(manifest)).toBe(true);

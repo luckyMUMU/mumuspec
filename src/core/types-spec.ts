@@ -17,6 +17,8 @@ export interface SpecFrontmatter {
   doc_type?: 'spec' | 'prd' | 'tech' | 'design' | 'prohibitions';
   /** P1-1 Fix: Prohibition annotations for semantic checking */
   prohibitions?: ProhibitionAnnotation[];
+  /** Context projection whitelist (spec-context-projection): Requirement names to disclose. */
+  disclosure?: string[];
 }
 
 /** P1-1 Fix: Prohibition annotation mapping natural language to machine-readable check */

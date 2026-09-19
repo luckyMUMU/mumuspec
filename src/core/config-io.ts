@@ -18,6 +18,7 @@ export function getDefaultConfig(projectName: string = 'my-project'): MumuSpecCo
       max_layer_depth: 5,
       auto_index: true,
       require_design_doc: true,
+      legacy_lexical_channel: true,
     },
     knowledge: {
       enabled: true,

@@ -4,6 +4,7 @@ import type { ChangeState, GuardResult } from '../core/types.js';
 import { readText, computeHash, resolveWithinRoot } from '../core/utils.js';
 import { getChangeDir, loadChangeState, saveChangeState, verifyTestCases } from '../change/manager.js';
 import { planParallelGroups } from '../change/parallel-planner.js';
+import { parseUserDecisions, unsignedBlockingDecisions } from '../change/proposal.js';
 import { validateArtifact, extractDecisionRefs, type ArtifactKind } from '../change/artifact-validator.js';
 import { applyStrengthToGuardResult } from './checker.js';
 import { collectUnchanneledDeltaConstraints } from './delta-channels.js';
@@ -322,6 +323,25 @@ function checkOpenToBuildHotfix(
 
   // Check tdd_mode（CHG-5: 比对 expectedTddMode，非法报错，旧变更不匹配仅 WARN）
   checkTddMode(state, expectedTddMode, errors, warnings);
+
+  // freeze-gate（lightweight-freeze-gate）：轻量档 proposal 显式声明的 blocking
+  // 用户决策须经 decisions.md 逐项签收后方可进入 build。无声明 → 行为与旧版
+  // 完全一致（CHG-5「只增不改」）；signoff 为条目文本的（去空白）子串匹配。
+  if (existsSync(proposalPath)) {
+    const decisionsPath = join(changeDir, 'decisions.md');
+    const decisionsContent = existsSync(decisionsPath) ? readText(decisionsPath) ?? '' : '';
+    const unsigned = unsignedBlockingDecisions(
+      decisionsContent,
+      parseUserDecisions(readText(proposalPath) ?? '').filter((d) => d.blocking),
+    );
+    if (unsigned.length > 0) {
+      errors.push({
+        code: 'E-GUARD-011',
+        message: `Blocking user decisions unsigned: ${unsigned.map((d) => d.text).join('; ')}`,
+        detail: '逐项签收：mumuspec decisions append <change> "<条目文本>"，然后重试',
+      });
+    }
+  }
 
   return { passed: errors.length === 0, errors, warnings };
 }

@@ -9,10 +9,17 @@
 
 | Layer | Scope | Docs | SHALL | SHALL NOT |
 |---|---|---|---|---|
-| 0 | `.` | prd+tech+spec | 148 | 105 |
+| 0 | `.` | prd+tech+spec | 183 | 120 |
 
 ### 当前路径适用红线（SHALL NOT 全文，含父层继承 — `.`）
 
+- 禁止为 SHALL 另立检查逻辑或词法 weak 层（no-new-engines 契约）。
+- 禁止修改 checkShallNot 的既有通道与 E-SPEC-004/015 判定。
+- 禁止改变 `legacy_lexical_channel=true` 时的既有 R2 行为（兼容面零变化）。
+- 禁止为 annotation 主入口引入新引擎（no-new-engines 契约）。
+- 禁止改变既有 manual 分类结果与 E-SPEC-004/015 阻断语义。
+- 禁止改变 check/validate 既有 JSON schema。
+- 禁止改变未声明 disclosure 的既有加载行为与 SpecLayerContext 数据结构。
 - 禁止引入未被请求的抽象层（YAGNI）
 - 禁止在标准库/平台特性已满足需求时引入新依赖
 - 禁止生成未被请求的样板代码（boilerplate）
@@ -118,6 +125,12 @@
 - SHALL NOT 语料文件位于 tests、temp 等会被规范 walker 递归扫描的路径。
 - SHALL NOT report 输出改变 check 与 validate 命令的既有 JSON schema。
 - SHALL NOT 让语料期望与引擎实际发射面脱钩（为无发射点的码建立必须命中的语料）。
+- SHALL NOT 在迁移后保留旧 agent 名称的幽灵引用（AgentType、子命令、测试、文档须一次性替换为新名称）。
+- SHALL NOT 为 traecode / traework 引入 registry 之外的 agent-specific 逻辑（保持数据驱动）。
+- SHALL NOT 在仅项目安装模式与显式目标参数并存时静默覆盖用户给出的工作区路径。
+- SHALL NOT 让 `--installed` 列表在 `--project-only` 下扫描错误的目录（应按 workspace+cwd 扫描）。
+- 禁止为 constraints.yaml 条目另立第二套分类判定逻辑（须复用既有判定序）。
+- 禁止对账通道以语义判断决定进度好坏（只核对断言与事实的矛盾）。
 
 > 完整约束正文经 MCP `get_spec_context` / `mumuspec context <path>` 渐进式加载（Rules 文件不内联全量规范）。
 
@@ -138,14 +151,7 @@ SHALL: 先查可复用实现 / 最小可工作实现 / 有意简化用 `ponytail
 
 ## CLI 速查
 
-mumuspec init [path]                # Initialize MumuSpec
-mumuspec context <path>             # Get spec context (progressive disclosure)
-mumuspec new <name>                 # Create new change
-mumuspec status [name]              # View change status
-mumuspec guard <change> <phase>     # Phase guard check
-mumuspec validate / check / drift   # Validate / compliance / drift
-mumuspec archive <name> --confirm   # Archive change
-mumuspec doctor                     # Environment diagnostics
+
 
 ## MCP 入口
 

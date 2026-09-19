@@ -27,40 +27,52 @@ export const driftScoreEvaluator: Evaluator = {
   async evaluate(ctx: EvaluatorContext): Promise<MetricResult> {
     const cwd = ctx.worktreePath || ctx.projectRoot;
 
+    // In-process drift collection first (injected seam); the subprocess channel
+    // remains the fallback. Core never imports the guard domain.
+    let violations: number | null = null;
     try {
-      const result = spawnSync(
-        'npx', ['mumuspec', 'drift', '--json'],
-        // E17: win32 上 npx 是 npx.cmd，无 shell 无法 exec（constraint-density 同款修复）
-        { cwd, encoding: 'utf-8', timeout: 30_000, shell: process.platform === 'win32' },
-      );
-
-      if (result.error) {
-        return nullResult(`drift command failed to start: ${result.error.message}`);
-      }
-
-      const parsed = parseJsonFrom(result.stdout ?? '');
-      if (parsed === null) {
-        return nullResult('drift produced no JSON output');
-      }
-
-      // drift --json 顶层是数组（可能为空）。status 非 0 但 stdout 可解析时照常计算——
-      // 有漂移恰是低分的来源。
-      const drifts = Array.isArray(parsed) ? parsed : [];
-      const violations = drifts.length;
-
-      const driftScore = Math.max(0, Math.min(1, 1 - violations / DRIFT_SATURATION));
-
-      return {
-        name: 'drift-score',
-        value: driftScore,
-        // P1-3 (evaluator-weight-single-source): 单一权威源——引用 defaultWeight
-        weight: driftScoreEvaluator.defaultWeight,
-        details: `${violations} drift item(s) (score: ${Math.round((1 - driftScore) * 100)}% penalty; 0 = clean, ${DRIFT_SATURATION}+ = saturated)`,
-        rawData: { violations, saturation: DRIFT_SATURATION },
-      };
-    } catch (err) {
-      return nullResult(`drift detection failed: ${err instanceof Error ? err.message : String(err)}`);
+      violations = ctx.inProcess?.driftCount ? ctx.inProcess.driftCount(cwd) : null;
+    } catch {
+      violations = null;
     }
+
+    // Subprocess fallback (existing channel preserved).
+    if (violations === null) {
+      try {
+        const result = spawnSync(
+          'npx', ['mumuspec', 'drift', '--json'],
+          // E17: win32 上 npx 是 npx.cmd，无 shell 无法 exec（constraint-density 同款修复）
+          { cwd, encoding: 'utf-8', timeout: 30_000, shell: process.platform === 'win32' },
+        );
+
+        if (result.error) {
+          return nullResult(`drift command failed to start: ${result.error.message}`);
+        }
+
+        const parsed = parseJsonFrom(result.stdout ?? '');
+        if (parsed === null) {
+          return nullResult('drift produced no JSON output');
+        }
+
+        // drift --json 顶层是数组（可能为空）。status 非 0 但 stdout 可解析时照常计算——
+        // 有漂移恰是低分的来源。
+        const drifts = Array.isArray(parsed) ? parsed : [];
+        violations = drifts.length;
+      } catch (err) {
+        return nullResult(`drift score evaluation failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    const driftScore = Math.max(0, Math.min(1, 1 - violations / DRIFT_SATURATION));
+
+    return {
+      name: 'drift-score',
+      value: driftScore,
+      // P1-3 (evaluator-weight-single-source): 单一权威源——引用 defaultWeight
+      weight: driftScoreEvaluator.defaultWeight,
+      details: `${violations} drift item(s) (score: ${Math.round((1 - driftScore) * 100)}% penalty; 0 = clean, ${DRIFT_SATURATION}+ = saturated)`,
+      rawData: { violations, saturation: DRIFT_SATURATION },
+    };
   },
 };
 

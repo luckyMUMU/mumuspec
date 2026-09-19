@@ -1,0 +1,77 @@
+name: enforcement-gap
+phase: archive-completed
+workflow: full
+created_at: 2026-09-19T14:25:38.848Z
+updated_at: 2026-09-19T15:20:30.469Z
+scope: .
+affected_scopes:
+  - .
+build_layers:
+  - layer: 1
+    scope: src/spec
+    status: done
+  - layer: 2
+    scope: src/guard
+    status: done
+test_cases:
+  design_locked: true
+  suites_locked: true
+  suites_locked_layers:
+    - 1
+    - 2
+  suites_hash:
+    "1": 72728d9aa6fadd6a
+    "2": c2d88fdfb508a3aa
+  design_content_hash: b89a5a4842600f1e
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/enforcement-gap
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 2
+    design: 1
+  content_hash: 6623181896c15372
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+estimated_files: 12
+modules_affected: 1
+cross_module: true
+new_public_api: false
+new_external_dep: false
+data_migration: false
+is_doc_only: false
+is_pure_bugfix: false
+schema_version: 1.0.0
+verify_result: passed
+knowledge_extraction:
+  completed: true
+  pages_created_count: 3
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

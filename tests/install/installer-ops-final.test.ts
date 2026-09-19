@@ -189,15 +189,14 @@ describe('listInstalledAgentSkills — catch block (lines 513-519)', () => {
     expect(result.skills).toEqual([]);
   });
 
-  it('returns error when skillsDir is a file (trae)', () => {
-    const scanRoot = join(tmpdir(), 'mumuspec-scan-file-trae-' + uniqueId());
-    const traeDir = join(scanRoot, '.trae');
-    mkdirSync(traeDir, { recursive: true });
-    cleanupPaths.push(scanRoot);
+  it('returns error when skillsDir is a file (traecode)', () => {
+    const scanRoot = join(tmpdir(), 'mumuspec-scan-file-traecode-' + uniqueId());
+    const traecodeDir = join(scanRoot, '.trae');
+    mkdirSync(traecodeDir, { recursive: true });
+    // 模拟 .trae/skills 被文件占位（非目录）
+    writeFileSync(join(traecodeDir, 'skills'), 'not a directory');
 
-    writeFileSync(join(traeDir, 'skills'), 'not a directory');
-
-    const result = listInstalledAgentSkills('trae', 'workspace', scanRoot);
+    const result = listInstalledAgentSkills('traecode', 'workspace', scanRoot);
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
     expect(result.skills).toEqual([]);
@@ -529,10 +528,10 @@ describe('installPackage — additional generic agent install paths', () => {
     expect(result.path).toMatch(/\.md$/);
   });
 
-  it('trae agent — installs to subdirectory with SKILL.md', () => {
+  it('traecode agent — installs to subdirectory with SKILL.md', () => {
     mkdirSync(join(testRoot, '.trae', 'skills'), { recursive: true });
 
-    const result = installPackage('trae', 'mumuspec-workflow', 'workspace', testRoot);
+    const result = installPackage('traecode', 'mumuspec-workflow', 'workspace', testRoot);
     expect(result.success).toBe(true);
     expect(result.path).toContain('SKILL.md');
   });

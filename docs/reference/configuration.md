@@ -22,6 +22,7 @@ specs:
   max_layer_depth: 5              # 最大规范层级深度
   auto_index: true                # 自动生成 index.yaml
   require_design_doc: true        # 每个有 spec.md 的目录必须维护 design.md
+  legacy_lexical_channel: true    # 无注解 SHALL NOT 是否沿用词法兜底（enforced-weak）；false 时仅显式 lex: 前缀进入词法通道
 
 # 代码图谱配置
 knowledge:

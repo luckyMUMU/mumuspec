@@ -290,4 +290,46 @@ describe('helpers.ts > createAgentInstallSubcommand', () => {
     const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('Updated');
   });
+
+  it('--project-only forces workspace target with cwd', async () => {
+    mockResolvePackage.mockReturnValue({ name: 'pkg-a', description: '', category: 'core' });
+    mockInstallPackage.mockReturnValue({ success: true, path: '/skills/pkg-a' });
+
+    const program = createInstallCmd();
+    await program.parseAsync(['node', 'mumuspec', 'install', 'claude', 'pkg-a', '--project-only']);
+
+    expect(mockInstallPackage).toHaveBeenCalledWith(
+      'claude-type', 'pkg-a', 'workspace', process.cwd(), 'install',
+    );
+  });
+
+  it('--project-only keeps explicit --workspace-path', async () => {
+    mockResolvePackage.mockReturnValue({ name: 'pkg-a', description: '', category: 'core' });
+    mockInstallPackage.mockReturnValue({ success: true, path: '/skills/pkg-a' });
+
+    const program = createInstallCmd();
+    await program.parseAsync([
+      'node', 'mumuspec', 'install', 'claude', 'pkg-a',
+      '--project-only', '--workspace-path', '/tmp/ws',
+    ]);
+
+    expect(mockInstallPackage).toHaveBeenCalledWith(
+      'claude-type', 'pkg-a', 'workspace', '/tmp/ws', 'install',
+    );
+  });
+
+  it('--project-only conflicts with explicit --target user', async () => {
+    const program = createInstallCmd();
+    await expect(
+      program.parseAsync([
+        'node', 'mumuspec', 'install', 'claude', 'pkg-a',
+        '--project-only', '--target', 'user',
+      ]),
+    ).rejects.toThrow('process.exit called with code 1');
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('conflicts with --target user'),
+    );
+    expect(mockInstallPackage).not.toHaveBeenCalled();
+  });
 });

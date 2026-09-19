@@ -122,26 +122,55 @@ mumuspec install cursor mumuspec-workflow --target workspace --workspace-path .
 
 ---
 
-### 3.4 Trae
+### 3.4 TraeCode
 
-Trae AI 使用 `~/.trae/skills/<skill>/SKILL.md` 格式.
+TraeCode 使用 `.trae/skills/<skill>/SKILL.md` 格式；workspace 安装时同时生成项目根 `AGENTS.md`（含 managed 标记）。
 
 **安装**:
 ```bash
-# 全局安装
-mumuspec install trae mumuspec-workflow
+# 仅安装到当前项目（推荐）
+mumuspec install traecode mumuspec-workflow --project-only
 
-# 工作区安装
-mumuspec install trae mumuspec-workflow --target workspace --workspace-path .
+# 工作区安装（等价写法）
+mumuspec install traecode mumuspec-workflow --target workspace --workspace-path .
+
+# 全局安装
+mumuspec install traecode mumuspec-workflow
 ```
 
 **安装后位置**:
 - 用户级: `~/.trae/skills/mumuspec-workflow/SKILL.md`
 - 工作区级: `<project>/.trae/skills/mumuspec-workflow/SKILL.md`
+- 规则文件: `<project>/AGENTS.md`（workspace 安装时生成）
 
 ---
 
-### 3.5 WorkBuddy
+### 3.5 TraeWork
+
+TraeWork 与 TraeCode 共用技能目录约定（`.trae/skills/<skill>/SKILL.md`）；桌面版亦读取项目根 `AGENTS.md`（需在设置中开启"将 AGENTS.md 包含在上下文中"）。
+
+**安装**:
+```bash
+# 仅安装到当前项目（推荐）
+mumuspec install traework mumuspec-workflow --project-only
+
+# 工作区安装（等价写法）
+mumuspec install traework mumuspec-workflow --target workspace --workspace-path .
+
+# 全局安装
+mumuspec install traework mumuspec-workflow
+```
+
+**安装后位置**:
+- 用户级: `~/.trae/skills/mumuspec-workflow/SKILL.md`
+- 工作区级: `<project>/.trae/skills/mumuspec-workflow/SKILL.md`
+- 规则文件: `<project>/AGENTS.md`（workspace 安装时生成）
+
+> 说明：旧命令 `mumuspec install trae` 已移除，请改用 `traecode` / `traework`。
+
+---
+
+### 3.6 WorkBuddy
 
 WorkBuddy 使用 `~/.workbuddy/skills/<skill>/SKILL.md` 格式（目录式 SKILL.md）。
 
@@ -165,7 +194,7 @@ mumuspec install workbuddy mumuspec-workflow --target workspace --workspace-path
 
 ---
 
-### 3.6 OpenCode
+### 3.7 OpenCode
 
 OpenCode 使用 `~/.opencode/skills/<skill>/SKILL.md` 格式.
 
@@ -184,7 +213,7 @@ mumuspec install opencode mumuspec-workflow --target workspace --workspace-path 
 
 ---
 
-### 3.7 Codex / Windsurf / Gemini / GitHub Copilot（新 agent）
+### 3.8 Codex / Windsurf / Gemini / GitHub Copilot（新 agent）
 
 四个新 agent 采用 **canonical AGENTS.md 规则 + 目录式 SKILL.md** 分发（goal-p0-dispatch-gate）：
 

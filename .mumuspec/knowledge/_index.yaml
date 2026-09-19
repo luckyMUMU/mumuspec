@@ -120,6 +120,17 @@ pages:
       - hyperplan
       - decision
       - 2026-09-13-workflow-tier-hint
+  - id: KE-annotation-primary-r2-hyperplan
+    title: Adversarial design review insights from annotation-primary-r2
+    type: decision
+    status: confirmed
+    scope: annotation-primary-r2
+    file: .mumuspec\knowledge\decisions\KE-annotation-primary-r2-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - annotation-primary-r2
   - id: KE-archive-prune-safety-hyperplan
     title: Adversarial design review insights from archive-prune-safety
     type: decision
@@ -230,6 +241,17 @@ pages:
       - hyperplan
       - decision
       - enforcement-coverage
+  - id: KE-enforcement-gap-hyperplan
+    title: Adversarial design review insights from enforcement-gap
+    type: decision
+    status: confirmed
+    scope: enforcement-gap
+    file: .mumuspec\knowledge\decisions\KE-enforcement-gap-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - enforcement-gap
   - id: KE-eval-corpus-hyperplan
     title: Adversarial design review insights from eval-corpus
     type: decision
@@ -252,6 +274,17 @@ pages:
       - hyperplan
       - decision
       - evaluator-data-source-fix
+  - id: KE-evaluator-inprocess-hyperplan
+    title: Adversarial design review insights from evaluator-inprocess
+    type: decision
+    status: confirmed
+    scope: evaluator-inprocess
+    file: .mumuspec\knowledge\decisions\KE-evaluator-inprocess-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - evaluator-inprocess
   - id: KE-evaluator-weight-single-source-hyperplan
     title: Adversarial design review insights from evaluator-weight-single-source
     type: decision
@@ -296,6 +329,17 @@ pages:
       - hyperplan
       - decision
       - goal-p0-dispatch-gate
+  - id: KE-install-trae-agents-hyperplan
+    title: Adversarial design review insights from install-trae-agents
+    type: decision
+    status: confirmed
+    scope: install-trae-agents
+    file: .mumuspec\knowledge\decisions\KE-install-trae-agents-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - install-trae-agents
   - id: KE-legacy-cleanup-fix-hyperplan
     title: Adversarial design review insights from legacy-cleanup-fix
     type: decision
@@ -307,6 +351,17 @@ pages:
       - hyperplan
       - decision
       - legacy-cleanup-fix
+  - id: KE-lightweight-freeze-gate-hyperplan
+    title: Adversarial design review insights from lightweight-freeze-gate
+    type: decision
+    status: confirmed
+    scope: lightweight-freeze-gate
+    file: .mumuspec\knowledge\decisions\KE-lightweight-freeze-gate-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - lightweight-freeze-gate
   - id: KE-loop-convergence-judgment-hyperplan
     title: Adversarial design review insights from loop-convergence-judgment
     type: decision
@@ -329,6 +384,17 @@ pages:
       - hyperplan
       - decision
       - loop-signal-bandwidth
+  - id: KE-manual-explicit-hyperplan
+    title: Adversarial design review insights from manual-explicit
+    type: decision
+    status: confirmed
+    scope: manual-explicit
+    file: .mumuspec\knowledge\decisions\KE-manual-explicit-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - manual-explicit
   - id: KE-onboard-cli-hyperplan
     title: Adversarial design review insights from onboard-cli
     type: decision
@@ -373,6 +439,17 @@ pages:
       - hyperplan
       - decision
       - self-improvement-loop-p0
+  - id: KE-shall-annotation-channel-hyperplan
+    title: Adversarial design review insights from shall-annotation-channel
+    type: decision
+    status: confirmed
+    scope: shall-annotation-channel
+    file: .mumuspec\knowledge\decisions\KE-shall-annotation-channel-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - shall-annotation-channel
   - id: KE-shall-structure-lint-hyperplan
     title: Adversarial design review insights from shall-structure-lint
     type: decision
@@ -395,6 +472,17 @@ pages:
       - hyperplan
       - decision
       - skill-plugin-standard
+  - id: KE-spec-context-projection-hyperplan
+    title: Adversarial design review insights from spec-context-projection
+    type: decision
+    status: confirmed
+    scope: spec-context-projection
+    file: .mumuspec\knowledge\decisions\KE-spec-context-projection-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - spec-context-projection
   - id: KE-spec-fence-guard-hyperplan
     title: Adversarial design review insights from spec-fence-guard
     type: decision
@@ -406,6 +494,17 @@ pages:
       - hyperplan
       - decision
       - spec-fence-guard
+  - id: KE-strength-suggested-hyperplan
+    title: Adversarial design review insights from strength-suggested
+    type: decision
+    status: confirmed
+    scope: strength-suggested
+    file: .mumuspec\knowledge\decisions\KE-strength-suggested-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - strength-suggested
   - id: KE-workflow-tier-hint-hyperplan
     title: Adversarial design review insights from workflow-tier-hint
     type: decision
@@ -538,6 +637,17 @@ pages:
       - pattern
       - architecture
       - 2026-09-13-workflow-tier-hint
+  - id: KE-annotation-primary-r2-patterns
+    title: Architecture patterns from annotation-primary-r2
+    type: pattern
+    status: confirmed
+    scope: annotation-primary-r2
+    file: .mumuspec\knowledge\patterns\KE-annotation-primary-r2-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - annotation-primary-r2
   - id: KE-ast-guard-patterns
     title: Architecture patterns from ast-guard
     type: pattern
@@ -626,6 +736,17 @@ pages:
       - pattern
       - architecture
       - enforcement-coverage
+  - id: KE-enforcement-gap-patterns
+    title: Architecture patterns from enforcement-gap
+    type: pattern
+    status: confirmed
+    scope: enforcement-gap
+    file: .mumuspec\knowledge\patterns\KE-enforcement-gap-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - enforcement-gap
   - id: KE-eval-corpus-patterns
     title: Architecture patterns from eval-corpus
     type: pattern
@@ -637,6 +758,17 @@ pages:
       - pattern
       - architecture
       - eval-corpus
+  - id: KE-evaluator-inprocess-patterns
+    title: Architecture patterns from evaluator-inprocess
+    type: pattern
+    status: confirmed
+    scope: evaluator-inprocess
+    file: .mumuspec\knowledge\patterns\KE-evaluator-inprocess-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - evaluator-inprocess
   - id: KE-fail-open-audit-patterns
     title: Architecture patterns from fail-open-audit
     type: pattern
@@ -670,6 +802,39 @@ pages:
       - pattern
       - architecture
       - goal-p0-dispatch-gate
+  - id: KE-install-trae-agents-patterns
+    title: Architecture patterns from install-trae-agents
+    type: pattern
+    status: confirmed
+    scope: install-trae-agents
+    file: .mumuspec\knowledge\patterns\KE-install-trae-agents-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - install-trae-agents
+  - id: KE-lightweight-freeze-gate-patterns
+    title: Architecture patterns from lightweight-freeze-gate
+    type: pattern
+    status: confirmed
+    scope: lightweight-freeze-gate
+    file: .mumuspec\knowledge\patterns\KE-lightweight-freeze-gate-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - lightweight-freeze-gate
+  - id: KE-manual-explicit-patterns
+    title: Architecture patterns from manual-explicit
+    type: pattern
+    status: confirmed
+    scope: manual-explicit
+    file: .mumuspec\knowledge\patterns\KE-manual-explicit-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - manual-explicit
   - id: KE-onboard-cli-patterns
     title: Architecture patterns from onboard-cli
     type: pattern
@@ -714,6 +879,17 @@ pages:
       - pattern
       - architecture
       - self-improvement-loop-p0
+  - id: KE-shall-annotation-channel-patterns
+    title: Architecture patterns from shall-annotation-channel
+    type: pattern
+    status: confirmed
+    scope: shall-annotation-channel
+    file: .mumuspec\knowledge\patterns\KE-shall-annotation-channel-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - shall-annotation-channel
   - id: KE-shall-structure-lint-patterns
     title: Architecture patterns from shall-structure-lint
     type: pattern
@@ -736,6 +912,17 @@ pages:
       - pattern
       - architecture
       - skill-plugin-standard
+  - id: KE-spec-context-projection-patterns
+    title: Architecture patterns from spec-context-projection
+    type: pattern
+    status: confirmed
+    scope: spec-context-projection
+    file: .mumuspec\knowledge\patterns\KE-spec-context-projection-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - spec-context-projection
   - id: KE-spec-fence-guard-patterns
     title: Architecture patterns from spec-fence-guard
     type: pattern
@@ -747,6 +934,17 @@ pages:
       - pattern
       - architecture
       - spec-fence-guard
+  - id: KE-strength-suggested-patterns
+    title: Architecture patterns from strength-suggested
+    type: pattern
+    status: confirmed
+    scope: strength-suggested
+    file: .mumuspec\knowledge\patterns\KE-strength-suggested-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - strength-suggested
   - id: KE-workflow-tier-hint-patterns
     title: Architecture patterns from workflow-tier-hint
     type: pattern
@@ -1599,6 +1797,17 @@ pages:
       - lesson
       - decisions
       - 2026-09-13-workflow-tier-hint
+  - id: KE-annotation-primary-r2-lessons
+    title: Lessons from annotation-primary-r2 decisions
+    type: lesson
+    status: confirmed
+    scope: annotation-primary-r2
+    file: .mumuspec\knowledge\lessons\KE-annotation-primary-r2-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - annotation-primary-r2
   - id: KE-archive-prune-safety-lessons
     title: Lessons from archive-prune-safety decisions
     type: lesson
@@ -1709,6 +1918,17 @@ pages:
       - lesson
       - decisions
       - enforcement-coverage
+  - id: KE-enforcement-gap-lessons
+    title: Lessons from enforcement-gap decisions
+    type: lesson
+    status: confirmed
+    scope: enforcement-gap
+    file: .mumuspec\knowledge\lessons\KE-enforcement-gap-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - enforcement-gap
   - id: KE-eval-corpus-lessons
     title: Lessons from eval-corpus decisions
     type: lesson
@@ -1731,6 +1951,17 @@ pages:
       - lesson
       - decisions
       - evaluator-data-source-fix
+  - id: KE-evaluator-inprocess-lessons
+    title: Lessons from evaluator-inprocess decisions
+    type: lesson
+    status: confirmed
+    scope: evaluator-inprocess
+    file: .mumuspec\knowledge\lessons\KE-evaluator-inprocess-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - evaluator-inprocess
   - id: KE-evaluator-weight-single-source-lessons
     title: Lessons from evaluator-weight-single-source decisions
     type: lesson
@@ -1775,6 +2006,17 @@ pages:
       - lesson
       - decisions
       - goal-p0-dispatch-gate
+  - id: KE-install-trae-agents-lessons
+    title: Lessons from install-trae-agents decisions
+    type: lesson
+    status: confirmed
+    scope: install-trae-agents
+    file: .mumuspec\knowledge\lessons\KE-install-trae-agents-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - install-trae-agents
   - id: KE-legacy-cleanup-fix-lessons
     title: Lessons from legacy-cleanup-fix decisions
     type: lesson
@@ -1786,6 +2028,17 @@ pages:
       - lesson
       - decisions
       - legacy-cleanup-fix
+  - id: KE-lightweight-freeze-gate-lessons
+    title: Lessons from lightweight-freeze-gate decisions
+    type: lesson
+    status: confirmed
+    scope: lightweight-freeze-gate
+    file: .mumuspec\knowledge\lessons\KE-lightweight-freeze-gate-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - lightweight-freeze-gate
   - id: KE-loop-convergence-judgment-lessons
     title: Lessons from loop-convergence-judgment decisions
     type: lesson
@@ -1808,6 +2061,17 @@ pages:
       - lesson
       - decisions
       - loop-signal-bandwidth
+  - id: KE-manual-explicit-lessons
+    title: Lessons from manual-explicit decisions
+    type: lesson
+    status: confirmed
+    scope: manual-explicit
+    file: .mumuspec\knowledge\lessons\KE-manual-explicit-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - manual-explicit
   - id: KE-onboard-cli-lessons
     title: Lessons from onboard-cli decisions
     type: lesson
@@ -1852,6 +2116,17 @@ pages:
       - lesson
       - decisions
       - self-improvement-loop-p0
+  - id: KE-shall-annotation-channel-lessons
+    title: Lessons from shall-annotation-channel decisions
+    type: lesson
+    status: confirmed
+    scope: shall-annotation-channel
+    file: .mumuspec\knowledge\lessons\KE-shall-annotation-channel-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - shall-annotation-channel
   - id: KE-shall-structure-lint-lessons
     title: Lessons from shall-structure-lint decisions
     type: lesson
@@ -1874,6 +2149,17 @@ pages:
       - lesson
       - decisions
       - skill-plugin-standard
+  - id: KE-spec-context-projection-lessons
+    title: Lessons from spec-context-projection decisions
+    type: lesson
+    status: confirmed
+    scope: spec-context-projection
+    file: .mumuspec\knowledge\lessons\KE-spec-context-projection-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - spec-context-projection
   - id: KE-spec-fence-guard-lessons
     title: Lessons from spec-fence-guard decisions
     type: lesson
@@ -1885,6 +2171,17 @@ pages:
       - lesson
       - decisions
       - spec-fence-guard
+  - id: KE-strength-suggested-lessons
+    title: Lessons from strength-suggested decisions
+    type: lesson
+    status: confirmed
+    scope: strength-suggested
+    file: .mumuspec\knowledge\lessons\KE-strength-suggested-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - strength-suggested
   - id: KE-workflow-tier-hint-lessons
     title: Lessons from workflow-tier-hint decisions
     type: lesson

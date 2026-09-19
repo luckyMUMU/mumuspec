@@ -106,7 +106,7 @@ mumuspec validate    # 校验规范格式 + 可验证性覆盖率
 ### 方式 B：Rules 文件（无 MCP 的兼容方案）
 
 ```bash
-mumuspec install claude    # 或 cursor / opencode / codex / gemini 等 10 个 agent
+mumuspec install claude    # 或 cursor / opencode / codex / traecode / traework / gemini 等 agent
 ```
 
 生成结果：**AGENTS.md 是唯一 canonical 规则文件**（规范链摘要 + Ponytail + CLI 速查 + MCP 入口），`CLAUDE.md` / `GEMINI.md` 为首行 `@AGENTS.md` 的薄壳桥接。`.cursorrules` 等遗留格式已停止生成（C3 禁令），Cursor 通过 AGENTS.md 或 MCP 加载规则。

@@ -23,6 +23,7 @@ import {
   registerBuiltInEvaluators,
 } from '../../core/metrics/auto-evaluate.js';
 import type { EvaluatorContext } from '../../core/metrics/types.js';
+import { createInProcessMetricSources } from '../../guard/checker.js';
 import { tip } from '../ui-helpers.js';
 
 export function registerMetricsCommands(program: Command): void {
@@ -47,7 +48,7 @@ export function registerMetricsCommands(program: Command): void {
       // Idempotent: registerEvaluator replaces same-name entries.
       registerBuiltInEvaluators();
 
-      const ctx: EvaluatorContext = { projectRoot: root, changeName, roundHistory: [] };
+      const ctx: EvaluatorContext = { projectRoot: root, changeName, roundHistory: [], inProcess: createInProcessMetricSources() };
       const metrics = await collectMetrics(ctx);
       const suggestions = buildSuggestions(metrics);
 

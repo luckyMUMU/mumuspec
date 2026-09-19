@@ -520,6 +520,8 @@ describe('registerInstallCommands', () => {
     expect(agentNames).toContain('catpaw');
     expect(agentNames).toContain('claude');
     expect(agentNames).toContain('cursor');
+    expect(agentNames).toContain('traecode');
+    expect(agentNames).toContain('traework');
   });
 });
 

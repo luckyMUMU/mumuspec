@@ -28,6 +28,7 @@ import {
 } from '../core/types-loop.js';
 import type { MetricsSnapshot } from '../core/metrics/types.js';
 import { DEFAULT_CONVERGENCE_CONFIG } from '../core/metrics/types.js';
+import { createInProcessMetricSources } from '../guard/checker.js';
 import {
   autoEvaluate,
   hybridEvaluate,
@@ -245,7 +246,7 @@ export async function evaluateRound(
 
       const manualProgress = options.manualProgress ?? evaluation.progress;
       const evalResult = mode === 'auto'
-        ? await autoEvaluate(ctx)
+        ? await autoEvaluate({ ...ctx, inProcess: createInProcessMetricSources() })
         : await hybridEvaluate(ctx, manualProgress);
 
       // Convert auto-evaluate result to LoopEvaluation.

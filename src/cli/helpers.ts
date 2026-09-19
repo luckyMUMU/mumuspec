@@ -89,10 +89,23 @@ export function createAgentInstallSubcommand(
     .option('--force', 'force update if already installed')
     .option('--target <scope>', 'installation target: user (global) or workspace (project)', 'user')
     .option('--workspace-path <path>', 'workspace path (required when --target workspace)')
+    .option('--project-only', 'install to current project only (workspace target, cwd)')
     .option('--search <keyword>', 'search available packages by keyword')
-    .action((packages: string[], options: Record<string, unknown>) => {
-      const target = (options.target as 'user' | 'workspace') || 'user';
-      const workspacePath = options.workspacePath as string | undefined;
+    .action((packages: string[], options: Record<string, unknown>, command: import('commander').Command) => {
+      const projectOnly = options.projectOnly === true;
+      let target = (options.target as 'user' | 'workspace') || 'user';
+      let workspacePath = options.workspacePath as string | undefined;
+
+      // --project-only: 仅安装到当前项目 — 强制 workspace 目标 + cwd 路径，与显式 --target user 互斥（fail-closed）
+      if (projectOnly) {
+        if (command.getOptionValueSource('target') === 'cli' && options.target === 'user') {
+          console.error('Error: --project-only conflicts with --target user.');
+          console.error('       --project-only installs to the current project only.');
+          process.exit(1);
+        }
+        target = 'workspace';
+        workspacePath = workspacePath ?? process.cwd();
+      }
 
       // --list: show available packages
       if (options.list) {

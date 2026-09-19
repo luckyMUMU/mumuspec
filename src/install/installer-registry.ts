@@ -4,11 +4,13 @@
 // Agent types supported by the install command
 // goal-p0-dispatch-gate (C1): +codex/windsurf/gemini/copilot — additive,
 // existing 6 values keep their semantics.
+// install-trae-agents: trae → traecode（重命名）+ traework（新增）。
 export type AgentType =
   | 'catpaw'
   | 'claude'
   | 'cursor'
-  | 'trae'
+  | 'traecode'
+  | 'traework'
   | 'workbuddy'
   | 'opencode'
   | 'codex'
@@ -128,8 +130,14 @@ export const CURSOR_PACKAGES: PackageManifestEntry[] = [
   { name: 'mumuspec-workflow', description: 'MumuSpec workflow', agent: 'cursor', command: 'mumuspec', category: 'workflow' },
 ];
 
-export const TRAE_PACKAGES: PackageManifestEntry[] = [
-  { name: 'mumuspec-workflow', description: 'MumuSpec workflow', agent: 'trae', command: 'mumuspec', category: 'workflow' },
+// install-trae-agents: trae → traecode（重命名）+ traework（新增）。
+// 两者技能目录与 AGENTS.md 规则分发约定一致，仅作为独立安装目标存在。
+export const TRAECODE_PACKAGES: PackageManifestEntry[] = [
+  { name: 'mumuspec-workflow', description: 'MumuSpec workflow', agent: 'traecode', command: 'mumuspec', category: 'workflow' },
+];
+
+export const TRAEWORK_PACKAGES: PackageManifestEntry[] = [
+  { name: 'mumuspec-workflow', description: 'MumuSpec workflow', agent: 'traework', command: 'mumuspec', category: 'workflow' },
 ];
 
 export const WORKBUDDY_PACKAGES: PackageManifestEntry[] = [
@@ -173,7 +181,8 @@ export const AGENT_MANIFEST: Record<AgentType, PackageManifestEntry[]> = {
   catpaw: [...CATPAW_PACKAGES, MUMUSPEC_WORKFLOW_PACKAGE],
   claude: CLAUDE_PACKAGES,
   cursor: CURSOR_PACKAGES,
-  trae: TRAE_PACKAGES,
+  traecode: TRAECODE_PACKAGES,
+  traework: TRAEWORK_PACKAGES,
   workbuddy: WORKBUDDY_PACKAGES,
   opencode: OPENCODE_PACKAGES,
   codex: CODEX_PACKAGES,
@@ -237,7 +246,9 @@ export const AGENT_INSTALL_POLICIES: Record<AgentType, AgentInstallPolicy> = {
   catpaw: { kind: 'catpaw', rulesRideAlong: false, layout: 'skill-dir' },
   claude: { kind: 'generic', rulesRideAlong: false, layout: 'flat-command' },
   cursor: { kind: 'generic', rulesRideAlong: false, layout: 'flat-command' },
-  trae: { kind: 'generic', rulesRideAlong: false, layout: 'skill-dir' },
+  // install-trae-agents: trae → traecode/traework — workspace 安装联动生成 AGENTS.md（TraeCode/TraeWork 桌面版均读取项目根 AGENTS.md）
+  traecode: { kind: 'generic', rulesRideAlong: true, layout: 'skill-dir' },
+  traework: { kind: 'generic', rulesRideAlong: true, layout: 'skill-dir' },
   workbuddy: { kind: 'generic', rulesRideAlong: false, layout: 'skill-dir' },
   opencode: { kind: 'generic', rulesRideAlong: false, layout: 'skill-dir' },
   codex: { kind: 'generic', rulesRideAlong: true, layout: 'skill-dir' },
@@ -262,4 +273,7 @@ export const AGENT_RULE_TARGETS: Partial<Record<AgentType, AgentRuleTarget>> = {
     skillsDir: '.claude/skills',
     marksManaged: true,
   },
+  // install-trae-agents: TraeCode / TraeWork 桌面版均读取项目根 AGENTS.md，无需 bridge
+  traecode: { rulesFile: AGENTS_RULES_FILE, bridges: {}, skillsDir: '.trae/skills', marksManaged: true },
+  traework: { rulesFile: AGENTS_RULES_FILE, bridges: {}, skillsDir: '.trae/skills', marksManaged: true },
 };

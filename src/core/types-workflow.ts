@@ -89,6 +89,13 @@ export interface ChangeState {
   data_migration?: boolean;
   is_doc_only?: boolean;
   is_pure_bugfix?: boolean;
+  /**
+   * Zero-behavior-change escape hatch (lightweight-freeze-gate): set via
+   * `mumuspec new --no-spec-delta`. Declares the change carries no spec delta
+   * (refactor/tooling/docs); open→build stays permissive, verify result
+   * constraints (tests green + drift) remain the final gate — never a bypass.
+   */
+  skip_specs?: boolean;
   build_layers: BuildLayer[];
   test_cases: TestCasesState;
   rollback_count: number;
@@ -236,6 +243,14 @@ export interface EnforcementCoverage {
   unverifiable_items?: Array<{
     requirement: string;
     polarity: 'shall' | 'shall-not';
+    text: string;
+    source: string;
+  }>;
+  /** Enforced-weak items produced by the legacy lexical fallback (needs annotation). */
+  legacy_weak?: number;
+  /** Details of legacy-fallback weak items — "add annotation" action items. */
+  actionable_weak?: Array<{
+    requirement: string;
     text: string;
     source: string;
   }>;

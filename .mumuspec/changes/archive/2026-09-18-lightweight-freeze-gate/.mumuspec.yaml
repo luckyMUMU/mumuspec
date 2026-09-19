@@ -1,0 +1,68 @@
+name: lightweight-freeze-gate
+phase: archive-completed
+workflow: full
+created_at: 2026-09-18T12:48:55.898Z
+updated_at: 2026-09-18T13:33:19.887Z
+scope: .
+affected_scopes: []
+build_layers: []
+test_cases:
+  design_locked: true
+  suites_locked: true
+  suites_locked_layers:
+    - 0
+  suites_hash:
+    "0": 823e6d6921fdf6e3
+  design_content_hash: ef84894552152339
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/lightweight-freeze-gate
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    design: 2
+    build: 1
+  content_hash: 72e3bb05a24204b6
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 4
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 3
+  converged: true
+  rounds_completed: 1
+  cognitive_map_ref: changes/lightweight-freeze-gate/cognitive-map.yaml
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+design_coverage:
+  covered_layers:
+    - 0
+  expected_layers:
+    - 0
+  unreachable_from: null
+  checked_at: 2026-09-18T12:54:29.552Z
+  enforced: true
+knowledge_extraction:
+  completed: true
+  pages_created_count: 3
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

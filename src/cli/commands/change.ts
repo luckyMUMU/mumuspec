@@ -82,6 +82,7 @@ export function registerChangeCommands(program: Command): void {
     .option('--data-migration', 'involves data migration')
     .option('--doc-only', 'documentation-only change')
     .option('--bugfix', 'pure bugfix (root cause confirmed)')
+    .option('--no-spec-delta', 'zero-behavior-change change skips spec delta (lightweight: refactor/tooling/docs; verify result constraints remain the gate)')
     .action((name, options) => {
       const root = findProjectRoot();
       if (!root) {
@@ -103,6 +104,13 @@ export function registerChangeCommands(program: Command): void {
           prd: '.mumuspec/prd.md',
           tech: '.mumuspec/tech.md',
         };
+
+        // Zero-behavior-change escape hatch (lightweight-freeze-gate):
+        // --no-spec-delta declares the change carries no spec delta.
+        // Commander negatable option → attribute `specDelta` (defaults true).
+        if (options.specDelta === false) {
+          state.skip_specs = true;
+        }
 
         // LLM Freedom Enhancement: path recommendation if scope signals provided
         const hasScopeSignals =

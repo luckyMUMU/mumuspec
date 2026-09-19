@@ -23,6 +23,21 @@ export interface EvaluatorContext {
   previousRound?: number;
   /** Full round history for trend analysis */
   roundHistory: LoopRound[];
+  /**
+   * In-process data sources (evaluator-inprocess). Injected by upper-layer
+   * callers (loop/CLI) that may legally import the guard domain — the metrics
+   * layer itself stays core-owned and spawn-free. When absent, evaluators
+   * fall back to the subprocess channel.
+   */
+  inProcess?: {
+    /** In-process `check --json` payload (mirrors the documented CLI contract). */
+    checkJsonPayload(root: string): {
+      compliance: { errors: { code: string }[]; coverage: { total: number } };
+      exitCode: number;
+    };
+    /** In-process drift item count (DriftResult[] length). */
+    driftCount(root: string): number;
+  };
 }
 
 /** Result from a single metric collector. */

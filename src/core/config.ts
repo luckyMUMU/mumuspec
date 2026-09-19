@@ -99,6 +99,13 @@ export interface MumuSpecConfig {
     max_layer_depth: number;
     auto_index: boolean;
     require_design_doc: boolean;
+    /**
+     * When true (default), SHALL NOT constraints without an annotation or an
+     * explicit `lex:` prefix keep the legacy lexical fallback (enforced-weak).
+     * When false, the lexical channel requires an explicit `lex:` prefix —
+     * unannotated SHALL NOTs fall back to unverifiable / E-SPEC-015.
+     */
+    legacy_lexical_channel?: boolean;
   };
   knowledge: {
     enabled: boolean;

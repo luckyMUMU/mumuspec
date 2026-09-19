@@ -25,6 +25,17 @@ vi.mock('node:child_process', () => ({
   spawnSync: (...args: unknown[]) => spawnSyncMock(...args),
 }));
 
+// evaluator-inprocess：强制 in-process 通道抛错，使 spawn 驱动的权重契约用例
+// 仍然命中「子进程兜底通道」的解析路径（返回值 weight 与 defaultWeight 一致不变量不变）。
+vi.mock('../../../src/guard/checker.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/guard/checker.js')>();
+  return {
+    ...actual,
+    buildCheckJsonPayload: () => { throw new Error('in-process disabled in test'); },
+    detectDriftInProcess: () => { throw new Error('in-process disabled in test'); },
+  };
+});
+
 function ctx(projectRoot: string): EvaluatorContext {
   return {
     projectRoot,

@@ -309,8 +309,9 @@ export function registerInstallCommands(program: Command): void {
   // Cursor IDE commands install
   createAgentInstallSubcommand(installCmd, 'cursor', 'cursor', 'Install Cursor IDE slash commands');
 
-  // Trae commands install
-  createAgentInstallSubcommand(installCmd, 'trae', 'trae', 'Install Trae skills');
+  // TraeCode / TraeWork skills install (install-trae-agents: trae → traecode + traework)
+  createAgentInstallSubcommand(installCmd, 'traecode', 'traecode', 'Install TraeCode skills + AGENTS.md rules');
+  createAgentInstallSubcommand(installCmd, 'traework', 'traework', 'Install TraeWork skills + AGENTS.md rules');
 
   // WorkBuddy commands install
   createAgentInstallSubcommand(installCmd, 'workbuddy', 'workbuddy', 'Install WorkBuddy skills');
@@ -332,7 +333,8 @@ export function registerInstallCommands(program: Command): void {
     console.log('  mumuspec install catpaw [packages...]        Install CatPaw skills');
     console.log('  mumuspec install claude [packages...]        Install Claude Code slash commands');
     console.log('  mumuspec install cursor [packages...]        Install Cursor IDE slash commands');
-    console.log('  mumuspec install trae [packages...]          Install Trae AI skills');
+    console.log('  mumuspec install traecode [packages...]      Install TraeCode skills + AGENTS.md rules');
+    console.log('  mumuspec install traework [packages...]      Install TraeWork skills + AGENTS.md rules');
     console.log('  mumuspec install workbuddy [packages...]     Install WorkBuddy skills');
     console.log('  mumuspec install opencode [packages...]      Install OpenCode skills');
     console.log('  mumuspec install codex [packages...]         Install Codex skills + AGENTS.md rules');
@@ -346,6 +348,7 @@ export function registerInstallCommands(program: Command): void {
     console.log('  --search <keyword>    Search packages by keyword');
     console.log('  --target user         Install to user scope (default)');
     console.log('  --target workspace    Install to workspace scope');
+    console.log('  --project-only        Install to current project only (workspace target, cwd)');
     console.log('  --workspace-path      Path for workspace installation');
     console.log('  --force               Force update (overwrites managed rule files)');
     console.log('\nMCP options:');

@@ -150,8 +150,9 @@ describe('isAgentSupported and getSupportedAgents', () => {
     expect(isAgentSupported('cursor')).toBe(true);
   });
 
-  it('returns true for trae', () => {
-    expect(isAgentSupported('trae')).toBe(true);
+  it('returns true for traecode and traework', () => {
+    expect(isAgentSupported('traecode')).toBe(true);
+    expect(isAgentSupported('traework')).toBe(true);
   });
 
   it('returns true for workbuddy', () => {
@@ -174,10 +175,10 @@ describe('isAgentSupported and getSupportedAgents', () => {
     expect(isAgentSupported('')).toBe(false);
   });
 
-  it('getSupportedAgents returns all 10 agent types', () => {
+  it('getSupportedAgents returns all 11 agent types', () => {
     const agents = getSupportedAgents();
-    expect(agents).toHaveLength(10);
-    for (const a of ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode', 'codex', 'windsurf', 'gemini', 'copilot']) {
+    expect(agents).toHaveLength(11);
+    for (const a of ['catpaw', 'claude', 'cursor', 'traecode', 'traework', 'workbuddy', 'opencode', 'codex', 'windsurf', 'gemini', 'copilot']) {
       expect(agents).toContain(a);
     }
   });
@@ -196,7 +197,7 @@ describe('formatAgentInstalledSkills', () => {
   it('formats single skill with correct count', () => {
     const result = formatAgentInstalledSkills(
       [{ name: 'my-skill', path: '/path/to/skill', scope: 'user' }],
-      'trae',
+      'traecode',
     );
     expect(result).toContain('Total: 1 skill(s) installed');
     expect(result).toContain('my-skill');
@@ -275,13 +276,13 @@ describe('installGenericAgentPackage — update mode', () => {
     rmSync(updateRoot, { recursive: true, force: true });
   });
 
-  it('overwrites existing skill in update mode for trae agent', () => {
+  it('overwrites existing skill in update mode for traecode agent', () => {
     // First install
-    const r1 = installPackage('trae', 'mumuspec-workflow', 'workspace', updateRoot);
+    const r1 = installPackage('traecode', 'mumuspec-workflow', 'workspace', updateRoot);
     expect(r1.success).toBe(true);
 
     // Second install in update mode should succeed
-    const r2 = installPackage('trae', 'mumuspec-workflow', 'workspace', updateRoot);
+    const r2 = installPackage('traecode', 'mumuspec-workflow', 'workspace', updateRoot);
     // Default mode is 'install', so this should fail with "Already installed"
     expect(r2.success).toBe(false);
   });

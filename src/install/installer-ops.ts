@@ -146,7 +146,9 @@ function getAgentSkillDir(
   const conventions: Record<string, { subDir: string; ext: string }> = {
     claude: { subDir: '.claude/commands', ext: '.md' },
     cursor: { subDir: '.cursor/commands', ext: '.md' },
-    trae: { subDir: '.trae/skills', ext: 'SKILL.md' },
+    // install-trae-agents: trae → traecode/traework — TraeCode 与 TraeWork 技能目录约定一致
+    traecode: { subDir: '.trae/skills', ext: 'SKILL.md' },
+    traework: { subDir: '.trae/skills', ext: 'SKILL.md' },
     workbuddy: { subDir: '.workbuddy/skills', ext: 'SKILL.md' },
     opencode: { subDir: '.opencode/skills', ext: 'SKILL.md' },
     // goal-p0-dispatch-gate (C1): directory-style SKILL.md for the new agents.
@@ -822,7 +824,7 @@ export function formatAgentInstalledSkills(
  * @returns True if the agent is supported, false otherwise
  */
 export function isAgentSupported(agent: string): agent is AgentType {
-  return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode', 'codex', 'windsurf', 'gemini', 'copilot'].includes(agent);
+  return ['catpaw', 'claude', 'cursor', 'traecode', 'traework', 'workbuddy', 'opencode', 'codex', 'windsurf', 'gemini', 'copilot'].includes(agent);
 }
 
 /**
@@ -830,5 +832,5 @@ export function isAgentSupported(agent: string): agent is AgentType {
  * @returns Array of supported agent type identifiers
  */
 export function getSupportedAgents(): AgentType[] {
-  return ['catpaw', 'claude', 'cursor', 'trae', 'workbuddy', 'opencode', 'codex', 'windsurf', 'gemini', 'copilot'];
+  return ['catpaw', 'claude', 'cursor', 'traecode', 'traework', 'workbuddy', 'opencode', 'codex', 'windsurf', 'gemini', 'copilot'];
 }

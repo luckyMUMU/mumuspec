@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { findProjectRoot, getMumuSpecDir } from '../../core/utils.js';
 import { loadConfig } from '../../core/config.js';
+import { collectStrengthDeviations } from '../../core/constraint-evaluator.js';
 import { getActiveChange } from '../../change/manager.js';
 import { LEGACY_RULE_FILES } from '../../rules/generator.js';
 
@@ -82,6 +83,19 @@ export function registerDoctorCommand(program: Command): void {
         console.log(`⚠ Legacy rule files: ${legacyFound.join(', ')}`);
         console.log('  MumuSpec 不再生成 .cursorrules / .windsurfrules（C3 红线）。现有文件不受影响；');
         console.log('  建议将内容迁移到 AGENTS.md（canonical）后手动删除这些遗留文件。');
+      }
+
+      // Strength suggestion (strength-suggested): 确定性推导，建议 vs 实际对照，人工签收不改写。
+      const deviations = collectStrengthDeviations(loadConfig(root).constraint_strength);
+      console.log('');
+      if (deviations.length === 0) {
+        console.log('Constraint strength: ✓ 无偏差（建议值与当前维度强度一致）');
+      } else {
+        console.log('Constraint strength: ⚠ 建议值高于当前维度强度（仅提示，需人工签收后改动，不自动修改）');
+        for (const d of deviations.slice(0, 10)) {
+          console.log(`  [${d.code}] ${d.severity} → 建议 ${d.suggested}（当前 ${d.dimension}=${d.actual}）`);
+        }
+        if (deviations.length > 10) console.log(`  … 共 ${deviations.length} 条`);
       }
 
       console.log('');

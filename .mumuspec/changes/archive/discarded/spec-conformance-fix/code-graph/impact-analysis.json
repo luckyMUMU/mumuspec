@@ -1,0 +1,90 @@
+{
+  "change": "spec-conformance-fix",
+  "base_ref": "d59045da6de87a6c378edd52e4ba6e8a6bf0ed9b",
+  "method": "fallback-B-manual",
+  "affected_files": [
+    {
+      "path": ".mumuspec/spec.md",
+      "change_type": "MODIFIED",
+      "items": [
+        "TEMP-4：由内联枚举白名单改为声明唯一权威源为 structure-validator 的 DEFINED_DIRECTORIES / DEFINED_FILES",
+        "不新增重复约束条目（MODIFIED 语义直接改写原文，不经 delta-specs 追加）"
+      ]
+    },
+    {
+      "path": "src/change/lifecycle.ts",
+      "change_type": "MODIFIED",
+      "items": [
+        "discardChange：renameSync 之后的状态写回目标由按名推导的活跃路径改为移动后的废弃目标目录"
+      ]
+    },
+    {
+      "path": "src/change/archive-consistency.ts",
+      "change_type": "MODIFIED",
+      "items": [
+        "归档名收集：不再跳过 changes/archive/discarded/ 子树，使 ARCH-001 对该子树可命中",
+        "归档阶段判定：ARCH-002 覆盖该子树内的状态文件"
+      ]
+    },
+    {
+      "path": "tests/change/discard-residue.test.ts",
+      "change_type": "ADDED",
+      "items": [
+        "discard 后活跃区目录不被重建（修复前红）",
+        "archive/discarded/ 条目参与归档名收集，ARCH-001 可命中（修复前红）"
+      ]
+    },
+    {
+      "path": "tests/change/archive-consistency.test.ts",
+      "change_type": "MODIFIED",
+      "items": ["补齐 discarded 子树的归档名收集与阶段判定用例"]
+    },
+    {
+      "path": ".cursorrules",
+      "change_type": "REMOVED",
+      "items": ["遗留规则格式文件，内容已由 AGENTS.md 承载"]
+    },
+    {
+      "path": "mumuspec-0.19.2-alpha.10.tgz",
+      "change_type": "REMOVED",
+      "items": ["根目录残留打包产物"]
+    },
+    {
+      "path": "mumuspec-0.35.0-alpha.0.tgz",
+      "change_type": "REMOVED",
+      "items": ["根目录残留打包产物"]
+    },
+    {
+      "path": ".mumuspec/changes/prd-alignment-agent-integration/",
+      "change_type": "REMOVED",
+      "items": ["discard 残留空壳目录（权威状态已在 archive/discarded/ 同名目录）"]
+    },
+    {
+      "path": ".mumuspec/changes/tier-probe/",
+      "change_type": "REMOVED",
+      "items": ["discard 残留空壳目录（权威状态已在 archive/discarded/ 同名目录）"]
+    },
+    {
+      "path": "package.json",
+      "change_type": "MODIFIED",
+      "items": ["版本 bump（详见 docs/reference/release-strategy.md）"]
+    }
+  ],
+  "affected_functions": [
+    "discardChange",
+    "detectArchiveStateDrift",
+    "validateChangesSubdirs"
+  ],
+  "call_chain_impact": [
+    "mumuspec discard → discardChange → saveChangeState（写回目标变更）",
+    "mumuspec check → drift 源 archive-state → detectArchiveStateDrift（覆盖范围扩大）",
+    "mumuspec validate → validateMumuSpecStructure → validateChangesSubdirs（仅只读观察，不改白名单集合）"
+  ],
+  "breaking_changes": [],
+  "risk_notes": [
+    "扩大 detectArchiveStateDrift 覆盖范围后，本仓库两处现存残留将由 check 报为 E-ARCH-001 ERROR —— 本轮清理动作必须先于门禁复查完成，否则 check 会红",
+    "删除 .cursorrules 后需确认 agents-hash 不引用该文件，否则 check 的 agents-hash 源会报漂移",
+    "本仓 .git 有预存 pack 层损坏且 loose ref 曾被清空；merge/commit 后必须复检 refs 与 worktree 状态",
+    "本会话 git checkout 会批量改写工作区文件并在中断时留下残留索引锁 —— 分支操作改用纯 ref 方式，避免工作区 checkout"
+  ]
+}
