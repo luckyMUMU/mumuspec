@@ -219,6 +219,17 @@ pages:
       - hyperplan
       - decision
       - docs-tree-alignment
+  - id: KE-dogfood-migration-b1-hyperplan
+    title: Adversarial design review insights from dogfood-migration-b1
+    type: decision
+    status: confirmed
+    scope: dogfood-migration-b1
+    file: .mumuspec\knowledge\decisions\KE-dogfood-migration-b1-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - dogfood-migration-b1
   - id: KE-drift-delta-preview-hyperplan
     title: Adversarial design review insights from drift-delta-preview
     type: decision
@@ -714,6 +725,17 @@ pages:
       - pattern
       - architecture
       - docs-tree-alignment
+  - id: KE-dogfood-migration-b1-patterns
+    title: Architecture patterns from dogfood-migration-b1
+    type: pattern
+    status: confirmed
+    scope: dogfood-migration-b1
+    file: .mumuspec\knowledge\patterns\KE-dogfood-migration-b1-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - dogfood-migration-b1
   - id: KE-drift-delta-preview-patterns
     title: Architecture patterns from drift-delta-preview
     type: pattern
@@ -1896,6 +1918,17 @@ pages:
       - lesson
       - decisions
       - docs-tree-alignment
+  - id: KE-dogfood-migration-b1-lessons
+    title: Lessons from dogfood-migration-b1 decisions
+    type: lesson
+    status: confirmed
+    scope: dogfood-migration-b1
+    file: .mumuspec\knowledge\lessons\KE-dogfood-migration-b1-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - dogfood-migration-b1
   - id: KE-drift-delta-preview-lessons
     title: Lessons from drift-delta-preview decisions
     type: lesson

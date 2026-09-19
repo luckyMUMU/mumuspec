@@ -1,0 +1,67 @@
+name: dogfood-migration-b1
+phase: archive-completed
+workflow: full
+created_at: 2026-09-19T15:35:24.303Z
+updated_at: 2026-09-19T15:58:30.432Z
+scope: .
+affected_scopes:
+  - .
+build_layers: []
+test_cases:
+  design_locked: true
+  suites_locked: true
+  suites_locked_layers:
+    - 1
+  suites_hash:
+    "1": 30e2497fda7b56c8
+  design_content_hash: 983af524b89b1476
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/dogfood-migration-b1
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 2
+    design: 1
+    build: 2
+  content_hash: 001d177c7370ace3
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+schema_version: 1.0.0
+design_coverage:
+  - layer: 1
+    scopes:
+      - .
+    covered: true
+verify_result: passed
+knowledge_extraction:
+  completed: true
+  pages_created_count: 3
+  graph_bindings_verified: true
+  conflicts_resolved: true
+git_merge:
+  merged: false

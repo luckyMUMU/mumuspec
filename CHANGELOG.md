@@ -5,6 +5,13 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.0-alpha.0] — archive auto-bump (2026-09-19)
+
+### Changed
+- 存量迁移（dogfood-migration-b1）：根 spec.md 50 + roadmap 23 + demo 25 条 implicit-manual → 显式 manual(原句)；45 条 enforced-strong 证据指针与 10 条 yaml 机器指针保持原样；legacy=false 演练绿；偏差登记：lex: 显式化取消（破坏系统行为豁免路径）
+- validator：W-SPEC-017 不再对 enforced-strong( 指针文本误报
+- 归档自动升版：变更 dogfood-migration-b1（full workflow）归档触发
+
 ## [0.44.0-alpha.0] — archive auto-bump (2026-09-19)
 
 ### Added

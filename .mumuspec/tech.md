@@ -873,3 +873,15 @@ Enforcement:
 - `docs/STATUS.md` 的机器可核断言 SHALL 与仓库事实逐项对账，矛盾项 SHALL 经 `mumuspec check` 的 drift 数组可见。
 - 分类、对账结果与指标值 SHALL 全部由确定性代码推导。
 
+
+
+<!-- constraint-merged from dogfood-migration-b1/new-shall-not.md -->
+# New SHALL NOT Constraints
+
+
+
+
+<!-- constraint-merged from dogfood-migration-b1/new-shall.md -->
+# New SHALL Constraints
+
+
