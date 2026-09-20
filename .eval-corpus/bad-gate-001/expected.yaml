@@ -1,0 +1,6 @@
+# 单点变异：frontmatter behavior-gate 指针悬空（码未注册）→ E-GUARD-013 假强制恒阻断。
+kind: bad-case
+severity: error
+probe: check
+mustContain: [E-GUARD-013]
+mustNotContain: []

@@ -1,0 +1,3 @@
+kind: bad-case
+probe: validate
+mustContain: [E-SPEC-001]

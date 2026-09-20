@@ -1,0 +1,5 @@
+# 净样本：合法 behavior-gate 指针（码已注册且本地语料声明命中）→ 零 E-GUARD-013。
+kind: clean
+probe: check
+mustContain: []
+mustNotContain: [E-GUARD-013]

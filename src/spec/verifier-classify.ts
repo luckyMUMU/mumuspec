@@ -85,12 +85,23 @@ function escapeRegExp(string: string): string {
 }
 
 /**
+ * engine-consolidation L1: strip the `ast:` / `lex:` channel markers so that
+ * exemption and scan routing see the same body text regardless of how the
+ * author declared the channel. A marker selects classification provenance;
+ * it must never change the execution path (root cause of the batch-1 15-FP
+ * regression where `lex:` broke the system-behavior exemption).
+ */
+export function stripChannelMarker(text: string): string {
+  return text.replace(/^\s*(ast|lex):\s*/i, '').trim();
+}
+
+/**
  * Whether the regex fallback channel can extract checkable patterns from a
  * prohibition text: quoted terms (>2 chars), eval / 动态执行, or jsx keywords.
  * Mirrors guard/checker.ts checkProhibitionViolation's fallback conditions.
  */
 export function isRegexCheckable(text: string): boolean {
-  const lower = text.replace(/^ast:/i, '').toLowerCase();
+  const lower = stripChannelMarker(text).toLowerCase();
   if (lower.includes('jsx') || lower.includes('tsx')) return true;
   if (/\beval\b/.test(lower) || lower.includes('动态执行')) return true;
   const quoted = text.match(/[`'"]([^`'"]+)[`'"]/g);

@@ -684,6 +684,21 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     ],
     forceable: false,
   },
+  'E-GUARD-013': {
+    code: 'E-GUARD-013',
+    name: 'GATE_POINTER_UNRESOLVED',
+    severity: 'ERROR',
+    description: 'behavior-gate 注解指针悬空（错误码未注册、无语料杀伤证据、fixture 缺失或形态不识别）——悬空指针即假强制，任何强度组合恒阻断',
+    fixSteps: [
+      '将 gate_ref 指向已注册且被本项目 .eval-corpus 语料 mustContain 命中的错误码',
+      '或指向存在且声明非空的语料 fixture 目录名',
+      '门禁不存在时改写为显式 manual(reason)——诚实降级优于虚假强控',
+    ],
+    forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
+    always_enforce: true,
+  },
   'E-DRIFT-016': {
     code: 'E-DRIFT-016',
     name: 'STATUS_ASSERTION_CONFLICT',

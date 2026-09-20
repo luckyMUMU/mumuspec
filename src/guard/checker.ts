@@ -5,7 +5,8 @@ import { Logger } from '../core/logger.js';
 import { detectJsxUsage } from './ast-checker.js';
 import type { SpecFile, GuardResult, DriftResult, GuardError, GuardWarning } from '../core/types.js';
 import { parseSpecFile, parsePrdFile, parseTechFile } from '../spec/parser.js';
-import { classifyRequirements, computeEnforcementCoverage, extractQuotedTerms, constraintEntryToItem, type ClassifiedItem } from '../spec/verifier-classify.js';
+import { classifyRequirements, computeEnforcementCoverage, extractQuotedTerms, constraintEntryToItem, stripChannelMarker, type ClassifiedItem } from '../spec/verifier-classify.js';
+import { buildCorpusGateIndex, resolveGate } from './gate-validator.js';
 import { loadAllConstraints } from '../core/constraints-loader.js';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
 import { lintPonytail } from './ponytail-linter.js';
@@ -215,6 +216,9 @@ export function checkCompliance(
   // 诊断却给出相反结论。full check 即全量门禁，故并入。
   if (fullCheck) {
     mergeSpecValidation(projectRoot, errors);
+    // engine-consolidation L2: behavior-gate pointers must resolve against the
+    // error-code registry and the project's own corpus kill evidence.
+    checkBehaviorGates(projectRoot, errors);
   }
 
   const rawResult: GuardResult = {
@@ -292,7 +296,8 @@ function checkShallNot(
   const coexistenceConstraints: ProhibitionEntry[] = [];
 
   for (const p of prohibitions) {
-    if (isCoexistenceConstraint(p.text)) {
+    // L1 归一：通道标记只声明分类来源，不得改变豁免/路由执行路径。
+    if (isCoexistenceConstraint(stripChannelMarker(p.text))) {
       coexistenceConstraints.push(p);
     } else {
       codeProhibitions.push(p);
@@ -318,20 +323,18 @@ function checkShallNot(
       // Scope-aware: only check files within the prohibition's source tree
       if (!isFileInScope(filePath, prohibition.source, projectRoot)) continue;
 
-      // Annotation-primary policy (legacy=false): without annotation and without an
-      // explicit ast:/lex: prefix, no silent lexical fallback — the item reports as
-      // unverifiable via classify/E-SPEC-015 instead (annotation-primary-r2).
+      // Annotation-primary policy (annotation-primary-r2): without annotation and without an
+      // explicit ast:/lex: marker, no silent lexical fallback when legacy is off.
+      // L1 归一：显式标记检测同样基于原文首标记，剥离后文本即无标记判据。
       if (!legacyLexical && !prohibition.annotation &&
-          !prohibition.text.startsWith('ast:') && !prohibition.text.startsWith('lex:')) {
+          stripChannelMarker(prohibition.text) === prohibition.text.trim()) {
         continue;
       }
 
       // Dogfooding carve-out (goal-p0-dispatch-gate): agent-behavioral
-      // prohibitions ("禁止手工编辑...状态工件", "禁止以 --force 越过 E-SPEC-015")
-      // target agents operating the tool. In the tool's own repo, src/ IS the
-      // sanctioned implementer of those gates, so these constraints do not
-      // scan the implementation module.
-      if (isSelfTool && isAgentBehaviorConstraint(prohibition.text) && /(^|[\\/])src[\\/]/.test(filePath)) continue;
+      // prohibitions target agents operating the tool, not the implementation
+      // module — marker-stripped text feeds the same exemption decision (L1).
+      if (isSelfTool && isAgentBehaviorConstraint(stripChannelMarker(prohibition.text)) && /(^|[\\/])src[\\/]/.test(filePath)) continue;
 
       // P1-1 Fix: Use annotation for semantic checking if available
       const violation = checkProhibitionViolation(content, prohibition.text, filePath, prohibition.annotation);
@@ -537,6 +540,40 @@ function checkShall(
     checkShallEnforcement(projectRoot, sourceFiles, allItems, errors);
   }
   return allItems;
+}
+
+/**
+ * Static behavior-gate pointer verification (E-GUARD-013, never forceable).
+ * A dangling pointer asserts a guard that does not exist — false enforcement,
+ * worse than no channel; fail-closed by design (always_enforce metadata).
+ */
+function checkBehaviorGates(
+  projectRoot: string,
+  errors: { code: string; message: string; detail?: string }[],
+): void {
+  const registry = new Set(Object.keys(ERROR_CODES));
+  const corpus = buildCorpusGateIndex(projectRoot);
+  const seen = new Set<string>();
+  const report = (text: string, source: string, annotation: import('../core/types-spec.js').MachineReadableAnnotation | undefined) => {
+    if (!annotation || annotation.type !== 'behavior-gate') return;
+    const key = `${source}|${text}|${annotation.gate_ref ?? ''}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const res = resolveGate(annotation, registry, corpus);
+    if (!res.ok) {
+      errors.push({
+        code: 'E-GUARD-013',
+        message: `behavior-gate 悬空指针: "${text}" — ${res.reason}`,
+        detail: source,
+      });
+    }
+  };
+  for (const spec of findAllSpecs(projectRoot)) {
+    for (const pa of spec.frontmatter.prohibitions ?? []) report(pa.text, spec.path, pa.annotation);
+  }
+  for (const item of collectConstraintEntryItems(projectRoot, true)) {
+    report(item.text, item.source, item.annotation);
+  }
 }
 
 /**

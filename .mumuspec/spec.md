@@ -3,6 +3,16 @@ layer: 0
 scope: "."
 last_updated: "2026-09-12"
 prohibitions:
+  - text: "禁止以 `--force` 越过 E-SPEC-015（forceable: false；唯一出路是补 annotation、改写为可提取文本或声明 manual）"
+    annotation:
+      type: behavior-gate
+      gate_ref: "error-code:E-SPEC-015"
+      rationale: "E-SPEC-015 恒阻断门禁把守，语料提供杀伤证据"
+  - text: "禁止无 enforcement 声明的 SHALL 进入强制面（E-SPEC-004 恒可见，不得被低强度折叠丢弃）"
+    annotation:
+      type: behavior-gate
+      gate_ref: "error-code:E-SPEC-004"
+      rationale: "E-SPEC-004 恒可见门禁把守，语料声明命中"
   - text: "禁止引入未被请求的抽象层（YAGNI）"
     annotation:
       type: no-new-dependency

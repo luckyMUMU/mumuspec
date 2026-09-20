@@ -1,0 +1,5 @@
+# 净样本：lex: 前缀的系统行为条目经标记剥离归一后仍被豁免，零 E-GUARD-003 误报（L1 回归面）。
+kind: clean
+probe: check
+mustContain: []
+mustNotContain: [E-GUARD-003]

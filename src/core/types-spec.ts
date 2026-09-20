@@ -58,13 +58,20 @@ export interface EnforcementRule {
 /** P1-1 Fix: Machine-readable constraint annotation for AST-based checking */
 export interface MachineReadableAnnotation {
   /** Constraint type for routing to AST checker */
-  type: 'no-new-dependency' | 'no-mutable-state' | 'no-side-effect' | 'pure-function' | 'no-global-state' | 'custom';
+  type: 'no-new-dependency' | 'no-mutable-state' | 'no-side-effect' | 'pure-function' | 'no-global-state' | 'behavior-gate' | 'custom';
   /** Scope of the check */
   scope?: 'function' | 'module' | 'class' | 'file';
   /** Target of the check (e.g., 'exported' for exported functions) */
   target?: string;
   /** Custom AST constraint ID (when type is 'custom') */
   ast_constraint?: string;
+  /**
+   * engine-consolidation L2 (behavior-gate): pointer to the registered gate
+   * that actually guards this red line — `error-code:E-<DOMAIN>-<NNN>` or
+   * `corpus:<fixture-dir>`. Resolved statically at check time; a dangling
+   * pointer is E-GUARD-013 (never forceable).
+   */
+  gate_ref?: string;
   /** Human-readable explanation of why this annotation was chosen */
   rationale?: string;
 }

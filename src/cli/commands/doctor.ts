@@ -14,7 +14,7 @@ export function registerDoctorCommand(program: Command): void {
   program
     .command('doctor')
     .description('Environment diagnostics')
-    .action(() => {
+    .action(async () => {
       const root = findProjectRoot();
       console.log('\n=== MumuSpec Doctor ===\n');
 
@@ -97,6 +97,22 @@ export function registerDoctorCommand(program: Command): void {
         }
         if (deviations.length > 10) console.log(`  … 共 ${deviations.length} 条`);
       }
+
+      // engine-consolidation L3: legacy 词法兜底 advisory（确定性来自本轮 coverage）。
+      try {
+        const { checkCompliance } = await import('../../guard/checker.js');
+        const cov = checkCompliance(root, {}).coverage;
+        const weakCount = cov?.legacy_weak ?? 0;
+        const weakList = cov?.actionable_weak ?? [];
+        if (weakCount > 0) {
+          console.log('');
+          console.log(`Legacy 词法兜底条目: ⚠ ${weakCount} 条无显式通道声明（建议：挂 behavior-gate 注解 / 改写为可提取文本 / 显式 manual(reason)）`);
+          for (const w of weakList.slice(0, 5)) {
+            console.log(`  • [${w.source}] ${w.text.slice(0, 60)}`);
+          }
+          if (weakList.length > 5) console.log(`  … 完整清单：mumuspec check --json → coverage.actionable_weak`);
+        }
+      } catch { /* advisory 通道不得影响 doctor 主体诊断 */ }
 
       console.log('');
     });

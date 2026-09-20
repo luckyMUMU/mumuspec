@@ -2,7 +2,7 @@
  * corpus-fixtures.test.ts — 语料内容校验（eval-corpus / DS-EVAL-004，L2-C13/C14）。
  *
  * 枚举仓库根 `.eval-corpus/` 全部 fixture（含 expected.yaml），断言：
- * - 覆盖目标 = **16 个可发射码**各恰好 1 例；
+ * - 覆盖目标 = **17 个可发射码**各恰好 1 例；
  * - `E-SPEC-005/007/012` 为 registered-but-not-emitted，**不出现**在任何 mustContain（反向断言）；
  * - severity 分档由 expected.yaml 显式声明，veto 档恰为 E-GUARD-010 / E-CHANGE-022 / E-SPEC-015。
  *
@@ -18,7 +18,7 @@ import { loadFixtureExpectation, type FixtureExpectation } from '../../src/eval/
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const CORPUS = join(REPO_ROOT, '.eval-corpus');
 
-/** 覆盖目标：16 个可发射码（各恰 1 例）。 */
+/** 覆盖目标：17 个可发射码（各恰 1 例）。 */
 const EMITTABLE_CODES = [
   'E-SPEC-001',
   'E-SPEC-002',
@@ -36,6 +36,7 @@ const EMITTABLE_CODES = [
   'E-GUARD-010',
   'E-CHANGE-022',
   'E-DRIFT-016',
+  'E-GUARD-013',
 ] as const;
 
 /** registered-but-not-emitted（M1 出范围，不建必须命中语料）。 */
@@ -72,7 +73,7 @@ function codesByFixture(fixtures: Fixture[]): Map<string, string[]> {
 describe('corpus-fixtures 内容校验 (eval-corpus)', () => {
   // ── L2-C13 · 覆盖码清单完整（15 个可发射码，各恰 1 例） ──
 
-  it('L2-C13 — 16 个可发射码各恰 1 例；005/007/012 不出现在任何 mustContain', () => {
+  it('L2-C13 — 17 个可发射码各恰 1 例；005/007/012 不出现在任何 mustContain', () => {
     expect(existsSync(CORPUS)).toBe(true);
     const fixtures = enumerateFixtures();
 
@@ -90,7 +91,7 @@ describe('corpus-fixtures 内容校验 (eval-corpus)', () => {
     }
 
     const badCases = fixtures.filter((f) => f.exp.kind === 'bad-case');
-    expect(badCases).toHaveLength(16);
+    expect(badCases).toHaveLength(17);
 
     // 16 个可发射码：各恰好 1 例
     const byCode = codesByFixture(fixtures);
@@ -104,9 +105,9 @@ describe('corpus-fixtures 内容校验 (eval-corpus)', () => {
       expect(byCode.get(code) ?? [], `${code} 为 registered-but-not-emitted`).toEqual([]);
     }
 
-    // 覆盖总数一致性：16 个 bad-case 各声明 1 码
+    // 覆盖总数一致性：17 个 bad-case 各声明 1 码
     const totalDeclared = badCases.reduce((sum, f) => sum + f.exp.mustContain.length, 0);
-    expect(totalDeclared).toBe(16);
+    expect(totalDeclared).toBe(17);
 
     // 跨域探针：E-GUARD-010→guard、E-CHANGE-022→archive（均需 change）；其余 default validate/check
     const guardFx = badCases.find((f) => f.exp.mustContain.includes('E-GUARD-010'))!;

@@ -3,7 +3,7 @@
 > **Auto-generated** from `src/core/errors.ts`. Do not edit manually.
 > Run `node scripts/gen-error-codes-doc.mjs` to regenerate.
 
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 ## Summary
 
@@ -17,7 +17,7 @@ Last updated: 2026-09-19
 | FINAL | 1 |
 | HOOK | 1 |
 | MERGE | 10 |
-| GUARD | 16 |
+| GUARD | 17 |
 | BUILD | 1 |
 | PONYTAIL | 4 |
 | CONTRACT | 11 |
@@ -30,7 +30,7 @@ Last updated: 2026-09-19
 | CHECK | 2 |
 | SKILL | 4 |
 | GIT | 3 |
-| **Total** | **117** |
+| **Total** | **118** |
 
 ## SPEC Domain
 
@@ -649,6 +649,7 @@ Last updated: 2026-09-19
 | `E-GUARD-010` | DELTA_CONSTRAINT_UNCHANNELABLE | ERROR | 变更携带的 delta 约束无验证通道（无 Enforcement 声明、无词法锚点、无 ast: 前缀），禁止通过 verify 进入强制面 | No |
 | `E-GUARD-011` | FREEZE_GATE_UNSIGNED_DECISION | ERROR | 轻量档变更声明了 blocking 用户决策但未逐项经 decisions.md 签收，禁止进入 build（freeze gate — 仅在 proposal 显式声明 `[blocking]` 项时生效） | No |
 | `E-GUARD-012` | SHALL_UNSATISFIED | ERROR | 带机读注解或 ast: 前缀（enforced-strong）的 SHALL 约束经机器通道检查未满足——要求未达成即阻断 | No |
+| `E-GUARD-013` | GATE_POINTER_UNRESOLVED | ERROR | behavior-gate 注解指针悬空（错误码未注册、无语料杀伤证据、fixture 缺失或形态不识别）——悬空指针即假强制，任何强度组合恒阻断 | No |
 | `E-DRIFT-016` | STATUS_ASSERTION_CONFLICT | WARN | docs/STATUS.md 的机器可核断言与仓库事实矛盾（包版本/能力层进度/命令与工具数量）——默认 WARN 恒可见，enforcement_strict 下升 ERROR（enforcement-gap L2） | Yes |
 | `W-GUARD-001` | GUARD_PREREQUISITE_MISSING | WARN | 阶段前置工件缺失或未锁定（test_cases / build_layers / tdd_mode 等行为约束） | No |
 | `W-GUARD-004` | GUARD_TEST_IMMUTABILITY_MISMATCH | WARN | 测试套件 hash 与 design_content_hash 不匹配（测试在锁定后被改动） | No |
@@ -774,6 +775,17 @@ Last updated: 2026-09-19
 1. 修复对应源文件以满足 SHALL 要求（注解对应的 AST 约束）
 2. 或该性质不再被要求时移除注解/ast: 前缀，让约束回落既有 E-SPEC-004 可见性语义
 3. 或无法机器判定时改写为显式 manual(reason) 声明并由 verify 证据收口
+
+### `E-GUARD-013`: GATE_POINTER_UNRESOLVED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: behavior-gate 注解指针悬空（错误码未注册、无语料杀伤证据、fixture 缺失或形态不识别）——悬空指针即假强制，任何强度组合恒阻断
+
+**Fix Steps**:
+1. 将 gate_ref 指向已注册且被本项目 .eval-corpus 语料 mustContain 命中的错误码
+2. 或指向存在且声明非空的语料 fixture 目录名
+3. 门禁不存在时改写为显式 manual(reason)——诚实降级优于虚假强控
 
 ### `E-DRIFT-016`: STATUS_ASSERTION_CONFLICT
 
