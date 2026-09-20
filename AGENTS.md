@@ -9,7 +9,7 @@
 
 | Layer | Scope | Docs | SHALL | SHALL NOT |
 |---|---|---|---|---|
-| 0 | `.` | prd+tech+spec | 183 | 120 |
+| 0 | `.` | prd+tech+spec | 187 | 122 |
 
 ### 当前路径适用红线（SHALL NOT 全文，含父层继承 — `.`）
 
@@ -131,6 +131,8 @@
 - SHALL NOT 让 `--installed` 列表在 `--project-only` 下扫描错误的目录（应按 workspace+cwd 扫描）。
 - 禁止为 constraints.yaml 条目另立第二套分类判定逻辑（须复用既有判定序）。
 - 禁止对账通道以语义判断决定进度好坏（只核对断言与事实的矛盾）。
+- 禁止悬空的行为门指针进入强制面（无门禁把守而声称被把守）。
+- 禁止行为门校验器执行子进程或引入新解析引擎（静态核验归注册表与语料清单）。
 
 > 完整约束正文经 MCP `get_spec_context` / `mumuspec context <path>` 渐进式加载（Rules 文件不内联全量规范）。
 

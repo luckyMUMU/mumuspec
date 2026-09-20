@@ -889,3 +889,22 @@ Enforcement:
 ## behavior-gate 契约变更（engine-consolidation）
 
 `MachineReadableAnnotation.type` 追加 `behavior-gate` 形态，配 `gate_ref` 指针（仅 `error-code:E-<DOMAIN>-<NNN>` 与 `corpus:<fixture-dir>` 两形态）。语义边界：该注解声明"此红线由被指向的门禁把守"——校验器静态核验**门禁存在且有本项目语料杀伤证据**（码须在 ERROR_CODES 注册且被至少一个 fixture 的 mustContain 命中；或 fixture 存在且声明非空），违规扫描由被指门禁自身承担，gate 不自行扫描代码。核验失败发射 E-GUARD-013（ERROR、forceable: false、always_enforce：悬空指针即假强制）。分类学位置：R1 机器通道成员，计入 enforced-strong。通道标记 `ast:`/`lex:` 只声明分类来源；豁免与扫描路由基于剥离标记后的正文（`stripChannelMarker` 归一），标记不得改变执行路径。
+
+
+<!-- constraint-merged from engine-consolidation/new-shall-not.md -->
+# New SHALL NOT Constraints
+
+- 禁止悬空的行为门指针进入强制面（无门禁把守而声称被把守）。
+- 禁止行为门校验器执行子进程或引入新解析引擎（静态核验归注册表与语料清单）。
+
+
+
+<!-- constraint-merged from engine-consolidation/new-shall.md -->
+# New SHALL Constraints
+
+（权威正文以 delta-specs/gate-channel.md 为准；本清单为索引。）
+- 豁免/agent 行为/词法入口对带通道标记文本与原文给出同一执行路径
+- behavior-gate 注解经指针静态核验方可计入 enforced-strong
+- 悬空指针发射 E-GUARD-013 且不可 force 越过
+- gate 语义边界写入 tech.md 契约变更节
+

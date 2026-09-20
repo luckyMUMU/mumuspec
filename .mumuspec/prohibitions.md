@@ -169,3 +169,11 @@ Enforcement:
 - 禁止为 constraints.yaml 条目另立第二套分类判定逻辑（须复用 verifier-classify 判定序）。
 - 禁止对账通道以语义判断决定进度好坏（只核对断言与事实的矛盾）。
 
+
+
+<!-- from finalize-archive -->
+# New SHALL NOT Constraints
+
+- 禁止悬空的行为门指针进入强制面（无门禁把守而声称被把守）。
+- 禁止行为门校验器执行子进程或引入新解析引擎（静态核验归注册表与语料清单）。
+

@@ -5,6 +5,19 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.46.0-alpha.0] — archive auto-bump (2026-09-20)
+
+### Added
+- behavior-gate 注解通道（契约变更）：type 联合 + gate_ref（error-code:/corpus: 两形态），静态核验门禁存在与语料杀伤证据，命中计 strong，悬空发射 E-GUARD-013（forceable:false、always_enforce）；tech.md 契约节界定 gate 语义
+- doctor legacy 词法兜底 advisory；翻闸决策文档 review/legacy-flip-decision-2026-09-20.md（本轮默认值不动）
+- 语料 bad-gate-001/clean-05/clean-06（n=17 满杀伤）
+
+### Fixed
+- 通道标记剥离归一（stripChannelMarker）：ast:/lex: 前缀不再改变豁免与扫描路由，根治批1 的 15 误报与系统行为条目假强制两端
+
+### Changed
+- 归档自动升版：变更 engine-consolidation（full workflow）归档触发
+
 ## [0.45.0-alpha.0] — archive auto-bump (2026-09-19)
 
 ### Changed

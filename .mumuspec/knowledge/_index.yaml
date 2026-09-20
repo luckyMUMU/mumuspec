@@ -263,6 +263,17 @@ pages:
       - hyperplan
       - decision
       - enforcement-gap
+  - id: KE-engine-consolidation-hyperplan
+    title: Adversarial design review insights from engine-consolidation
+    type: decision
+    status: confirmed
+    scope: engine-consolidation
+    file: .mumuspec\knowledge\decisions\KE-engine-consolidation-hyperplan.md
+    tags:
+      - auto-extracted
+      - hyperplan
+      - decision
+      - engine-consolidation
   - id: KE-eval-corpus-hyperplan
     title: Adversarial design review insights from eval-corpus
     type: decision
@@ -769,6 +780,17 @@ pages:
       - pattern
       - architecture
       - enforcement-gap
+  - id: KE-engine-consolidation-patterns
+    title: Architecture patterns from engine-consolidation
+    type: pattern
+    status: confirmed
+    scope: engine-consolidation
+    file: .mumuspec\knowledge\patterns\KE-engine-consolidation-patterns.md
+    tags:
+      - auto-extracted
+      - pattern
+      - architecture
+      - engine-consolidation
   - id: KE-eval-corpus-patterns
     title: Architecture patterns from eval-corpus
     type: pattern
@@ -1962,6 +1984,17 @@ pages:
       - lesson
       - decisions
       - enforcement-gap
+  - id: KE-engine-consolidation-lessons
+    title: Lessons from engine-consolidation decisions
+    type: lesson
+    status: confirmed
+    scope: engine-consolidation
+    file: .mumuspec\knowledge\lessons\KE-engine-consolidation-lessons.md
+    tags:
+      - auto-extracted
+      - lesson
+      - decisions
+      - engine-consolidation
   - id: KE-eval-corpus-lessons
     title: Lessons from eval-corpus decisions
     type: lesson
