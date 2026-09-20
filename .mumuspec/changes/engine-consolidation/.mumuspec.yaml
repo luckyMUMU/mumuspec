@@ -1,0 +1,78 @@
+name: engine-consolidation
+phase: design
+workflow: full
+created_at: 2026-09-20T12:41:55.414Z
+updated_at: 2026-09-20T12:44:31.983Z
+scope: .
+affected_scopes:
+  - .
+build_layers: []
+test_cases:
+  design_locked: true
+  suites_locked: true
+  suites_locked_layers:
+    - 1
+    - 2
+    - 3
+  suites_hash:
+    "1": 2078caf8276cd3c7
+    "2": 7b46094df1936c4f
+    "3": a09d0fd5cf711009
+  design_content_hash: d23aa7eb541a3cf6
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/engine-consolidation
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 1
+    design: 1
+  content_hash: e9589d7a54d1ed37
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 0
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 0
+  converged: false
+  rounds_completed: 0
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+estimated_files: 14
+modules_affected: 1
+cross_module: true
+new_public_api: false
+new_external_dep: false
+data_migration: false
+is_doc_only: false
+is_pure_bugfix: false
+schema_version: 1.0.0
+design_coverage:
+  - layer: 1
+    scopes:
+      - .
+    covered: true
+  - layer: 2
+    scopes:
+      - .
+    covered: true
+  - layer: 3
+    scopes:
+      - .
+    covered: true
