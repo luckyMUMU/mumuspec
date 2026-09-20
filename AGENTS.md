@@ -153,7 +153,14 @@ SHALL: 先查可复用实现 / 最小可工作实现 / 有意简化用 `ponytail
 
 ## CLI 速查
 
-
+mumuspec init [path]                # Initialize MumuSpec
+mumuspec context <path>             # Get spec context (progressive disclosure)
+mumuspec new <name>                 # Create new change
+mumuspec status [name]              # View change status
+mumuspec guard <change> <phase>     # Phase guard check
+mumuspec validate / check / drift   # Validate / compliance / drift
+mumuspec archive <name> --confirm   # Archive change
+mumuspec doctor                     # Environment diagnostics
 
 ## MCP 入口
 
