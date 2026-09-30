@@ -556,19 +556,12 @@ describe('extractKnowledgeToGlobal — D4 catch (line 345)', () => {
     });
   });
 
-  it('catches duplicate D4 hyperplan page creation without throwing', () => {
+  it('catches duplicate knowledge page creation without throwing', () => {
     mockCreateKnowledgePage.mockImplementation(() => {
       throw new Error('Duplicate');
     });
 
-    const state = makeChangeState({
-      hyperplan_result: {
-        triggered: true,
-        hard_constraints_merged: true,
-        open_questions_resolved: true,
-        degraded: false,
-      },
-    });
+    const state = makeChangeState({});
 
     expect(() => {
       extractKnowledgeToGlobal(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`, state);

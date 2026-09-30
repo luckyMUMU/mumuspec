@@ -164,8 +164,29 @@ export function getWorktreePath(projectRoot: string, changeName: string): string
   return resolve(projectRoot, '.mumuspec', '.worktrees', changeName);
 }
 
-// ponytail: createWorktree and mergeWorktree removed — not yet called by any code path (YAGNI Level 1).
-// They will be re-added when worktree creation is wired into the change lifecycle.
+/**
+ * Create an isolated worktree for a change at `<repo>/.mumuspec/.worktrees/<name>`
+ * on branch `mumuspec/<name>`. Called by the change lifecycle when the
+ * worktree-isolation rule resolves to enforcement; absence of this call site is
+ * what previously left `workflow.worktree_isolation` a dangling gate pointer.
+ */
+export function createWorktree(projectRoot: string, changeName: string): string {
+  const worktreePath = getWorktreePath(projectRoot, changeName);
+  const branch = `mumuspec/${changeName}`;
+  if (existsSync(worktreePath)) return worktreePath;
+
+  const branchExists = git(projectRoot, ['rev-parse', '--verify', branch], { allowFail: true }).status === 0;
+  const args = branchExists
+    ? ['worktree', 'add', worktreePath, branch]
+    : ['worktree', 'add', '-b', branch, worktreePath, 'HEAD'];
+  const result = git(projectRoot, args, { allowFail: true });
+  if (result.status !== 0) {
+    throw new Error(
+      `worktree 创建失败: ${result.stderr.trim() || result.stdout.trim() || 'git worktree add 返回非零'}`,
+    );
+  }
+  return worktreePath;
+}
 
 /** Remove a git worktree and its branch (cleanup on archive/discard). */
 export function removeWorktree(projectRoot: string, changeName: string): void {

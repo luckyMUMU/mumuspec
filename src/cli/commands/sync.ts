@@ -190,7 +190,7 @@ function listTsFiles(dir: string): string[] {
  */
 function extractExports(modulePath: string, files: string[]): string[] {
   const exports: Set<string> = new Set();
-  const exportPattern = /export\s+(?:function|class|interface|type|const|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/g;
+  const exportPattern = /export\s+(?:function\*?|class|interface|type|const|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/g;
 
   for (const file of files) {
     if (file === 'index.ts') continue; // skip barrel
@@ -207,9 +207,97 @@ function extractExports(modulePath: string, files: string[]): string[] {
   return [...exports];
 }
 
-function syncModuleBoundary(_projectRoot: string, mod: ScannedModule, dryRun: boolean): ModuleSyncResult {
-  const result: ModuleSyncResult = { updated: false, issues: [] };
-  const boundaryPath = resolveBoundaryPath(mod.path);
+/**
+ * Symbols a BOUNDARY.md declares **as its interface**: backticked identifiers in
+ * table rows under an interface-typed heading. Scoped by heading because the
+ * other tables in the same file declare different kinds of things — the
+ * dependency table names packages (`yaml`), the data-contract table names shapes
+ * owned elsewhere (`Contract`) — and reading those as export promises would
+ * manufacture findings instead of reporting drift.
+ */
+function extractDeclaredSymbols(content: string): string[] {
+  const declared = new Set<string>();
+  let inInterfaceSection = false;
+  for (const line of content.split(/\r?\n/)) {
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
+      // Only top-level headings switch sections; a `###` sub-heading inside the
+      // interface table's own section must not end the scope.
+      if (heading[1].length <= 2) {
+        inInterfaceSection = /对外接口|接口|对外符号|Exports?|API|Interface/.test(heading[2]);
+      }
+      continue;
+    }
+    if (!inInterfaceSection || !line.trimStart().startsWith('|')) continue;
+    // Only the first cell names the interface symbol. Signature cells mention
+    // shared types (`=> UserFeedback | undefined`) which this module neither
+    // defines nor re-exports — reading them as promises invents drift.
+    const firstCell = line.split('|')[1] ?? '';
+    for (const m of firstCell.matchAll(/`([A-Za-z_][A-Za-z0-9_]*)`/g)) declared.add(m[1]);
+  }
+  return [...declared];
+}
+
+/**
+ * Every identifier the module subtree exports (barrel included). Subdirectories
+ * are part of the module, so a symbol declared against `src/contract` and defined
+ * in `src/contract/formatter` is real.
+ */
+function collectModuleSymbols(modulePath: string): Set<string> {
+  const found = new Set<string>();
+  const directPattern = /export\s+(?:function\*?|class|interface|type|const|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/g;
+  const reExportPattern = /export\s+(?:type\s+)?\{([^}]*)\}\s*(?:from|$)/g;
+  const walk = (dir: string) => {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const p = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === MUMUSPEC_DIR || entry.name === 'node_modules') continue;
+        walk(p);
+      } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) {
+        try {
+          // Comment lines are not declarations: `src/contract/ast-analyzer.ts`
+          // carries `export interface IBar {}` inside an example comment, and
+          // reading it as an export manufactured symbols no code owns.
+          const text = readFileSync(p, 'utf8')
+            .split(/\r?\n/)
+            .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+            .join('\n');
+          for (const m of text.matchAll(directPattern)) found.add(m[1]);
+          // A module's interface also consists of what it re-exports; declaring
+          // those phantom would punish the document for the scanner's blindness.
+          for (const m of text.matchAll(reExportPattern)) {
+            for (const raw of m[1].split(',')) {
+              const name = raw.trim().split(/\s+as\s+/)[0].trim();
+              if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) found.add(name);
+            }
+          }
+        } catch {
+          // Unreadable file contributes nothing; the read error is not a boundary finding
+        }
+      }
+    }
+  };
+  walk(modulePath);
+  return found;
+}
+
+/** Whole-tree symbol index, built once per run (the same facts repeat per module). */
+let repositorySymbols: { root: string; symbols: Set<string> } | null = null;
+function collectRepositorySymbols(srcRoot: string): Set<string> {
+  if (!repositorySymbols || repositorySymbols.root !== srcRoot) {
+    repositorySymbols = { root: srcRoot, symbols: collectModuleSymbols(srcRoot) };
+  }
+  return repositorySymbols.symbols;
+}
+
+function syncModuleBoundary(projectRoot: string, mod: ScannedModule, dryRun: boolean): ModuleSyncResult {
+  const result: ModuleSyncResult = { updated: false, issues: [] };  const boundaryPath = resolveBoundaryPath(mod.path);
 
   if (!boundaryPath) {
     result.issues.push({
@@ -227,16 +315,39 @@ function syncModuleBoundary(_projectRoot: string, mod: ScannedModule, dryRun: bo
     return result;
   }
 
-  // Validate existing BOUNDARY.md exports against actual code
+  // Boundary truth direction: **declaration ⊆ code**. Enumerating every export
+  // and requiring it in the document inverted that — with 14 modules the check
+  // reported several hundred undocumented symbols per run, so it stayed red
+  // forever and stopped gate-keeping anything. What the code exports is derived
+  // from the code; the document is only accountable for what it claims.
+  //
+  // Two ownership classes are separated so the warning channel stays actionable:
+  // a symbol that exists nowhere in the tree is a phantom (a stale claim), while
+  // a symbol owned by a sibling module is a misplaced interface row — real, but
+  // not a broken promise about the codebase, so it reports as info.
   try {
     const content = readFileSync(boundaryPath, 'utf8');
-    const missingExports = mod.exports.filter((exp) => !content.includes(exp));
+    const symbols = collectModuleSymbols(mod.path);
+    const elsewhere = collectRepositorySymbols(join(projectRoot, 'src'));
+    const phantoms: string[] = [];
+    const misplaced: string[] = [];
+    for (const name of extractDeclaredSymbols(content)) {
+      if (symbols.has(name)) continue;
+      (elsewhere.has(name) ? misplaced : phantoms).push(name);
+    }
 
-    if (missingExports.length > 0) {
+    if (phantoms.length > 0) {
       result.issues.push({
         severity: 'warning',
         module: mod.name,
-        message: `BOUNDARY.md missing exports: ${missingExports.join(', ')}`,
+        message: `BOUNDARY.md 声明的符号在代码中不存在: ${phantoms.sort().join(', ')}`,
+      });
+    }
+    if (misplaced.length > 0) {
+      result.issues.push({
+        severity: 'info',
+        module: mod.name,
+        message: `BOUNDARY.md 把兄弟模块的符号列为本模块接口: ${misplaced.sort().join(', ')}`,
       });
     }
   } catch {
@@ -247,18 +358,22 @@ function syncModuleBoundary(_projectRoot: string, mod: ScannedModule, dryRun: bo
 }
 
 function generateBoundarySection(mod: ScannedModule): string {
-  const exportRows = mod.exports.map((e) => `| \`${e}\` | (description pending) |`).join('\n');
   return `# BOUNDARY: ${mod.name}/
 
 > Auto-generated by mumuspec sync on ${now().split('T')[0]}
 
 ---
 
-## 对外接口
+## 职责
 
-| 接口 | 类型 | 说明 |
-|------|------|------|
-${exportRows}
+(Manual update required — 本模块承担什么，以及为什么存在)
+
+## 边界
+
+| 议题 | 处置 |
+|------|------|
+| 归本模块 | (Manual update required) |
+| 不归本模块 | (Manual update required) |
 
 ## 依赖声明
 

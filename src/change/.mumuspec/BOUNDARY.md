@@ -49,10 +49,9 @@ layer: 2
 
 | 类型 | 用途 |
 |------|------|
-| `ChangeInfo` | 变更元数据 |
-| `ChangeStatus` | 变更状态 |
-| `Phase` | 阶段枚举 |
-| `PhaseNode` | 阶段图节点 |
+| `BuildLayerView` | 构建分层视图（含并行组与依赖） |
+| `ParallelPlan` | 并行组规划结果 |
+| `ScopeCoupling` | 作用域耦合判定 |
 
 ## 依赖声明
 

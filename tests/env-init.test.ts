@@ -38,7 +38,7 @@ const mockConfig: MumuSpecConfig = {
   specs: { root: '.mumuspec', format: 'yaml+markdown', max_layer_depth: 5, auto_index: true, require_design_doc: true },
   knowledge: {
     enabled: true,
-    code_graph: { enabled: false, storage: 'sqlite', db_path: '.mumuspec/graph/index.db', auto_index_on_commit: false, languages: ['typescript'] },
+    code_graph: { enabled: false, auto_index_on_commit: false, languages: ['typescript'] },
     wiki: { dir: '.mumuspec/knowledge', auto_extract_on_archive: false, max_pages_per_scope: 20 },
     progressive_disclosure: { max_pages_per_layer: 5, load_stale_summary: true },
     freshness: { check_on_load: true, warn_after_days: 90, error_after_days: 180 },

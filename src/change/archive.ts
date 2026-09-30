@@ -798,25 +798,6 @@ export function extractKnowledgeToGlobal(
     }
   }
 
-  // D4: Hyperplan surviving insights
-  if (state.hyperplan_result?.hard_constraints_merged) {
-    const title = `Adversarial design review insights from ${changeName}`;
-    try {
-      createKnowledgePage(projectRoot, config, {
-        id: `KE-${changeName}-hyperplan`,
-        title,
-        type: 'decision',
-        scope: changeName,
-        content: `> Auto-extracted from ${changeName} Hyperplan review\n\n**Hard constraints merged:** ${state.hyperplan_result.hard_constraints_merged}\n**Open questions resolved:** ${state.hyperplan_result.open_questions_resolved}\n**Degraded:** ${state.hyperplan_result.degraded}`,
-        tags: ['auto-extracted', 'hyperplan', 'decision', changeName],
-      });
-      pagesCreated++;
-      extractionLog.push(`  D4 → decision: hyperplan insights`);
-    } catch (err) {
-      extractionLog.push(`  ⚠ FAILED → D4 (hyperplan page): ${(err as Error).message}`);
-    }
-  }
-
   // D7+D8: Update state + audit log
   state.knowledge_extraction = {
     completed: pagesCreated > 0,

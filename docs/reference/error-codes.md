@@ -3,56 +3,58 @@
 > **Auto-generated** from `src/core/errors.ts`. Do not edit manually.
 > Run `node scripts/gen-error-codes-doc.mjs` to regenerate.
 
-Last updated: 2026-09-20
+Last updated: 2026-09-30
 
 ## Summary
 
 | Domain | Count |
 |--------|-------|
-| SPEC | 17 |
+| SPEC | 19 |
 | GRAPH | 1 |
 | CONSTRAINT | 3 |
-| CHANGE | 15 |
+| CHANGE | 16 |
 | VERIFY | 4 |
 | FINAL | 1 |
 | HOOK | 1 |
 | MERGE | 10 |
-| GUARD | 17 |
+| GUARD | 15 |
 | BUILD | 1 |
-| PONYTAIL | 4 |
+| PONYTAIL | 1 |
 | CONTRACT | 11 |
-| KNOWLEDGE | 3 |
-| DESIGN | 15 |
-| SECURITY | 3 |
+| KNOWLEDGE | 1 |
+| DESIGN | 17 |
+| SECURITY | 5 |
 | STATE | 1 |
 | AGENTS | 1 |
 | RULES | 1 |
 | CHECK | 2 |
-| SKILL | 4 |
+| SKILL | 3 |
 | GIT | 3 |
-| **Total** | **118** |
+| **Total** | **117** |
 
 ## SPEC Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-SPEC-001` | SPEC_FORMAT_INVALID | ERROR | spec.md YAML frontmatter 格式错误 | No |
-| `E-SPEC-002` | SPEC_LAYER_EXCEED_MAX | ERROR | 规范层级超过 max_layer_depth | No |
-| `E-SPEC-003` | SPEC_INHERITANCE_CONFLICT | ERROR | 子层 SHALL NOT 与父层 SHALL 矛盾 | No |
-| `E-SPEC-004` | SPEC_ENFORCEMENT_MISSING | WARN | SHALL 无验证声明（无 Enforcement、无 annotation，P0 语义收窄：仅指 SHALL；SHALL NOT 走 E-SPEC-015） | No |
-| `E-SPEC-005` | SPEC_DRIFT_DETECTED | ERROR | spec.md 声明的 Requirement 在代码中无实现 | No |
-| `E-SPEC-006` | SPEC_DESIGN_DOC_MISSING | ERROR | 有 spec.md 但无 design.md | No |
-| `E-SPEC-007` | SPEC_INDEX_OUTDATED | WARN | index.yaml 与实际目录结构不一致 | Yes |
-| `E-SPEC-008` | PRD_FRONTMATTER_INVALID | ERROR | prd.md YAML frontmatter 缺少必填字段 (layer, scope) | No |
-| `E-SPEC-009` | TECH_FRONTMATTER_INVALID | ERROR | tech.md YAML frontmatter 缺少必填字段 (layer, scope) | No |
-| `E-SPEC-010` | PARENT_SPEC_NOT_FOUND | ERROR | parent_prd 或 parent_tech 指向的文件不存在 | No |
-| `E-SPEC-011` | DISTRIBUTED_SPEC_FORMAT_INVALID | WARN | 分布式 prd.md/tech.md 使用非 Requirement 块格式 | Yes |
-| `E-SPEC-012` | DIST_SPEC_SHALL_UNIMPLEMENTED | ERROR | tech.md 中声明的 SHALL 约束在代码中找不到实现 | No |
-| `E-SPEC-013` | UNDEFINED_MUMUSPEC_DIRECTORY | ERROR | .mumuspec/ 下存在未定义的目录 | No |
-| `E-SPEC-014` | UNDEFINED_MUMUSPEC_FILE | ERROR | .mumuspec/ 下存在未定义的文件 | No |
-| `E-SPEC-015` | SPEC_SHALL_NOT_UNVERIFIABLE | ERROR | SHALL NOT 红线无可验证通道（无 annotation、无 ast:/lex: 前缀、无 manual 声明） | No |
-| `W-SPEC-016` | STRUCTURE_VAGUE_QUALIFIER | WARN | 约束文本含无界限定词（合理/适当/必要时/尽量等），结构上不可判定满足与否 | Yes |
-| `W-SPEC-017` | MANUAL_IMPLICIT_LEGACY | WARN | Enforcement 为 legacy 自由文本（implicit-manual），建议改写为显式 manual(reason) 以便 verify 证据机器校验 | Yes |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-SPEC-001` | SPEC_FORMAT_INVALID | ERROR | spec.md YAML frontmatter 格式错误 | No | 有发射点 |
+| `E-SPEC-002` | SPEC_LAYER_EXCEED_MAX | ERROR | 规范层级超过 max_layer_depth | No | 有发射点 |
+| `E-SPEC-003` | SPEC_INHERITANCE_CONFLICT | ERROR | 子层 SHALL NOT 与父层 SHALL 矛盾 | No | 有发射点 |
+| `E-SPEC-004` | SPEC_ENFORCEMENT_MISSING | WARN | SHALL 无验证声明（无 Enforcement、无 annotation，P0 语义收窄：仅指 SHALL；SHALL NOT 走 E-SPEC-015） | No | 有发射点 |
+| `E-SPEC-005` | SPEC_DRIFT_DETECTED | ERROR | spec.md 声明的 Requirement 在代码中无实现 | No | 声明保留（无发射点） |
+| `E-SPEC-006` | SPEC_DESIGN_DOC_MISSING | ERROR | 有 spec.md 但无 design.md | No | 有发射点 |
+| `E-SPEC-007` | SPEC_INDEX_OUTDATED | WARN | index.yaml 与实际目录结构不一致 | Yes | 声明保留（无发射点） |
+| `E-SPEC-008` | PRD_FRONTMATTER_INVALID | ERROR | prd.md YAML frontmatter 缺少必填字段 (layer, scope) | No | 有发射点 |
+| `E-SPEC-009` | TECH_FRONTMATTER_INVALID | ERROR | tech.md YAML frontmatter 缺少必填字段 (layer, scope) | No | 有发射点 |
+| `E-SPEC-010` | PARENT_SPEC_NOT_FOUND | ERROR | parent_prd 或 parent_tech 指向的文件不存在 | No | 有发射点 |
+| `E-SPEC-011` | DISTRIBUTED_SPEC_FORMAT_INVALID | WARN | 分布式 prd.md/tech.md 使用非 Requirement 块格式 | Yes | 有发射点 |
+| `E-SPEC-012` | DIST_SPEC_SHALL_UNIMPLEMENTED | ERROR | tech.md 中声明的 SHALL 约束在代码中找不到实现 | No | 声明保留（无发射点） |
+| `E-SPEC-013` | UNDEFINED_MUMUSPEC_DIRECTORY | ERROR | .mumuspec/ 下存在未定义的目录 | No | 有发射点 |
+| `E-SPEC-014` | UNDEFINED_MUMUSPEC_FILE | ERROR | .mumuspec/ 下存在未定义的文件 | No | 有发射点 |
+| `E-SPEC-016` | SPEC_REUSE_SOURCE_UNRESOLVED | ERROR | 约束复用请求无法解析上游：来源范围不存在、条目不存在，或来源自身没有上游（越权约束不得扩散） | No | 有发射点 |
+| `E-SPEC-017` | SPEC_REUSE_LOOSENS_STRENGTH | ERROR | 复用不得放宽来源约束强度：下层只可收紧，不可放宽 | No | 有发射点 |
+| `E-SPEC-015` | SPEC_SHALL_NOT_UNVERIFIABLE | ERROR | SHALL NOT 红线无可验证通道（无 annotation、无 ast:/lex: 前缀、无 manual 声明） | No | 有发射点 |
+| `W-SPEC-016` | STRUCTURE_VAGUE_QUALIFIER | WARN | 约束文本含无界限定词（合理/适当/必要时/尽量等），结构上不可判定满足与否 | Yes | 有发射点 |
+| `W-SPEC-017` | MANUAL_IMPLICIT_LEGACY | WARN | Enforcement 为 legacy 自由文本（implicit-manual），建议改写为显式 manual(reason) 以便 verify 证据机器校验 | Yes | 有发射点 |
 
 ### `E-SPEC-001`: SPEC_FORMAT_INVALID
 
@@ -100,6 +102,7 @@ Last updated: 2026-09-20
 - **Severity**: ERROR
 - **Forceable**: No
 - **Description**: spec.md 声明的 Requirement 在代码中无实现
+- **无发射点**: 声明与实现的覆盖核对由 mumuspec drift 通道承担；本码无发射点（DS-EVAL-004 裁决，M1 出范围）。
 
 **Fix Steps**:
 1. 检查是否遗漏实现
@@ -112,13 +115,14 @@ Last updated: 2026-09-20
 - **Description**: 有 spec.md 但无 design.md
 
 **Fix Steps**:
-1. 用 mumuspec add-spec <scope> 创建 design.md 并补齐 frontmatter
+1. 用 mumuspec design-init <scope> 生成含选型表的 design.md 骨架，再补齐 frontmatter
 
 ### `E-SPEC-007`: SPEC_INDEX_OUTDATED
 
 - **Severity**: WARN
 - **Forceable**: Yes
 - **Description**: index.yaml 与实际目录结构不一致
+- **无发射点**: 索引一致性核对由 PageIndex 重建与 mumuspec sync 承担；本码无发射点（DS-EVAL-004 裁决，M1 出范围）。
 
 **Fix Steps**:
 1. 运行 mumuspec sync 对齐 index.yaml 与实际目录结构
@@ -168,6 +172,7 @@ Last updated: 2026-09-20
 - **Severity**: ERROR
 - **Forceable**: No
 - **Description**: tech.md 中声明的 SHALL 约束在代码中找不到实现
+- **无发射点**: 约束→实现的可验证性判定归 annotation/enforcement 通道（E-SPEC-004/015）；本码无发射点（DS-EVAL-004 裁决，M1 出范围）。
 
 **Fix Steps**:
 1. 检查代码是否满足约束
@@ -192,6 +197,25 @@ Last updated: 2026-09-20
 **Fix Steps**:
 1. 移除未定义的文件
 2. 或将其内容合并到已定义的 spec 文件中
+
+### `E-SPEC-016`: SPEC_REUSE_SOURCE_UNRESOLVED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 约束复用请求无法解析上游：来源范围不存在、条目不存在，或来源自身没有上游（越权约束不得扩散）
+
+**Fix Steps**:
+1. 用 mumuspec constraints list 确认来源 scope 与条目 ID 存在
+2. 先为来源条目补 source_specs（指向定义它的规范标题），再复用
+
+### `E-SPEC-017`: SPEC_REUSE_LOOSENS_STRENGTH
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 复用不得放宽来源约束强度：下层只可收紧，不可放宽
+
+**Fix Steps**:
+1. 保持与来源相同的 min_strength，或用 --tighten 提高到更强档
 
 ### `E-SPEC-015`: SPEC_SHALL_NOT_UNVERIFIABLE
 
@@ -227,9 +251,9 @@ Last updated: 2026-09-20
 
 ## GRAPH Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `W-GRAPH-001` | PHASE_BPS_SKILL_MISMATCH | WARN | 引擎 phase_bps 与 skill 侧 workflow.yaml 声明的 BP 集合不一致（缺声明或多余声明） | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `W-GRAPH-001` | PHASE_BPS_SKILL_MISMATCH | WARN | 引擎 phase_bps 与 skill 侧 workflow.yaml 声明的 BP 集合不一致（缺声明或多余声明） | No | 有发射点 |
 
 ### `W-GRAPH-001`: PHASE_BPS_SKILL_MISMATCH
 
@@ -244,11 +268,11 @@ Last updated: 2026-09-20
 
 ## CONSTRAINT Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-CONSTRAINT-001` | CONSTRAINT_SOURCE_MISSING | ERROR | 约束条目缺少 source_specs（越权约束 — 无上游来源，不属于任何层级） | No |
-| `E-CONSTRAINT-002` | CONSTRAINT_SOURCE_FILE_MISSING | ERROR | 约束的来源文件不存在（悬空来源） | No |
-| `W-CONSTRAINT-003` | CONSTRAINT_SOURCE_ANCHOR_MISSING | WARN | 约束的来源锚点在目标文件中找不到对应标题（锚点漂移） | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-CONSTRAINT-001` | CONSTRAINT_SOURCE_MISSING | ERROR | 约束条目缺少 source_specs（越权约束 — 无上游来源，不属于任何层级） | No | 有发射点 |
+| `E-CONSTRAINT-002` | CONSTRAINT_SOURCE_FILE_MISSING | ERROR | 约束的来源文件不存在（悬空来源） | No | 有发射点 |
+| `W-CONSTRAINT-003` | CONSTRAINT_SOURCE_ANCHOR_MISSING | WARN | 约束的来源锚点在目标文件中找不到对应标题（锚点漂移） | No | 有发射点 |
 
 ### `E-CONSTRAINT-001`: CONSTRAINT_SOURCE_MISSING
 
@@ -281,23 +305,24 @@ Last updated: 2026-09-20
 
 ## CHANGE Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-CHANGE-001` | CHANGE_ALREADY_ACTIVE | ERROR | 已有活跃变更，无法创建新变更 | No |
-| `E-CHANGE-002` | CHANGE_ROLLBACK_LIMIT | ERROR | rollback_count 达到上限 | No |
-| `E-CHANGE-003` | CHANGE_REBUILD_LIMIT | ERROR | rebuild_count 达到上限，强制升级为 Design 回退 | No |
-| `E-CHANGE-004` | CHANGE_TEST_CASES_LOCKED | ERROR | 尝试修改已锁定的 test-cases/ | No |
-| `E-CHANGE-005` | CHANGE_WORKTREE_FAIL | ERROR | worktree 创建失败 | No |
-| `E-CHANGE-006` | CHANGE_PHASE_INVALID_TRANSITION | ERROR | 非法状态机转换 | No |
-| `E-CHANGE-007` | CHANGE_DECISIONS_HASH_MISMATCH | ERROR | decisions.md content_hash 不匹配 | No |
-| `E-CHANGE-008` | CHANGE_SCOPE_OVERFLOW | ERROR | 变更 affected_scopes 超出当前作用域子树 | No |
-| `E-CHANGE-009` | CHANGE_BRANCH_CREATE_FAILED | ERROR | 自动创建变更分支失败（已回退变更目录） | No |
-| `E-CHANGE-010` | CHANGE_DISCARD_MOVE_FAILED | ERROR | 废弃变更时目录移动失败，变更保留在原位置 | No |
-| `E-CHANGE-011` | CHANGE_ARCHIVE_MOVE_FAILED | ERROR | 归档变更时目录移动失败，变更保留在原位置 | No |
-| `E-CHANGE-012` | CHANGE_TWEAK_CARRIES_SPEC | ERROR | tweak 工作流归档会跳过 delta-spec 与知识合并，携带规范工件的变更不得用 tweak 归档 | No |
-| `E-CHANGE-020` | CHANGE_ARTIFACT_SCHEMA_INVALID | ERROR | 完备性工件 schema 非法（open-questions.yaml / assumptions.yaml 违反 schema v1） | No |
-| `E-CHANGE-021` | CHANGE_RESOLUTION_CHAIN_BROKEN | ERROR | 工件 resolution 链断裂（decision_ref 在 decisions.md 中无对应条目，或 deferred 缺 note） | No |
-| `E-CHANGE-022` | DELTA_MERGE_INCOMPLETE | ERROR | 归档合并 delta-spec 存在未解决文件（目标缺失或读写失败），delta 内容未被合并，禁止静默归档 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-CHANGE-001` | CHANGE_ALREADY_ACTIVE | ERROR | 已有活跃变更，无法创建新变更 | No | 有发射点 |
+| `E-CHANGE-002` | CHANGE_ROLLBACK_LIMIT | ERROR | rollback_count 达到上限 | No | 有发射点 |
+| `E-CHANGE-003` | CHANGE_REBUILD_LIMIT | ERROR | rebuild_count 达到上限，强制升级为 Design 回退 | No | 有发射点 |
+| `E-CHANGE-004` | CHANGE_TEST_CASES_LOCKED | ERROR | 尝试修改已锁定的 test-cases/ | No | 声明保留（无发射点） |
+| `E-CHANGE-006` | CHANGE_PHASE_INVALID_TRANSITION | ERROR | 非法状态机转换 | No | 有发射点 |
+| `E-CHANGE-007` | CHANGE_DECISIONS_HASH_MISMATCH | ERROR | decisions.md content_hash 不匹配 | No | 有发射点 |
+| `E-CHANGE-008` | CHANGE_SCOPE_OVERFLOW | ERROR | 变更 affected_scopes 超出当前作用域子树 | No | 有发射点 |
+| `E-CHANGE-009` | CHANGE_BRANCH_CREATE_FAILED | ERROR | 自动创建变更分支失败（已回退变更目录） | No | 有发射点 |
+| `E-CHANGE-010` | CHANGE_DISCARD_MOVE_FAILED | ERROR | 废弃变更时目录移动失败，变更保留在原位置 | No | 有发射点 |
+| `E-CHANGE-011` | CHANGE_ARCHIVE_MOVE_FAILED | ERROR | 归档变更时目录移动失败，变更保留在原位置 | No | 有发射点 |
+| `E-CHANGE-012` | CHANGE_TWEAK_CARRIES_SPEC | ERROR | tweak 工作流归档会跳过 delta-spec 与知识合并，携带规范工件的变更不得用 tweak 归档 | No | 有发射点 |
+| `E-CHANGE-013` | CHANGE_ACTIVE_CAPACITY_EXCEEDED | ERROR | 关闭单一活跃变更后，活跃变更数已达 workflow.max_active_changes 上限 | No | 有发射点 |
+| `E-CHANGE-014` | CHANGE_WORKTREE_CREATE_FAILED | ERROR | 工作树创建失败——隔离未成立时不得继续推进阶段 | No | 有发射点 |
+| `E-CHANGE-020` | CHANGE_ARTIFACT_SCHEMA_INVALID | ERROR | 完备性工件 schema 非法（open-questions.yaml / assumptions.yaml 违反 schema v1） | No | 有发射点 |
+| `E-CHANGE-021` | CHANGE_RESOLUTION_CHAIN_BROKEN | ERROR | 工件 resolution 链断裂（decision_ref 在 decisions.md 中无对应条目，或 deferred 缺 note） | No | 有发射点 |
+| `E-CHANGE-022` | DELTA_MERGE_INCOMPLETE | ERROR | 归档合并 delta-spec 存在未解决文件（目标缺失或读写失败），delta 内容未被合并，禁止静默归档 | No | 有发射点 |
 
 ### `E-CHANGE-001`: CHANGE_ALREADY_ACTIVE
 
@@ -334,19 +359,10 @@ Last updated: 2026-09-20
 - **Severity**: ERROR
 - **Forceable**: No
 - **Description**: 尝试修改已锁定的 test-cases/
+- **无发射点**: 锁定后的改动由 hash 复核承担（W-GUARD-004 / E-CHANGE-022），不存在写入前置门；本码保留注册位、无发射点。
 
 **Fix Steps**:
 1. 回退到 Design: mumuspec state transition <name> design --reason <原因>
-
-### `E-CHANGE-005`: CHANGE_WORKTREE_FAIL
-
-- **Severity**: ERROR
-- **Forceable**: No
-- **Description**: worktree 创建失败
-
-**Fix Steps**:
-1. 检查磁盘空间和权限
-2. 降级为 branch 模式
 
 ### `E-CHANGE-006`: CHANGE_PHASE_INVALID_TRANSITION
 
@@ -418,6 +434,26 @@ Last updated: 2026-09-20
 1. 改用 hotfix 工作流归档（mumuspec new <name> --workflow hotfix）
 2. 或将 delta-specs/ 与 constraints/ 内容迁出到 hotfix 变更后再归档
 
+### `E-CHANGE-013`: CHANGE_ACTIVE_CAPACITY_EXCEEDED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 关闭单一活跃变更后，活跃变更数已达 workflow.max_active_changes 上限
+
+**Fix Steps**:
+1. 归档或 Discard 至少一个活跃变更（mumuspec archive <name> --confirm / mumuspec discard <name>）
+2. 或按团队容量调高 workflow.max_active_changes
+
+### `E-CHANGE-014`: CHANGE_WORKTREE_CREATE_FAILED
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 工作树创建失败——隔离未成立时不得继续推进阶段
+
+**Fix Steps**:
+1. 按报错原因修复 git 环境（脏工作树、分支冲突、路径占用）
+2. 或显式降级为分支隔离：changes.default_isolation: branch（降级会留审计痕）
+
 ### `E-CHANGE-020`: CHANGE_ARTIFACT_SCHEMA_INVALID
 
 - **Severity**: ERROR
@@ -443,12 +479,12 @@ Last updated: 2026-09-20
 
 ## VERIFY Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-VERIFY-001` | VERIFY_RESULT_NOT_PASS | ERROR | verify_result 不为 pass（验证未通过不等于通过；偏差须走 accept-deviations 旁路） | No |
-| `E-VERIFY-002` | BRANCH_STATUS_UNHANDLED | ERROR | 变更分支状态未处理（branch_status 未标记 handled） | No |
-| `E-VERIFY-003` | MANUAL_EVIDENCE_MISSING | ERROR | verify.md 缺少 manual 类约束的验证记录（按 Enforcement ID 或约束文本锚定） | Yes |
-| `W-VERIFY-001` | VERIFY_SHALL_RECORD_MISSING | WARN | verify.md 未包含 SHALL / SHALL NOT 校验记录 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-VERIFY-001` | VERIFY_RESULT_NOT_PASS | ERROR | verify_result 不为 pass（验证未通过不等于通过；偏差须走 accept-deviations 旁路） | No | 有发射点 |
+| `E-VERIFY-002` | BRANCH_STATUS_UNHANDLED | ERROR | 变更分支状态未处理（branch_status 未标记 handled） | No | 有发射点 |
+| `E-VERIFY-003` | MANUAL_EVIDENCE_MISSING | ERROR | verify.md 缺少 manual 类约束的验证记录（按 Enforcement ID 或约束文本锚定） | Yes | 有发射点 |
+| `W-VERIFY-001` | VERIFY_SHALL_RECORD_MISSING | WARN | verify.md 未包含 SHALL / SHALL NOT 校验记录 | No | 有发射点 |
 
 ### `E-VERIFY-001`: VERIFY_RESULT_NOT_PASS
 
@@ -492,9 +528,9 @@ Last updated: 2026-09-20
 
 ## FINAL Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-FINAL-001` | FINALIZE_STATE_INVALID | ERROR | finalize 前置状态不满足（变更未归档或 phase 非 archive-completed） | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-FINAL-001` | FINALIZE_STATE_INVALID | ERROR | finalize 前置状态不满足（变更未归档或 phase 非 archive-completed） | No | 有发射点 |
 
 ### `E-FINAL-001`: FINALIZE_STATE_INVALID
 
@@ -508,9 +544,9 @@ Last updated: 2026-09-20
 
 ## HOOK Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-HOOK-001` | HOOK_CHANGE_OWNERSHIP | ERROR | 分支上无活跃变更，直接提交将绕过 MumuSpec 流程 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-HOOK-001` | HOOK_CHANGE_OWNERSHIP | ERROR | 分支上无活跃变更，直接提交将绕过 MumuSpec 流程 | No | 有发射点 |
 
 ### `E-HOOK-001`: HOOK_CHANGE_OWNERSHIP
 
@@ -524,18 +560,18 @@ Last updated: 2026-09-20
 
 ## MERGE Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-MERGE-001` | MERGE_CHANGE_NOT_FOUND | ERROR | 变更不存在，无法合并 | No |
-| `E-MERGE-002` | MERGE_NOT_ARCHIVED | ERROR | 变更未归档，禁止合并分支 | No |
-| `E-MERGE-003` | MERGE_BRANCH_NOT_HANDLED | ERROR | 变更分支代码未提交（branch_status 未置 handled） | No |
-| `E-MERGE-004` | MERGE_ISOLATION_INVALID | ERROR | 变更不是分支隔离模式或缺少分支信息 | No |
-| `E-MERGE-005` | MERGE_NOT_ON_MAIN | ERROR | 必须在主分支上执行合并 | No |
-| `E-MERGE-006` | MERGE_WORKING_TREE_DIRTY | ERROR | 当前工作区有未提交改动，禁止合并 | No |
-| `E-MERGE-007` | MERGE_BRANCH_MISSING | ERROR | 变更分支不存在 | No |
-| `E-MERGE-008` | MERGE_MAIN_BRANCH_MISSING | ERROR | 未找到 main/master 主分支 | No |
-| `E-MERGE-009` | MERGE_GATE_REJECTED | ERROR | 合并门禁未通过 | No |
-| `E-MERGE-010` | MERGE_CONFLICT | ERROR | 合并发生冲突，已暂停 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-MERGE-001` | MERGE_CHANGE_NOT_FOUND | ERROR | 变更不存在，无法合并 | No | 有发射点 |
+| `E-MERGE-002` | MERGE_NOT_ARCHIVED | ERROR | 变更未归档，禁止合并分支 | No | 有发射点 |
+| `E-MERGE-003` | MERGE_BRANCH_NOT_HANDLED | ERROR | 变更分支代码未提交（branch_status 未置 handled） | No | 有发射点 |
+| `E-MERGE-004` | MERGE_ISOLATION_INVALID | ERROR | 变更不是分支隔离模式或缺少分支信息 | No | 有发射点 |
+| `E-MERGE-005` | MERGE_NOT_ON_MAIN | ERROR | 必须在主分支上执行合并 | No | 有发射点 |
+| `E-MERGE-006` | MERGE_WORKING_TREE_DIRTY | ERROR | 当前工作区有未提交改动，禁止合并 | No | 有发射点 |
+| `E-MERGE-007` | MERGE_BRANCH_MISSING | ERROR | 变更分支不存在 | No | 有发射点 |
+| `E-MERGE-008` | MERGE_MAIN_BRANCH_MISSING | ERROR | 未找到 main/master 主分支 | No | 有发射点 |
+| `E-MERGE-009` | MERGE_GATE_REJECTED | ERROR | 合并门禁未通过 | No | 有发射点 |
+| `E-MERGE-010` | MERGE_CONFLICT | ERROR | 合并发生冲突，已暂停 | No | 有发射点 |
 
 ### `E-MERGE-001`: MERGE_CHANGE_NOT_FOUND
 
@@ -635,25 +671,23 @@ Last updated: 2026-09-20
 
 ## GUARD Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-GUARD-001` | GUARD_ARTIFACT_MISSING | ERROR | Phase Guard 检查发现工件缺失 | No |
-| `E-GUARD-002` | GUARD_SHALL_VIOLATION | ERROR | SHALL 约束未满足 | Yes |
-| `E-GUARD-003` | GUARD_SHALL_NOT_VIOLATION | ERROR | SHALL NOT 约束被违反 | No |
-| `E-GUARD-004` | GUARD_TEST_IMMUTABILITY | ERROR | 测试用例或套件 hash 不匹配 | No |
-| `E-GUARD-005` | GUARD_HYPERPLAN_NOT_MERGED | ERROR | hyperplan 硬约束未合并到 design.md | No |
-| `E-GUARD-006` | GUARD_HYPERPLAN_OPEN_QUESTIONS | ERROR | hyperplan 开放问题未解决 | No |
-| `E-GUARD-007` | GUARD_PRE_COMMIT_TIMEOUT | WARN | Pre-commit 检查超过 5s | Yes |
-| `E-GUARD-008` | GUARD_COMPLETENESS_GATE_BLOCK | ERROR | 完备性门禁阻塞（工件缺失 / 存在未消解 open 项 / 工件为空 / 声明路径缺人工签收） | No |
-| `E-GUARD-009` | DESIGN_COVERAGE_GAP | ERROR | 设计覆盖断链（I1 设计向上闭合）：覆盖了 Layer N 却缺少某个 Layer < N | Yes |
-| `E-GUARD-010` | DELTA_CONSTRAINT_UNCHANNELABLE | ERROR | 变更携带的 delta 约束无验证通道（无 Enforcement 声明、无词法锚点、无 ast: 前缀），禁止通过 verify 进入强制面 | No |
-| `E-GUARD-011` | FREEZE_GATE_UNSIGNED_DECISION | ERROR | 轻量档变更声明了 blocking 用户决策但未逐项经 decisions.md 签收，禁止进入 build（freeze gate — 仅在 proposal 显式声明 `[blocking]` 项时生效） | No |
-| `E-GUARD-012` | SHALL_UNSATISFIED | ERROR | 带机读注解或 ast: 前缀（enforced-strong）的 SHALL 约束经机器通道检查未满足——要求未达成即阻断 | No |
-| `E-GUARD-013` | GATE_POINTER_UNRESOLVED | ERROR | behavior-gate 注解指针悬空（错误码未注册、无语料杀伤证据、fixture 缺失或形态不识别）——悬空指针即假强制，任何强度组合恒阻断 | No |
-| `E-DRIFT-016` | STATUS_ASSERTION_CONFLICT | WARN | docs/STATUS.md 的机器可核断言与仓库事实矛盾（包版本/能力层进度/命令与工具数量）——默认 WARN 恒可见，enforcement_strict 下升 ERROR（enforcement-gap L2） | Yes |
-| `W-GUARD-001` | GUARD_PREREQUISITE_MISSING | WARN | 阶段前置工件缺失或未锁定（test_cases / build_layers / tdd_mode 等行为约束） | No |
-| `W-GUARD-004` | GUARD_TEST_IMMUTABILITY_MISMATCH | WARN | 测试套件 hash 与 design_content_hash 不匹配（测试在锁定后被改动） | No |
-| `W-GUARD-009` | DESIGN_COVERAGE_GAP_ADVISORY | WARN | 设计覆盖断链（I1）的告警形态：top_down_design 解析为 false 时不阻塞，但仍写入 state.design_coverage | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-GUARD-001` | GUARD_ARTIFACT_MISSING | ERROR | Phase Guard 检查发现工件缺失 | No | 有发射点 |
+| `E-GUARD-002` | GUARD_SHALL_VIOLATION | ERROR | SHALL 约束未满足 | Yes | 有发射点 |
+| `E-GUARD-003` | GUARD_SHALL_NOT_VIOLATION | ERROR | SHALL NOT 约束被违反 | No | 有发射点 |
+| `E-GUARD-004` | GUARD_TEST_IMMUTABILITY | ERROR | 测试用例或套件 hash 不匹配 | No | 声明保留（无发射点） |
+| `E-GUARD-008` | GUARD_COMPLETENESS_GATE_BLOCK | ERROR | 完备性门禁阻塞（工件缺失 / 存在未消解 open 项 / 工件为空 / 声明路径缺人工签收） | No | 有发射点 |
+| `E-GUARD-009` | DESIGN_COVERAGE_GAP | ERROR | 设计覆盖断链（I1 设计向上闭合）：覆盖了 Layer N 却缺少某个 Layer < N | Yes | 有发射点 |
+| `E-GUARD-010` | DELTA_CONSTRAINT_UNCHANNELABLE | ERROR | 变更携带的 delta 约束无验证通道（无 Enforcement 声明、无词法锚点、无 ast: 前缀），禁止通过 verify 进入强制面 | No | 有发射点 |
+| `E-GUARD-011` | FREEZE_GATE_UNSIGNED_DECISION | ERROR | 轻量档变更声明了 blocking 用户决策但未逐项经 decisions.md 签收，禁止进入 build（freeze gate — 仅在 proposal 显式声明 `[blocking]` 项时生效） | No | 有发射点 |
+| `E-GUARD-012` | SHALL_UNSATISFIED | ERROR | 带机读注解或 ast: 前缀（enforced-strong）的 SHALL 约束经机器通道检查未满足——要求未达成即阻断 | No | 有发射点 |
+| `E-GUARD-013` | GATE_POINTER_UNRESOLVED | ERROR | behavior-gate 注解指针悬空（错误码未注册、无语料杀伤证据、fixture 缺失或形态不识别）——悬空指针即假强制，任何强度组合恒阻断 | No | 有发射点 |
+| `E-GUARD-014` | WORKTREE_ISOLATION_MISSING | ERROR | workflow.worktree_isolation 有效值为强制，但变更没有对应工作树——行为门指针必须有名有实 | No | 有发射点 |
+| `E-DRIFT-016` | STATUS_ASSERTION_CONFLICT | WARN | docs/STATUS.md 的机器可核断言与仓库事实矛盾（包版本/能力层进度/命令与工具数量）——默认 WARN 恒可见，enforcement_strict 下升 ERROR（enforcement-gap L2） | Yes | 有发射点 |
+| `W-GUARD-001` | GUARD_PREREQUISITE_MISSING | WARN | 阶段前置工件缺失或未锁定（test_cases / build_layers / tdd_mode 等行为约束） | No | 有发射点 |
+| `W-GUARD-004` | GUARD_TEST_IMMUTABILITY_MISMATCH | WARN | 测试套件 hash 与 design_content_hash 不匹配（测试在锁定后被改动） | No | 有发射点 |
+| `W-GUARD-009` | DESIGN_COVERAGE_GAP_ADVISORY | WARN | 设计覆盖断链（I1）的告警形态：top_down_design 解析为 false 时不阻塞，但仍写入 state.design_coverage | No | 有发射点 |
 
 ### `E-GUARD-001`: GUARD_ARTIFACT_MISSING
 
@@ -690,39 +724,11 @@ Last updated: 2026-09-20
 - **Severity**: ERROR
 - **Forceable**: No
 - **Description**: 测试用例或套件 hash 不匹配
+- **无发射点**: hash 复核由建议级 W-GUARD-004 报告（允许 Build 迭代调整测试）；本 error 档码保留注册位、无发射点。
 
 **Fix Steps**:
 1. 检查文件是否被手动修改
 2. 从 snapshots/ 恢复
-
-### `E-GUARD-005`: GUARD_HYPERPLAN_NOT_MERGED
-
-- **Severity**: ERROR
-- **Forceable**: No
-- **Description**: hyperplan 硬约束未合并到 design.md
-
-**Fix Steps**:
-1. 将硬约束合并到 design.md 的 SHALL/SHALL NOT
-
-### `E-GUARD-006`: GUARD_HYPERPLAN_OPEN_QUESTIONS
-
-- **Severity**: ERROR
-- **Forceable**: No
-- **Description**: hyperplan 开放问题未解决
-
-**Fix Steps**:
-1. 查看开放问题列表
-2. 用户决策后标记为 resolved
-
-### `E-GUARD-007`: GUARD_PRE_COMMIT_TIMEOUT
-
-- **Severity**: WARN
-- **Forceable**: Yes
-- **Description**: Pre-commit 检查超过 5s
-
-**Fix Steps**:
-1. 考虑缩小检查范围
-2. 优化规则性能
 
 ### `E-GUARD-008`: GUARD_COMPLETENESS_GATE_BLOCK
 
@@ -787,6 +793,16 @@ Last updated: 2026-09-20
 2. 或指向存在且声明非空的语料 fixture 目录名
 3. 门禁不存在时改写为显式 manual(reason)——诚实降级优于虚假强控
 
+### `E-GUARD-014`: WORKTREE_ISOLATION_MISSING
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: workflow.worktree_isolation 有效值为强制，但变更没有对应工作树——行为门指针必须有名有实
+
+**Fix Steps**:
+1. 进入 design 时由生命周期创建隔离（mumuspec state transition <name> design）
+2. 或显式降级为分支隔离 changes.default_isolation: branch（降级留审计痕，不做静默替换）
+
 ### `E-DRIFT-016`: STATUS_ASSERTION_CONFLICT
 
 - **Severity**: WARN
@@ -830,9 +846,9 @@ Last updated: 2026-09-20
 
 ## BUILD Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `W-BUILD-001` | BUILD_LAYER_COUPLING | WARN | 同层 scope 之间存在直接调用边（I3 层内默认可并行不成立 → 设计未闭合） | Yes |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `W-BUILD-001` | BUILD_LAYER_COUPLING | WARN | 同层 scope 之间存在直接调用边（I3 层内默认可并行不成立 → 设计未闭合） | Yes | 有发射点 |
 
 ### `W-BUILD-001`: BUILD_LAYER_COUPLING
 
@@ -846,12 +862,9 @@ Last updated: 2026-09-20
 
 ## PONYTAIL Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-PONYTAIL-001` | PONYTAIL_YAGNI_VIOLATION | WARN | 引入了未被请求的抽象层或功能 | Yes |
-| `E-PONYTAIL-002` | PONYTAIL_UNNECESSARY_DEPENDENCY | ERROR | 在标准库/平台特性已满足时引入新依赖 | No |
-| `E-PONYTAIL-003` | PONYTAIL_BOILERPLATE | WARN | 生成未被请求的样板代码 | Yes |
-| `E-PONYTAIL-004` | PONYTAIL_CLEVER_OVER_SIMPLE | WARN | 用复杂方案替代简单方案 | Yes |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-PONYTAIL-001` | PONYTAIL_YAGNI_VIOLATION | WARN | 引入了未被请求的抽象层或功能 | Yes | 有发射点 |
 
 ### `E-PONYTAIL-001`: PONYTAIL_YAGNI_VIOLATION
 
@@ -863,51 +876,21 @@ Last updated: 2026-09-20
 1. 删除不必要的抽象
 2. 或用 ponytail: 注释标记理由
 
-### `E-PONYTAIL-002`: PONYTAIL_UNNECESSARY_DEPENDENCY
-
-- **Severity**: ERROR
-- **Forceable**: No
-- **Description**: 在标准库/平台特性已满足时引入新依赖
-
-**Fix Steps**:
-1. 使用标准库/平台特性替代
-2. 或使用已有依赖
-
-### `E-PONYTAIL-003`: PONYTAIL_BOILERPLATE
-
-- **Severity**: WARN
-- **Forceable**: Yes
-- **Description**: 生成未被请求的样板代码
-
-**Fix Steps**:
-1. 删除样板代码
-2. 使用最小可工作实现
-
-### `E-PONYTAIL-004`: PONYTAIL_CLEVER_OVER_SIMPLE
-
-- **Severity**: WARN
-- **Forceable**: Yes
-- **Description**: 用复杂方案替代简单方案
-
-**Fix Steps**:
-1. 简化为 boring 方案
-2. 或用 ponytail: 注释标记理由
-
 ## CONTRACT Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-CONTRACT-001` | BOUNDARY_DOC_MISSING | WARN | 有代码的目录缺少 BOUNDARY.md 边界文档 | Yes |
-| `E-CONTRACT-002` | BOUNDARY_EXPORT_NOT_FOUND | ERROR | BOUNDARY.md 声明的对外接口在代码中未找到实现 | No |
-| `E-CONTRACT-003` | BOUNDARY_DEPENDENCY_UNUSED | WARN | BOUNDARY.md 声明的依赖在代码中未发现实际使用 | Yes |
-| `E-CONTRACT-004` | BOUNDARY_CHANGELOG_EMPTY | WARN | BOUNDARY.md 缺少变更日志 | Yes |
-| `E-CONTRACT-005` | CONTRACT_SOURCE_MISSING | ERROR | contracts.yaml 声明的契约源文件不存在 | No |
-| `E-CONTRACT-006` | CONTRACT_DEPRECATED_IN_USE | WARN | 已标记为 deprecated 的契约仍被上游消费者使用 | Yes |
-| `E-CONTRACT-007` | CONTRACT_SCHEMA_MISSING | WARN | 契约缺少 schema 定义 | Yes |
-| `E-CONTRACT-008` | CONTRACT_GRAPH_INCONSISTENT | WARN | 契约依赖图中引用了不存在的契约 ID | Yes |
-| `E-CONTRACT-009` | CONTRACT_BREAKING_CHANGE | ERROR | 检测到破坏性契约变更，但未提供迁移路径 | No |
-| `E-CONTRACT-010` | CONTRACT_LOCK_TIMEOUT | ERROR | 获取契约文件锁超时（5s），另一个进程可能正在修改契约 | No |
-| `E-CONTRACT-011` | CONTRACT_REGISTRY_INVALID | ERROR | 契约注册表文件结构无效（缺少必需字段或含 __proto__/constructor/prototype 污染键） | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-CONTRACT-001` | BOUNDARY_DOC_MISSING | WARN | 有代码的目录缺少 BOUNDARY.md 边界文档 | Yes | 有发射点 |
+| `E-CONTRACT-002` | BOUNDARY_EXPORT_NOT_FOUND | ERROR | BOUNDARY.md 声明的对外接口在代码中未找到实现 | No | 有发射点 |
+| `E-CONTRACT-003` | BOUNDARY_DEPENDENCY_UNUSED | WARN | BOUNDARY.md 声明的依赖在代码中未发现实际使用 | Yes | 有发射点 |
+| `E-CONTRACT-004` | BOUNDARY_CHANGELOG_EMPTY | WARN | BOUNDARY.md 缺少变更日志 | Yes | 有发射点 |
+| `E-CONTRACT-005` | CONTRACT_SOURCE_MISSING | ERROR | contracts.yaml 声明的契约源文件不存在 | No | 有发射点 |
+| `E-CONTRACT-006` | CONTRACT_DEPRECATED_IN_USE | WARN | 已标记为 deprecated 的契约仍被上游消费者使用 | Yes | 有发射点 |
+| `E-CONTRACT-007` | CONTRACT_SCHEMA_MISSING | WARN | 契约缺少 schema 定义 | Yes | 有发射点 |
+| `E-CONTRACT-008` | CONTRACT_GRAPH_INCONSISTENT | WARN | 契约依赖图中引用了不存在的契约 ID | Yes | 有发射点 |
+| `E-CONTRACT-009` | CONTRACT_BREAKING_CHANGE | ERROR | 检测到破坏性契约变更，但未提供迁移路径 | No | 有发射点 |
+| `E-CONTRACT-010` | CONTRACT_LOCK_TIMEOUT | ERROR | 获取契约文件锁超时（5s），另一个进程可能正在修改契约 | No | 有发射点 |
+| `E-CONTRACT-011` | CONTRACT_REGISTRY_INVALID | ERROR | 契约注册表文件结构无效（缺少必需字段或含 __proto__/constructor/prototype 污染键） | No | 有发射点 |
 
 ### `E-CONTRACT-001`: BOUNDARY_DOC_MISSING
 
@@ -1018,67 +1001,48 @@ Last updated: 2026-09-20
 
 ## KNOWLEDGE Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-KNOWLEDGE-001` | KNOWLEDGE_PAGE_FORMAT_INVALID | ERROR | 知识页面 YAML frontmatter 格式错误 | No |
-| `E-KNOWLEDGE-002` | KNOWLEDGE_EXTRACTION_FAIL | ERROR | Archive 阶段知识提取失败 | No |
-| `E-KNOWLEDGE-003` | KNOWLEDGE_PAGE_NOT_FOUND | ERROR | PageIndex 引用的知识页面文件不存在 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-KNOWLEDGE-001` | KNOWLEDGE_PAGE_FORMAT_INVALID | WARN | 知识页面 frontmatter 必填字段缺失（id/title/type/status/scope） | No | 有发射点 |
 
 ### `E-KNOWLEDGE-001`: KNOWLEDGE_PAGE_FORMAT_INVALID
 
-- **Severity**: ERROR
+- **Severity**: WARN
 - **Forceable**: No
-- **Description**: 知识页面 YAML frontmatter 格式错误
+- **Description**: 知识页面 frontmatter 必填字段缺失（id/title/type/status/scope）
 
 **Fix Steps**:
 1. 检查 frontmatter 字段
 2. 运行 mumuspec knowledge verify --id <id>
 
-### `E-KNOWLEDGE-002`: KNOWLEDGE_EXTRACTION_FAIL
-
-- **Severity**: ERROR
-- **Forceable**: No
-- **Description**: Archive 阶段知识提取失败
-
-**Fix Steps**:
-1. 检查变更工件完整性
-2. 重新执行 mumuspec finalize-archive <change> 补充知识提取
-
-### `E-KNOWLEDGE-003`: KNOWLEDGE_PAGE_NOT_FOUND
-
-- **Severity**: ERROR
-- **Forceable**: No
-- **Description**: PageIndex 引用的知识页面文件不存在
-
-**Fix Steps**:
-1. 检查 _index.yaml 条目
-2. 恢复文件或更新索引
-
 ## DESIGN Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-DESIGN-001` | COGNITIVE_MAP_MISSING | ERROR | cognitive-map.yaml 不存在 | No |
-| `E-DESIGN-009` | DESIGN_SCHEMA_SECTION_MISSING | ERROR | design.md 缺少 templates/design-schema.yaml 要求的必填 section | No |
-| `E-DESIGN-010` | CROSS_ARTIFACT_INCONSISTENCY | ERROR | proposal 与 design 跨工件不一致（Plan 步骤未映射到 Layers、FR 未被 design 引用） | No |
-| `E-DESIGN-002` | COGNITIVE_Q1_EMPTY | ERROR | Q1 已知的已知为空 | No |
-| `W-DESIGN-001` | COGNITIVE_MAP_MISSING | WARN | cognitive_framework.enabled 但 cognitive-map.yaml 不存在 | No |
-| `W-DESIGN-002` | COGNITIVE_Q1_EMPTY | WARN | Q1 已知的已知为空（cognitive_framework.q1_count == 0） | No |
-| `W-DESIGN-003` | COGNITIVE_Q2_PENDING | WARN | Q2 存在未回答的问题（cognitive_framework.q2_pending > 0） | No |
-| `W-DESIGN-004` | COGNITIVE_Q3_PENDING | WARN | Q3 存在未确认的推导（cognitive_framework.q3_pending > 0） | No |
-| `W-DESIGN-005` | COGNITIVE_Q4_INSUFFICIENT_SCANS | WARN | Q4 盲区扫描维度不足（cognitive_framework.q4_scans_completed < 3） | No |
-| `W-DESIGN-006` | COGNITIVE_MAP_NOT_CONVERGED | WARN | 认知地图未收敛（cognitive_framework.converged == false） | No |
-| `W-DESIGN-007` | GRILL_ME_INCOMPLETE | WARN | grill-me 压力测试未完成（grill_me_result.completed == false） | No |
-| `W-DESIGN-008` | GRILL_ME_ROUNDS_EXCEEDED | WARN | grill-me 追问轮次超出上限 | No |
-| `W-DESIGN-009` | DESIGN_SCHEMA_SECTION_MISSING | WARN | design.md 缺少 templates/design-schema.yaml 要求的 section | No |
-| `W-DESIGN-010` | CROSS_ARTIFACT_INCONSISTENCY | WARN | proposal / design / delta-specs 跨工件不一致（调用点由 E-DESIGN-010 重映射而来） | No |
-| `W-DESIGN-011` | GRILL_ME_DEFERRED_UNRESOLVED | WARN | grill-me 存在未达成共识的 deferred 分支 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-DESIGN-001` | COGNITIVE_MAP_MISSING | ERROR | cognitive-map.yaml 不存在 | No | 声明保留（无发射点） |
+| `E-DESIGN-009` | DESIGN_SCHEMA_SECTION_MISSING | ERROR | design.md 缺少 templates/design-schema.yaml 要求的必填 section | No | 声明保留（无发射点） |
+| `E-DESIGN-010` | CROSS_ARTIFACT_INCONSISTENCY | ERROR | proposal 与 design 跨工件不一致（Plan 步骤未映射到 Layers、FR 未被 design 引用） | No | 有发射点 |
+| `E-DESIGN-002` | COGNITIVE_Q1_EMPTY | ERROR | Q1 已知的已知为空 | No | 声明保留（无发射点） |
+| `W-DESIGN-001` | COGNITIVE_MAP_MISSING | WARN | cognitive_framework.enabled 但 cognitive-map.yaml 不存在 | No | 有发射点 |
+| `W-DESIGN-002` | COGNITIVE_Q1_EMPTY | WARN | Q1 已知的已知为空（cognitive_framework.q1_count == 0） | No | 有发射点 |
+| `W-DESIGN-003` | COGNITIVE_Q2_PENDING | WARN | Q2 存在未回答的问题（cognitive_framework.q2_pending > 0） | No | 有发射点 |
+| `W-DESIGN-004` | COGNITIVE_Q3_PENDING | WARN | Q3 存在未确认的推导（cognitive_framework.q3_pending > 0） | No | 有发射点 |
+| `E-GRAPH-002` | GRAPH_UNKNOWN_RENDER_FORMAT | ERROR | 图渲染请求了未支持的格式，不回落默认格式 | Yes | 有发射点 |
+| `E-GRAPH-003` | GRAPH_INCONSISTENT_SOURCE_DATA | ERROR | 渲染源数据自相矛盾（边引用未声明节点） | No | 有发射点 |
+| `W-DESIGN-005` | COGNITIVE_Q4_INSUFFICIENT_SCANS | WARN | Q4 盲区扫描覆盖维度不足（按维度身份判定，记录条数不构成覆盖） | No | 有发射点 |
+| `W-DESIGN-006` | COGNITIVE_MAP_NOT_CONVERGED | WARN | 认知地图未收敛（cognitive_framework.converged == false） | No | 有发射点 |
+| `W-DESIGN-007` | GRILL_ME_INCOMPLETE | WARN | grill-me 压力测试未完成（grill_me_result.completed == false） | No | 有发射点 |
+| `W-DESIGN-008` | GRILL_ME_ROUNDS_EXCEEDED | WARN | grill-me 追问轮次超出上限 | No | 有发射点 |
+| `W-DESIGN-009` | DESIGN_SCHEMA_SECTION_MISSING | WARN | design.md 缺少 templates/design-schema.yaml 要求的 section | No | 有发射点 |
+| `W-DESIGN-010` | CROSS_ARTIFACT_INCONSISTENCY | WARN | proposal / design / delta-specs 跨工件不一致（调用点由 E-DESIGN-010 重映射而来） | No | 有发射点 |
+| `W-DESIGN-011` | GRILL_ME_DEFERRED_UNRESOLVED | WARN | grill-me 存在未达成共识的 deferred 分支 | No | 有发射点 |
 
 ### `E-DESIGN-001`: COGNITIVE_MAP_MISSING
 
 - **Severity**: ERROR
 - **Forceable**: No
 - **Description**: cognitive-map.yaml 不存在
+- **无发射点**: 认知地图缺位在守卫路径上是建议级 W-DESIGN-001（CHG-5 降档）；本 error 档码保留注册位、无发射点。
 
 **Fix Steps**:
 1. 回退到 Design
@@ -1089,6 +1053,7 @@ Last updated: 2026-09-20
 - **Severity**: ERROR
 - **Forceable**: No
 - **Description**: design.md 缺少 templates/design-schema.yaml 要求的必填 section
+- **无发射点**: 结构缺节自 CHG-5 起为建议级 W-DESIGN-009（不阻断）；本 error 档码保留注册位、无发射点。
 
 **Fix Steps**:
 1. 按 schema 补充缺失的 section
@@ -1109,6 +1074,7 @@ Last updated: 2026-09-20
 - **Severity**: ERROR
 - **Forceable**: No
 - **Description**: Q1 已知的已知为空
+- **无发射点**: Q1 为空由守卫以建议级 W-DESIGN-002 报告（phase-guard.ts，CHG-5 降档）；本 error 档码保留注册位、无发射点。
 
 **Fix Steps**:
 1. 检查 proposal.md 和 spec.md 是否已加载
@@ -1153,14 +1119,33 @@ Last updated: 2026-09-20
 1. 确认或驳回 Q3 推导
 2. 或达到轮次上限后显式收敛
 
+### `E-GRAPH-002`: GRAPH_UNKNOWN_RENDER_FORMAT
+
+- **Severity**: ERROR
+- **Forceable**: Yes
+- **Description**: 图渲染请求了未支持的格式，不回落默认格式
+
+**Fix Steps**:
+1. 改用 mermaid / dot / json 三者之一
+
+### `E-GRAPH-003`: GRAPH_INCONSISTENT_SOURCE_DATA
+
+- **Severity**: ERROR
+- **Forceable**: No
+- **Description**: 渲染源数据自相矛盾（边引用未声明节点）
+
+**Fix Steps**:
+1. 修正 workflow 配置的 phases / terminal / edges 一致性后重试 graph verify
+
 ### `W-DESIGN-005`: COGNITIVE_Q4_INSUFFICIENT_SCANS
 
 - **Severity**: WARN
 - **Forceable**: No
-- **Description**: Q4 盲区扫描维度不足（cognitive_framework.q4_scans_completed < 3）
+- **Description**: Q4 盲区扫描覆盖维度不足（按维度身份判定，记录条数不构成覆盖）
 
 **Fix Steps**:
-1. 至少补充 3 个 Q4 blind-spot entry
+1. 按 cognitive-map sync 报出的缺失维度名补写对应 category 的 Q4 条目
+2. 必需维度（含 security-compliance）齐备且不同维度数达到 q4_min_dimensions 才算收敛
 
 ### `W-DESIGN-006`: COGNITIVE_MAP_NOT_CONVERGED
 
@@ -1222,11 +1207,13 @@ Last updated: 2026-09-20
 
 ## SECURITY Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-SECURITY-001` | SECURITY_PATH_TRAVERSAL | ERROR | CLI 参数路径超出项目根目录 | No |
-| `E-SECURITY-002` | CHANGE_NAME_INVALID | ERROR | 变更名称含非法字符（路径分隔符或 .. 序列） | No |
-| `E-SECURITY-003` | MCP_PATH_REQUIRED | ERROR | MCP 工具调用未提供 path 参数或参数类型错误 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-SECURITY-001` | SECURITY_PATH_TRAVERSAL | ERROR | CLI 参数路径超出项目根目录 | No | 有发射点 |
+| `E-SECURITY-002` | CHANGE_NAME_INVALID | ERROR | 变更名称含非法字符（路径分隔符或 .. 序列） | No | 有发射点 |
+| `E-SECURITY-003` | MCP_PATH_REQUIRED | ERROR | MCP 工具调用未提供 path 参数或参数类型错误 | No | 有发射点 |
+| `W-SECURITY-001` | SENSITIVE_INFO_DETECTED | WARN | 规范工件中出现疑似凭据/内网地址/数据源连接串（掩码后的片段） | No | 有发射点 |
+| `W-DESIGN-012` | DESIGN_PREFERENCE_UNRESOLVED | WARN | design.md 的架构偏好选型表仍有议题未决（选定项/备选/理由/未选代价四字段不完备） | No | 有发射点 |
 
 ### `E-SECURITY-001`: SECURITY_PATH_TRAVERSAL
 
@@ -1258,11 +1245,31 @@ Last updated: 2026-09-20
 1. 检查调用参数是否包含有效的 path 字符串
 2. 确保 path 为相对路径且非空
 
+### `W-SECURITY-001`: SENSITIVE_INFO_DETECTED
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: 规范工件中出现疑似凭据/内网地址/数据源连接串（掩码后的片段）
+
+**Fix Steps**:
+1. 将实际值替换为环境变量占位符
+2. 确认为示例文本后可继续（告警不阻断）
+
+### `W-DESIGN-012`: DESIGN_PREFERENCE_UNRESOLVED
+
+- **Severity**: WARN
+- **Forceable**: No
+- **Description**: design.md 的架构偏好选型表仍有议题未决（选定项/备选/理由/未选代价四字段不完备）
+
+**Fix Steps**:
+1. 逐项选定，或显式选择「暂不约束」
+2. 运行 mumuspec design-init <scope> --pick "议题=选项:理由" 重建选型表
+
 ## STATE Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-STATE-001` | STATE_PROTECTED_FIELD | ERROR | state set 尝试修改受保护字段（认知/测试/阶段等），且 guard.bypass_audit=false 拒绝绕过 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-STATE-001` | STATE_PROTECTED_FIELD | ERROR | state set 尝试修改受保护字段（认知/测试/阶段等），且 guard.bypass_audit=false 拒绝绕过 | No | 有发射点 |
 
 ### `E-STATE-001`: STATE_PROTECTED_FIELD
 
@@ -1276,9 +1283,9 @@ Last updated: 2026-09-20
 
 ## AGENTS Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-AGENTS-001` | AGENTS_SPEC_DRIFT | ERROR | AGENTS.md 与 spec 内容漂移（生成的 rules 基于旧版规范） | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-AGENTS-001` | AGENTS_SPEC_DRIFT | ERROR | AGENTS.md 与 spec 内容漂移（生成的 rules 基于旧版规范） | No | 有发射点 |
 
 ### `E-AGENTS-001`: AGENTS_SPEC_DRIFT
 
@@ -1291,9 +1298,9 @@ Last updated: 2026-09-20
 
 ## RULES Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-RULES-001` | RULES_BUDGET_EXCEEDED | ERROR | 生成的 Rules 产物超过 32KiB 容量预算（禁止在 Rules 文件中内联全量规范上下文） | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-RULES-001` | RULES_BUDGET_EXCEEDED | ERROR | 生成的 Rules 产物超过 32KiB 容量预算（禁止在 Rules 文件中内联全量规范上下文） | No | 有发射点 |
 
 ### `E-RULES-001`: RULES_BUDGET_EXCEEDED
 
@@ -1307,10 +1314,10 @@ Last updated: 2026-09-20
 
 ## CHECK Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-CHECK-001` | CHECK_ACTION_FAILED | ERROR | mumuspec check 执行过程中发生未预期错误（compliance / glossary 或 check 主体流程抛错；drift 检测源的失败已逐源隔离为 W-CHECK-002，不再走到这里） | No |
-| `W-CHECK-002` | DRIFT_SOURCE_FAILED | WARN | 某个 drift 检测源抛出异常——该源本轮无结果（盲区），其余检测源不受影响 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-CHECK-001` | CHECK_ACTION_FAILED | ERROR | mumuspec check 执行过程中发生未预期错误（compliance / glossary 或 check 主体流程抛错；drift 检测源的失败已逐源隔离为 W-CHECK-002，不再走到这里） | No | 有发射点 |
+| `W-CHECK-002` | DRIFT_SOURCE_FAILED | WARN | 某个 drift 检测源抛出异常——该源本轮无结果（盲区），其余检测源不受影响 | No | 有发射点 |
 
 ### `E-CHECK-001`: CHECK_ACTION_FAILED
 
@@ -1334,12 +1341,11 @@ Last updated: 2026-09-20
 
 ## SKILL Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `W-SKILL-001` | SKILL_COPY_DRIFT | WARN | 技能源与已安装副本的正文不一致（比对已剥离 frontmatter 版本行，故版本戳印不产生噪声） | Yes |
-| `E-SKILL-002` | PLUGIN_MANIFEST_INVALID | ERROR | 插件或市场清单未通过官方规范校验（name 形态、语义化版本、相对路径、source 存在性等） | No |
-| `E-SKILL-003` | PLUGIN_REGISTRY_WRITE_FAILED | ERROR | 宿主插件登记文件不可写或内容不是合法 JSON——安装整体失败，不留"已复制但未登记"的中间态 | No |
-| `E-BUNDLE-001` | BUNDLE_PUBLISH_UNIMPLEMENTED | ERROR | bundle publish 能力未实现——动作未完成时 fail-closed，不得返回假成功 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `W-SKILL-001` | SKILL_COPY_DRIFT | WARN | 技能源与已安装副本的正文不一致（比对已剥离 frontmatter 版本行，故版本戳印不产生噪声） | Yes | 有发射点 |
+| `E-SKILL-002` | PLUGIN_MANIFEST_INVALID | ERROR | 插件或市场清单未通过官方规范校验（name 形态、语义化版本、相对路径、source 存在性等） | No | 有发射点 |
+| `E-SKILL-003` | PLUGIN_REGISTRY_WRITE_FAILED | ERROR | 宿主插件登记文件不可写或内容不是合法 JSON——安装整体失败，不留"已复制但未登记"的中间态 | No | 有发射点 |
 
 ### `W-SKILL-001`: SKILL_COPY_DRIFT
 
@@ -1371,23 +1377,13 @@ Last updated: 2026-09-20
 1. 检查登记文件权限与其 JSON 结构（version + plugins 两字段）
 2. 修复后重新安装；或用 --dry-run 先查看待登记内容
 
-### `E-BUNDLE-001`: BUNDLE_PUBLISH_UNIMPLEMENTED
-
-- **Severity**: ERROR
-- **Forceable**: No
-- **Description**: bundle publish 能力未实现——动作未完成时 fail-closed，不得返回假成功
-
-**Fix Steps**:
-1. 改用插件标准产出：mumuspec bundle plugin --out <dir>
-2. 发布登记需宿主侧配合，当前不提供自动发布
-
 ## GIT Domain
 
-| Code | Name | Severity | Description | Forceable |
-|------|------|----------|-------------|-----------|
-| `E-GIT-001` | GIT_SPAWN_FAILED | ERROR | git 命令无法启动（未安装 git 或不在 PATH 中） | No |
-| `E-GIT-002` | GIT_COMMAND_FAILED | ERROR | git 命令执行失败（非零退出码） | No |
-| `E-GIT-003` | GIT_MAIN_BRANCH_NOT_FOUND | ERROR | 未找到 main 或 master 主分支 | No |
+| Code | Name | Severity | Description | Forceable | Emission |
+|------|------|----------|-------------|-----------|----------|
+| `E-GIT-001` | GIT_SPAWN_FAILED | ERROR | git 命令无法启动（未安装 git 或不在 PATH 中） | No | 有发射点 |
+| `E-GIT-002` | GIT_COMMAND_FAILED | ERROR | git 命令执行失败（非零退出码） | No | 有发射点 |
+| `E-GIT-003` | GIT_MAIN_BRANCH_NOT_FOUND | ERROR | 未找到 main 或 master 主分支 | No | 有发射点 |
 
 ### `E-GIT-001`: GIT_SPAWN_FAILED
 

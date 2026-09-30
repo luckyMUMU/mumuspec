@@ -8,7 +8,6 @@ import {
   createBundle,
   validateBundle,
   installBundle,
-  publishBundle,
   listBundles,
 } from '../../bundle/packager.js';
 import { buildPluginPackage } from '../../bundle/plugin-package.js';
@@ -130,19 +129,6 @@ export function registerBundleCommands(program: Command): void {
       console.log(`  下一步: mumuspec install plugin --from ${result.pluginRoot}`);
     });
 
-  bundleCmd
-    .command('publish <path>')
-    .description('Publish a bundle（未实现，fail-closed；请改用 bundle plugin）')
-    .action((bundlePath) => {
-      const result = publishBundle(bundlePath);
-      if (result.success) {
-        console.log(`✓ Bundle ready for publishing: ${result.bundlePath}`);
-      } else {
-        console.error(`✗ Publish failed: ${result.error}`);
-        process.exit(1);
-      }
-    });
-
   bundleCmd.action(() => {
     console.log('Bundle, validate, and publish skills.\n');
     console.log('Usage:');
@@ -151,6 +137,5 @@ export function registerBundleCommands(program: Command): void {
     console.log('  mumuspec bundle validate <path> Validate bundle');
     console.log('  mumuspec bundle install <path>  Install bundle to workspace');
     console.log('  mumuspec bundle list            List project bundles');
-    console.log('  mumuspec bundle publish <path>  Publish bundle（未实现）');
   });
 }

@@ -35,10 +35,11 @@ export function registerSkillCommands(program: Command): void {
       }
 
       const available = resolved.filter((r) => r.resolved !== null).length;
+      const wired = resolved.filter((r) => r.wired);
       console.log(`\nCompanion capabilities: ${available}/${resolved.length} available\n`);
       for (const r of rows) {
         const mark = r.resolved ? '✓' : '·';
-        console.log(`  ${mark} ${r.name}`);
+        console.log(`  ${mark} ${r.name}${r.wired ? '  [引擎接线]' : ''}`);
         console.log(`      ${r.purpose}  [${r.phases.join(', ')}]`);
         if (r.resolved) console.log(`      ${r.resolved}`);
       }
@@ -46,6 +47,9 @@ export function registerSkillCommands(program: Command): void {
       if (missing > 0) {
         console.log(`\n${missing} companion(s) unresolved — 不阻断流程，按各阶段技能的内联步骤执行。`);
       }
+      console.log(
+        `引擎接线: ${wired.map((w) => w.name).join(', ') || '无'} — 未接线条目仅为环境事实报告，无门禁依赖。`,
+      );
     });
 
   authoringCmd

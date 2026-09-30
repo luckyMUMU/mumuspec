@@ -1,0 +1,131 @@
+name: core-consolidation
+phase: verify
+workflow: full
+created_at: 2026-09-30T15:50:37.136Z
+updated_at: 2026-09-30 19:30:39
+scope: .
+affected_scopes:
+  - src/spec
+  - src/core
+  - src/guard
+  - src/change
+  - src/contract
+  - src/cli
+  - src/mcp
+  - src/team
+  - src/bundle
+  - src/install
+  - templates
+  - skills
+  - docs
+build_layers:
+  - layer: 1
+    scope: src/spec
+    status: done
+  - layer: 2
+    scope: src/core
+    status: done
+  - layer: 3
+    scope: src/guard
+    status: done
+  - layer: 4
+    scope: src/change
+    status: done
+  - layer: 5
+    scope: src/graph
+    status: done
+  - layer: 6
+    scope: src/cli
+    status: done
+test_cases:
+  design_locked: true
+  suites_locked: true
+  suites_locked_layers:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+  suites_hash:
+    "1": 834e676ac0f91ccb
+    "2": 2d8d7e628f1904ff
+    "3": 4c920c9782d304a0
+    "4": 17dc71a39f1910ac
+    "5": dd48824a8aeb8be6
+    "6": 1af5e3304b5a896d
+  design_content_hash: de30a25ade654286
+rollback_count: 0
+rebuild_count: 0
+rollback_limit: 3
+rebuild_limit: 5
+build_mode: executing-plans
+tdd_mode: tdd
+isolation: branch
+branch: mumuspec/core-consolidation
+single_active_change: true
+user_confirmed: true
+decisions_log:
+  counts:
+    open: 2
+    build: 6
+    design: 1
+    verify: 1
+  content_hash: 3cf1eec0bafe6c13
+rollback_history: []
+cognitive_framework:
+  enabled: true
+  q1_count: 2
+  q2_pending: 0
+  q3_pending: 0
+  q4_scans_completed: 4
+  converged: true
+  rounds_completed: 0
+  cognitive_map_ref: cognitive-map.yaml
+  q4_aspects_covered:
+    - security-compliance
+    - concurrency
+    - compat
+    - data
+  q4_aspects_missing: []
+hyperplan_result:
+  triggered: false
+  hard_constraints_merged: true
+  open_questions_resolved: true
+  degraded: false
+feedback_log:
+  entries: []
+  session_links: []
+dist_spec:
+  prd: .mumuspec/prd.md
+  tech: .mumuspec/tech.md
+estimated_files: 60
+modules_affected: 8
+cross_module: true
+new_public_api: true
+new_external_dep: false
+data_migration: false
+is_doc_only: false
+is_pure_bugfix: false
+schema_version: 1.0.0
+design_coverage:
+  covered_layers:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+  expected_layers:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+  unreachable_from: 0
+  checked_at: 2026-09-30T16:01:52.766Z
+  enforced: true
+verify_mode: full
+verify_result: pass

@@ -21,6 +21,18 @@ import { getValidTransitions, getNextPhase, activateProjectWorkflow } from '../c
 // Guard
 import { checkCompliance, detectDrift } from '../guard/checker.js';
 import { runPhaseGuard } from '../guard/phase-guard.js';
+import {
+  buildConstraintTreeInput,
+  buildContractGraphInput,
+  buildWorkflowGraphInput,
+} from '../graph/facts.js';
+import {
+  renderBpLanes,
+  renderConstraintTree,
+  renderContractGraph,
+  renderStateMachine,
+  type RenderFormat,
+} from '../graph/render.js';
 
 // Knowledge
 import { getKnowledgePage, knowledgeSearch, getKnowledgeContext, verifyKnowledge, analyzeImpact, generateOnboardingPath, analyzeCoverage, answerQuery } from '../knowledge/manager.js';
@@ -462,6 +474,25 @@ export const TOOLS = [
     },
   },
 
+  {
+    name: 'render_diagram',
+    description:
+      'Render orchestration graph data as a diagram source (mermaid/dot/json) — read-only. Views: statemachine (phases, blocking points, rollback budget), lanes (phase × blocking-point matrix), contracts (upstream/downstream), constraints (inheritance layers)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        view: {
+          type: 'string',
+          description: 'statemachine | lanes | contracts | constraints',
+          default: 'statemachine',
+        },
+        format: { type: 'string', description: 'mermaid | dot | json', default: 'mermaid' },
+        workflow: { type: 'string', description: 'Workflow key for the graph views', default: 'full' },
+        path: { type: 'string', description: 'Target path for the constraints view', default: '.' },
+      },
+    },
+  },
+
   // ═══════════════════════════════════════════════════════════════
   // Validate
   // ═══════════════════════════════════════════════════════════════
@@ -503,10 +534,22 @@ const PATH_TOOLS: Record<string, string> = {
   check_boundaries: 'dir',
   scaffold_boundary: 'dir',
   code_graph_structure: 'dir',
+  render_diagram: 'path',
 };
 const pathArgName = PATH_TOOLS[name];
 if (pathArgName) {
   const rawPath = args[pathArgName] as string;
+  // A tool whose schema declares the path argument as REQUIRED fails with the
+  // registry code when it is absent or not a usable string. Falling through here
+  // reached `resolve(root, undefined)` and surfaced a Node TypeError instead of
+  // the declared error — the agent got a crash, not the fix steps.
+  const schema = TOOLS.find((t) => t.name === name)?.inputSchema as
+    | { required?: unknown }
+    | undefined;
+  const pathIsRequired = Array.isArray(schema?.required) && schema.required.includes(pathArgName);
+  if (pathIsRequired && (typeof rawPath !== 'string' || rawPath.trim() === '')) {
+    return { error: formatError('E-SECURITY-003', { argument: pathArgName, tool: name }) };
+  }
   if (rawPath) {
     const error = validateToolPath(root, rawPath);
     if (error) return { error };
@@ -1034,6 +1077,31 @@ if (scopeArgName) {
         classes: structure.classes.map((c) => ({ name: c.name, file: c.filePath, line: c.startLine })),
         stats: getGraphStats(graph),
       };
+    }
+
+    case 'render_diagram': {
+      const view = (args.view as string | undefined) ?? 'statemachine';
+      const format = ((args.format as string | undefined) ?? 'mermaid') as RenderFormat;
+      const opts = { format };
+      let diagram: string;
+      if (view === 'contracts') {
+        diagram = renderContractGraph(buildContractGraphInput(root), opts);
+      } else if (view === 'constraints') {
+        diagram = renderConstraintTree(
+          buildConstraintTreeInput(root, (args.path as string | undefined) ?? '.'),
+          opts,
+        );
+      } else {
+        const graphInput = buildWorkflowGraphInput(
+          root,
+          (args.workflow as string | undefined) ?? 'full',
+        );
+        diagram =
+          view === 'lanes'
+            ? renderBpLanes(graphInput, opts)
+            : renderStateMachine(graphInput, opts);
+      }
+      return { view, format, diagram };
     }
 
     case 'validate_specs': {

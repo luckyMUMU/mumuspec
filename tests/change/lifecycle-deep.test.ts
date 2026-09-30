@@ -66,9 +66,10 @@ vi.mock('../../src/change/paths.js', () => ({
   }),
 }));
 
-vi.mock('../../src/change/listing.js', () => ({
-  getActiveChange: vi.fn(() => null),
-}));
+vi.mock('../../src/change/listing.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/change/listing.js')>();
+  return { ...actual, getActiveChange: vi.fn(() => null) };
+});
 
 vi.mock('../../src/change/state.js', () => ({
   saveChangeState: (...args: unknown[]) => mockSaveState(...args),

@@ -282,9 +282,9 @@ describe('cognitive-map command handlers', () => {
           { quadrant: 'Q1', question: 'Another known', answer: 'Yes' },
           { quadrant: 'Q2', question: 'Resolved', answer: 'Resolved answer' },
           { quadrant: 'Q3', question: 'Confirmed', answer: 'Yes', status: 'confirmed' },
-          { quadrant: 'Q4', question: 'Scanned1', answer: 'Done', status: 'done' },
-          { quadrant: 'Q4', question: 'Scanned2', answer: 'Done', status: 'done' },
-          { quadrant: 'Q4', question: 'Scanned3', answer: 'Done', status: 'done' },
+          { quadrant: 'Q4', category: 'security-compliance', question: 'Scanned1', answer: 'Done', status: 'done' },
+          { quadrant: 'Q4', category: 'concurrency', question: 'Scanned2', answer: 'Done', status: 'done' },
+          { quadrant: 'Q4', category: 'compat', question: 'Scanned3', answer: 'Done', status: 'done' },
         ],
       });
 

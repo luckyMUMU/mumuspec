@@ -352,4 +352,43 @@ MumuSpec 根据各目录下的 `spec.md` + `design.md` 自动生成对外文档�
 
 ---
 
+## 8. 起草覆盖面扩展模型（含安全）
+
+自然语言起草到 Spec 的扩展是一条"LLM 写作 + 代码判定"的链路：扩写本体由 skill 承担（KP-0060 规则归 LLM），覆盖面是否完整由校验器判定（校验归代码）。二者不得互换——LLM 不判定自己的完备性，校验器不代笔内容。
+
+### 8.1 覆盖面维度（Aspect）与约束强度的关系
+
+覆盖面维度与约束强度维度是两套正交概念，不可合并：
+
+| 概念 | 类型 | 取值 | 语义 |
+|------|------|------|------|
+| 约束强度维度 | `ConstraintDimension` | `technical_design` / `requirement_goals` | 该约束沿哪条轴调节强度（HOW × WHAT） |
+| 覆盖面维度 | `Aspect`（`src/spec/aspects.ts`） | 功能 / 边界与异常 / 数据与持久化 / 并发与竞态 / 契约兼容 / 性能 / 安全与合规 / 可观测性 | 起草产物是否谈到这件事 |
+
+覆盖面维度枚举是单一事实源，由代码持有常量、由 schema 与门禁消费、由 skill 文本引用（引用而非复制）。新增维度须同批改写枚举、design-schema 与 skill 表，三处缺一即视为该维度不存在。
+
+### 8.2 确定性输入槽位
+
+变更创建接受可选的原文输入（参数形态随 R-0014 接线后补入本节），原文落到变更目录 `request.md`，不解析、不扩写、不做任何语义判定。该槽位存在的唯一理由是给 skill 侧扩写一个有版本的输入事实源，使"扩写覆盖了什么、漏了什么"可被机械比对。
+
+### 8.3 判定面
+
+| 判定点 | 载体 | 缺失后果 |
+|--------|------|---------|
+| design.md 章节完备 | `templates/design-schema.yaml` 的 Security & Privacy 节（`required_for: [full]`） | W-DESIGN-009（建议级） |
+| 认知地图 Q4 盲区扫描 | `classifyAspects()` 比对 `Q4_ASPECTS` 与 entries 的 `category` | W-DESIGN-005 报缺失维度名 |
+| 隐性需求推导 | Q3 推理链须引用 Q1 条目编号 | 完备性门 E-GUARD-008 |
+
+Q4 判定以维度身份为准，不以记录条数为准：三条同维度记录不构成覆盖，缺 `security-compliance` 即未收敛。`enforcement_strict` 不参与该判定强度调节——缺失维度一律先 WARN，观察期结束后按维度风险升 high 档。
+
+安全与合规维度的最小内容要求：敏感数据与处理位置、认证与授权边界、注入与反序列化面、日志脱敏与审计留痕、外部输入信任边界。缺任一项时 design.md 该节须显式写 `【待定】`，不得留空——留空与不写在此等价于缺失。
+
+### 8.4 与可达外部能力的衔接
+
+盲区扫描可借助 companion skill（如安全盲区扫描类），但能力可达性不影响判定结论：缺失维度写入 `state.cognitive_framework.q4_aspects_missing`，阶段门与 `mumuspec cognitive-map sync` 都读该字段。
+
+`security-compliance` 是唯一有确定性兜底的维度：该维度缺失时守卫读取 companion 可用性（`WIRED_COMPANIONS` 集合，当前仅 `security-and-hardening`），不可达则告警文案点名"已由敏感信息模式扫描兜底（W-SECURITY-001）且盲区判断仍缺"，并向 `audit.log` 追加 `aspect.security.degraded` 记录；可达则记"可用但本轮未产出该维度记录"。兜底是降级呈现，不是替代结论——禁止静默跳过，也禁止因外部能力缺失而放宽维度门。
+
+---
+
 > **导航**: [返回概览](../overview.md) | [契约层 →](contract-layer.md)

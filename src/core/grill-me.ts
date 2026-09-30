@@ -15,7 +15,7 @@
  * 9. Results persisted to ChangeState
  *
  * Design phase uses the full protocol from KP-0035 (DFS questioning,
- * fact/decision separation, hyperplan integration). Other phases use
+ * fact/decision separation). Other phases use
  * lighter-weight static checks + question generation.
  */
 
@@ -662,18 +662,6 @@ function generateDesignDfsQuestions(ctx: GrillMeContext): GrillMeQuestion[] {
 
   if (!state) return questions;
 
-  // DFS branch 1: architecture constraints
-  if (!state.hyperplan_result?.hard_constraints_merged) {
-    questions.push({
-      id: 'dfs-arch-constraints',
-      question: '架构约束是否已在 hyperplan 中充分讨论并合并？',
-      recommendation: '建议运行 hyperplan 并整合硬约束、风险、测试视角',
-      reasoning: '未合并的架构约束可能在 build 阶段被忽略',
-      source: 'hyperplan_result.hard_constraints_merged',
-      isFactQuery: true,
-    });
-  }
-
   // DFS branch 2: test coverage design
   if (!state.test_cases.design_locked) {
     questions.push({
@@ -711,7 +699,7 @@ function generateDesignDfsQuestions(ctx: GrillMeContext): GrillMeQuestion[] {
  */
 function canSelfCheck(_question: GrillMeQuestion, _ctx: GrillMeContext): boolean {
   // In current implementation, fact queries with a code-traceable source
-  // (e.g., hyperplan_result.X, test_cases.Y) can be self-checked
+  // (e.g., test_cases.Y) can be self-checked
   // because those values are boolean flags in the persisted state.
   // For a more sophisticated implementation, this would query the file system
   // or knowledge graph directly.

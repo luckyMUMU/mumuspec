@@ -14,8 +14,6 @@ knowledge:
   enabled: true
   code_graph:
     enabled: true
-    storage: sqlite
-    db_path: .mumuspec/graph/index.db
     auto_index_on_commit: true
     languages:
       - typescript
@@ -81,7 +79,6 @@ constraint_strength:
       top_down_design: inherit
       tdd_enforced: inherit
     cognitive_framework: inherit
-    hyperplan: inherit
     brainstorming: inherit
     test_immutability: inherit
     impact_analysis: inherit
@@ -111,7 +108,7 @@ contracts:
   external_dir: contracts/external
   outbound_dir: contracts/outbound
   schemas_dir: contracts/schemas
-  registry_file: contracts/_registry.yaml
+  registry_file: contracts.yaml
   auto_derive: true
   drift_detection: true
   compat_check_on_change: true

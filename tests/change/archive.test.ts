@@ -803,33 +803,6 @@ describe('extractKnowledgeToGlobal', () => {
     );
   });
 
-  it('extracts hyperplan insights when hard_constraints_merged is true', () => {
-    mockExistsSync.mockImplementation((p: string) => {
-      if (p.includes('.mumuspec/knowledge')) return true;
-      return false;
-    });
-    const state = makeChangeState({
-      hyperplan_result: {
-        triggered: true,
-        hard_constraints_merged: true,
-        open_questions_resolved: true,
-        degraded: false,
-      },
-    });
-
-    extractKnowledgeToGlobal(PROJECT_ROOT, CHANGE_NAME, `${PROJECT_ROOT}/changes/${CHANGE_NAME}`, state);
-
-    expect(mockCreateKnowledgePage).toHaveBeenCalled();
-    const callArgs = mockCreateKnowledgePage.mock.calls[0];
-    expect(callArgs[0]).toBe(PROJECT_ROOT);
-    const pageArg = callArgs[2] as { type: string; title: string; scope: string; id: string; tags: string[] };
-    expect(pageArg.type).toBe('decision');
-    expect(pageArg.title).toContain('Adversarial design review');
-    expect(pageArg.scope).toBe(CHANGE_NAME);
-    expect(pageArg.id).toBe(`KE-${CHANGE_NAME}-hyperplan`);
-    expect(pageArg.tags).toContain('hyperplan');
-  });
-
   it('updates state knowledge_extraction with pages_created_count', () => {
     mockExistsSync.mockImplementation((p: string) => {
       if (p.includes('.mumuspec/knowledge')) return true;

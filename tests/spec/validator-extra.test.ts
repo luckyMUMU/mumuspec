@@ -78,7 +78,7 @@ function makeConfig(specsOverrides?: Partial<MumuSpecConfig['specs']>): MumuSpec
     },
     knowledge: {
       enabled: false,
-      code_graph: { enabled: false, storage: 'json', db_path: '', auto_index_on_commit: false, languages: [] },
+      code_graph: { enabled: false, auto_index_on_commit: false, languages: [] },
       wiki: { dir: '', auto_extract_on_archive: false, max_pages_per_scope: 10 },
       progressive_disclosure: { max_pages_per_layer: 50, load_stale_summary: false },
       freshness: { check_on_load: false, warn_after_days: 30, error_after_days: 90 },

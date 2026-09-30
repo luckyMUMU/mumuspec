@@ -423,7 +423,6 @@ describe('evaluateConstraint', () => {
       overrides: {
         workflow: { worktree_isolation: 'true' },
         cognitive_framework: 'inherit',
-        hyperplan: 'inherit',
         brainstorming: 'inherit',
         test_immutability: 'inherit',
         impact_analysis: 'inherit',
@@ -446,7 +445,6 @@ describe('evaluateConstraint', () => {
       overrides: {
         workflow: { tdd_enforced: 'false' },
         cognitive_framework: 'inherit',
-        hyperplan: 'inherit',
         brainstorming: 'inherit',
         test_immutability: 'inherit',
         impact_analysis: 'inherit',
@@ -535,7 +533,6 @@ describe('evaluateConstraint', () => {
       overrides: {
         workflow: { worktree_isolation: 'true' },
         cognitive_framework: 'inherit',
-        hyperplan: 'inherit',
         brainstorming: 'inherit',
         test_immutability: 'inherit',
         impact_analysis: 'inherit',
@@ -555,7 +552,6 @@ describe('evaluateConstraint', () => {
       overrides: {
         workflow: { single_active_change: 'inherit' },
         cognitive_framework: 'inherit',
-        hyperplan: 'inherit',
         brainstorming: 'inherit',
         test_immutability: 'inherit',
         impact_analysis: 'inherit',

@@ -17,6 +17,7 @@ import {
   getChangeDir,
   lockTestSuite,
   getNextTask,
+  ensureWorktreeIsolation,
   updateBuildLayerStatus,
   getBuildLayerView,
   planParallelGroups,
@@ -170,6 +171,25 @@ export function registerStateCommands(program: Command): void {
         console.log(`✓ Transitioned ${name}: ${state.phase} → ${event}`);
         if (blockingInfo.bp) {
           console.log(`  阻塞点 ${blockingInfo.bp} 已通过 (${blockingInfo.description})`);
+        }
+        if (event === 'design' && config.constraint_strength) {
+          // Behaviour gate: workflow.worktree_isolation resolves through the
+          // strength matrix. A downgrade is printed AND audited — never silent.
+          const isolation = ensureWorktreeIsolation(root, name, config);
+          if (isolation.created) {
+            console.log(`  ✓ 工作树隔离已创建: ${isolation.worktreePath}`);
+          } else if (isolation.downgraded) {
+            console.warn(`  ⚠ ${isolation.reason}`);
+            appendAuditLog(getMumuSpecDir(root), {
+              actor: 'cli',
+              action: 'worktree.isolation_downgraded',
+              change: name,
+              from: state.phase,
+              to: event,
+              result: 'warn',
+              detail: isolation.reason ?? '',
+            });
+          }
         }
       } else {
         // Improved error messaging for known error codes

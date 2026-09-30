@@ -57,14 +57,16 @@ describe('sync command', () => {
     expect(existsSync(boundaryPath)).toBe(true);
   });
 
-  it('should detect exports in BOUNDARY.md content after sync', () => {
+  it('generates a responsibility/boundary document rather than an export dump', () => {
     const boundaryPath = join(testRoot, 'src', 'core', '.mumuspec', 'BOUNDARY.md');
-    if (existsSync(boundaryPath)) {
-      const content = readFileSync(boundaryPath, 'utf8');
-      expect(content).toContain('helper');
-      expect(content).toContain('VERSION');
-      expect(content).toContain('Config');
-    }
+    if (!existsSync(boundaryPath)) return; // creation is asserted by the previous case
+    const content = readFileSync(boundaryPath, 'utf8');
+    expect(content).toContain('# BOUNDARY: core/');
+    expect(content).toContain('## 职责');
+    expect(content).toContain('## 边界');
+    // Export enumeration is code-derived; a generated table of names with
+    // "(description pending)" is boilerplate nobody maintains.
+    expect(content).not.toContain('(description pending) |');
   });
 
   it('should validate index.yaml alignment', () => {

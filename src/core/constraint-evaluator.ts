@@ -113,7 +113,7 @@ export interface ConstraintCheck {
    * Note: this excludes `workflow` (which is a nested object, not a
    * `CapabilityOverride`); workflow rule overrides go through `workflowRule`.
    */
-  capabilityOverride?: 'cognitive_framework' | 'hyperplan' | 'brainstorming' | 'test_immutability' | 'impact_analysis';
+  capabilityOverride?: 'cognitive_framework' | 'brainstorming' | 'test_immutability' | 'impact_analysis';
   /**
    * Optional workflow rule key for explicit overrides. When set, the evaluator
    * looks up `config.overrides.workflow[workflowRule]`; if non-`inherit`, that

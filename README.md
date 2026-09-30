@@ -12,7 +12,7 @@
 
 **核心理念：设计决策权始终在人。** 人不再逐字编写 Spec 全文，只做设计决策与审批签收；Spec 由大模型起草、追问补全、判定完备性后交由 AI 生成代码。Spec 仍是一等源文件（人机合著），代码是衍生品。
 
-当前版本：**0.46.0-alpha.0**（new 规模档位失配显式提示：⚠ 规模建议 + 调整指引 / ✓ 档位匹配）。详细状态见 [STATUS.md](docs/STATUS.md)。
+当前版本：**0.46.0-alpha.1**（new 规模档位失配显式提示：⚠ 规模建议 + 调整指引 / ✓ 档位匹配）。详细状态见 [STATUS.md](docs/STATUS.md)。
 
 ---
 
@@ -422,7 +422,7 @@ my-project/
 | 通道 | dist-tag | 当前版本 | 安装命令 |
 |------|---------|---------|---------|
 | 稳定版 | `latest` | 0.19.1 | `npm install -g mumuspec` |
-| 预发布版 | `next` | 0.46.0-alpha.0 | `npm install -g mumuspec@next` |
+| 预发布版 | `next` | 0.46.0-alpha.1 | `npm install -g mumuspec@next` |
 
 灰度策略见 [docs/reference/release-strategy.md](docs/reference/release-strategy.md)。
 

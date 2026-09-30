@@ -44,7 +44,6 @@ interface BundleManifest {
 function createBundle(projectRoot: string, options?: {...}): BundleResult;
 function validateBundle(bundlePath: string): { valid: boolean; errors: string[] };
 function installBundle(bundlePath: string, targetWorkspace: string): PublishedInstallResult;
-function publishBundle(bundlePath: string, _registry?: string): PublishResult;
 function listBundles(projectRoot: string): string[];
 ```
 

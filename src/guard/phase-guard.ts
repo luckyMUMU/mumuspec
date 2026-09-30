@@ -1,15 +1,19 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ChangeState, GuardResult } from '../core/types.js';
-import { readText, computeHash, resolveWithinRoot } from '../core/utils.js';
+import { readText, computeHash, resolveWithinRoot, appendAuditLog, getMumuSpecDir } from '../core/utils.js';
 import { getChangeDir, loadChangeState, saveChangeState, verifyTestCases } from '../change/manager.js';
 import { planParallelGroups } from '../change/parallel-planner.js';
 import { parseUserDecisions, unsignedBlockingDecisions } from '../change/proposal.js';
 import { validateArtifact, extractDecisionRefs, type ArtifactKind } from '../change/artifact-validator.js';
 import { applyStrengthToGuardResult } from './checker.js';
+import { hasWorktree } from '../core/git.js';
 import { collectUnchanneledDeltaConstraints } from './delta-channels.js';
 import { parseSpecFile, parseTechFile } from '../spec/parser.js';
 import { classifyRequirements, missingManualEvidence, type ClassifiedItem } from '../spec/verifier-classify.js';
+import { DEFAULT_MIN_DISTINCT_ASPECTS, SECURITY_ASPECT } from '../spec/aspects.js';
+import { discoverCompanion, SECURITY_COMPANION } from '../install/skill-companions.js';
+import { findIncompleteSelections } from '../core/design-preferences.js';
 import type { ConstraintStrengthField } from '../core/config.js';
 import { resolveWorkflowRule } from '../core/constraint-evaluator.js';
 import { WORKFLOW_RULE_DIMENSION, WORKFLOW_STRENGTH_MATRIX } from '../core/config-tree.js';
@@ -199,13 +203,15 @@ export function runPhaseGuard(
 
 /**
  * CHG-5: tdd_mode 校验 — 只校验合法枚举（tdd|non-tdd）且与配置默认值一致。
- * 非法值 → error；合法但与期望不符（旧变更）→ WARN 不阻断。
+ * 非法值 → error；合法但与期望不符：workflow.tdd_enforced 解析为强制时升级为
+ * error，否则维持 WARN 不阻断（旧变更不迁移）。
  */
 function checkTddMode(
   state: ChangeState,
   expectedTddMode: string,
   errors: { code: string; message: string; detail?: string }[],
   warnings: { code: string; message: string; detail?: string }[],
+  strength?: ConstraintStrengthField,
 ): void {
   const mode = state.tdd_mode;
   if (mode !== 'tdd' && mode !== 'non-tdd') {
@@ -216,6 +222,18 @@ function checkTddMode(
     return;
   }
   if (mode !== expectedTddMode) {
+    const enforced =
+      strength !== undefined &&
+      resolveWorkflowRule('tdd_enforced', strength, WORKFLOW_RULE_DIMENSION, WORKFLOW_STRENGTH_MATRIX);
+    const detail = `期望 ${expectedTddMode}，实际 ${mode}`;
+    if (enforced) {
+      errors.push({
+        code: 'E-GUARD-001',
+        message: `tdd_mode (${mode}) 与配置默认值 (${expectedTddMode}) 不一致 — workflow.tdd_enforced 为强制档`,
+        detail,
+      });
+      return;
+    }
     warnings.push({
       code: 'W-GUARD-001',
       message: `tdd_mode (${mode}) 与配置默认值 (${expectedTddMode}) 不一致（旧变更不迁移）`,
@@ -369,6 +387,21 @@ function checkDesignToBuild(
     }
   }
 
+  // Behaviour gate: workflow.worktree_isolation needs a checker, not only a
+  // config key. It fires when the change actually declared worktree isolation;
+  // a branch-isolated change is an audited downgrade, not an escape hatch.
+  if (
+    strength &&
+    state.isolation === 'worktree' &&
+    resolveWorkflowRule('worktree_isolation', strength, WORKFLOW_RULE_DIMENSION, WORKFLOW_STRENGTH_MATRIX) &&
+    !hasWorktree(projectRoot, changeName)
+  ) {
+    errors.push({
+      code: 'E-GUARD-014',
+      message: `workflow.worktree_isolation 有效值为强制，但变更 "${changeName}" 没有对应工作树`,
+    });
+  }
+
   // Check constraints
   const shallPath = join(changeDir, 'constraints', 'new-shall.md');
   const shallNotPath = join(changeDir, 'constraints', 'new-shall-not.md');
@@ -397,8 +430,8 @@ function checkDesignToBuild(
     });
   }
 
-  // Check tdd_mode（CHG-5: 比对 expectedTddMode，非法报错，旧变更不匹配仅 WARN）
-  checkTddMode(state, expectedTddMode, errors, warnings);
+  // Check tdd_mode（CHG-5: 比对 expectedTddMode，非法报错；不一致按 tdd_enforced 档位定级）
+  checkTddMode(state, expectedTddMode, errors, warnings, strength);
 
   // DS-001: Structured Design Template check (W-DESIGN-009 — advisory, not E-)
   // CHG-5 (0.20): downgraded from error to warning — design structure is a
@@ -416,10 +449,21 @@ function checkDesignToBuild(
         });
       }
     }
+
+    // 初始架构偏好选型表（change-layer.md §11）：四字段齐备视为已决，"暂不约束"
+    // 是合法终态。选型属过程约束，同 CHG-5 纪律以 WARN 呈现——报告未决议题，
+    // 不代替人工决定，也不阻断转换。
+    const unresolvedTopics = findIncompleteSelections(designContent);
+    if (unresolvedTopics.length > 0) {
+      warnings.push({
+        code: 'W-DESIGN-012',
+        message: `架构偏好选型仍有 ${unresolvedTopics.length} 项未决: ${unresolvedTopics.join(', ')}`,
+        detail: '选定项 / 备选 / 理由 / 未选代价四字段齐备视为已决；「暂不约束」为合法终态。建议级，不阻塞转换。',
+      });
+    }
   }
 
-  // DS-004: Cross-artifact consistency check — the helper tags its findings
-  // `E-DESIGN-010`, but they are advisory on this path (process constraint
+  // DS-004: Cross-artifact consistency check — the helper tags its findings  // `E-DESIGN-010`, but they are advisory on this path (process constraint
   // BP-10), so the code is remapped to W-DESIGN-010 before entering warnings.
   // Do not "fix" this to E- : that would silently turn a design-review hint
   // into a blocking gate.
@@ -444,8 +488,39 @@ function checkDesignToBuild(
     if (cf.q3_pending > 0 && cf.rounds_completed < 5) {
       warnings.push({ code: 'W-DESIGN-004', message: `Q3 存在 ${cf.q3_pending} 个待确认推导` });
     }
-    if (cf.q4_scans_completed < 3) {
-      warnings.push({ code: 'W-DESIGN-005', message: `Q4 扫描仅 ${cf.q4_scans_completed} 个维度（需至少3个）` });
+    if (cf.q4_aspects_covered) {
+      const missing = cf.q4_aspects_missing ?? [];
+      if (missing.length > 0 || cf.q4_aspects_covered.length < DEFAULT_MIN_DISTINCT_ASPECTS) {
+        let note = '';
+        if (missing.includes(SECURITY_ASPECT)) {
+          // The security dimension is the one required aspect the engine can
+          // backstop deterministically. Substituting silently would read as
+          // "scanned" while the agent-supplied sweep never happened, so the
+          // substitution is named in the warning and written to the audit log.
+          const companion = discoverCompanion(SECURITY_COMPANION);
+          note =
+            companion === null
+              ? `；${SECURITY_COMPANION} 伴生能力不可达，已由敏感信息模式扫描兜底（W-SECURITY-001），盲区判断仍缺`
+              : `；${SECURITY_COMPANION} 可用但本轮未产出该维度记录`;
+          appendAuditLog(getMumuSpecDir(projectRoot), {
+            actor: 'guard:cli',
+            action: 'aspect.security.degraded',
+            result: 'fail',
+            change: changeName,
+            companion_available: companion !== null,
+            fallback: 'W-SECURITY-001',
+          });
+        }
+        warnings.push({
+          code: 'W-DESIGN-005',
+          message:
+            `Q4 盲区扫描维度不足 — 缺失必需维度 [${missing.join(', ') || '无'}]，` +
+            `已覆盖 ${cf.q4_aspects_covered.length}/${DEFAULT_MIN_DISTINCT_ASPECTS} 个不同维度` +
+            `（记录 ${cf.q4_scans_completed} 条不构成覆盖）${note}`,
+        });
+      }
+    } else if (cf.q4_scans_completed < DEFAULT_MIN_DISTINCT_ASPECTS) {
+      warnings.push({ code: 'W-DESIGN-005', message: `Q4 扫描仅 ${cf.q4_scans_completed} 个维度（需至少${DEFAULT_MIN_DISTINCT_ASPECTS}个）` });
     }
     if (!cf.converged) {
       warnings.push({ code: 'W-DESIGN-006', message: '认知地图未收敛' });

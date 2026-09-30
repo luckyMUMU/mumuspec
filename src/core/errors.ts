@@ -19,6 +19,14 @@ export interface ErrorCodeDef {
   min_strength?: ConstraintStrength;
   /** Cannot be downgraded by any strength configuration. */
   always_enforce?: boolean;
+  /**
+   * Declared reserved slot: the code stays registered (documents and historical
+   * artifacts refer to it) but no path emits it. The reason MUST name where the
+   * check actually lives today, so a reader is not left believing a gate exists.
+   * `mumuspec conformance` counts a reserved code as closed only while no eval
+   * fixture expects it to fire — the declaration is checked, not trusted.
+   */
+  reserved?: string;
 }
 
 /**
@@ -82,13 +90,14 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'spec.md 声明的 Requirement 在代码中无实现',
     fixSteps: ['检查是否遗漏实现', '或更新 spec.md 移除该 Requirement'],
     forceable: false,
+    reserved: '声明与实现的覆盖核对由 mumuspec drift 通道承担；本码无发射点（DS-EVAL-004 裁决，M1 出范围）。',
   },
   'E-SPEC-006': {
     code: 'E-SPEC-006',
     name: 'SPEC_DESIGN_DOC_MISSING',
     severity: 'ERROR',
     description: '有 spec.md 但无 design.md',
-    fixSteps: ['用 mumuspec add-spec <scope> 创建 design.md 并补齐 frontmatter'],
+    fixSteps: ['用 mumuspec design-init <scope> 生成含选型表的 design.md 骨架，再补齐 frontmatter'],
     forceable: false,
   },
   'E-SPEC-007': {
@@ -98,6 +107,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'index.yaml 与实际目录结构不一致',
     fixSteps: ['运行 mumuspec sync 对齐 index.yaml 与实际目录结构'],
     forceable: true,
+    reserved: '索引一致性核对由 PageIndex 重建与 mumuspec sync 承担；本码无发射点（DS-EVAL-004 裁决，M1 出范围）。',
   },
 
   'E-SPEC-008': {
@@ -139,6 +149,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'tech.md 中声明的 SHALL 约束在代码中找不到实现',
     fixSteps: ['检查代码是否满足约束', '或更新 tech.md 移除/调整约束'],
     forceable: false,
+    reserved: '约束→实现的可验证性判定归 annotation/enforcement 通道（E-SPEC-004/015）；本码无发射点（DS-EVAL-004 裁决，M1 出范围）。',
   },
   'E-SPEC-013': {
     code: 'E-SPEC-013',
@@ -155,6 +166,29 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: '.mumuspec/ 下存在未定义的文件',
     fixSteps: ['移除未定义的文件', '或将其内容合并到已定义的 spec 文件中'],
     forceable: false,
+  },
+  'E-SPEC-016': {
+    code: 'E-SPEC-016',
+    name: 'SPEC_REUSE_SOURCE_UNRESOLVED',
+    severity: 'ERROR',
+    description: '约束复用请求无法解析上游：来源范围不存在、条目不存在，或来源自身没有上游（越权约束不得扩散）',
+    fixSteps: [
+      '用 mumuspec constraints list 确认来源 scope 与条目 ID 存在',
+      '先为来源条目补 source_specs（指向定义它的规范标题），再复用',
+    ],
+    forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
+  },
+  'E-SPEC-017': {
+    code: 'E-SPEC-017',
+    name: 'SPEC_REUSE_LOOSENS_STRENGTH',
+    severity: 'ERROR',
+    description: '复用不得放宽来源约束强度：下层只可收紧，不可放宽',
+    fixSteps: ['保持与来源相同的 min_strength，或用 --tighten 提高到更强档'],
+    forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'high',
   },
   'E-SPEC-015': {
     code: 'E-SPEC-015',
@@ -286,14 +320,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: '尝试修改已锁定的 test-cases/',
     fixSteps: ['回退到 Design: mumuspec state transition <name> design --reason <原因>'],
     forceable: false,
-  },
-  'E-CHANGE-005': {
-    code: 'E-CHANGE-005',
-    name: 'CHANGE_WORKTREE_FAIL',
-    severity: 'ERROR',
-    description: 'worktree 创建失败',
-    fixSteps: ['检查磁盘空间和权限', '降级为 branch 模式'],
-    forceable: false,
+    reserved: '锁定后的改动由 hash 复核承担（W-GUARD-004 / E-CHANGE-022），不存在写入前置门；本码保留注册位、无发射点。',
   },
   'E-CHANGE-006': {
     code: 'E-CHANGE-006',
@@ -358,6 +385,28 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     fixSteps: [
       '改用 hotfix 工作流归档（mumuspec new <name> --workflow hotfix）',
       '或将 delta-specs/ 与 constraints/ 内容迁出到 hotfix 变更后再归档',
+    ],
+    forceable: false,
+  },
+  'E-CHANGE-013': {
+    code: 'E-CHANGE-013',
+    name: 'CHANGE_ACTIVE_CAPACITY_EXCEEDED',
+    severity: 'ERROR',
+    description: '关闭单一活跃变更后，活跃变更数已达 workflow.max_active_changes 上限',
+    fixSteps: [
+      '归档或 Discard 至少一个活跃变更（mumuspec archive <name> --confirm / mumuspec discard <name>）',
+      '或按团队容量调高 workflow.max_active_changes',
+    ],
+    forceable: false,
+  },
+  'E-CHANGE-014': {
+    code: 'E-CHANGE-014',
+    name: 'CHANGE_WORKTREE_CREATE_FAILED',
+    severity: 'ERROR',
+    description: '工作树创建失败——隔离未成立时不得继续推进阶段',
+    fixSteps: [
+      '按报错原因修复 git 环境（脏工作树、分支冲突、路径占用）',
+      '或显式降级为分支隔离：changes.default_isolation: branch（降级会留审计痕）',
     ],
     forceable: false,
   },
@@ -592,30 +641,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     forceable: false,
     dimension: 'technical_design',
     min_strength: 'medium',
-  },
-  'E-GUARD-005': {
-    code: 'E-GUARD-005',
-    name: 'GUARD_HYPERPLAN_NOT_MERGED',
-    severity: 'ERROR',
-    description: 'hyperplan 硬约束未合并到 design.md',
-    fixSteps: ['将硬约束合并到 design.md 的 SHALL/SHALL NOT'],
-    forceable: false,
-  },
-  'E-GUARD-006': {
-    code: 'E-GUARD-006',
-    name: 'GUARD_HYPERPLAN_OPEN_QUESTIONS',
-    severity: 'ERROR',
-    description: 'hyperplan 开放问题未解决',
-    fixSteps: ['查看开放问题列表', '用户决策后标记为 resolved'],
-    forceable: false,
-  },
-  'E-GUARD-007': {
-    code: 'E-GUARD-007',
-    name: 'GUARD_PRE_COMMIT_TIMEOUT',
-    severity: 'WARN',
-    description: 'Pre-commit 检查超过 5s',
-    fixSteps: ['考虑缩小检查范围', '优化规则性能'],
-    forceable: true,
+    reserved: 'hash 复核由建议级 W-GUARD-004 报告（允许 Build 迭代调整测试）；本 error 档码保留注册位、无发射点。',
   },
   'E-GUARD-008': {
     code: 'E-GUARD-008',
@@ -699,6 +725,19 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     min_strength: 'high',
     always_enforce: true,
   },
+  'E-GUARD-014': {
+    code: 'E-GUARD-014',
+    name: 'WORKTREE_ISOLATION_MISSING',
+    severity: 'ERROR',
+    description: 'workflow.worktree_isolation 有效值为强制，但变更没有对应工作树——行为门指针必须有名有实',
+    fixSteps: [
+      '进入 design 时由生命周期创建隔离（mumuspec state transition <name> design）',
+      '或显式降级为分支隔离 changes.default_isolation: branch（降级留审计痕，不做静默替换）',
+    ],
+    forceable: false,
+    dimension: 'requirement_goals',
+    min_strength: 'medium',
+  },
   'E-DRIFT-016': {
     code: 'E-DRIFT-016',
     name: 'STATUS_ASSERTION_CONFLICT',
@@ -775,30 +814,6 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     forceable: true,
     dimension: 'technical_design',
     min_strength: 'medium',
-  },
-  'E-PONYTAIL-002': {
-    code: 'E-PONYTAIL-002',
-    name: 'PONYTAIL_UNNECESSARY_DEPENDENCY',
-    severity: 'ERROR',
-    description: '在标准库/平台特性已满足时引入新依赖',
-    fixSteps: ['使用标准库/平台特性替代', '或使用已有依赖'],
-    forceable: false,
-  },
-  'E-PONYTAIL-003': {
-    code: 'E-PONYTAIL-003',
-    name: 'PONYTAIL_BOILERPLATE',
-    severity: 'WARN',
-    description: '生成未被请求的样板代码',
-    fixSteps: ['删除样板代码', '使用最小可工作实现'],
-    forceable: true,
-  },
-  'E-PONYTAIL-004': {
-    code: 'E-PONYTAIL-004',
-    name: 'PONYTAIL_CLEVER_OVER_SIMPLE',
-    severity: 'WARN',
-    description: '用复杂方案替代简单方案',
-    fixSteps: ['简化为 boring 方案', '或用 ponytail: 注释标记理由'],
-    forceable: true,
   },
 
   // CONTRACT domain — Contract Layer (Contract & Boundary Rules)
@@ -899,25 +914,9 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
   'E-KNOWLEDGE-001': {
     code: 'E-KNOWLEDGE-001',
     name: 'KNOWLEDGE_PAGE_FORMAT_INVALID',
-    severity: 'ERROR',
-    description: '知识页面 YAML frontmatter 格式错误',
+    severity: 'WARN',
+    description: '知识页面 frontmatter 必填字段缺失（id/title/type/status/scope）',
     fixSteps: ['检查 frontmatter 字段', '运行 mumuspec knowledge verify --id <id>'],
-    forceable: false,
-  },
-  'E-KNOWLEDGE-002': {
-    code: 'E-KNOWLEDGE-002',
-    name: 'KNOWLEDGE_EXTRACTION_FAIL',
-    severity: 'ERROR',
-    description: 'Archive 阶段知识提取失败',
-    fixSteps: ['检查变更工件完整性', '重新执行 mumuspec finalize-archive <change> 补充知识提取'],
-    forceable: false,
-  },
-  'E-KNOWLEDGE-003': {
-    code: 'E-KNOWLEDGE-003',
-    name: 'KNOWLEDGE_PAGE_NOT_FOUND',
-    severity: 'ERROR',
-    description: 'PageIndex 引用的知识页面文件不存在',
-    fixSteps: ['检查 _index.yaml 条目', '恢复文件或更新索引'],
     forceable: false,
   },
 
@@ -931,6 +930,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     forceable: false,
     dimension: 'technical_design',
     min_strength: 'medium',
+    reserved: '认知地图缺位在守卫路径上是建议级 W-DESIGN-001（CHG-5 降档）；本 error 档码保留注册位、无发射点。',
   },
   'E-DESIGN-009': {
     code: 'E-DESIGN-009',
@@ -941,6 +941,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     forceable: false,
     dimension: 'technical_design',
     min_strength: 'medium',
+    reserved: '结构缺节自 CHG-5 起为建议级 W-DESIGN-009（不阻断）；本 error 档码保留注册位、无发射点。',
   },
   'E-DESIGN-010': {
     code: 'E-DESIGN-010',
@@ -961,6 +962,7 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     forceable: false,
     dimension: 'technical_design',
     min_strength: 'medium',
+    reserved: 'Q1 为空由守卫以建议级 W-DESIGN-002 报告（phase-guard.ts，CHG-5 降档）；本 error 档码保留注册位、无发射点。',
   },
 
   // DESIGN domain — advisory family actually emitted by the design guards.
@@ -1014,12 +1016,31 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     dimension: 'technical_design',
     min_strength: 'low',
   },
+  'E-GRAPH-002': {
+    code: 'E-GRAPH-002',
+    name: 'GRAPH_UNKNOWN_RENDER_FORMAT',
+    severity: 'ERROR',
+    description: '图渲染请求了未支持的格式，不回落默认格式',
+    fixSteps: ['改用 mermaid / dot / json 三者之一'],
+    forceable: true,
+  },
+  'E-GRAPH-003': {
+    code: 'E-GRAPH-003',
+    name: 'GRAPH_INCONSISTENT_SOURCE_DATA',
+    severity: 'ERROR',
+    description: '渲染源数据自相矛盾（边引用未声明节点）',
+    fixSteps: ['修正 workflow 配置的 phases / terminal / edges 一致性后重试 graph verify'],
+    forceable: false,
+  },
   'W-DESIGN-005': {
     code: 'W-DESIGN-005',
     name: 'COGNITIVE_Q4_INSUFFICIENT_SCANS',
     severity: 'WARN',
-    description: 'Q4 盲区扫描维度不足（cognitive_framework.q4_scans_completed < 3）',
-    fixSteps: ['至少补充 3 个 Q4 blind-spot entry'],
+    description: 'Q4 盲区扫描覆盖维度不足（按维度身份判定，记录条数不构成覆盖）',
+    fixSteps: [
+      '按 cognitive-map sync 报出的缺失维度名补写对应 category 的 Q4 条目',
+      '必需维度（含 security-compliance）齐备且不同维度数达到 q4_min_dimensions 才算收敛',
+    ],
     forceable: false,
     dimension: 'technical_design',
     min_strength: 'low',
@@ -1109,6 +1130,24 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     description: 'MCP 工具调用未提供 path 参数或参数类型错误',
     fixSteps: ['检查调用参数是否包含有效的 path 字符串', '确保 path 为相对路径且非空'],
     forceable: false,
+  },
+  'W-SECURITY-001': {
+    code: 'W-SECURITY-001',
+    name: 'SENSITIVE_INFO_DETECTED',
+    severity: 'WARN',
+    description: '规范工件中出现疑似凭据/内网地址/数据源连接串（掩码后的片段）',
+    fixSteps: ['将实际值替换为环境变量占位符', '确认为示例文本后可继续（告警不阻断）'],
+    forceable: false,
+  },
+  'W-DESIGN-012': {
+    code: 'W-DESIGN-012',
+    name: 'DESIGN_PREFERENCE_UNRESOLVED',
+    severity: 'WARN',
+    description: 'design.md 的架构偏好选型表仍有议题未决（选定项/备选/理由/未选代价四字段不完备）',
+    fixSteps: ['逐项选定，或显式选择「暂不约束」', '运行 mumuspec design-init <scope> --pick "议题=选项:理由" 重建选型表'],
+    forceable: false,
+    dimension: 'technical_design',
+    min_strength: 'low',
   },
 
   // STATE domain (CHG-2 — 守卫绕过审计 / 受保护字段)
@@ -1204,20 +1243,6 @@ export const ERROR_CODES: Record<string, ErrorCodeDef> = {
     dimension: 'technical_design',
     min_strength: 'low',
   },
-  'E-BUNDLE-001': {
-    code: 'E-BUNDLE-001',
-    name: 'BUNDLE_PUBLISH_UNIMPLEMENTED',
-    severity: 'ERROR',
-    description: 'bundle publish 能力未实现——动作未完成时 fail-closed，不得返回假成功',
-    fixSteps: [
-      '改用插件标准产出：mumuspec bundle plugin --out <dir>',
-      '发布登记需宿主侧配合，当前不提供自动发布',
-    ],
-    forceable: false,
-    dimension: 'technical_design',
-    min_strength: 'low',
-  },
-
   // GIT domain（git.ts 统一封装的错误）
   'E-GIT-001': {
     code: 'E-GIT-001',

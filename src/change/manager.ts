@@ -51,6 +51,7 @@ export {
   buildLayerView,
   lockTestSuite,
   getNextTask,
+  ensureWorktreeIsolation,
 } from './lifecycle.js';
 
 export type { BuildLayerView } from './lifecycle.js';

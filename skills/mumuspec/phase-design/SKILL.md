@@ -164,18 +164,20 @@ entries:
 - 格式：`Q1[编号] + Q1[编号] → Q3: 推导结论`
 - 用户确认（confirmed/rejected/modified）— **必须暂停等待用户确认**
 
-**Q4 盲区扫描**（至少扫描 3 个维度）：
+**Q4 盲区扫描**（按覆盖维度身份判定，缺必需维度即未收敛；记录条数不构成覆盖）：
 
-| 扫描维度 | 检查方法 |
-|---------|---------|
-| 隐藏耦合 | `mumuspec trace <symbol>` 深度遍历 |
-| 并发安全 | 代码图谱 CONSUMES 边 + 模式匹配 |
-| 契约兼容性 | `mumuspec contract compat-check` |
-| 规范继承冲突 | 规范加载时可满足性检查 |
-| 依赖链风险 | 依赖版本扫描 |
-| 合规盲区 | 安全扫描 Skill |
-| 性能盲区 | 代码图谱 CALLS 边分析 |
-| 测试盲区 | 边界条件、异常路径分析 |
+| 维度标识 | 扫描维度 | 检查方法 |
+|---------|---------|---------|
+| `compat` | 契约兼容性 | `mumuspec contract compat-check` |
+| `concurrency` | 并发安全 | 代码图谱 CONSUMES 边 + 模式匹配 |
+| `security-compliance` | 安全与合规（**必需维度**：敏感数据与处理位置、认证授权边界、注入与反序列化面、日志脱敏与审计留痕、外部输入信任边界） | 逐项落入 design.md 安全与隐私节；不适用也要显式标注未决，不得留空 |
+| `boundary` | 隐藏耦合与规范继承冲突 | `mumuspec trace <symbol>` 深度遍历 + 可满足性检查 |
+| `data` | 依赖链风险 | 依赖版本扫描 |
+| `performance` | 性能盲区 | 代码图谱 CALLS 边分析 |
+| `observability` | 可观测性盲区 | 关键路径指标与告警覆盖核对 |
+| （非维度）| 测试盲区 | 边界条件、异常路径、幂等性核对——由 test-cases 锁定承担，不计入覆盖维度 |
+
+维度集合与必需项由 `src/spec/aspects.ts` 单一持有；本表是其说明形态，判定归认知地图门（`mumuspec cognitive-map sync`）。
 
 **Q3 confirmed 的约束自动转化为 design.md 中的 SHALL/SHALL NOT 草案。Q4 残留项写入兜底策略。**
 
@@ -478,7 +480,7 @@ mumuspec state check <change-name> --recover
 
 ## 领域 Skill 提示（伴随能力）
 
-> 伴随能力（companion，包外增强）：可用则用，不可用不阻断流程；**包内自足的必须步骤**是本文编号步骤本身。可用性由 `mumuspec skill companions` 统一枚举。
+> 伴随能力（companion，包外增强）：可用则用，不可用不阻断流程；**包内自足的必须步骤**是本文编号步骤本身。可用性由 `mumuspec skill companions` 统一枚举，其中标 `[引擎接线]` 的条目被门禁读取——目前只有 `security-and-hardening`：缺 `security-compliance` 维度且该能力不可达时，W-DESIGN-005 文案点名已由敏感信息扫描（W-SECURITY-001）兜底并写 `aspect.security.degraded` 审计记录，兜底不等于盲区已扫。
 
 | 场景 | 伴随能力 | companion | 阶段 |
 |------|-----------|----------|------|

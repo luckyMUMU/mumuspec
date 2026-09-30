@@ -14,6 +14,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { loadFixtureExpectation, type FixtureExpectation } from '../../src/eval/corpus.js';
+import { DECLARED_UNEMITTED_CODES } from '../../src/core/error-declarations.js';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const CORPUS = join(REPO_ROOT, '.eval-corpus');
@@ -39,8 +40,8 @@ const EMITTABLE_CODES = [
   'E-GUARD-013',
 ] as const;
 
-/** registered-but-not-emitted（M1 出范围，不建必须命中语料）。 */
-const NOT_EMITTED_CODES = ['E-SPEC-005', 'E-SPEC-007', 'E-SPEC-012'] as const;
+/** registered-but-not-emitted：与 `src/core/error-declarations.ts` 同源，避免两处各说一套。 */
+const NOT_EMITTED_CODES = DECLARED_UNEMITTED_CODES;
 
 interface Fixture {
   name: string;

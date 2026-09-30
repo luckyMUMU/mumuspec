@@ -70,6 +70,10 @@ children:
     path: src\feedback
     prd_summary: "Product Requirements: feedback"
     tech_summary: "Technical Design: feedback"
+  - name: graph
+    path: src\graph
+    prd_summary: "Product Requirements: graph"
+    tech_summary: "Technical Design: graph"
   - name: guard
     path: src\guard
     prd_summary: "Product Requirements: guard"

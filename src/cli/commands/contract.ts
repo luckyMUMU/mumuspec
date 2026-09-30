@@ -10,7 +10,9 @@
  */
 
 import { Command } from 'commander';
-import { join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { planContractImport } from '../../contract/reuse.js';
 import {
   loadAllContracts,
   findAllBoundaryDocuments,
@@ -25,7 +27,7 @@ import { toProblemMatcherString } from '../../contract/formatter/problem-matcher
 import { findProjectRoot, readText, readdirSync } from '../../core/utils.js';
 import { getActiveChange } from '../../change/manager.js';
 import { loadChangeState } from '../../change/state.js';
-import type { Contract } from '../../core/types-contract.js';
+import type { Contract, ContractRegistry } from '../../core/types-contract.js';
 
 /** Recursively collect .md files under a directory */
 function collectMarkdownFiles(dir: string, files: string[]): void {
@@ -356,6 +358,68 @@ export function registerContractCommands(program: Command): void {
       }
       if (contract.deprecationNote) console.log(`  Deprecation:  ${contract.deprecationNote}`);
       console.log();
+    });
+
+  // ─── contract import ─────────────────────────────────────────
+  contract
+    .command('import')
+    .description('按范围导入已注册契约（来源可追溯；只读来源，不改上游）')
+    .requiredOption('--from <scope>', 'source scope holding the contracts (e.g. src/guard)')
+    .option('--id <contractId>', 'import a single contract by id')
+    .option('--to <scope>', 'target scope', '.')
+    .action((options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+
+      const srcRoot = resolve(root, options.from);
+      if (!existsSync(srcRoot)) {
+        console.error(`✗ 来源范围不存在: ${options.from}`);
+        process.exit(1);
+      }
+
+      let sourceRegistry: ContractRegistry;
+      try {
+        sourceRegistry = loadAllContracts(srcRoot);
+      } catch (err) {
+        // A malformed upstream registry is a real failure: report it structured
+        // and exit non-zero — never fall back to "nothing to import".
+        console.error(
+          `✗ 读取来源契约注册表失败: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        process.exit(1);
+      }
+
+      const plan = planContractImport(sourceRegistry, {
+        fromScope: options.from,
+        id: options.id,
+      });
+
+      if (plan.missing.length > 0) {
+        console.error(`✗ 来源 ${options.from} 未声明契约: ${plan.missing.join(', ')}`);
+        console.error(`  该范围可选项: ${plan.available.join(', ') || '（无已注册契约）'}`);
+        process.exit(1);
+      }
+      if (plan.items.length === 0) {
+        console.error(`✗ 来源 ${options.from} 没有可导入的契约`);
+        process.exit(1);
+      }
+
+      const targetRoot = resolve(root, options.to);
+      let imported = 0;
+      for (const item of plan.items) {
+        const result = persistContract(targetRoot, item, { create: true, actor: 'cli' });
+        if (result.success) imported++;
+        else console.error(`  ✗ ${item.id}: ${result.message}`);
+      }
+
+      console.log(
+        `✓ 导入 ${imported}/${plan.items.length} 个契约到 ${options.to}（来源标注为 ${options.from}）`,
+      );
+      console.log('  上游变更后由 contract verify / compat-check 报出，导入方无需手工比对');
+      if (imported < plan.items.length) process.exit(1);
     });
 
   // ─── contract register ───────────────────────────────────────

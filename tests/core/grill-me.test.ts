@@ -428,8 +428,9 @@ describe('runGrillMeInteractive', () => {
   }
 
   it('accepts all questions and reaches consensus', async () => {
-    // Design phase generates 5 questions; accept all (5 answers + gate 'y')
-    const { promptFn } = makePrompt(['y', 'y', 'y', 'y', 'y', 'y']);
+    // Design phase generates 4 questions (架构约束质询依赖已删除的 hyperplan 能力面，
+    // 该质询在现网恒不触发); accept all (4 answers + gate 'y')
+    const { promptFn } = makePrompt(['y', 'y', 'y', 'y', 'y']);
 
     const ctx = makeMultiQuestionCtx({
       interactive: true,
@@ -447,8 +448,8 @@ describe('runGrillMeInteractive', () => {
   });
 
   it('tracks deferred items and triggers gate with consensus', async () => {
-    // 2 defers + 3 accepts + gate 'y'
-    const { promptFn } = makePrompt(['d', 'd', 'y', 'y', 'y', 'y']);
+    // 2 defers + 2 accepts + gate 'y'
+    const { promptFn } = makePrompt(['d', 'd', 'y', 'y', 'y']);
 
     const ctx = makeMultiQuestionCtx({
       interactive: true,
@@ -463,8 +464,8 @@ describe('runGrillMeInteractive', () => {
   });
 
   it('rejects consensus when user says no at gate', async () => {
-    // 2 defers + 3 accepts + gate 'n'
-    const { promptFn } = makePrompt(['d', 'd', 'y', 'y', 'y', 'n'], 'n');
+    // 2 defers + 2 accepts + gate 'n'
+    const { promptFn } = makePrompt(['d', 'd', 'y', 'y', 'n'], 'n');
 
     const ctx = makeMultiQuestionCtx({
       interactive: true,
@@ -496,8 +497,8 @@ describe('runGrillMeInteractive', () => {
   });
 
   it('skips questions via skip option', async () => {
-    // 2 skips (become deferred) + 3 accepts + gate 'y'
-    const { promptFn } = makePrompt(['s', 's', 'y', 'y', 'y', 'y']);
+    // 2 skips (become deferred) + 2 accepts + gate 'y'
+    const { promptFn } = makePrompt(['s', 's', 'y', 'y', 'y']);
 
     const ctx = makeMultiQuestionCtx({
       interactive: true,
@@ -509,7 +510,7 @@ describe('runGrillMeInteractive', () => {
 
     // Skipped items count as deferred
     expect(report.deferredCount).toBe(2);
-    expect(report.roundsUsed).toBe(5);
+    expect(report.roundsUsed).toBe(4);
     // Skipped questions are still tracked in answers
     const deferredAnswers = report.answers.filter((a) => a.status === 'deferred');
     expect(deferredAnswers.length).toBe(2);

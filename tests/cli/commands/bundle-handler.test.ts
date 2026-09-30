@@ -1,5 +1,5 @@
 /**
- * Handler-level tests for bundle subcommands (create, validate, install, list, publish).
+ * Handler-level tests for bundle subcommands (create, validate, install, list).
  *
  * Strategy: mock lower-level modules (core/utils, bundle/packager),
  * register bundle commands on a fresh Commander program, then invoke handlers
@@ -14,14 +14,14 @@ const {
   mockCreateBundle,
   mockValidateBundle,
   mockInstallBundle,
-  mockPublishBundle,
+
   mockListBundles,
 } = vi.hoisted(() => ({
   mockFindProjectRoot: vi.fn(),
   mockCreateBundle: vi.fn(),
   mockValidateBundle: vi.fn(),
   mockInstallBundle: vi.fn(),
-  mockPublishBundle: vi.fn(),
+
   mockListBundles: vi.fn(),
 }));
 
@@ -37,7 +37,6 @@ vi.mock('../../../src/bundle/packager.js', () => ({
   createBundle: mockCreateBundle,
   validateBundle: mockValidateBundle,
   installBundle: mockInstallBundle,
-  publishBundle: mockPublishBundle,
   listBundles: mockListBundles,
 }));
 
@@ -60,7 +59,7 @@ describe('bundle command handlers', () => {
     mockCreateBundle.mockReset();
     mockValidateBundle.mockReset();
     mockInstallBundle.mockReset();
-    mockPublishBundle.mockReset();
+
     mockListBundles.mockReset();
     mockFindProjectRoot.mockReturnValue('/fake/root');
   });
@@ -286,44 +285,7 @@ describe('bundle command handlers', () => {
     });
   });
 
-  // ── publish subcommand ──
-
-  describe('bundle publish handler', () => {
-    it('should print the ready message when publish reports success', async () => {
-      // publishBundle 已改为 fail-closed（E-BUNDLE-001），故此用例只覆盖
-      // 成功分支的输出形态；失败分支由 packager 层测试覆盖。
-      mockPublishBundle.mockReturnValue({
-        success: true,
-        bundlePath: '/path/to/bundle.zip',
-      });
-
-      const { registerBundleCommands } = await import('../../../src/cli/commands/bundle.js');
-      const program = new Command();
-      registerBundleCommands(program);
-
-      await program.parseAsync(['bundle', 'publish', '/path/to/bundle.zip'], { from: 'user' });
-
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Bundle ready for publishing: /path/to/bundle.zip')
-      );
-    });
-
-    it('should exit(1) on publish failure', async () => {
-      mockPublishBundle.mockReturnValue({
-        success: false,
-        error: 'Bundle not found',
-      });
-
-      const { registerBundleCommands } = await import('../../../src/cli/commands/bundle.js');
-      const program = new Command();
-      registerBundleCommands(program);
-
-      await program.parseAsync(['bundle', 'publish', '/nonexistent.zip'], { from: 'user' }).catch(() => {});
-
-      expect(errorSpy).toHaveBeenCalledWith('✗ Publish failed: Bundle not found');
-      expect(exitSpy).toHaveBeenCalledWith(1);
-    });
-  });
+  // ── list subcommand ──
 
   // ── default action (no subcommand) ──
 

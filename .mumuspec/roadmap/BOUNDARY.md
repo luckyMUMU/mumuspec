@@ -17,7 +17,7 @@ version: "v2"
 |------|------|------|
 | `spec.md` | 规范文档 | Roadmap 规则定义（当前 v2） |
 | `template/item.md` | 模板文件 | Roadmap Item 的标准模板 |
-| `items/*.md` | 目标条目 | 当前活跃目标条目集合（R-0001~R-0007 沿革 + R-0008~R-0013 CLI-first/DSL 批次） |
+| `items/*.md` | 目标条目 | 当前活跃目标条目集合（R-0001~R-0007 沿革 + R-0008~R-0013 CLI-first/DSL 批次 + R-0014~R-0022 核心收敛批次） |
 | `archive/*/` | 归档 | 已完成的旧版本 Item（按批次分组） |
 
 ## 对外符号 / 类型
@@ -36,7 +36,7 @@ version: "v2"
 |------|------|------|
 | 主规范 | `./spec.md` | Roadmap 规范定义（v2） |
 | 模板 | `./template/item.md` | Item 模板 |
-| 目标条目 | `./items/R-0001.md` .. `R-0013.md` | 当前活跃 Items |
+| 目标条目 | `./items/R-0001.md` .. `R-0022.md` | 当前活跃 Items |
 | v1 归档 | `./archive/2026-Q3/R-0001.md` .. `R-0005.md` | 2026-Q3 完成的 Items |
 
 ---

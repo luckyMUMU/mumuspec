@@ -92,6 +92,8 @@ npm install -g mumuspec
 | 规范自动生成（从代码逆向） | Spec 是设计意图的一等源文件，代码是衍生品；自动生成导致循环依赖 |
 | 强制代码风格检查 | 由 ESLint/Prettier 负责，MumuSpec 聚焦架构约束 |
 | 限制 AI 执行过程（HOW） | CHG-5：只为目标增加限制（WHAT），不限制过程；执行自由度不受约束 |
+| 多语言 AST 解析 | 核心能力是带 verifier 的约束 DSL 与门禁，不是通用代码解析器；解析面经 `ILanguageProvider` 注册表扩展，不引入外部解析引擎依赖（原 R-0003 设想的多语言扩展改由注册表承接） |
+| 代码图谱持久化后端 | 内存图 + 反向索引已满足检索与影响分析需求；无跨进程复用消费者，声明持久化后端即假承诺 |
 
 
 <!-- change-spec-merged from shall-annotation-channel/.mumuspec/prd.md -->

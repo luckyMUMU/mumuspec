@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { resolveGate, buildCorpusGateIndex } from '../../src/guard/gate-validator.js';
 import { classifyConstraintEntry } from '../../src/spec/verifier-classify.js';
 import { checkCompliance } from '../../src/guard/checker.js';
+import { ERROR_CODES } from '../../src/core/errors.js';
 
 const CODES = new Set(['E-SPEC-015', 'E-SPEC-004']);
 
@@ -95,5 +96,15 @@ prohibitions:
     const r = checkCompliance(root, {});
     expect(r.errors.filter((e) => e.code === 'E-GUARD-013')).toHaveLength(0);
     expect(r.coverage!.enforced_strong).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('E-GUARD-013 注册元数据（TC-L0-002）', () => {
+  it('ERROR / forceable:false / always_enforce:true（红线属性防翻改）', () => {
+    const def = ERROR_CODES['E-GUARD-013'];
+    expect(def).toBeDefined();
+    expect(def?.severity).toBe('ERROR');
+    expect(def?.forceable).toBe(false);
+    expect(def?.always_enforce).toBe(true);
   });
 });

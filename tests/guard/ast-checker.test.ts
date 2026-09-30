@@ -88,27 +88,6 @@ export function render() {
 }
 `;
 
-const DIRECT_EVAL_CODE = `eval('console.log("hello")');`;
-
-const ALIAS_EVAL_CODE = `
-const e = eval;
-e('console.log("hello")');
-`;
-
-const GLOBAL_THIS_EVAL_CODE = `globalThis.eval('console.log("hello")');`;
-
-const INDIRECT_EVAL_CODE = `
-const x = 0;
-(x, eval)('console.log("hello")');
-`;
-
-const NEW_FUNCTION_CODE = `const fn = new Function('return 42');`;
-
-const ALIAS_FUNCTION_CODE = `
-const F = Function;
-const fn = new F('return 42');
-`;
-
 const NESTED_JSX_AT_LINE_5 = `
 // line 1
 // line 2
@@ -219,66 +198,5 @@ describe('usesHtmLibrary', () => {
   it('AC-08b: no htm reference at all', () => {
     const code = `export const x = 42;\nconsole.log(x);`;
     expect(usesHtmLibrary(code)).toBe(false);
-  });
-});
-
-// ─── Test Suite: AST-Only Constraint Detection ──────────────────────────
-
-describe('ast constraints via checkAstConstraints', () => {
-  // Import lazily so test file can compile even before function exists
-  it('AC-09: detects eval() call in code', async () => {
-    const { checkAstConstraints } = await import('../../src/guard/ast-checker.js');
-    const violations = checkAstConstraints(DIRECT_EVAL_CODE, 'test.ts', ['no-eval']);
-    expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].matched).toBe('eval');
-    expect(violations[0].line).toBe(1);
-  });
-
-  it('AC-10: detects new Function() call in code', async () => {
-    const { checkAstConstraints } = await import('../../src/guard/ast-checker.js');
-    const violations = checkAstConstraints(NEW_FUNCTION_CODE, 'test.ts', ['no-new-function']);
-    expect(violations.length).toBeGreaterThan(0);
-    expect(violations[0].matched).toBe('new Function');
-  });
-
-  it('AC-13: detects indirect eval via alias', async () => {
-    const { checkAstConstraints } = await import('../../src/guard/ast-checker.js');
-    const violations = checkAstConstraints(ALIAS_EVAL_CODE, 'test.ts', ['no-eval']);
-    expect(violations.length).toBeGreaterThan(0);
-  });
-
-  it('AC-14: detects globalThis.eval()', async () => {
-    const { checkAstConstraints } = await import('../../src/guard/ast-checker.js');
-    const violations = checkAstConstraints(GLOBAL_THIS_EVAL_CODE, 'test.ts', ['no-eval']);
-    expect(violations.length).toBeGreaterThan(0);
-  });
-
-  it('AC-15: detects (0, eval)() indirect eval', async () => {
-    const { checkAstConstraints } = await import('../../src/guard/ast-checker.js');
-    const violations = checkAstConstraints(INDIRECT_EVAL_CODE, 'test.ts', ['no-eval']);
-    expect(violations.length).toBeGreaterThan(0);
-  });
-
-  it('AC-16: detects new Function() via alias', async () => {
-    const { checkAstConstraints } = await import('../../src/guard/ast-checker.js');
-    const violations = checkAstConstraints(ALIAS_FUNCTION_CODE, 'test.ts', ['no-new-function']);
-    expect(violations.length).toBeGreaterThan(0);
-  });
-
-  it('returns empty array for empty constraints list', async () => {
-    const { checkAstConstraints } = await import('../../src/guard/ast-checker.js');
-    const violations = checkAstConstraints(DIRECT_EVAL_CODE, 'test.ts', []);
-    expect(violations).toEqual([]);
-  });
-
-  it('returns empty array for non-violating code', async () => {
-    const { checkAstConstraints } = await import('../../src/guard/ast-checker.js');
-    const violations = checkAstConstraints('const x = 42;', 'test.ts', ['no-eval']);
-    expect(violations).toEqual([]);
-  });
-
-  it('returns empty array for malformed TS (no throw)', async () => {
-    const { checkAstConstraints } = await import('../../src/guard/ast-checker.js');
-    expect(() => checkAstConstraints(MALFORMED_TS, 'broken.ts', ['no-eval'])).not.toThrow();
   });
 });

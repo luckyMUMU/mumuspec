@@ -318,8 +318,8 @@ describe('spec commands registration', () => {
     expect(cmds).toContain('sync-specs');
   });
 
-  it('should register exactly 9 top-level commands (incl. prohibitions, 2026-09-06)', () => {
-    expect(program.commands.length).toBe(9);
+  it('should register exactly 10 top-level commands (incl. prohibitions + design-init)', () => {
+    expect(program.commands.length).toBe(10);
   });
 
   it('context command should accept <path> argument', () => {

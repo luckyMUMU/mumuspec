@@ -47,7 +47,6 @@ layer: 2
 ### 命令注册入口
 
 - `registerAllCommands(program: Command): void` — 注册所有 CLI 命令
-- `registerTeamCommands(program: Command): void` — 注册 team 子命令（init/clarify/run/status/confirm/scaffold/info）
 
 ## 依赖声明
 

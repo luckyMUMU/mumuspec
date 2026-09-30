@@ -41,6 +41,7 @@ layer: 3
 | `registerContractCommands` | `contract.ts` | contract |
 | `registerLoopCommands` | `loop.ts` | loop |
 | `registerMetricsCommands` | `metrics.ts` | metrics（2026-09-10 新增，自由度度量只读报告） |
+| `registerConformanceCommand` | `conformance.ts` | conformance（2026-09-30 新增，声明一致率只读报告） |
 | `registerGrillMeCommand` | `grill-me.ts` | grill-me（2026-08-22 补录） |
 | `registerSyncCommand` | `sync.ts` | sync |
 | `registerReviewCommand` | `review.ts` | review |
@@ -51,7 +52,6 @@ layer: 3
 | `registerCodeGraphCommand` | `code-graph.ts` | code-graph（2026-09-06 新增，Phase 1 MCP 对齐） |
 | `registerTutorialCommand` | `tutorial.ts` | tutorial（2026-08-22 补录） |
 | `registerMetaEvolveCommand` | `meta-evolve.ts` | meta-evolve（2026-08-22 补录） |
-| `registerTeamCommands` | `team.ts` | team（init / clarify / run / status / confirm / scaffold / info） |
 | `registerCapabilityCommand` | `capability.ts` | capability（2026-09-07 新增，P0-A 命令能力分层查询） |
 | `registerCognitiveMapCommands` | `cognitive-map.ts` | cognitive-map（0.23.0 接线：此前实现完整且有测试却从未注册，属死模块，见 skill-plugin-standard 变更 R5/ENF-17） |
 
@@ -59,7 +59,7 @@ layer: 3
 
 ### 命令文件清单（43 个 .ts 文件）
 
-advise.ts, audit-log.ts, bundle.ts, capability.ts, change.ts, cognitive-map.ts, constraints.ts, contract.ts, dashboard.ts, decisions.ts, doctor.ts, env.ts, eval.ts, feedback.ts, finalize-archive.ts, graph.ts, grill-me.ts, guard.ts, hooks.ts, i18n.ts, install.ts, knowledge.ts, knowledge-analysis.ts, knowledge-chat.ts, knowledge-crud.ts, knowledge-doctor.ts, knowledge-git.ts, knowledge-onboard.ts, knowledge-scan.ts, knowledge-sync.ts, loop.ts, loop-experiment.ts, merge.ts, meta-evolve.ts, recommend.ts, review.ts, skill.ts, spec.ts, state.ts, sync.ts, team.ts, trace.ts, tutorial.ts
+advise.ts, audit-log.ts, bundle.ts, capability.ts, change.ts, cognitive-map.ts, constraints.ts, contract.ts, dashboard.ts, decisions.ts, doctor.ts, env.ts, eval.ts, feedback.ts, finalize-archive.ts, graph.ts, grill-me.ts, guard.ts, hooks.ts, i18n.ts, install.ts, knowledge.ts, knowledge-analysis.ts, knowledge-chat.ts, knowledge-crud.ts, knowledge-doctor.ts, knowledge-git.ts, knowledge-onboard.ts, knowledge-scan.ts, knowledge-sync.ts, loop.ts, loop-experiment.ts, merge.ts, meta-evolve.ts, recommend.ts, review.ts, skill.ts, spec.ts, state.ts, sync.ts, trace.ts, tutorial.ts
 
 ## 依赖声明
 

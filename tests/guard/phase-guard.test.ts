@@ -21,6 +21,14 @@ const mockReadFileSync = vi.fn();
 const mockReadText = vi.fn();
 const mockComputeHash = vi.fn();
 const mockParseYaml = vi.fn();
+const mockAppendAuditLog = vi.fn();
+const mockDiscoverCompanion = vi.fn<[], string | null>();
+mockDiscoverCompanion.mockReturnValue(null);
+
+vi.mock('../../src/install/skill-companions.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/install/skill-companions.js')>()),
+  discoverCompanion: () => mockDiscoverCompanion(),
+}));
 
 vi.mock('../../src/change/manager.js', () => ({
   loadChangeState: (...args: unknown[]) => mockLoadChangeState(...args),
@@ -58,6 +66,7 @@ vi.mock('../../src/core/utils.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/core/utils.js')>()),
   readText: (...args: unknown[]) => mockReadText(...args),
   computeHash: (...args: unknown[]) => mockComputeHash(...args),
+  appendAuditLog: (...args: unknown[]) => mockAppendAuditLog(...args),
 }));
 
 vi.mock('yaml', () => ({
@@ -1204,6 +1213,106 @@ expect(result.warnings.some((e) => e.code === 'W-GUARD-004')).toBe(true);
 
       expect(result.passed).toBe(true);
       expect(result.warnings.some((w) => w.code === 'W-DESIGN-005')).toBe(true);
+    });
+
+    it('names the security companion and records degradation when that aspect is missing', () => {
+      mockDiscoverCompanion.mockReturnValue(null);
+      const state = makeChangeState({
+        phase: 'design',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        cognitive_framework: {
+          enabled: true,
+          cognitive_map_ref: '.mumuspec/cognitive-map.yaml',
+          q1_count: 3,
+          q2_pending: 0,
+          q3_pending: 0,
+          q4_scans_completed: 3,
+          q4_aspects_covered: ['dependency-and-supply', 'data-and-state', 'failure-and-recovery'],
+          q4_aspects_missing: ['security-compliance'],
+          converged: true,
+          rounds_completed: 5,
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockReadText.mockReturnValue('# Design\n\nDetailed design with layers and more content. Implementation Layers: Setup.');
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+
+      const w = result.warnings.find((x) => x.code === 'W-DESIGN-005');
+      expect(w?.message).toContain('security-compliance');
+      expect(w?.message).toContain('security-and-hardening');
+      expect(w?.message).toContain('兜底');
+      expect(mockAppendAuditLog).toHaveBeenCalled();
+      expect(mockAppendAuditLog.mock.calls[0][1]).toMatchObject({
+        action: 'aspect.security.degraded',
+        companion_available: false,
+      });
+    });
+
+    it('reports undecided architecture preference topics as advisory', () => {
+      const state = makeChangeState({
+        phase: 'design',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockReadText.mockReturnValue(
+        '# Design\n\n## Key Decisions 选型表\n\n### 分层策略\n\n- 选定: 【待定】\n- 备选: 【待定】\n- 理由（含未选代价）: 【待定】\n',
+      );
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+
+      const w = result.warnings.find((x) => x.code === 'W-DESIGN-012');
+      expect(w?.message).toContain('分层策略');
+      expect(result.passed).toBe(true); // 建议级：过程约束不阻断转换（CHG-5）
+    });
+
+    it('does not claim degradation when the security companion is reachable', () => {
+      mockDiscoverCompanion.mockReturnValue('/home/user/.workbuddy/skills/security-and-hardening/SKILL.md');
+      const state = makeChangeState({
+        phase: 'design',
+        workflow: 'full',
+        build_layers: [{ layer: 1, scope: 'src/core', status: 'pending' }],
+        test_cases: {
+          design_locked: true,
+          suites_locked: false,
+          suites_locked_layers: [],
+          suites_hash: {},
+        },
+        cognitive_framework: {
+          enabled: true,
+          cognitive_map_ref: '.mumuspec/cognitive-map.yaml',
+          q1_count: 3,
+          q2_pending: 0,
+          q3_pending: 0,
+          q4_scans_completed: 3,
+          q4_aspects_covered: ['dependency-and-supply', 'data-and-state', 'failure-and-recovery'],
+          q4_aspects_missing: ['security-compliance'],
+          converged: true,
+          rounds_completed: 5,
+        },
+      });
+      mockLoadChangeState.mockReturnValue(state);
+      mockReadText.mockReturnValue('# Design\n\nDetailed design with layers and more content. Implementation Layers: Setup.');
+
+      const result = runPhaseGuard(PROJECT_ROOT, CHANGE_NAME, 'build');
+
+      const w = result.warnings.find((x) => x.code === 'W-DESIGN-005');
+      expect(w?.message).toContain('可用但本轮未产出该维度记录');
+      expect(w?.message).not.toContain('兜底');
     });
 
     it('should warn when cognitive map not converged', () => {

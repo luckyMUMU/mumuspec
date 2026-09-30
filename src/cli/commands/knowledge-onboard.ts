@@ -120,9 +120,13 @@ export function registerOnboardCommands(program: Command): void {
     .action(async (options) => {
       const root = requireRoot();
 
-      let templateType = options.preset;
+      // No silent default: the wizard claims to ask questions, and when it does
+      // not ask it must fail loudly instead of pretending a preset was chosen.
+      const templateType = options.preset as string | undefined;
       if (!templateType) {
-        templateType = 'frontend';
+        console.error('✗ 缺少 --preset：本命令不提问，因此不会替你选默认模板');
+        console.error('  可选值: frontend | backend | fullstack');
+        process.exit(1);
       }
 
       const template = loadTemplate(templateType);

@@ -68,3 +68,62 @@ last_updated: "2026-09-20"
       .toBe(plain.errors.filter((e) => e.code === 'E-GUARD-003').length);
   });
 });
+
+describe('agent 行为豁免等价（TC-L0-001，兑现 TC-L1-002 第 2 行）', () => {
+  let selfRoot: string;
+  let plainRoot: string;
+  const agentItem = '禁止以 `--force` 越过 E-SPEC-015';
+  const srcCode = "execSync('mumuspec state transition demo build --force');\n";
+
+  function specWith(itemLine: string): string {
+    return `---
+layer: 0
+scope: "."
+last_updated: "2026-09-20"
+---
+
+## Requirement: Agent Behavior Fixtures
+
+### SHALL NOT
+- ${itemLine}
+
+### Enforcement
+- ENF-1: manual(端到端等价断言)
+`;
+  }
+
+  beforeAll(() => {
+    selfRoot = mkdtempSync(join(tmpdir(), 'agent-exempt-self-'));
+    writeFileSync(join(selfRoot, 'package.json'), JSON.stringify({ name: 'mumuspec' }));
+    mkdirSync(join(selfRoot, '.mumuspec'), { recursive: true });
+    mkdirSync(join(selfRoot, 'src'), { recursive: true });
+    writeFileSync(join(selfRoot, 'src', 'a.ts'), srcCode);
+
+    plainRoot = mkdtempSync(join(tmpdir(), 'agent-exempt-plain-'));
+    mkdirSync(join(plainRoot, '.mumuspec'), { recursive: true });
+    mkdirSync(join(plainRoot, 'src'), { recursive: true });
+    writeFileSync(join(plainRoot, 'src', 'a.ts'), srcCode);
+  });
+
+  it('自仓 src/：带/不带 lex: 前缀同样触发 agent 行为豁免（0 E-GUARD-003）', () => {
+    writeFileSync(join(selfRoot, '.mumuspec', 'spec.md'), specWith(agentItem));
+    const plain = checkCompliance(selfRoot, { shallNot: true });
+    writeFileSync(join(selfRoot, '.mumuspec', 'spec.md'), specWith('lex: ' + agentItem));
+    const prefixed = checkCompliance(selfRoot, { shallNot: true });
+    const hits = (r: ReturnType<typeof checkCompliance>) =>
+      r.errors.filter((e) => e.code === 'E-GUARD-003').length;
+    expect(hits(plain)).toBe(0);
+    expect(hits(prefixed)).toBe(0);
+  });
+
+  it('非自仓同夹具必命中（豁免非空转），且带/不带前缀命中一致', () => {
+    writeFileSync(join(plainRoot, '.mumuspec', 'spec.md'), specWith(agentItem));
+    const plain = checkCompliance(plainRoot, { shallNot: true });
+    writeFileSync(join(plainRoot, '.mumuspec', 'spec.md'), specWith('lex: ' + agentItem));
+    const prefixed = checkCompliance(plainRoot, { shallNot: true });
+    const hits = (r: ReturnType<typeof checkCompliance>) =>
+      r.errors.filter((e) => e.code === 'E-GUARD-003').length;
+    expect(hits(plain)).toBe(hits(prefixed));
+    expect(hits(prefixed)).toBeGreaterThanOrEqual(1);
+  });
+});

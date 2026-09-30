@@ -27,6 +27,9 @@ export const LAYER_DIRS: Record<string, string> = {
 /** A row asserting 0% progress is only contradicted at/above this line count. */
 export const ZERO_PROGRESS_LINE_THRESHOLD = 200;
 
+/** Tolerance of an "N+" quantity claim before the understatement counts as a conflict. */
+export const QUANTITY_ASSERT_SLACK = 5;
+
 export interface StatusAssertionFacts {
   /** package.json version (authoritative release fact). */
   version: string;
@@ -43,6 +46,8 @@ export interface StatusAssertionOpts {
   staleDays?: number;
   /** enforcement_strict gate: promotes conflicts from WARN to ERROR. */
   strict?: boolean;
+  /** Tolerance for "N+" quantity claims (both directions). */
+  quantitySlack?: number;
 }
 
 function productionLineCount(projectRoot: string, relDir: string): number {
@@ -118,14 +123,28 @@ export function checkStatusAssertions(
     }
   }
 
-  // 3. "N+ 命令/工具" quantity assertions
+  // 3. "N+ 命令/工具" quantity assertions — checked in BOTH directions.
+  // The "+" carries a tolerance (default 5); beyond that a claim far below the
+  // registered surface is as misleading as one above it, and previously the
+  // under-stated case passed silently.
+  const slack = opts?.quantitySlack ?? QUANTITY_ASSERT_SLACK;
   const cmd = statusText.match(/(\d+)\+\s*命令/);
-  if (cmd && facts.commandCount < Number(cmd[1])) {
-    push(`命令数断言 "${cmd[1]}+" > 实际注册 ${facts.commandCount}`);
+  if (cmd) {
+    const claimed = Number(cmd[1]);
+    if (facts.commandCount < claimed) {
+      push(`命令数断言 "${cmd[1]}+" > 实际注册 ${facts.commandCount}`);
+    } else if (facts.commandCount > claimed + slack) {
+      push(`命令数断言 "${cmd[1]}+" 低于实际注册 ${facts.commandCount}（超出 "+" 容差 ${slack}）`);
+    }
   }
   const tool = statusText.match(/(\d+)\+\s*工具/);
-  if (tool && facts.toolCount < Number(tool[1])) {
-    push(`工具数断言 "${tool[1]}+" > 实际注册 ${facts.toolCount}`);
+  if (tool) {
+    const claimed = Number(tool[1]);
+    if (facts.toolCount < claimed) {
+      push(`工具数断言 "${tool[1]}+" > 实际注册 ${facts.toolCount}`);
+    } else if (facts.toolCount > claimed + slack) {
+      push(`工具数断言 "${tool[1]}+" 低于实际注册 ${facts.toolCount}（超出 "+" 容差 ${slack}）`);
+    }
   }
 
   // 4. freshness (INFO signal, never a conflict)

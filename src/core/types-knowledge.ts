@@ -92,6 +92,8 @@ export interface KnowledgeOrganizeResult {
 export interface KnowledgeIssue {
   severity: 'error' | 'warning' | 'info';
   type: 'duplicate_id' | 'missing_from_index' | 'orphaned_index' | 'missing_field' | 'type_mismatch' | 'missing_file';
+  /** Registry code when the condition has one (`mumuspec conformance` reads emission through it). */
+  code?: string;
   page_id?: string;
   file?: string;
   message: string;

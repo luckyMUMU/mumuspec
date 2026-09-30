@@ -14,7 +14,6 @@ layer: 2
 | `createBundle` | `(root: string, options?: CreateBundleOptions) => Promise<BundleResult>` | 扫描技能目录并打包为 manifest + 文件副本 |
 | `validateBundle` | `(bundlePath: string) => Promise<ValidationResult>` | 校验 bundle manifest 完整性及 hash |
 | `installBundle` | `(bundlePath: string, targetRoot: string) => Promise<InstallResult>` | 解压 bundle 到目标 workspace |
-| `publishBundle` | `(bundlePath: string, registry?: string) => Promise<void>` | 发布 bundle（预留） |
 | `listBundles` | `(root: string) => BundleInfo[]` | 列出项目中的 bundle |
 
 ### 导出类型
@@ -22,10 +21,7 @@ layer: 2
 | 类型 | 用途 |
 |------|------|
 | `BundleResult` | 打包结果 |
-| `ValidationResult` | 验证结果 |
 | `InstallResult` | 安装结果 |
-| `BundleInfo` | bundle 元数据 |
-| `CreateBundleOptions` | 打包选项 |
 
 ## 依赖声明
 

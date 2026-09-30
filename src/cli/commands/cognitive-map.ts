@@ -10,6 +10,11 @@ import type { Command } from 'commander';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { findProjectRoot, readText, readYaml, writeText } from '../../core/utils.js';
+import {
+  DEFAULT_MIN_DISTINCT_ASPECTS,
+  classifyAspects,
+  isAspectCoverageConverged,
+} from '../../spec/aspects.js';
 import { getChangeDir, loadChangeState, saveChangeState } from '../../change/manager.js';
 
 interface CognitiveMapEntry {
@@ -27,6 +32,19 @@ interface CognitiveMapFile {
   entries?: CognitiveMapEntry[];
 }
 
+/**
+ * q4_min_dimensions comes from the project config, read through the same
+ * mocked-safe utils as the rest of this command (loadConfig touches real fs,
+ * which the CLI handler tests deliberately keep out of the mock surface).
+ */
+function readMinDistinctAspects(root: string): number {
+  const configPath = join(root, '.mumuspec', 'config.yaml');
+  if (!existsSync(configPath)) return DEFAULT_MIN_DISTINCT_ASPECTS;
+  const parsed = readYaml<Record<string, unknown>>(configPath);
+  const framework = parsed?.cognitive_framework as Record<string, unknown> | undefined;
+  const value = Number(framework?.q4_min_dimensions);
+  return Number.isInteger(value) && value > 0 ? value : DEFAULT_MIN_DISTINCT_ASPECTS;
+}
 /** Locate a cognitive-map template (projectRoot/templates or .mumuspec/templates) */
 function findTemplatePath(projectRoot: string): string | undefined {
   const candidates = [
@@ -174,8 +192,11 @@ entries:
       const q3Pending = entries.filter(
         (e) => e.quadrant === 'Q3' && e.status !== 'confirmed',
       ).length;
-      const q4Scans = entries.filter((e) => e.quadrant === 'Q4').length;
-      const converged = q2Pending === 0 && q3Pending === 0 && q4Scans >= 3;
+      const minDistinct = readMinDistinctAspects(root);
+      const coverage = classifyAspects(entries);
+      const q4Scans = coverage.rows;
+      const converged =
+        q2Pending === 0 && q3Pending === 0 && isAspectCoverageConverged(coverage, { minDistinct });
 
       const cf = state.cognitive_framework ?? {
         enabled: true,
@@ -192,6 +213,8 @@ entries:
       cf.q2_pending = q2Pending;
       cf.q3_pending = q3Pending;
       cf.q4_scans_completed = q4Scans;
+      cf.q4_aspects_covered = coverage.distinct;
+      cf.q4_aspects_missing = coverage.missingRequired;
       cf.converged = converged;
       state.cognitive_framework = cf;
       state.updated_at = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -199,9 +222,18 @@ entries:
 
       console.log(`✓ cognitive_framework 已同步: ${name}`);
       console.log(`  q1_count: ${q1Count}, q2_pending: ${q2Pending}, q3_pending: ${q3Pending}, q4_scans: ${q4Scans}`);
+      console.log(`  q4_aspects: ${coverage.distinct.join(', ') || '(none)'}`);
+      if (coverage.missingRequired.length > 0) {
+        console.warn(`  缺失必需覆盖维度: ${coverage.missingRequired.join(', ')}`);
+      }
+      if (coverage.unknown.length > 0) {
+        console.warn(`  未登记的维度标签（不计入覆盖）: ${coverage.unknown.join(', ')}`);
+      }
       console.log(`  converged: ${converged}`);
       if (!converged) {
-        console.warn('  提示: 认知地图未收敛 — 继续填充 Q2/Q3 或完成 Q4 扫描后重试');
+        console.warn(
+          `  提示: 认知地图未收敛 — 需 ${minDistinct} 个不同覆盖维度且必需维度齐备（行数为 ${q4Scans} 不构成覆盖）`,
+        );
       }
     });
 }

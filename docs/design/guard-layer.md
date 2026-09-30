@@ -188,17 +188,17 @@ mumuspec check --ponytail --staged-only
 | spec.md YAML frontmatter | Schema 校验（layer/scope/last_updated 类型检查） | 阻断加载，报告 `E-SPEC-001` |
 | .mumuspec.yaml | 字段类型 + 枚举值 + 不可变字段校验 | 阻断状态转换 |
 | CLI 参数（路径类） | 项目根目录路径白名单 | 拒绝执行，报告 `E-SECURITY-001` |
+| MCP 工具 path/dir 参数 | schema 中声明 required 的参数必须为非空字符串 | 返回 `E-SECURITY-003` 与修复步骤，不进入 handler |
 | 契约 YAML | `$ref` 引用解析 + 字段完整性校验 | 阻断契约加载，报告 `E-CONTRACT-006` |
 | Enforcement check 表达式 | AST 表达式语法校验 | 阻断规则注册 |
 
 ### 5.4 敏感信息检测
 
-- 规范文件和 decisions.md 扫描敏感信息模式：
-  - API Key / Token / 密码模式（正则匹配）
-  - 私有 IP / 内部域名
-  - 数据库连接字符串
-- 检测到敏感信息时 WARN 级别告警（不阻断，记录到 audit log），报告 `E-SECURITY-003`
-- 可通过 config.yaml `security.sensitive_info_scan` 配置开关
+- 扫描面：`.mumuspec/` 下的 Markdown 工件（规范文件与 decisions.md）；`knowledge/` 为导入件、`changes/archive/` 为冻结历史，二者不是当前承诺，不参与扫描
+- 模式集（固定顺序，输出可复现）：凭据赋值、Bearer Token、私网 IP、内网域名、数据源连接串
+- 输出：每个受影响文件一条 W-SECURITY-001 建议级告警，摘录按前缀 + 固定掩码呈现（不回显原值），并在 `audit.log` 追加 `security.sensitive_info_scan` 记录
+- 挂载点：`mumuspec check` 全量模式；定向 `--shall` / `--ponytail` 调用不触发
+- 不提供配置开关：该扫描属于 always_enforce 例外（见 [配置参考](../reference/configuration.md)），可关闭的开关与「用户不可关闭」相互矛盾
 
 ### 5.5 审计日志
 

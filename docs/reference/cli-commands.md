@@ -11,6 +11,7 @@
 mumuspec init [path]                    # 初始化 MumuSpec（项目分析 + 自动生成规范 + 知识库）
 mumuspec context <path>                 # 获取目录的规范上下文（渐进式披露）
 mumuspec add-spec <scope>               # 添加规范到指定 scope
+mumuspec design-init <scope>          # 生成含架构选型表的 design.md 骨架（E-SPEC-006 出路）
 mumuspec validate                       # 校验所有规范格式
 mumuspec prohibitions <path>            # 列出适用于某路径的 SHALL NOT 红线（含继承 scope）
 mumuspec sync-specs [--fix] [--strict]  # 同步分布式规范文件（校验格式、生成缺失文件）
@@ -49,6 +50,7 @@ mumuspec onboard {init|start|next|complete-step|progress|quickstart}  # 引导�
 mumuspec tutorial                       # 交互式教程：15 分钟完成第一个变更
 mumuspec chat [query]                   # 基于知识库提问
 mumuspec graph verify [--change <name>] # 校验变更状态机图一致性
+mumuspec graph render [--view statemachine|lanes|contracts|constraints] [--format mermaid|dot|json] # 渲染编排图数据（只读）
 mumuspec audit-log [--limit <n>]        # 审计日志（可按 --actor/--action/--result 过滤）
 mumuspec hooks {install|uninstall|status|run}  # git 钩子：自动触发 guard 检查
 mumuspec i18n status                    # 查看当前语言与可用翻译
@@ -68,6 +70,7 @@ mumuspec guard <change> <phase>         # 阶段守卫检查（<phase> 是**目�
                                         # 离开 build 用 verify，离开 verify 用 archive-in-progress）
 mumuspec review                         # 模块级评审维度（D8）— 逐模块打分
 mumuspec metrics [change]               # 自由度指标报告（只读：评估器数值 + 建议）
+mumuspec conformance [--json]         # 声明一致率报告（只读：E1 声明⊆实现 / E2 实现⊆消费 / E3 门⊆事实）
 mumuspec meta-evolve                    # 元规范演进：评估规范有效性、提出改进建议
 mumuspec eval {init|list|run}           # 运行 eval 场景校验 guard / skill 行为
 ```
@@ -195,15 +198,7 @@ mumuspec loop info                        # loop 模式工作流说明
 
 ## 团队协作
 
-```bash
-mumuspec team init <name>                 # 为变更初始化多角色协作模式
-mumuspec team clarify [change]            # 运行 lead agent 澄清需求
-mumuspec team run [change]                # 跑一轮 propose → evaluate
-mumuspec team status [change]             # 查看协作状态与进度
-mumuspec team confirm [change]            # 确认最终选型并退出协作模式
-mumuspec team scaffold <name>             # 生成 team 配置 YAML 骨架
-mumuspec team info                        # 协作模式说明
-```
+多角色协作引擎位于 `src/team/`，当前**没有命令面**：原 team 子命令（init/clarify/run/status/confirm/scaffold/info）已移除，因其默认运行时适配器返回占位简报并以成功形态呈现（占位实现不得返回成功）。引擎待接入真实适配器后方可重新暴露命令面。
 
 ## 反馈
 
@@ -244,7 +239,6 @@ mumuspec bundle list                      # 列出项目可用包
 mumuspec bundle plugin                    # 构建宿主标准插件包
 ```
 
-> `bundle publish` 尚未实现，调用即 fail-closed；分发请用 `bundle plugin`。
 
 ## Git 操作
 

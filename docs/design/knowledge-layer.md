@@ -911,8 +911,6 @@ knowledge:
   # --- 代码图谱 ---
   code_graph:
     enabled: true
-    storage: "sqlite"               # sqlite | memory
-    db_path: ".mumuspec/graph/index.db"
     auto_index_on_commit: true
     languages: ["typescript", "javascript"]
   # --- LLM-Wiki ---

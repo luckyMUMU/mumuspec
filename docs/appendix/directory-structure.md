@@ -94,7 +94,7 @@ my-project/
 │   ├── audit.log                           # 审计日志（JSONL 格式）
 │   │
 │   └── graph/                              # 代码图谱数据（Knowledge Layer 子组件）
-│       ├── index.db                        # 图谱数据库 (SQLite)
+│       ├── index.json                      # 图谱索引（内存图的持久化快照）
 │       └── snapshot.json                   # 图谱快照
 │
 ├── docs/                                   # === 对外文档输出（自动生成） ===

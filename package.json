@@ -1,6 +1,6 @@
 {
   "name": "mumuspec",
-  "version": "0.46.0-alpha.0",
+  "version": "0.46.0-alpha.1",
   "description": "MumuSpec — Spec-as-DSL: write specs in natural language, let AI generate code. A domain-specific language for vibe coding.",
   "type": "module",
   "main": "dist/index.js",
@@ -25,7 +25,7 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsc && node scripts/copy-assets.mjs",
+    "build": "tsc && node scripts/copy-assets.mjs && node scripts/gen-workflow-diagrams.mjs",
     "build:clean": "rimraf dist && tsc && node scripts/copy-assets.mjs",
     "dev": "tsx src/cli.ts",
     "mcp": "tsx src/mcp-server.ts",

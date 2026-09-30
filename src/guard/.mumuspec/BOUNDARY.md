@@ -24,9 +24,9 @@ layer: 2
 |-----------|------|------|
 | `detectJsxUsage` | `(content, filename) => JsxDetectionResult` | AST 检测 JSX/TSX 语法（正确区分泛型） |
 | `usesHtmLibrary` | `(content) => boolean` | 检测 htm 模板库（JSX 替代方案） |
-| `checkAstConstraints` | `(content, filePath, constraintIds) => CodeViolation[]` | 纯 AST 约束检查（无正则回退） |
+| `reportSensitiveInfo` | `(projectRoot, warnings) => number` | 规范工件敏感信息扫描（W-SECURITY-001 + audit 留痕），供 `mumuspec check` 全量模式调用 |
 | `JsxDetectionResult` | 接口类型 | `{ hasJsx, reason, details?, line? }` |
-| `CodeViolation` | 接口类型 | `{ line, column, matched, source }` |
+| `SensitiveFinding` | 接口类型 | `{ file, line, pattern, excerpt }`（excerpt 为掩码片段） |
 
 > **设计原则**：ast-checker.ts 不使用任何正则匹配，所有检测基于 TypeScript Compiler API 的 AST 节点。
 

@@ -58,6 +58,7 @@ import { registerAdviseCommand } from './commands/advise.js';
 import { registerContractCommands } from './commands/contract.js';
 import { registerLoopCommands } from './commands/loop.js';
 import { registerMetricsCommands } from './commands/metrics.js';
+import { registerConformanceCommand } from './commands/conformance.js';
 import { registerCodeGraphCommand } from './commands/code-graph.js';
 import { registerGrillMeCommand } from './commands/grill-me.js';
 import { registerCognitiveMapCommands } from './commands/cognitive-map.js';
@@ -68,7 +69,7 @@ import { registerAuditLogCommand } from './commands/audit-log.js';
 import { registerTraceCommand } from './commands/trace.js';
 import { registerGraphCommand } from './commands/graph.js';
 import { registerMetaEvolveCommand } from './commands/meta-evolve.js';
-import { registerTeamCommands } from './commands/team.js';
+
 import { registerCapabilityCommand } from './commands/capability.js';
 
 // Builds the full command tree without parsing args, so tests can import it
@@ -457,6 +458,7 @@ registerAdviseCommand(program);
 registerContractCommands(program);
 registerLoopCommands(program);
 registerMetricsCommands(program);
+registerConformanceCommand(program);
 registerCodeGraphCommand(program);
 registerGrillMeCommand(program);
 registerCognitiveMapCommands(program);
@@ -468,7 +470,6 @@ registerTraceCommand(program);
 registerGraphCommand(program);
 registerTutorialCommand(program);
 registerMetaEvolveCommand(program);
-registerTeamCommands(program);
 registerCapabilityCommand(program);
 
 // 命令注册表至此完备 — 注入 CLI 速查，使 install 路径生成的 AGENTS.md 与 init 路径同源

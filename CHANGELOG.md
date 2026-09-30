@@ -5,6 +5,45 @@ All notable changes to MumuSpec are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.46.0-alpha.1] — core-consolidation（2026-10-01）
+
+### Added
+- 起草覆盖面维度门（R-0014）：`src/spec/aspects.ts` 维度枚举单一事实源 + `classifyAspects`；Q4 收敛改按**维度身份**判定（三条同维度记录不再算覆盖），缺必需维度 `security-compliance` 直接点名；design-schema 增"安全与隐私"必填节（full）
+- 架构偏好选型（R-0015）：`ARCH_PREFERENCE_PACKS` 五议题偏好包（含"暂不约束"合法态）+ `renderDesignSkeleton` 选型表渲染 + `mumuspec design-init <scope>`，E-SPEC-006 的修复步骤改指该真实命令
+- 图数据确定性渲染（R-0019）：`src/graph/render.ts` 四视图（阶段×阻塞点泳道 / 含回退计数状态机 / 约束继承树 / 契约上下游）+ `mumuspec graph render --view … --format mermaid|dot|json`，未把守边与不可达节点必须可见，矛盾源数据失败不静默（E-GRAPH-002/003）
+- 声明一致率（R-0016）：`mumuspec conformance` 输出 E1 声明⊆实现 / E2 实现⊆消费 / E3 门⊆事实 三比值，六探针全部由仓库事实确定性推导（fixSteps 命令存在性、命令模块注册可达、声明实现集合、MCP 工具-分发配对、错误码发射点、门指针引用），独立上报不并入 loop composite；未建探针类与待裁决项显式列出，不以空集充当绿灯
+- 发射面探针首跑发现 17 个无发射点错误码：6 项三处（装载面/规范文档/测试）均无引用属纯残留，已删除（E-CHANGE-005、E-GUARD-007、E-PONYTAIL-003/004、E-KNOWLEDGE-002/003）；R-0020 完成其余三分类裁决——8 码声明保留（注册表 `reserved` 字段为唯一事实源，生成文档呈现「无发射点 + 现由哪条通道承担」，语料若期望其中任一码则探针判违反，声明不是免检通道）、2 码补发射点、1 码撤回（E-PONYTAIL-002：依赖必要性需意图判断，机械不可判定，注册 ERROR 码即假强制）。同批修正含 E-DESIGN-009：文档宣称缺失节返回错误码，引擎实际发射 W-DESIGN-009 建议级
+- 敏感信息扫描（`src/guard/sensitive-info.ts`）：`.mumuspec/` 规范工件与 decisions.md 按固定模式集（凭据赋值 / Bearer Token / 私网 IP / 内网域名 / 数据源连接串）扫描，每文件一条 W-SECURITY-001 建议级告警、摘录掩码不回显原值、`audit.log` 留 `security.sensitive_info_scan` 记录；挂在 `mumuspec check` 全量模式，不提供配置开关（prohibitions 将其列为不可关闭例外）
+- 选型表进阶段门：`findIncompleteSelections` 判定含"未决标记"与"手工丢失决策字段"两态（无选型字样的 `###` 块不误报），design→build 守卫以 W-DESIGN-012 建议级列出未决议题；`design-init` 出口文案的"选定后方可进入 Build"改述为实际档位，`docs/design/change-layer.md` §11.3 处置表按实际判定重写
+- 覆盖面门读取伴生能力接线：Q4 缺 `security-compliance` 维度时守卫探测 `security-and-hardening` 可达性，不可达则告警文案点名"敏感信息扫描兜底、盲区判断仍缺"并写 `aspect.security.degraded` 审计记录（降级留痕而非静默替换）；`mumuspec skill companions` 输出区分 `[引擎接线]` 与只读环境事实报告（JSON 增加 wired 字段，判定源 `WIRED_COMPANIONS` 单源）
+- 第七探针 always-enforce-exception（E3）：例外清单条目必须是求值面可见的 check id；实测 `BUILTIN_CONSTRAINT_EXCEPTIONS` 9 条目在折叠路径一次都不被命中（该路径的 id 取值是错误码或 hook 自建 id），已立 R-0021 承载裁决——改名对齐属强度收紧，需人工签收
+- BOUNDARY 判定源降格：`sync --check` 从"导出全集 ⊆ 文档"（18 模块每轮数百条未记录导出，常年全红等于无门禁）改为"声明 ⊆ 代码"——全仓不存在的声明记 WARN（幻影），仅存在于兄弟模块的声明记 INFO（归属错位）；符号采集识别生成器导出与再导出，注释行不再算声明。18/18 模块对齐、幻影清零；被遮蔽的遗留 BOUNDARY 双份（change/guard/install）删除，team 的遗留单份迁入 `.mumuspec/`；`src/graph` 补边界文档并注册 index.yaml；无消费者的 team 引擎立 R-0022 裁决（不得以占位命令面凑可达性）
+- 探针引用面口径固化：`.mumuspec/knowledge/**`（导入快照）、`.mumuspec/changes/**`（历史工件）、`docs/appendix/**`（冻结研究）不计为承诺；`.eval-corpus` 的期望按"期望与发射面脱钩即违反"处理，不当作承诺
+- 变更原文槽位：`mumuspec new --request "<原文>"` 落 `request.md`（逐字节，不带选项时行为零变化）
+- 活跃变更容量门：关闭单一活跃变更后按 `workflow.max_active_changes` 阻断（E-CHANGE-013）
+- 复用机制（R-0018）：`mumuspec contract import --from <scope> [--id] [--to]` 复用既有注册与审计路径并标注来源注册表位置；`mumuspec constraints reuse --id [--from] [--to] [--tighten]` 经 `src/spec/reuse.ts` 纯规划并继承既有出处通道。缺上游来源拒（E-SPEC-016）、放宽强度拒（E-SPEC-017）、来源不存在即失败并列出可选项，不返回空成功
+- 渲染能力接入 MCP：只读工具 render_diagram 与 CLI 共用 `src/graph/facts.ts` 适配层，并登记进路径校验表（其 `path` 参数受既有目录安全门约束）
+- 文档审计新增阻塞点对账：docs 中出现的门禁编号必须存在于工作流图数据（默认与项目级 override 并集），不一致报出；WARN 起步，不影响退出码
+- 图示结构对账落地：`docs/reference/workflow-diagrams.md` 由 `src/graph/doc-page.ts` 从图数据生成（四视图，不含变更状态以免随阶段抖动），`npm run build` 末段重生成，`npm run docs:audit` 以同一投影比对并定位首个差异行
+
+### Fixed
+- 三个悬空行为门指针补上真消费者：`workflow.worktree_isolation`（`createWorktree` 回归 + `ensureWorktreeIsolation` 按强度档创建或降级留痕 + E-GUARD-014/E-CHANGE-014）、`workflow.max_active_changes`、`workflow.tdd_enforced`（强制档下 tdd_mode 不一致升级为 error，默认档维持 WARN ⇒ 默认行为零变化）
+- 删除 code-graph 持久化假声明（`storage: sqlite` / `db_path` 退出配置类型、默认值与项目配置；文档 `index.db` 条目改述实际形态）
+- `onboard quickstart` 不再静默套用 frontend 模板：缺 `--preset` 即失败并列出可选值
+- STATUS 数量断言核对改双向（此前只拦"实际<声称"，"43+ 命令/25+ 工具"的长期低估静默通过）；进度文档按实测复位（384 约束 / strong 4 / weak 21、59+ 命令、35+ 工具、11 agent、Phase 4/5 实际形态）
+- MCP 工具缺失 schema 中 required 的 path/dir 参数此前落入 `resolve(root, undefined)` 抛 Node TypeError，现返回 E-SECURITY-003 与修复步骤
+- 知识页面必填字段缺失的 organize 发现挂上 E-KNOWLEDGE-001，注册档位由 ERROR 改为 WARN 与实际告警一致；glossary 的 DESIGN 域示例改指发射中的 W-DESIGN-001
+
+### Removed
+- 死文件 `scripts/cleanup-temp.mjs`（空、无引用）与遗留规则文件 `.cursorrules`（项目规范自身禁止生成）
+- 无引擎的多角色评审能力面：`hyperplan_result` 状态字段、两条永不发射的错误码（E-GUARD-005/006）、归档 D4 提取分支、配置键与伴生项、grill-me 中恒不触发的架构质询（该字段初始即 true，质询形同虚设）
+- 占位命令面 `mumuspec bundle publish` 与 `publishBundle`（连同 E-BUNDLE-001、BOUNDARY 中失真的 `Promise<void>` 签名声明）；`mumuspec team *` 命令面（默认适配器返回占位简报并以成功形态呈现，引擎保留待真实适配器接入后重新暴露）
+- 第二套并行 AST 判定面：`checkAstConstraints` 与其 eval/new-Function 识别链在 src 内零消费者，且 `no-eval`/`no-new-function` 未在任何注解映射、约束类型表或禁令正文中声明；AST 判定回归 provider 注册表单一来源
+
+### Docs
+- 设计增量：`docs/design/spec-layer.md` §8 起草覆盖面模型、`change-layer.md` §11 初始架构偏好选型、`contract-layer.md` §11 复用机制、新建 `docs/design/diagram-rendering.md`；skill 侧 Q4 表与 open 阶段扩写清单改为引用维度事实源
+- 改进计划与目标登记：`review/2026-09-30-core-consolidation-plan.md`、`.mumuspec/roadmap/items/R-0014`–`R-0021`；过期 `roadmap/improvement-plan.md` 改为取代指针
+
 ## [0.46.0-alpha.0] — archive auto-bump (2026-09-20)
 
 ### Added

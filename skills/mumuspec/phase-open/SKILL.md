@@ -33,7 +33,7 @@ description: "MumuSpec Phase 1: Open。以 /phase-open 启动。探索需求、�
 
 | Skill | 不可用时的替代方案 |
 |-------|------------------|
-| `brainstorming` | 使用平台内置 AskQuestion 工具，按"目标→非目标→范围边界→关键未知→验收场景"结构进行多轮 Q&A（见 Fallback A） |
+| `brainstorming` | 使用平台内置 AskQuestion 工具，按"目标→非目标→范围边界→关键未知→验收场景→安全与合规"结构进行多轮 Q&A（见 Fallback A） |
 | `gitnexus-impact-analysis` | 使用 `grep`/`find` + 代码阅读手动分析影响范围（见 Fallback B） |
 | `using-git-worktrees` | 降级为 branch 模式或直接使用当前工作区，记录降级原因（见 Fallback C） |
 | `spec-driven-development` | 使用 delta-specs/ 标准模板手动编写（见 Fallback D） |

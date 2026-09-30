@@ -5,7 +5,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { checkStatusAssertions, type StatusAssertionFacts } from '../../src/guard/status-assertion-checker.js';
+import { checkStatusAssertions, QUANTITY_ASSERT_SLACK, type StatusAssertionFacts } from '../../src/guard/status-assertion-checker.js';
 
 const FACTS: StatusAssertionFacts = { version: '0.43.0-alpha.0', commandCount: 46, toolCount: 30 };
 const NOW = new Date('2026-09-19T12:00:00Z');
@@ -101,5 +101,41 @@ describe('新鲜度与 strict 门控（TC-L2-004/005）', () => {
     const t = status('| Contract Layer | 100% | 0% | P3 | x |');
     expect(checkStatusAssertions(t, FACTS, root, { now: NOW })[0].severity).toBe('WARN');
     expect(checkStatusAssertions(t, FACTS, root, { now: NOW, strict: true })[0].severity).toBe('ERROR');
+  });
+});
+
+describe('数量断言双向核对（TC-L6-003）', () => {
+  it('声称远低于实际（超出 "+" 容差）同样判为矛盾', () => {
+    const claimed = FACTS.commandCount - (QUANTITY_ASSERT_SLACK + 3);
+    const toolClaimed = FACTS.toolCount - (QUANTITY_ASSERT_SLACK + 3);
+    const out = checkStatusAssertions(
+      status(`| a | b | ${claimed}+ 命令可用 | ${toolClaimed}+ 工具可用 |`),
+      FACTS,
+      root,
+      { now: NOW },
+    );
+    expect(out.filter((d) => d.message.includes('低于实际注册'))).toHaveLength(2);
+  });
+
+  it('容差内的粗略声称不报（保留 "N+" 的表达自由）', () => {
+    const claimed = FACTS.commandCount - 1;
+    const out = checkStatusAssertions(
+      status(`| a | b | ${claimed}+ 命令可用 |`),
+      FACTS,
+      root,
+      { now: NOW },
+    );
+    expect(out.filter((d) => d.message.includes('命令'))).toHaveLength(0);
+  });
+
+  it('容差可注入（判定阈值不写死在调用方）', () => {
+    const claimed = FACTS.commandCount - 2;
+    const out = checkStatusAssertions(
+      status(`| a | b | ${claimed}+ 命令可用 |`),
+      FACTS,
+      root,
+      { now: NOW, quantitySlack: 1 },
+    );
+    expect(out.filter((d) => d.message.includes('低于实际注册'))).toHaveLength(1);
   });
 });

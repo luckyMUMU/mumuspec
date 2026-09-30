@@ -18,12 +18,6 @@ export interface BundleResult {
   fileCount?: number;
 }
 
-export interface PublishResult {
-  success: boolean;
-  bundlePath?: string;
-  error?: string;
-}
-
 /**
  * Create a bundle (tarball-like archive descriptor) of the skills directory.
  * ponytail: no tar/binary deps — uses zip archive descriptor + individual files
@@ -243,36 +237,6 @@ export interface PublishedInstallResult {
   success: boolean;
   error?: string;
   installed: string[];
-}
-
-/**
- * 发布 bundle —— **未实现，fail-closed**。
- *
- * 此前本函数是占位实现却返回 `success: true`：调用方会以为已经发布，
- * 这正是项目红线所禁的 fail-open（动作未完成却报告成功）。
- * 真实发布需要宿主侧登记配合，当前不经此通道；分发的正规路径是标准插件包
- * （`buildPluginPackage` + `installPluginPackage`）。
- */
-export function publishBundle(
-  bundlePath: string,
-  _registry?: string,
-): PublishResult {
-  if (!existsSync(bundlePath)) {
-    return { success: false, error: `Bundle not found: ${bundlePath}` };
-  }
-
-  const validation = validateBundle(bundlePath);
-  if (!validation.valid) {
-    return { success: false, error: `Bundle invalid: ${validation.errors.join('; ')}` };
-  }
-
-  return {
-    success: false,
-    error:
-      'E-BUNDLE-001 发布未实现：bundle publish 没有可用的上游登记通道。' +
-      '请改用标准插件包分发（mumuspec bundle plugin --out <dir>），' +
-      '或通过 mumuspec install --plugin 安装到插件缓存。',
-  };
 }
 
 /**

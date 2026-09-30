@@ -88,6 +88,7 @@ for (let i = 0; i < lines.length; i++) {
     const severityMatch = body.match(/severity:\s*'([^']+)'/);
     const descMatch = body.match(/description:\s*'([^']+)'/);
     const forceMatch = body.match(/forceable:\s*(true|false)/);
+    const reservedMatch = body.match(/reserved:\s*'([^']+)'/);
     
     // Parse fixSteps array
     const fixSteps = [];
@@ -110,6 +111,7 @@ for (let i = 0; i < lines.length; i++) {
       severity: severityMatch ? severityMatch[1] : 'ERROR',
       description: descMatch ? descMatch[1] : '',
       forceable: forceMatch ? forceMatch[1] === 'true' : false,
+      reserved: reservedMatch ? reservedMatch[1] : '',
       fixSteps,
     });
   }
@@ -140,10 +142,14 @@ md.push('');
 for (const [domain, codes] of domainMap) {
   md.push(`## ${domain} Domain`);
   md.push('');
-  md.push('| Code | Name | Severity | Description | Forceable |');
-  md.push('|------|------|----------|-------------|-----------|');
+  md.push('| Code | Name | Severity | Description | Forceable | Emission |');
+  md.push('|------|------|----------|-------------|-----------|----------|');
   for (const err of codes) {
-    md.push(`| \`${err.code}\` | ${err.name} | ${err.severity} | ${err.description} | ${err.forceable ? 'Yes' : 'No'} |`);
+    md.push(
+      `| \`${err.code}\` | ${err.name} | ${err.severity} | ${err.description} | ${err.forceable ? 'Yes' : 'No'} | ${
+        err.reserved ? '声明保留（无发射点）' : '有发射点'
+      } |`,
+    );
   }
   md.push('');
   
@@ -154,6 +160,7 @@ for (const [domain, codes] of domainMap) {
     md.push(`- **Severity**: ${err.severity}`);
     md.push(`- **Forceable**: ${err.forceable ? 'Yes' : 'No'}`);
     md.push(`- **Description**: ${err.description}`);
+    if (err.reserved) md.push(`- **无发射点**: ${err.reserved}`);
     md.push('');
     if (err.fixSteps.length > 0) {
       md.push('**Fix Steps**:');

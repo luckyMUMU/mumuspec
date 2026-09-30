@@ -188,14 +188,15 @@ describe('sync command handler', () => {
 
   // ── boundary validation with exports ──
 
-  it('should report missing exports when BOUNDARY.md exists but incomplete', async () => {
+  it('stays silent on under-enumerated exports and reports phantom declarations', async () => {
     mockSrcStructure([
       { name: 'core', files: ['utils.ts'], hasBoundary: true, hasIndex: true },
     ]);
     mockReadFileSync.mockImplementation((filePath: string) => {
       const p = norm(filePath);
       if (p.endsWith('/BOUNDARY.md')) {
-        return '# BOUNDARY: core/\n\n## 对外接口\n\n(empty)';
+        // Declares `myFunc` (real) and `GoneSymbol` (exists nowhere).
+        return '# BOUNDARY: core/\n\n## 对外接口\n\n| 函数 | 用途 |\n|------|------|\n| `myFunc` | 实际存在 |\n| `GoneSymbol` | 已随重构删除 |\n';
       }
       if (p.endsWith('.ts')) {
         return 'export function myFunc() {}\nexport class MyClass {}';
@@ -206,11 +207,14 @@ describe('sync command handler', () => {
     const { executeSync } = await import('../../../src/cli/commands/sync.js');
     const result = executeSync('/fake/root', {});
 
-    const exportWarning = result.issues.find(
-      (i) => i.message.includes('missing exports'),
-    );
-    expect(exportWarning).toBeDefined();
-    expect(exportWarning!.module).toBe('core');
+    // The document is not required to enumerate every export — that direction of
+    // checking produced hundreds of findings per run and stopped gating anything.
+    expect(result.issues.filter((i) => i.message.includes('missing exports'))).toEqual([]);
+
+    const phantom = result.issues.find((i) => i.message.includes('声明的符号在代码中不存在'));
+    expect(phantom?.module).toBe('core');
+    expect(phantom?.message).toContain('GoneSymbol');
+    expect(phantom?.message).not.toContain('myFunc');
   });
 
   // ── index.yaml validation ──

@@ -108,7 +108,57 @@ for (const f of files) {
 }
 if (!broken) console.log('  (none)');
 
-console.log(`\n=== SUMMARY: unknown refs=${bad}, broken links=${broken} ===`);
+// ── 4. 阻塞点引用对账：docs 提到的 BP 必须存在于工作流图数据 ──
+// WARN 起步、不影响退出码：图数据是事实源（workflow.default.yaml + 项目级
+// override），文档里出现图中没有的门禁编号即"文档声称被把守"的悬空指针。
+const bpIds = new Set();
+for (const f of [
+  join(ROOT, 'src', 'change', 'workflow.default.yaml'),
+  join(ROOT, '.mumuspec', 'workflow.yaml'),
+]) {
+  if (!existsSync(f)) continue;
+  for (const m of readFileSync(f, 'utf8').matchAll(/\bBP-\d+(?:\.\d+)?\b/g)) bpIds.add(m[0]);
+}
+
+const docFiles = [];
+const walkDocs = (d) => {
+  for (const e of readdirSync(d)) {
+    const p = join(d, e);
+    if (statSync(p).isDirectory()) walkDocs(p);
+    else if (e.endsWith('.md')) docFiles.push(p);
+  }
+};
+walkDocs(join(ROOT, 'docs'));
+let bpUnknown = 0;
+const bpHits = [];
+for (const f of docFiles) {
+  const rel = f.slice(ROOT.length + 1);
+  for (const m of readFileSync(f, 'utf8').matchAll(/\bBP-\d+(?:\.\d+)?\b/g)) {
+    if (!bpIds.has(m[0]) && bpIds.size) {
+      bpUnknown++;
+      bpHits.push(`  [UNKNOWN-BP] ${m[0]}  <- ${rel}`);
+    }
+  }
+}
+console.log(`\n=== BLOCKING POINT REFS IN DOCS (图内 ${bpIds.size} 个) ===`);
+if (!bpHits.length) console.log('  (none)');
+else console.log(bpHits.slice(0, 20).join('\n'));
+
+// ③ 生成图示对账：docs/reference/workflow-diagrams.md 是图数据的投影，
+//    对账即"重渲染 == 已提交文本"。判定源与生成脚本同源（src/graph/doc-page.ts），
+//    不存在第二套比对逻辑。
+let diagramDrift = 'ok';
+try {
+  const { diagramDocDrift } = await import(new URL('../dist/graph/doc-page.js', import.meta.url).href);
+  const drift = diagramDocDrift(ROOT);
+  diagramDrift = drift.drifted ? `DRIFT ${drift.detail}` : 'ok';
+} catch (e) {
+  diagramDrift = `SKIPPED (${e.message.split('\n')[0]})`;
+}
+console.log(`\n=== GENERATED DIAGRAM RECONCILIATION ===`);
+console.log(`  docs/reference/workflow-diagrams.md vs fresh render: ${diagramDrift}`);
+
+console.log(`\n=== SUMMARY: unknown refs=${bad}, broken links=${broken}, unknown BP refs=${bpUnknown}, diagram drift=${diagramDrift === 'ok' ? 'none' : diagramDrift.startsWith('SKIPPED') ? 'skipped' : 1} (WARN) ===`);
 // 报告型审计：四类误报使自动门禁不可判定（占位符与真实拼写错误无法机械区分），
 // 输出供人工裁决；命令面硬门禁由 tests/guard/skill-registry.test.ts（skill 文本）
 // 与 tests/cli/commands/check-json.test.ts TC-L3-1（注册闭包）承担。

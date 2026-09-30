@@ -228,7 +228,6 @@ describe('discardChange', () => {
         single_active_change: true, user_confirmed: false,
         decisions_log: { counts: {} }, rollback_history: [],
         cognitive_framework: { enabled: false, q1_count: 0, q2_pending: 0, q3_pending: 0, q4_scans_completed: 0, converged: false, rounds_completed: 0 },
-        hyperplan_result: { triggered: false, hard_constraints_merged: true, open_questions_resolved: true, degraded: false },
         feedback_log: { entries: [], session_links: [] },
       };
     });

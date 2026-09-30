@@ -7,13 +7,56 @@ import type { ChangeState, Workflow, BuildLayer } from '../core/types.js';
 import type { MumuSpecConfig } from '../core/config.js';
 import { readText, writeText, ensureDir, computeHash, now, appendAuditLog, getMumuSpecDir } from '../core/utils.js';
 import { MumuSpecError } from '../core/errors.js';
-import { getCurrentBranch, isGitRepo, hasWorktree, removeWorktree } from '../core/git.js';
+import { getCurrentBranch, isGitRepo, hasWorktree, removeWorktree, createWorktree, getWorktreePath } from '../core/git.js';
+import { resolveWorkflowRule } from '../core/constraint-evaluator.js';
+import { WORKFLOW_RULE_DIMENSION, WORKFLOW_STRENGTH_MATRIX } from '../core/config-tree.js';
 import { ensureFeedbackStructure, getChangeFeedbackDir } from '../feedback/manager.js';
 import { getChangeDir, getDiscardedDir } from './paths.js';
 import { loadChangeState, saveChangeState } from './state.js';
-import { getActiveChange } from './listing.js';
+import { getActiveChange, listActiveChanges } from './listing.js';
 import { getActiveChangeOnBranch, getChangeBranchName, ensureChangeBranch, rollbackChangeCreation } from './branch.js';
 import { scaffoldChangeSpecs } from '../core/spec-scaffolder.js';
+
+/**
+ * Ensure worktree isolation exists for a change when the strength matrix says
+ * the rule is enforced (`workflow.worktree_isolation`). Branch isolation is an
+ * explicit, audited downgrade — never a silent substitution.
+ */
+export function ensureWorktreeIsolation(
+  projectRoot: string,
+  changeName: string,
+  config: MumuSpecConfig,
+): { enforced: boolean; created: boolean; downgraded: boolean; worktreePath?: string; reason?: string } {
+  const enforced = resolveWorkflowRule(
+    'worktree_isolation',
+    config.constraint_strength,
+    WORKFLOW_RULE_DIMENSION,
+    WORKFLOW_STRENGTH_MATRIX,
+  );
+  if (!enforced) return { enforced: false, created: false, downgraded: false };
+
+  if (hasWorktree(projectRoot, changeName)) {
+    return { enforced: true, created: false, downgraded: false, worktreePath: getWorktreePath(projectRoot, changeName) };
+  }
+  if (config.changes?.default_isolation !== 'worktree') {
+    return {
+      enforced: true,
+      created: false,
+      downgraded: true,
+      reason: `changes.default_isolation=${String(config.changes?.default_isolation)} 非 worktree — 降级为分支隔离（留审计痕）`,
+    };
+  }
+  try {
+    const worktreePath = createWorktree(projectRoot, changeName);
+    return { enforced: true, created: true, downgraded: false, worktreePath };
+  } catch (err) {
+    throw new MumuSpecError('E-CHANGE-014', {
+      '变更': changeName,
+      '原因': err instanceof Error ? err.message : String(err),
+      '修复': '修复 git 环境后重试，或显式降级为分支隔离',
+    });
+  }
+}
 
 /** Create a new change */
 export function createChange(
@@ -23,6 +66,7 @@ export function createChange(
   config: MumuSpecConfig,
   affectedScopes: string[] = [],
   scope?: string,
+  opts?: { requestText?: string },
 ): ChangeState {
   // Per-branch single active change (branch-driven workflow)
   const isBranchDriven = config.changes?.default_isolation === 'branch';
@@ -50,6 +94,20 @@ export function createChange(
         '修复': '完成或 Discard 当前变更后再创建新变更',
         '提示': '如需并行变更，可在其他作用域创建变更，或在 config.yaml 设置 workflow.single_active_change: false',
       });
+    }
+    // workflow.max_active_changes is only meaningful once the single-active rule
+    // is off; without this check the declared cap was advice nobody enforced.
+    if (config.workflow?.single_active_change === false) {
+      const cap = config.workflow.max_active_changes ?? 3;
+      const activeNow = listActiveChanges(projectRoot, scope);
+      if (activeNow.length >= cap) {
+        throw new MumuSpecError('E-CHANGE-013', {
+          '活跃变更数': String(activeNow.length),
+          '上限': String(cap),
+          '活跃变更': activeNow.join(', '),
+          '修复': '先归档或 Discard 至少一个活跃变更，或调高 workflow.max_active_changes',
+        });
+      }
     }
   }
 
@@ -104,12 +162,6 @@ export function createChange(
       converged: false,
       rounds_completed: 0,
     },
-    hyperplan_result: {
-      triggered: false,
-      hard_constraints_merged: true,
-      open_questions_resolved: true,
-      degraded: false,
-    },
     feedback_log: { entries: [], session_links: [] },
   };
 
@@ -142,6 +194,15 @@ export function createChange(
   }
 
   createInitialArtifacts(projectRoot, changeName, workflow, affectedScopes, scope);
+
+  // Drafting input slot: the terse natural-language request is stored verbatim
+  // so that "what the expansion covered" can be compared mechanically against
+  // what the author actually asked for. No parsing, no expansion here — that is
+  // the skill side's job; the coverage gate does the judging.
+  if (opts?.requestText !== undefined) {
+    writeText(join(changeDir, 'request.md'), opts.requestText);
+  }
+
   ensureFeedbackStructure(projectRoot);
   ensureDir(getChangeFeedbackDir(projectRoot, changeName));
 

@@ -139,6 +139,7 @@ export function organizeKnowledge(
       issues.push({
         severity: 'warning',
         type: 'missing_field',
+        code: 'E-KNOWLEDGE-001',
         page_id: page.frontmatter.id,
         file: page.path,
         message: `Page "${page.frontmatter.id}" is missing required fields: ${missingFields.join(', ')}`,

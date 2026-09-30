@@ -2,9 +2,9 @@
 
 > 本文件是 MumuSpec 项目进度的唯一权威来源。其他文档提及进度时 SHALL 引用本文件,不得自行描述进度数据。
 
-- **最后更新日期**: 2026-09-19
+- **最后更新日期**: 2026-10-01
 - **设计版本**: 0.20.0-draft
-- **当前包版本**: 0.46.0-alpha.0
+- **当前包版本**: 0.46.0-alpha.1
 - **定位**: Spec 即 DSL — Spec 由大模型起草、人做设计决策与审批签收（人机合著），AI 生成代码
 
 > 本文件的机器可核断言（包版本 / 能力层实现进度 / 命令与工具数量 / 更新日期）经
@@ -17,8 +17,8 @@
 | 指标 | 数值 | 说明 |
 |------|------|------|
 | 设计完备性 | 100% | 六层架构设计已完成 |
-| 实现进度 | ~90% | 核心层已实现；缺口主要在 Worktree isolation、Code-graph 后端 |
-| 当前 Phase | Phase 2/3 交叉 | Phase 1 核心已完工，Phase 2/3 部分推进 |
+| 实现进度 | 声明一致率 1.000（E1/E2/E3，违反 0） | 由 `mumuspec conformance` 实测而非人工估计；缺口以"未建探针类别 + 待裁决项"显式列出，不以空集充当绿灯 |
+| 当前 Phase | Phase 2/3 交叉 | Phase 1 核心已完工，Phase 2 Worktree isolation 已接线，Phase 3 Code-graph 持久化后端属产品非目标 |
 | 0.20 进展 | Verifier P0 已实施 | 可验证性四分类、E-SPEC-015、enforcement coverage 已落地；M2 门控默认 ON |
 
 ---
@@ -104,7 +104,7 @@
 | 能力层 | 设计完备性 | 实现进度 | Phase 归属 | 备注 |
 |-------|-----------|---------|-----------|------|
 | Spec Layer | 100% | **95%** | Phase 1 (✅ 完成) | parser/loader/validator/inheritance/ponytail/可验证性四分类完整；缺多语言 AST |
-| Change Layer | 100% | **80%** | Phase 1 (✅ 基本完成) | CRUD/状态机/归档/CLI-first 三命令完整；缺 Worktree isolation |
+| Change Layer | 100% | **85%** | Phase 1 (✅ 基本完成) | CRUD/状态机/归档/CLI-first 三命令完整；工作树隔离已补创建路径与门（E-GUARD-014） |
 | Guard Layer | 100% | **93%** | Phase 1 (✅ 完成) | compliance/drift/phase-guard/enforcement coverage 完整；缺多语言 AST |
 | AI Integration | 100% | **92%** | Phase 1 (✅ 完成) | canonical AGENTS.md + CLAUDE.md 薄壳桥接生成 + MCP Server 完整；10 agent Skill 分发完整 |
 | Knowledge Layer | 100% | **85%** | Phase 3 (推进中) | CRUD/PageIndex/UA 分析完整；缺 Code-graph 后端(SQLite) |
@@ -122,8 +122,8 @@
 | Phase 1 MVP | **93%** | Spec(✅) + Change(✅,缺 Worktree isolation) + Guard(✅) + Rules 生成(✅) + AI 适配层(✅) |
 | Phase 2 | **70%** | Ponytail(✅ 核心) + TDD(配置就位) + 认知框架(✅ 配置) + 可验证性系统(✅ 0.20) + CLI-first(✅ 0.20) |
 | Phase 3 | **30%** | Knowledge CRUD/PageIndex/UA 分析(✅) + Code-graph(未开始) + Contract Layer(未开始) |
-| Phase 4 | 0% | CI/CD + 全漂移检测 + 知识提取 + 文档生成 |
-| Phase 5 | 0% | Skill 编排器 + Hyperplan + 生态分发 |
+| Phase 4 | **60%** | CI 工作流 + 四个检查脚本（ci-check/docs-audit/enforcement-check/gen-error-codes）+ 评测运行器 + 归档知识提取 D1–D8 已交付；文档自动生成与全链路校验余项见计划 §二.1 |
+| Phase 5 | **45%** | 阶段编排器（9 个 SKILL.md + workflow.yaml 分发表）与 11 agent 分发已交付；多角色评审引擎与规范模板分发未做 |
 
 ---
 
@@ -132,11 +132,13 @@
 | 字段 | 当前值 | 说明 |
 |------|--------|------|
 | 可验证性门控 | enforcement_strict = true（默认 ON） | E-SPEC-015 默认阻断；opt-out 设 false 退回观察态 |
-| dogfooding coverage | declared_ratio 100%（180 条约束） | 170 manual + 10 enforced-weak + 0 strong + 0 unverifiable |
-| 图谱后端降级状态 | 内置（未启用 Code-graph） | 使用 PageIndex + 反向索引；SQLite 后端计划 Phase 3 |
+| dogfooding coverage | declared_ratio 100%（384 条约束） | 359 manual + 21 enforced-weak + 4 enforced-strong + 0 unverifiable；strong_ratio 1.0% |
+| 图谱后端 | 内存实现（无持久化后端） | PageIndex + 反向索引；code-graph search/trace/structure 已接线，无跨进程持久化 |
+| 声明一致率 | E1 77/77、E2 153/153、E3 5/5（违反合计 0） | `mumuspec conformance` 实测；9 项待裁决（always_enforce 例外条目）归 R-0021，不参与比值也不计为通过 |
+| 图示对账 | 生成页 `docs/reference/workflow-diagrams.md` 与重渲染字节一致 | `npm run docs:audit` 的 GENERATED DIAGRAM RECONCILIATION 通道；手写图块不做结构比对（布局差异不可机械判定） |
 | 高级特性启用状态 | 认知框架/Ponytail/可验证性 可用 | 认知框架默认关闭，Ponytail 核心完成，可验证性 M2 已翻闸 |
-| CLI 命令 | 43+ 命令可用 | 新增 tasks next / lock-suite / state layer（0.20） |
-| MCP Server 工具 | 25+ 工具可用 | 覆盖 spec/design/compliance/drift/guard/change/knowledge/constraints |
+| CLI 命令 | 58+ 命令可用 | 本轮新增 design-init / graph render / conformance；移除返回占位简报的 team 命令面与未实现的 bundle publish |
+| MCP Server 工具 | 35+ 工具可用 | 覆盖 spec/design/compliance/drift/guard/change/knowledge/constraints |
 
 ---
 

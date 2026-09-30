@@ -18,6 +18,12 @@ import {
   parseTechFile,
 } from '../../spec/parser.js';
 import { loadSpecContext, searchSpecs, findAllDistributedSpecDirs, getProhibitions } from '../../spec/loader.js';
+import { analyzeProject } from '../../core/project-analyzer.js';
+import {
+  ARCH_PREFERENCE_PACKS,
+  findIncompleteSelections,
+  renderDesignSkeleton,
+} from '../../core/design-preferences.js';
 import { validateAllSpecs } from '../../spec/validator.js';
 import { validateMumuSpecStructure } from '../../spec/structure-validator.js';
 import { checkCompliance, detectDrift, autoFixDrift, detectDriftWithContracts, detectAgentsDrift } from '../../guard/checker.js';
@@ -245,6 +251,63 @@ export function registerSpecCommands(program: Command): void {
 
       writeText(specPath, serializeSpecFile(spec));
       console.log(`✓ Added ${options.type} constraint to ${scope}`);
+    });
+
+  // === design-init ===
+  program
+    .command('design-init')
+    .description('Generate a design.md skeleton carrying the architecture selection table')
+    .argument('<scope>', 'scope path (e.g., src/api)')
+    .option('--pick <pair...>', 'topic=option[:reason] — decide a preference (repeatable)')
+    .option('--force', 'overwrite an existing design.md')
+    .action((scope: string, options: { pick?: string[]; force?: boolean }) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+
+      const picks: Record<string, { option: string; reason: string }> = {};
+      for (const raw of options.pick ?? []) {
+        const eq = raw.indexOf('=');
+        const topic = eq < 0 ? '' : raw.slice(0, eq).trim();
+        const pack = ARCH_PREFERENCE_PACKS.find((p) => p.topic === topic);
+        if (!pack) {
+          console.error(`✗ 未知议题 "${topic}"，可选议题: ${ARCH_PREFERENCE_PACKS.map((p) => p.topic).join(' / ')}`);
+          process.exit(1);
+        }
+        const rest = raw.slice(eq + 1).trim();
+        const colon = rest.indexOf(':');
+        const optionId = (colon < 0 ? rest : rest.slice(0, colon)).trim();
+        const reason = colon < 0 ? '' : rest.slice(colon + 1).trim();
+        const option = pack.options.find((o) => o.id === optionId || o.label === optionId);
+        if (!option) {
+          console.error(
+            `✗ 议题 "${topic}" 不接受选项 "${optionId}"，候选: ${pack.options.map((o) => o.label).join(' / ')}`,
+          );
+          process.exit(1);
+        }
+        picks[topic] = { option: option.id, reason };
+      }
+
+      const targetDir = join(resolve(root, normalizePath(scope)), '.mumuspec');
+      const designPath = join(targetDir, 'design.md');
+      if (existsSync(designPath) && !options.force) {
+        console.error(`✗ design.md 已存在: ${designPath}`);
+        console.error('  覆盖需显式 --force（不静默替换用户内容）');
+        process.exit(1);
+      }
+
+      const content = renderDesignSkeleton(analyzeProject(root), picks);
+      ensureDir(targetDir);
+      writeText(designPath, content);
+      console.log(`✓ design.md 骨架已生成: ${designPath}`);
+
+      const incomplete = findIncompleteSelections(content);
+      if (incomplete.length > 0) {
+        console.log(`  未决议题 ${incomplete.length} 项: ${incomplete.join(', ')}`);
+        console.log('  Design 阶段逐项选定（含备选与理由）；未决会在 guard 报告中以 W-DESIGN-012 列出（建议级，不阻断）');
+      }
     });
 
   // === validate ===

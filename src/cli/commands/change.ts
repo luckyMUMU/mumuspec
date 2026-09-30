@@ -83,6 +83,7 @@ export function registerChangeCommands(program: Command): void {
     .option('--doc-only', 'documentation-only change')
     .option('--bugfix', 'pure bugfix (root cause confirmed)')
     .option('--no-spec-delta', 'zero-behavior-change change skips spec delta (lightweight: refactor/tooling/docs; verify result constraints remain the gate)')
+    .option('--request <text>', 'terse natural-language request stored verbatim as the drafting input slot (request.md)')
     .action((name, options) => {
       const root = findProjectRoot();
       if (!root) {
@@ -97,7 +98,14 @@ export function registerChangeCommands(program: Command): void {
         // the real scope param is the first scope (or '.').
         const scopes = options.scope ?? [];
         const scope = scopes[0] ?? '.';
-        const state = createChange(root, name, options.workflow, config, scopes, scope);
+        // The drafting slot is an optional 7th argument: without --request the
+        // call shape stays byte-identical to the previous behavior.
+        const state =
+          options.request === undefined
+            ? createChange(root, name, options.workflow, config, scopes, scope)
+            : createChange(root, name, options.workflow, config, scopes, scope, {
+                requestText: options.request,
+              });
 
         // Update state with dist_spec pointers (Distributed Spec V2)
         state.dist_spec = {

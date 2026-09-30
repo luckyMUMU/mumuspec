@@ -1,0 +1,71 @@
+version: 1
+change: core-consolidation
+entries:
+  - quadrant: Q1
+    category: baseline
+    question: 本变更开始时的事实基线是什么？
+    answer: 384 条约束（strong 4 / weak 21 / manual 359 / unverifiable 0，strong_ratio 1.0%）、58 顶层命令、35 MCP 工具与 35 handler、302 测试文件约 5335 用例 0 skip、dist 已重建后实测
+    confidence: high
+    source: node dist/cli.js validate / docs-audit
+    status: confirmed
+  - quadrant: Q1
+    category: constraint-model
+    question: 约束强度模型能否承载覆盖维度？
+    answer: 不能。强度维度只有技术设计与需求目标两轴，服务的是强度调节语义；覆盖维度是正交概念，混用会破坏既有求值矩阵
+    confidence: high
+    source: src/core/types-constraint.ts:29
+    status: confirmed
+  - quadrant: Q2
+    category: scope
+    question: 实现度 100% 按哪个口径计算？
+    options: [三项能力+文档对账, 加 STATUS 点名缺口, 含 Phase3/4/5 全部并做必要性审查与精简]
+    answer: 全部，但先审查必要性，非必要项删除以聚焦核心能力，并增强图表化呈现
+    confidence: high
+    source: 用户裁决
+    status: confirmed
+  - quadrant: Q2
+    category: gating
+    question: 阶段门禁签收方式？
+    options: [一次性预签收, 逐门询问, 放行到 build]
+    answer: 一次性预签收全部必需阻塞点，执行方带 --confirm 推进并记录审计
+    confidence: high
+    source: 用户裁决
+    status: confirmed
+  - quadrant: Q3
+    category: design-decision
+    question: 覆盖面判定应落在哪一层？
+    answer: Q1 基线显示 Q4 门只数行数 + Q1 显示章节 schema 已有机械校验通道 → 判定落在既有 schema 与阶段守卫通道，不新增引擎
+    confidence: high
+    source: src/cli/commands/cognitive-map.ts:177 / templates/design-schema.yaml
+    status: confirmed
+  - quadrant: Q3
+    category: design-decision
+    question: 架构偏好选型能否放在 init？
+    answer: Q1 初始化全自动红线 + Q1 选型表需人工签收 → 选型只能在 Design 阶段，init 仅产带未决项骨架
+    confidence: high
+    source: 根层红线 / src/cli/index.ts:100-434
+    status: confirmed
+  - quadrant: Q4
+    category: security-compliance
+    question: 覆盖面门是否会因存量 cognitive-map 缺安全维度而集中阻断？
+    answer: 残留风险——先 WARN 观察一轮，不改 strict 默认；本仓 cognitive-map 已按维度身份重建
+    confidence: medium
+    status: accepted
+  - quadrant: Q4
+    category: concurrency
+    question: 渲染与指标计算是否引入并发或子进程？
+    answer: 不引入。全部为静态核验与纯函数推导，规避子进程与监听类新增面（既有红线：行为门校验器不得执行子进程）
+    confidence: high
+    status: accepted
+  - quadrant: Q4
+    category: compat
+    question: 删除假承诺面是否破坏既有消费者？
+    answer: 隐性消费者风险中等——删除前以边界校验、同步检查、全仓检索三重核对，删除与引用改写同批交付，不留幽灵引用
+    confidence: medium
+    status: accepted
+  - quadrant: Q4
+    category: data
+    question: 一致率分母收缩是否会让 strong_ratio 虚高被误读？
+    answer: 会。报告须逐条区分删声明与补实现两类归因，密度只作调节信号不作质量分
+    confidence: high
+    status: accepted

@@ -118,14 +118,15 @@ export interface ChangeState {
     q2_pending: number;
     q3_pending: number;
     q4_scans_completed: number;
+    /**
+     * L1 (R-0014): distinct aspects actually scanned and the required ones still
+     * missing. Absent on states written before the identity gate — the guard then
+     * falls back to the legacy row-count check instead of fabricating a verdict.
+     */
+    q4_aspects_covered?: string[];
+    q4_aspects_missing?: string[];
     converged: boolean;
     rounds_completed: number;
-  };
-  hyperplan_result?: {
-    triggered: boolean;
-    hard_constraints_merged: boolean;
-    open_questions_resolved: boolean;
-    degraded: boolean;
   };
   grill_me_result?: {
     /** Whether the grill-me questioning session completed */

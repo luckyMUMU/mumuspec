@@ -20,7 +20,6 @@ import {
   createBundle,
   validateBundle,
   installBundle,
-  publishBundle,
   listBundles,
   type BundleManifest,
 } from '../../src/bundle/packager.js';
@@ -484,54 +483,6 @@ describe('installBundle', () => {
     } finally {
       cleanup(source);
       cleanup(target);
-    }
-  });
-});
-
-// ========== publishBundle ==========
-
-describe('publishBundle', () => {
-  it('should return error for non-existent bundle', () => {
-    const result = publishBundle('/nonexistent.json');
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('not found');
-  });
-
-  it('should return error for invalid bundle', () => {
-    const dir = createTmpProject();
-    try {
-      const invalidPath = join(dir, 'invalid-pub.json');
-      writeFileSync(invalidPath, 'not json');
-      const result = publishBundle(invalidPath);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('invalid');
-    } finally {
-      cleanup(dir);
-    }
-  });
-
-  it('should fail-closed for a valid bundle — publishing is unimplemented', () => {
-    // 此前本用例断言 success: true，而实现是占位返回——那是 fail-open：
-    // 调用方会以为已经发布。动作未完成时的正确行为是失败并给出理由。
-    const dir = createTmpProject();
-    try {
-      createSkillsDir(dir);
-      const createResult = createBundle(dir);
-      const manifestPath = join(createResult.outputPath!, 'mumuspec-skills.json');
-      const result = publishBundle(manifestPath);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('E-BUNDLE-001');
-      expect(result.error).toContain('bundle plugin');
-    } finally {
-      cleanup(dir);
-    }
-  });
-
-  it('should return correct PublishResult shape', () => {
-    const result = publishBundle('/fake/path');
-    expect(result).toHaveProperty('success');
-    if (!result.success) {
-      expect(result).toHaveProperty('error');
     }
   });
 });

@@ -1,0 +1,21 @@
+version: 1
+change: core-consolidation
+items:
+  - id: OQ-1
+    question: 减法裁决中的删除项是否需要保留兼容别名（弃用期）？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-30T15:53:17.938Z"
+      note: 用户预签收全量 BP 时确认按"删除而非降级留别名"处置；alpha 阶段无外部消费者，保留别名会延续双权威源
+  - id: OQ-2
+    question: 覆盖维度枚举是否需要项目级可配置（用户自定义维度）？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-30T15:53:17.938Z"
+      note: 保持代码常量单一事实源；可配置会让门禁判据随仓库漂移，且当前无差异化需求
+  - id: OQ-3
+    question: 声明一致率是否并入收敛评估 composite 权重？
+    status: resolved
+    resolution:
+      decision_ref: "2026-09-30T15:52:08.106Z"
+      note: 不并入——既有 loop 权重之和、收敛阈值与稳定窗口不动，指标另立命令面上报

@@ -2,7 +2,18 @@
  * constraints command — Dynamic constraint strength and tree-distributed constraints.
  */
 import type { Command } from 'commander';
-import { findProjectRoot, getMumuSpecDir, appendAuditLog } from '../../core/utils.js';
+import { join } from 'node:path';
+import {
+  findProjectRoot,
+  getMumuSpecDir,
+  appendAuditLog,
+  ensureDir,
+  readYaml,
+  writeYaml,
+  now,
+} from '../../core/utils.js';
+import { buildReusedEntry, planConstraintReuse } from '../../spec/reuse.js';
+import type { ConstraintStrength, ConstraintsFile } from '../../core/types-constraint.js';
 import {
   loadConfig,
   saveConfig,
@@ -343,5 +354,82 @@ export function registerConstraintsCommands(program: Command): void {
       } else {
         console.log('\n✓ No conflicts detected.');
       }
+    });
+
+  // --- constraints reuse ---
+  constraintsCmd
+    .command('reuse')
+    .description('复用既有约束条目：继承上游来源，只可收紧不可放宽')
+    .requiredOption('--id <id>', 'source entry id')
+    .option('--from <scope>', 'source scope (default: search every loaded scope)')
+    .option('--to <scope>', 'target scope', '.')
+    .option('--tighten <strength>', 'raise min_strength: low|medium|high')
+    .action((options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+
+      const { files } = loadAllConstraints(root);
+      const plan = planConstraintReuse(files, {
+        id: options.id,
+        fromScope: options.from,
+        tighten: options.tighten as ConstraintStrength | undefined,
+      });
+
+      if (!plan.ok) {
+        console.error(`✗ [${plan.refusal.code}] ${plan.refusal.detail}`);
+        if (plan.available && plan.available.length > 0) {
+          console.error(`  可选项: ${plan.available.join(', ')}`);
+        }
+        process.exit(1);
+      }
+
+      const targetScope = options.to as string;
+      const targetDir = join(root, targetScope, '.mumuspec');
+      ensureDir(targetDir);
+      const targetPath = join(targetDir, 'constraints.yaml');
+      const existing: ConstraintsFile = readYaml<ConstraintsFile>(targetPath) ?? {
+        version: '0.2.0',
+        last_updated: now().split('T')[0],
+        scope: targetScope,
+        forward: {},
+        reverse: {},
+      };
+
+      const reused = buildReusedEntry(plan, {
+        layer: existing.layer ?? (targetScope === '.' ? 0 : targetScope.split(/[\\/]+/).length),
+        scope: targetScope,
+      });
+
+      const direction = plan.located.direction;
+      const dimension = plan.located.dimension;
+      const section = existing[direction] ?? {};
+      const list = section[dimension] ?? [];
+      if (list.some((entry) => entry.id === reused.id)) {
+        console.error(`✗ 目标范围已存在同名复用条目: ${reused.id}`);
+        process.exit(1);
+      }
+      list.push(reused);
+      section[dimension] = list;
+      existing[direction] = section;
+      existing.last_updated = now().split('T')[0];
+      writeYaml(targetPath, existing);
+
+      appendAuditLog(getMumuSpecDir(root), {
+        actor: 'cli',
+        action: 'constraints.reuse',
+        change: targetScope,
+        from: `${plan.located.scope}#${plan.located.entry.id}`,
+        to: reused.id,
+        result: 'success',
+      });
+
+      console.log(
+        `✓ 已复用到 ${targetScope}: ${reused.id}` +
+          `（来源 ${plan.located.scope}#${plan.located.entry.id}，` +
+          `min_strength=${reused.min_strength}，上游 ${reused.source_specs?.join(', ')}）`,
+      );
     });
 }

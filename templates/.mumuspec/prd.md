@@ -12,11 +12,11 @@ templates 目录是 MumuSpec 的模板文件集合，为 Guard Layer 提供结�
 ## 存在理由
 design.md 的自由格式导致 Phase Guard 仅能检查文件存在性，无法校验内容完整性。
 模板系统通过 schema 定义必填 section 的正则匹配模式，让 guard 在 Design→Build
-阶段转换时自动检测缺失字段并返回 E-DESIGN-009 错误，保证设计文档质量。
+阶段转换时自动检测缺失字段并返回 W-DESIGN-009 错误，保证设计文档质量。
 
 ## 用户场景
 1. **Guard 校验设计文档**：phase-guard.ts 读取 design-schema.yaml，按 workflow 类型
-   匹配 design.md 的 section，缺失必填字段时返回 E-DESIGN-009
+   匹配 design.md 的 section，缺失必填字段时返回 W-DESIGN-009
 2. **开发者编写设计文档**：参照 schema 的 required_for 列表，确保 full workflow
    包含 API Contracts、Data Flow、Error Specification 等必填章节
 3. **配置任务粒度**：schema 定义 max_minutes（15 分钟），超过时返回 W-DESIGN-001 警告

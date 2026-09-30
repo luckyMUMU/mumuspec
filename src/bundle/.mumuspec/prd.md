@@ -13,7 +13,6 @@ last_updated: '2026-08-04'
 - `createBundle()` — 扫描技能目录，生成 manifest JSON + 文件副本结构
 - `validateBundle()` — 校验 bundle manifest 完整性及文件 hash 一致性
 - `installBundle()` — 将 bundle 解压安装到目标 workspace
-- `publishBundle()` — 发布 bundle（当前为占位，预留 registry 集成）
 - `listBundles()` — 列出项目中已有的 bundle
 
 ## 存在理由 (Why it exists)

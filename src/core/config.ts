@@ -60,7 +60,6 @@ export interface ConstraintStrengthField {
       tdd_enforced?: WorkflowOverride;
     };
     cognitive_framework?: CapabilityOverride;
-    hyperplan?: CapabilityOverride;
     brainstorming?: CapabilityOverride;
     test_immutability?: CapabilityOverride;
     impact_analysis?: CapabilityOverride;
@@ -111,8 +110,6 @@ export interface MumuSpecConfig {
     enabled: boolean;
     code_graph: {
       enabled: boolean;
-      storage: string;
-      db_path: string;
       auto_index_on_commit: boolean;
       languages: string[];
     };
@@ -225,7 +222,6 @@ export interface MumuSpecConfig {
     discovery: string;
     ecosystems: Record<string, unknown>;
     dispatch: Record<string, unknown>;
-    hyperplan?: Record<string, unknown>;
   };
   contracts: {
     enabled: boolean;

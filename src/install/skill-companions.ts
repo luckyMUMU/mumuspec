@@ -19,7 +19,21 @@ export interface CompanionSpec {
   phases: readonly string[];
 }
 
-export type ResolvedCompanion = CompanionSpec & { resolved: string | null };
+export type ResolvedCompanion = CompanionSpec & {
+  resolved: string | null;
+  /**
+   * 引擎是否读取该能力的可用性。为 false 时它只是给代理的环境事实报告，
+   * 没有任何门禁依赖它——此前 28 条全部被技能文本写成 required 而可达率 0/28，
+   * 就是这个区分不存在导致的。
+   */
+  wired: boolean;
+};
+
+/** 覆盖面门在缺安全维度时会读取该能力的可用性并留痕降级。 */
+export const SECURITY_COMPANION = 'security-and-hardening';
+
+/** 引擎接线的伴生能力集合（判定源唯一，条目本身不携带该标记以免两处各说一套）。 */
+export const WIRED_COMPANIONS: ReadonlySet<string> = new Set([SECURITY_COMPANION]);
 
 /** 全部被技能文本声明的外部能力。required 一律为 false——它们都是包外增强，不是包内必须步骤。 */
 export const COMPANIONS: readonly CompanionSpec[] = [
@@ -29,7 +43,6 @@ export const COMPANIONS: readonly CompanionSpec[] = [
   { name: 'using-git-worktrees', purpose: '工作区隔离', phases: ['open', 'build'] },
   { name: 'spec-driven-development', purpose: '规范草案编写', phases: ['open'] },
   { name: 'grill-me', purpose: '设计方案共识追问（BP-4.5）', phases: ['design'] },
-  { name: 'hyperplan', purpose: '对抗式审查（BP-7）', phases: ['design'] },
   { name: 'subagent-driven-development', purpose: '对抗团队创建', phases: ['design', 'build'] },
   { name: 'documentation-and-adrs', purpose: '决策记录', phases: ['design', 'archive'] },
   { name: 'writing-plans', purpose: '实现计划编写', phases: ['build'] },
@@ -43,7 +56,7 @@ export const COMPANIONS: readonly CompanionSpec[] = [
   { name: 'context-engineering', purpose: '上下文管理', phases: ['build'] },
   { name: 'interview-me', purpose: '需求不清时的访谈', phases: ['open'] },
   { name: 'doubt-driven-development', purpose: '疑虑驱动开发', phases: ['design', 'build'] },
-  { name: 'security-and-hardening', purpose: '安全盲区扫描', phases: ['design', 'build', 'verify'] },
+  { name: SECURITY_COMPANION, purpose: '安全盲区扫描', phases: ['design', 'build', 'verify'] },
   { name: 'performance-optimization', purpose: '性能盲区扫描', phases: ['design', 'build', 'verify'] },
   { name: 'api-and-interface-design', purpose: '接口设计', phases: ['design', 'build'] },
   { name: 'source-driven-development', purpose: '源码验证', phases: ['build'] },
@@ -110,7 +123,11 @@ export function discoverCompanion(name: string): string | null {
 export function resolveCompanions(
   specs: readonly CompanionSpec[] = COMPANIONS,
 ): ResolvedCompanion[] {
-  return specs.map((spec) => ({ ...spec, resolved: discoverCompanion(spec.name) }));
+  return specs.map((spec) => ({
+    ...spec,
+    resolved: discoverCompanion(spec.name),
+    wired: WIRED_COMPANIONS.has(spec.name),
+  }));
 }
 
 /** 缺失清单（供命令出口与技能文本前置判断）。 */

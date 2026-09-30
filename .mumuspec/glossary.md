@@ -259,7 +259,7 @@ E-<DOMAIN>-<NUMBER>
 |------|------|------|
 | SPEC | 规范校验 | E-SPEC-004: Requirement 缺少 Enforcement |
 | CHANGE | 变更管理 | E-CHANGE-006: 未知目标阶段 |
-| DESIGN | 设计阶段 | E-DESIGN-001: cognitive-map.yaml 不存在 |
+| DESIGN | 设计阶段 | W-DESIGN-001: cognitive-map.yaml 不存在 |
 | GUARD | 守卫层 | E-GUARD-003: 阶段约束违规 |
 | CONTRACT | 契约层 | E-CONTRACT-002: 契约引用不存在 |
 

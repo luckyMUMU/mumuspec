@@ -26,6 +26,17 @@ import {
   unionBps,
 } from '../../change/phase-bps.js';
 import { parse } from 'yaml';
+import {
+  buildConstraintTreeInput,
+  buildContractGraphInput,
+  buildWorkflowGraphInput,
+} from '../../graph/facts.js';
+import {
+  renderBpLanes,
+  renderConstraintTree,
+  renderContractGraph,
+  renderStateMachine,
+} from '../../graph/render.js';
 
 interface CheckResult {
   label: string;
@@ -37,6 +48,68 @@ export function registerGraphCommand(program: Command): void {
   const graph = program
     .command('graph')
     .description('State machine graph inspection and verification');
+
+  graph
+    .command('render')
+    .description('Render orchestration graph data (read-only): mermaid / dot / json')
+    .option('--view <view>', 'statemachine | lanes | contracts', 'statemachine')
+    .option('--format <format>', 'mermaid | dot | json', 'mermaid')
+    .option('--change <name>', 'change name used for state annotation (active change if omitted)')
+    .option('--path <path>', 'target path for the constraints view', '.')
+    .action((options) => {
+      const root = findProjectRoot();
+      if (!root) {
+        console.error('Error: Not in a MumuSpec project.');
+        process.exit(1);
+      }
+
+      const views = ['statemachine', 'lanes', 'contracts', 'constraints'] as const;
+      type View = (typeof views)[number];
+      if (!views.includes(options.view as View)) {
+        console.error(`✗ E-GRAPH-002: 未知视图 "${options.view}"（支持 ${views.join(' | ')}）`);
+        process.exit(1);
+      }
+
+      const changeName = options.change || getActiveChange(root);
+      const state = changeName ? loadChangeState(root, changeName) : null;
+      const workflow: string = state?.workflow ?? 'full';
+      const renderOpts = {
+        format: options.format,
+        state: state
+          ? {
+              phase: state.phase,
+              rollbackCount: state.rollback_count,
+              rollbackLimit: state.rollback_limit,
+              rebuildCount: state.rebuild_count,
+              rebuildLimit: state.rebuild_limit,
+            }
+          : undefined,
+      };
+
+      try {
+        if (options.view === 'contracts') {
+          process.stdout.write(
+            renderContractGraph(buildContractGraphInput(root), renderOpts),
+          );
+          return;
+        }
+
+        if (options.view === 'constraints') {
+          process.stdout.write(
+            renderConstraintTree(buildConstraintTreeInput(root, options.path), renderOpts),
+          );
+          return;
+        }
+
+        const input = buildWorkflowGraphInput(root, workflow);
+        process.stdout.write(
+          options.view === 'lanes' ? renderBpLanes(input, renderOpts) : renderStateMachine(input, renderOpts),
+        );
+      } catch (err) {
+        console.error(`✗ ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+      }
+    });
 
   graph
     .command('verify')

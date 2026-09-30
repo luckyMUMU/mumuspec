@@ -10,6 +10,7 @@ import { buildCorpusGateIndex, resolveGate } from './gate-validator.js';
 import { loadAllConstraints } from '../core/constraints-loader.js';
 import { parsePonytailMarkers } from '../spec/ponytail.js';
 import { lintPonytail } from './ponytail-linter.js';
+import { reportSensitiveInfo } from './sensitive-info.js';
 import { readText, writeText, computeHash, getMumuSpecDir, findSpecDirs, normalizePath, isRegisteredSpecModule } from '../core/utils.js';
 import { loadConfig } from '../core/config.js';
 import { validateAllSpecs } from '../spec/validator.js';
@@ -208,6 +209,14 @@ export function checkCompliance(
         warnings.push(entry);
       }
     }
+  }
+
+  // Sensitive-info scan — runs only in full-check mode. `sensitive_info_scan` is
+  // an always-enforce exception (config-tree.ts, prohibitions.md), so it is not
+  // governed by constraint strength and offers no opt-out; a targeted
+  // `--shall/--ponytail` invocation stays byte-identical.
+  if (fullCheck) {
+    reportSensitiveInfo(projectRoot, warnings);
   }
 
   // G5 (2026-09-08): 规范层校验并入 check。根 spec.md:87 要求「归档前必须通过

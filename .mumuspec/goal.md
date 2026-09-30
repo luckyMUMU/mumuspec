@@ -54,9 +54,10 @@ MumuSpec 通过**持久化、独立于代码、双维度、正反向并重**的�
 | Phase | 目标 | 状态 |
 |-------|------|------|
 | Phase 1 | 核心规范引擎 (MVP) — 树状规范 + 双向约束 + 基础 CLI | ✅ 完工 |
-| Phase 2 | 变更生命周期 — 五阶段状态机 + 回退 + TDD + Skill 生态 | ✅ 基本完成（Worktree isolation 待补） |
-| Phase 3 | 知识层集成 — 代码图谱 + LLM-Wiki + PageIndex + Contract Layer | 推进中（Contract Layer 未开始） |
-| Phase 4 | CI/CD 与自动化 — 全链路校验 + 漂移检测 + 文档生成 | 待启动 |
-| Phase 5 | 生态与分发 — npm 包 + 多平台 Skill + 模板库 | 待启动 |
+| Phase 2 | 变更生命周期 — 五阶段状态机 + 回退 + TDD + Skill 生态 | ✅ 基本完成（工作树隔离的门与创建路径已配对补全） |
+| Phase 3 | 知识层集成 — 代码图谱 + LLM-Wiki + PageIndex + Contract Layer | 推进中（Contract Layer 已接线注册表/漂移/影响分析与 `contract import` 复用；Code-graph 持久化后端属产品非目标） |
+| Phase 4 | CI/CD 与自动化 — 全链路校验 + 漂移检测 + 文档生成 | 推进中（CI 工作流、四个检查脚本、评测运行器、归档知识提取已交付） |
+| Phase 5 | 生态与分发 — npm 包 + 多平台 Skill + 模板库 | 推进中（npm 包与 11 agent 分发已交付；模板库无消费者，不建） |
 
-> 设计完备性 100%，实现进度约 87%。详见 [STATUS.md](../docs/STATUS.md)。
+> 设计完备性 100%。实现度按三条闭合等式计量（声明⊆实现、实现⊆消费、门⊆事实），
+> 实测值由 `mumuspec conformance` 确定性推导；进度权威见 [STATUS.md](../docs/STATUS.md)。

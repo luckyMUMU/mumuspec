@@ -12,7 +12,7 @@ layer: 2
 | 函数 | 签名 | 来源文件 | 用途 |
 |------|------|----------|------|
 | `getKnowledgeContext` | `(targetPath, root) => KnowledgeContext` | manager.ts | 获取知识上下文 |
-| `searchKnowledge` | `(root, query) => KnowledgePage[]` | manager.ts | 搜索知识页 |
+| `knowledgeSearch` | `(root, config, query, options?) => KnowledgeSearchResult[]` | search.ts | 搜索知识页（经 manager.ts 再导出） |
 | `getKnowledgePage` | `(root, id) => KnowledgePage \| null` | manager.ts | 按 ID 获取知识页 |
 | `createKnowledgePage` | `(root, page) => void` | manager.ts | 创建知识页 |
 | `verifyKnowledge` | `(root) => VerificationResult` | manager.ts | 验证知识库 |

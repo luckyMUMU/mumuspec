@@ -1,6 +1,8 @@
 # MumuSpec — 全局概览
 
-> **版本**: 0.20.0-draft | **日期**: 2026-09-06 | **状态**: 设计草案
+> **状态**: alpha | **日期**: 2026-10-01
+>
+> 版本号与进度数字以 [docs/STATUS.md](STATUS.md) 为唯一权威，本文件不自行维护。
 >
 > **定位**: MumuSpec 是一门面向 Vibe Coding 的领域特定语言（DSL）。详见 [KP-0059](../.mumuspec/knowledge/decisions/global/KP-0059-spec-as-dsl-not-bytecode.md)。
 
@@ -282,5 +284,5 @@ graph LR
 |------|------|---------|
 | **Level 0** | 本文档（全局概览） · [STATUS.md](./STATUS.md)（进度权威来源） | 所有人 |
 | **Level 1** | [规范层](design/spec-layer.md) · [约束强度](design/constraint-strength.md) · [变更层](design/change-layer.md) · [契约层](design/contract-layer.md) · [知识层](design/knowledge-layer.md) · [校验层](design/guard-layer.md) · [AI 集成层](design/ai-integration.md) | 实现者、使用者 |
-| **Level 2** | [CLI 命令](reference/cli-commands.md) · [MCP 工具](reference/mcp-tools.md) · [配置](reference/configuration.md) · [Phase Guard](reference/phase-guards.md) · [漂移检测](reference/drift-detection.md) · [认知框架](reference/cognitive-framework.md) · [Skill 生态](reference/skill-ecosystem.md) · [错误码](reference/error-codes.md) · [打包与部署](reference/packaging-deployment.md) · [发布策略](reference/release-strategy.md) · [反馈流程](reference/feedback-process.md) · [术语表](reference/glossary.md) | 操作者、CI 配置 |
+| **Level 2** | [CLI 命令](reference/cli-commands.md) · [MCP 工具](reference/mcp-tools.md) · [配置](reference/configuration.md) · [Phase Guard](reference/phase-guards.md) · [漂移检测](reference/drift-detection.md) · [认知框架](reference/cognitive-framework.md) · [Skill 生态](reference/skill-ecosystem.md) · [错误码](reference/error-codes.md) · [图示（生成）](reference/workflow-diagrams.md) · [打包与部署](reference/packaging-deployment.md) · [发布策略](reference/release-strategy.md) · [反馈流程](reference/feedback-process.md) · [术语表](reference/glossary.md) | 操作者、CI 配置 |
 | **Level 3** | [附录](appendix/) · 各 `review/*.md` 分析报告 | 深入了解者 |

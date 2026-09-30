@@ -1,0 +1,56 @@
+# Assumptions: core-consolidation
+# 每条假设的消解引用 decisions.md 中签收条目时间戳（resolution.decision_ref）。
+# 语义方向：记录设计实际依赖、且已由证据或裁决确立的结论（validated direction）。
+version: 1
+change: core-consolidation
+items:
+  - id: AS-01
+    assumption: >-
+      "实现程度 100%" 由三条闭合等式判定：E1 声明⊆实现、E2 实现⊆消费、E3 门⊆事实；
+      特性清单长度与主观完成感都不作判据。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-30T19:27:09.667Z"
+      note: >-
+        等式全部由仓库事实确定性推导（命令注册表、错误码表、配置默认值、守卫源码、MCP 分发面、
+        语料期望），指标本身不进 loop composite；未建探针的类别显式列出而非以空集充当绿灯。
+  - id: AS-02
+    assumption: >-
+      强度折叠的 check id 取值域是错误码与 hook 自建 id，因此
+      `BUILTIN_CONSTRAINT_EXCEPTIONS` 的语义名条目不参与求值；改名对齐属强度收紧。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-30T19:27:09.667Z"
+      note: >-
+        实测 9 条目在折叠路径零命中（`evaluateConstraint` 收到 `{ id: err.code }`）。改名对齐会把
+        原本可降档的码变为恒 block，按红线须人工签收，故进待裁决登记 R-0021 而非当场修改。
+  - id: AS-03
+    assumption: >-
+      图示的布局性差异（节点排布、方向、样式）不可机械判定，因此结构对账只覆盖生成页；
+      把手写图块与投影做全等比对会把不可判定的东西伪装成门禁。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-30T19:27:09.667Z"
+      note: >-
+        对账分三层落地：阻塞点标识（文档出现的门禁编号须存在于图数据）、生成页字节比对（同一投影重渲染）、
+        手写块不判定。前两层 WARN 起步，升 error 须先量误报率并经人工签收。
+  - id: AS-04
+    assumption: >-
+      生成页不含变更状态（当前阶段、回退/重建计数），否则每次阶段移动都会使已提交文本漂移，
+      对账失去可比基线。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-30T19:27:09.667Z"
+      note: >-
+        `RenderOpts.state` 在投影入口不传；带状态的实时视图仍由 `mumuspec graph render --change` 提供，
+        两者是不同消费者而非两份实现。
+  - id: AS-05
+    assumption: >-
+      多语言 AST 解析与图谱持久化后端属产品非目标，本轮不为其建立发射面或门禁；
+      声明的语言集合与实现支持集合必须一致，否则即为 E1 违反。
+    status: accepted
+    resolution:
+      decision_ref: "2026-09-30T19:27:09.667Z"
+      note: >-
+        `knowledge.code_graph.languages` 由 E1 探针比对实现集合（javascript/typescript）；
+        sqlite 持久化声明与 index.db 条目已作为假声明撤除（T3-1）。非目标登记入 prd.md。

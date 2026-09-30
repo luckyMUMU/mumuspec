@@ -21,6 +21,7 @@ last_updated: "2026-09-06"
 | 契约层 | `docs/design/contract-layer.md` | CONSUMES/EXPOSES + 漂移检测 |
 | 知识层 | `docs/design/knowledge-layer.md` | Code Graph + LLM-Wiki + PageIndex |
 | AI 集成 | `docs/design/ai-integration.md` | Skill 编排 / Rules 生成 / MCP / CLI / Git Hooks |
+| 图表化呈现 | `docs/design/diagram-rendering.md` | 图数据 → 四视图确定性渲染 + 文档图示对账 |
 
 ## 关键技术决策
 
@@ -46,7 +47,7 @@ docs/ 已纳入 mumuspec 文档体系，职责划分如下（唯一源原则，�
 | `.mumuspec/glossary.md` | 权威术语表（Ubiquitous Language） | 唯一源；`docs/reference/glossary.md` 仅作对外快速入口，不得独立维护定义 |
 | `.mumuspec/knowledge/` | WHY / WHERE 决策与模式页 | 知识层工具管理；KD/KP 页面为导入快照，与源文档冲突时以源文档为准 |
 | `.mumuspec/roadmap/` / `contracts/` / `adr/` | 路线图、契约变更、架构决策记录 | 各自唯一源 |
-| `docs/design/` | 分层设计权威文档（7 篇） | 设计细节唯一源 |
+| `docs/design/` | 分层设计权威文档（8 篇） | 设计细节唯一源 |
 | `docs/overview.md` / `STATUS.md` | 对外总览 / 进度权威 | STATUS 为进度唯一权威 |
 | `docs/getting-started*.md` | 用户教程（人类 / Agent） | 教程唯一源 |
 | `docs/reference/` | 用户参考（CLI / MCP / config / error-codes 等） | 唯一源（error-codes.md 由代码自动生成） |

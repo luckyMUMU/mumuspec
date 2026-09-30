@@ -36,7 +36,7 @@ last_updated: '2026-08-22'
 - **Blocking Points**：关键转换（open→design, design→build, verify→archive）需要用户确认（BP-3/BP-4/BP-17）
 - **三种 Workflow**：full（完整五阶段）、hotfix（跳过 design）、tweak（最轻量，跳过 delta-spec 和知识提取）
 - **版本自动 Bump**：归档时根据 workflow 类型自动递增版本号，同步更新 package.json 和 src/cli.ts
-- **知识提取（D1-D8）**：归档时从 cognitive-map、decisions.md、design.md、hyperplan_result 自动提取知识页
+- **知识提取（D1-D8）**：归档时从 cognitive-map、decisions.md、design.md 自动提取知识页
 - **归档归并**：`mergeChangeArtifacts` 将 `constraints/` 和变更级 `.mumuspec/` spec 文件归并到目标作用域的 `tech.md`/`prd.md`/`spec.md`，使用 Marker 注释确保幂等性
 - **原子写入**：归并操作使用 `tmp` 文件 + `rename` 确保原子性
 
